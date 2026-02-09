@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: portal-serasa-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-portal_serasa}
+      POSTGRES_USER: ${POSTGRES_USER:-serasa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-serasa123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U serasa -d portal_serasa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: portal-serasa-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-portal_serasa}
+      DB_USER: ${POSTGRES_USER:-serasa}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-serasa123}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
