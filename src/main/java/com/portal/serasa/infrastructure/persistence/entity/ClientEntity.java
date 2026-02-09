@@ -12,12 +12,14 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.EntityListeners;
+
 import java.util.List;
 import java.util.UUID;
 
 @Entity
 @Table(name = "clients")
+@EntityListeners(org.springframework.data.jpa.domain.support.AuditingEntityListener.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -41,6 +43,11 @@ public class ClientEntity {
     @Column(columnDefinition = "jsonb")
     private List<String> phones;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @org.springframework.data.annotation.CreatedDate
+    @Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
+    @org.springframework.data.annotation.LastModifiedDate
+    @Column(name = "updated_at")
+    private java.time.LocalDateTime updatedAt;
 }

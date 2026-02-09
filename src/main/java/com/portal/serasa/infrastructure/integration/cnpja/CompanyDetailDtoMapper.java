@@ -18,23 +18,30 @@ public class CompanyDetailDtoMapper {
 
     private final ObjectMapper objectMapper;
 
-    public CompanyDetail toDomain(CompanyDetailDto dto) {
+    public CompanyDetail toDomain(CompanyDetailDto dto, String rawJson) {
         if (dto == null) {
             return null;
         }
 
         var company = dto.company();
         var address = dto.address();
+        var status = dto.status();
 
         return CompanyDetail.builder()
                 .documentNumber(normalizeCnpj(dto.taxId()))
                 .updatedAt(dto.updated())
                 .alias(dto.alias())
                 .founded(dto.founded())
+                .head(dto.head())
+                .statusDate(dto.statusDate())
+                .statusId(status != null ? status.id() : null)
+                .statusText(status != null ? status.text() : null)
+                .companyId(company != null ? company.id() : null)
                 .companyName(company != null ? company.name() : null)
                 .companyEquity(company != null ? company.equity() : null)
                 .natureId(company != null && company.nature() != null ? company.nature().id() : null)
                 .natureText(company != null && company.nature() != null ? company.nature().text() : null)
+                .sizeAcronym(company != null && company.size() != null ? company.size().acronym() : null)
                 .sizeText(company != null && company.size() != null ? company.size().text() : null)
                 .street(address != null ? address.street() : null)
                 .number(address != null ? address.number() : null)
@@ -43,6 +50,8 @@ public class CompanyDetailDtoMapper {
                 .city(address != null ? address.city() : null)
                 .state(address != null ? address.state() : null)
                 .zip(address != null ? address.zip() : null)
+                .countryId(address != null && address.country() != null ? address.country().id() : null)
+                .countryName(address != null && address.country() != null ? address.country().name() : null)
                 .latitude(address != null ? address.latitude() : null)
                 .longitude(address != null ? address.longitude() : null)
                 .members(toMaps(dto.company() != null ? dto.company().members() : null))
@@ -50,6 +59,7 @@ public class CompanyDetailDtoMapper {
                 .emails(toMaps(dto.emails()))
                 .mainActivity(toMap(dto.mainActivity()))
                 .sideActivities(toMaps(dto.sideActivities()))
+                .rawJson(rawJson)
                 .build();
     }
 

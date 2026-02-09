@@ -6,6 +6,8 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -60,6 +62,45 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpStatus.METHOD_NOT_ALLOWED.value())
+                .error("Method Not Allowed")
+                .message("Método " + ex.getMethod() + " não suportado. Use " + ex.getSupportedHttpMethods())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
+    @ExceptionHandler(RestClientResponseException.class)
+    public ResponseEntity<ErrorResponse> handleRestClientError(
+            RestClientResponseException ex,
+            HttpServletRequest request) {
+        int status = ex.getStatusCode().value();
+        String body = ex.getResponseBodyAsString();
+        String message = (body != null && !body.isBlank()) ? body : ex.getMessage();
+        if (message != null && message.length() > 300) {
+            message = message.substring(0, 300) + "...";
+        }
+        log.warn("Erro na API CNPJ Já ({}): {}", status, message);
+
+        int responseStatus = status >= 400 && status < 600 ? status : HttpStatus.BAD_GATEWAY.value();
+        String error = status == 401 ? "Chave API inválida" : status == 404 ? "CNPJ não encontrado" : "Erro na API CNPJ Já";
+
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(responseStatus)
+                .error(error)
+                .message(message)
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(responseStatus).body(response);
+    }
+
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(
             EntityNotFoundException ex,
@@ -75,17 +116,33 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(
             Exception ex,
             HttpServletRequest request) {
         log.error("Erro não tratado: ", ex);
+        Throwable cause = ex.getCause();
+        String detail = cause != null ? cause.getMessage() : ex.getMessage();
 
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(java.time.Instant.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error("Internal Server Error")
-                .message("Ocorreu um erro interno. Tente novamente mais tarde.")
+                .message(detail != null && !detail.isBlank() ? detail : "Ocorreu um erro interno. Tente novamente mais tarde.")
                 .path(request.getRequestURI())
                 .build();
 

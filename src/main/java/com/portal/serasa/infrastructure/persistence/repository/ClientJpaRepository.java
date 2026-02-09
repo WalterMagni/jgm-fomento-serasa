@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
 
     Optional<ClientEntity> findByDocumentNumber(String documentNumber);
+
+    void deleteByDocumentNumber(String documentNumber);
 }

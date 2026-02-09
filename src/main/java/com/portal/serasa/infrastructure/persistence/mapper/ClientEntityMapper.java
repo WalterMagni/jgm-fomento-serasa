@@ -10,6 +10,6 @@ public interface ClientEntityMapper {
 
     Client toDomain(ClientEntity entity);
 
-    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     ClientEntity toEntity(Client domain);
 }

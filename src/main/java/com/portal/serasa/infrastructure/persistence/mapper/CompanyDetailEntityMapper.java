@@ -11,5 +11,6 @@ public interface CompanyDetailEntityMapper {
     CompanyDetail toDomain(CompanyDetailEntity entity);
 
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "modifiedAt", ignore = true)
     CompanyDetailEntity toEntity(CompanyDetail domain);
 }

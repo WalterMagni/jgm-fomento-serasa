@@ -23,10 +23,16 @@ public class CompanyDetail {
     private LocalDateTime updatedAt;
     private String alias;
     private LocalDate founded;
+    private Boolean head;
+    private LocalDate statusDate;
+    private Integer statusId;
+    private String statusText;
     private String companyName;
+    private Long companyId;
     private BigDecimal companyEquity;
     private Integer natureId;
     private String natureText;
+    private String sizeAcronym;
     private String sizeText;
     private String street;
     private String number;
@@ -35,6 +41,8 @@ public class CompanyDetail {
     private String city;
     private String state;
     private String zip;
+    private Integer countryId;
+    private String countryName;
     private Double latitude;
     private Double longitude;
     private List<Map<String, Object>> members;
@@ -42,5 +50,7 @@ public class CompanyDetail {
     private List<Map<String, Object>> emails;
     private Map<String, Object> mainActivity;
     private List<Map<String, Object>> sideActivities;
+    private String rawJson;
     private LocalDateTime createdAt;
+    private LocalDateTime modifiedAt;
 }

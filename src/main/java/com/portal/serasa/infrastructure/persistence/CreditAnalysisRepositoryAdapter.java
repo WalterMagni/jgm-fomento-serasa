@@ -22,9 +22,6 @@ public class CreditAnalysisRepositoryAdapter implements CreditAnalysisRepository
     @Override
     public CreditAnalysis save(CreditAnalysis creditAnalysis) {
         CreditAnalysisEntity entity = mapper.toEntity(creditAnalysis);
-        if (entity.getCreatedAt() == null) {
-            entity.setCreatedAt(java.time.LocalDateTime.now());
-        }
         CreditAnalysisEntity saved = jpaRepository.save(entity);
         return mapper.toDomain(saved);
     }
@@ -40,5 +37,10 @@ public class CreditAnalysisRepositoryAdapter implements CreditAnalysisRepository
         return jpaRepository.findByCnpj(cnpj).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteAllByCnpj(String cnpj) {
+        jpaRepository.deleteByCnpj(cnpj);
     }
 }

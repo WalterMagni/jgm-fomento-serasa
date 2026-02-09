@@ -3,6 +3,7 @@ package com.portal.serasa.infrastructure.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "company_details")
+@EntityListeners(org.springframework.data.jpa.domain.support.AuditingEntityListener.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -43,6 +45,21 @@ public class CompanyDetailEntity {
     @Column
     private LocalDate founded;
 
+    @Column
+    private Boolean head;
+
+    @Column(name = "status_date")
+    private LocalDate statusDate;
+
+    @Column(name = "status_id")
+    private Integer statusId;
+
+    @Column(name = "status_text", length = 100)
+    private String statusText;
+
+    @Column(name = "company_id")
+    private Long companyId;
+
     @Column(name = "company_name", length = 500)
     private String companyName;
 
@@ -54,6 +71,9 @@ public class CompanyDetailEntity {
 
     @Column(name = "nature_text", length = 255)
     private String natureText;
+
+    @Column(name = "size_acronym", length = 50)
+    private String sizeAcronym;
 
     @Column(name = "size_text", length = 100)
     private String sizeText;
@@ -78,6 +98,12 @@ public class CompanyDetailEntity {
 
     @Column(length = 20)
     private String zip;
+
+    @Column(name = "country_id")
+    private Integer countryId;
+
+    @Column(name = "country_name", length = 100)
+    private String countryName;
 
     @Column
     private Double latitude;
@@ -105,6 +131,13 @@ public class CompanyDetailEntity {
     @Column(name = "side_activities", columnDefinition = "jsonb")
     private List<Map<String, Object>> sideActivities;
 
-    @Column(name = "created_at")
+    @Column(name = "raw_json", columnDefinition = "text")
+    private String rawJson;
+
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @org.springframework.data.annotation.LastModifiedDate
+    @Column(name = "modified_at")
+    private LocalDateTime modifiedAt;
 }

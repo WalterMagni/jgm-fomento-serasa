@@ -25,16 +25,28 @@ public class ClientRepositoryAdapter implements ClientRepository {
         if (entity.getId() == null) {
             entity.setId(UUID.randomUUID());
         }
-        if (entity.getCreatedAt() == null) {
-            entity.setCreatedAt(LocalDateTime.now());
-        }
         entity = jpaRepository.save(entity);
         return mapper.toDomain(entity);
+    }
+
+    @Override
+    public Optional<Client> findById(UUID id) {
+        return jpaRepository.findById(id).map(mapper::toDomain);
     }
 
     @Override
     public Optional<Client> findByDocumentNumber(String documentNumber) {
         return jpaRepository.findByDocumentNumber(documentNumber)
                 .map(mapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        jpaRepository.deleteById(id);
+    }
+
+    @Override
+    public void deleteByDocumentNumber(String documentNumber) {
+        jpaRepository.deleteByDocumentNumber(documentNumber);
     }
 }

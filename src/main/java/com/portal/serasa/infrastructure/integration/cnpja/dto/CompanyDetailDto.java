@@ -1,7 +1,6 @@
 package com.portal.serasa.infrastructure.integration.cnpja.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,6 +14,9 @@ public record CompanyDetailDto(
         CompanyInfo company,
         String alias,
         LocalDate founded,
+        Boolean head,
+        LocalDate statusDate,
+        StatusInfo status,
         AddressInfo address,
         List<PhoneDto> phones,
         List<EmailDto> emails,
@@ -57,6 +59,12 @@ public record CompanyDetailDto(
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    public record StatusInfo(Integer id, String text) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record CountryInfo(Integer id, String name) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record AddressInfo(
             Integer municipality,
             String street,
@@ -66,6 +74,7 @@ public record CompanyDetailDto(
             String city,
             String state,
             String zip,
+            CountryInfo country,
             Double latitude,
             Double longitude
     ) {}

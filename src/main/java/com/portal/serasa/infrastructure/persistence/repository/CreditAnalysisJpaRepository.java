@@ -8,4 +8,6 @@ import java.util.List;
 public interface CreditAnalysisJpaRepository extends JpaRepository<CreditAnalysisEntity, Long> {
 
     List<CreditAnalysisEntity> findByCnpj(String cnpj);
+
+    void deleteByCnpj(String cnpj);
 }

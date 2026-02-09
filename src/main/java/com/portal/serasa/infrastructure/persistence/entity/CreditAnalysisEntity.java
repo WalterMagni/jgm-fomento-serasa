@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "credit_analysis")
+@EntityListeners(org.springframework.data.jpa.domain.support.AuditingEntityListener.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -41,6 +43,11 @@ public class CreditAnalysisEntity {
     @Enumerated(EnumType.STRING)
     private CreditAnalysisStatus status;
 
-    @Column(name = "created_at")
+    @org.springframework.data.annotation.CreatedDate
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @org.springframework.data.annotation.LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

@@ -88,10 +88,30 @@ A aplicação ficará disponível em `http://localhost:8080`.
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| POST | `/api/v1/company/enrich/{cnpj}` | Consulta API CNPJ Já e persiste dados completos da empresa |
-| GET | `/api/v1/company/{cnpj}` | Busca dados enriquecidos por CNPJ |
+| POST | `/api/v1/company/enrich/cnpja/{cnpj}` | Enriquece dados consultando API CNPJ Já e persiste |
+| GET | `/api/v1/company` | Lista empresas (paginado) |
+| GET | `/api/v1/company/{cnpj}` | Busca dados por CNPJ |
+| POST | `/api/v1/company` | Cria empresa manualmente |
+| PUT | `/api/v1/company/{cnpj}` | Atualiza empresa |
+| DELETE | `/api/v1/company/{cnpj}` | Remove empresa |
 
-**Requer** variável de ambiente `CNPJA_API_KEY` (ver `.env.example`).
+**Requer** `CNPJA_API_KEY` para o endpoint de enriquecimento. Crie um arquivo `.env` na raiz (copie de `.env.example`) e defina a chave. O `run.sh` carrega o `.env` automaticamente.
+
+### Clientes
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST | `/api/v1/clients` | Cria cliente manualmente |
+| GET | `/api/v1/clients/{id}` | Busca cliente por ID |
+| GET | `/api/v1/clients/document/{documentNumber}` | Busca cliente por documento |
+| PUT | `/api/v1/clients/{id}` | Atualiza cliente |
+| DELETE | `/api/v1/clients/{id}` | Remove cliente (e dados relacionados em cascata) |
+
+### Uso de APIs (contador para custos)
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/admin/api-usage` | Retorna contagem de requisições por provider (CNPJA, SERASA) |
 
 ## Variáveis de Ambiente
 

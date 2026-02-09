@@ -12,4 +12,6 @@ public interface CreditAnalysisRepository {
     Optional<CreditAnalysis> findById(Long id);
 
     List<CreditAnalysis> findByCnpj(String cnpj);
+
+    void deleteAllByCnpj(String cnpj);
 }

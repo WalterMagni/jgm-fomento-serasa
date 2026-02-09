@@ -22,6 +22,9 @@ public class CnpjRestClientConfig {
 
         if (authorization != null && !authorization.isBlank()) {
             restClientBuilder.defaultHeader(HttpHeaders.AUTHORIZATION, authorization);
+        } else {
+            org.slf4j.LoggerFactory.getLogger(CnpjRestClientConfig.class)
+                    .warn("CNPJA_API_KEY não configurada. Configure a variável de ambiente ou em .env para usar /api/v1/company/enrich");
         }
 
         return restClientBuilder.build();

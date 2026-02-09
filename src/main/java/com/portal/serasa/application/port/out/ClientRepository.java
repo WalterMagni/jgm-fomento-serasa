@@ -9,5 +9,11 @@ public interface ClientRepository {
 
     Client save(Client client);
 
+    Optional<Client> findById(UUID id);
+
     Optional<Client> findByDocumentNumber(String documentNumber);
+
+    void deleteById(UUID id);
+
+    void deleteByDocumentNumber(String documentNumber);
 }

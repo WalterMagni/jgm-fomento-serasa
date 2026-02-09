@@ -1,4 +1,4 @@
-package com.portal.serasa.domain.model;
+package com.portal.serasa.api.rest.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,7 +13,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Client {
+public class ClientResponse {
 
     private UUID id;
     private String documentNumber;

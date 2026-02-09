@@ -6,9 +6,10 @@ import com.portal.serasa.infrastructure.persistence.entity.CompanyDetailEntity;
 import com.portal.serasa.infrastructure.persistence.mapper.CompanyDetailEntityMapper;
 import com.portal.serasa.infrastructure.persistence.repository.CompanyDetailJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,9 +26,6 @@ public class CompanyDetailRepositoryAdapter implements CompanyDetailRepository {
         if (entity.getId() == null) {
             entity.setId(UUID.randomUUID());
         }
-        if (entity.getCreatedAt() == null) {
-            entity.setCreatedAt(LocalDateTime.now());
-        }
         entity = jpaRepository.save(entity);
         return mapper.toDomain(entity);
     }
@@ -36,5 +34,20 @@ public class CompanyDetailRepositoryAdapter implements CompanyDetailRepository {
     public Optional<CompanyDetail> findByDocumentNumber(String documentNumber) {
         return jpaRepository.findByDocumentNumber(documentNumber)
                 .map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<CompanyDetail> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public void deleteByDocumentNumber(String documentNumber) {
+        jpaRepository.deleteByDocumentNumber(documentNumber);
+    }
+
+    @Override
+    public boolean existsByDocumentNumber(String documentNumber) {
+        return jpaRepository.findByDocumentNumber(documentNumber).isPresent();
     }
 }

@@ -1,8 +1,8 @@
 package com.portal.serasa.infrastructure.integration.cnpja;
 
-import com.portal.serasa.infrastructure.integration.cnpja.dto.CompanyDetailDto;
+import com.portal.serasa.infrastructure.integration.cnpja.dto.CnpjApiResponse;
 
 public interface CnpjApiClient {
 
-    CompanyDetailDto consultarCnpj(String cnpj);
+    CnpjApiResponse consultarCnpj(String cnpj);
 }

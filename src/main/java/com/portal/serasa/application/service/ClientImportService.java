@@ -78,6 +78,7 @@ public class ClientImportService {
                 .totalProcessed(clients.size())
                 .created(created)
                 .updated(updated)
+                .totalCadastrados(created + updated)
                 .errors(errors)
                 .build();
     }
@@ -125,6 +126,7 @@ public class ClientImportService {
         private int totalProcessed;
         private int created;
         private int updated;
+        private int totalCadastrados;
         private int errors;
     }
 }

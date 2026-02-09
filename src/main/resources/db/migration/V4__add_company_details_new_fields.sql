@@ -1,0 +1,9 @@
+ALTER TABLE company_details ADD COLUMN head BOOLEAN;
+ALTER TABLE company_details ADD COLUMN status_date DATE;
+ALTER TABLE company_details ADD COLUMN status_id INTEGER;
+ALTER TABLE company_details ADD COLUMN status_text VARCHAR(100);
+ALTER TABLE company_details ADD COLUMN company_id BIGINT;
+ALTER TABLE company_details ADD COLUMN size_acronym VARCHAR(50);
+ALTER TABLE company_details ADD COLUMN country_id INTEGER;
+ALTER TABLE company_details ADD COLUMN country_name VARCHAR(100);
+ALTER TABLE company_details ADD COLUMN raw_json TEXT;
