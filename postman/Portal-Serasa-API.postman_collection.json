@@ -1,0 +1,311 @@
+{
+  "info": {
+    "name": "Portal Serasa API",
+    "description": "Coleção com todas as requisições da API do Portal Serasa",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "cnpj",
+      "value": "00000000000191"
+    }
+  ],
+  "item": [
+    {
+      "name": "Company",
+      "item": [
+        {
+          "name": "Listar empresas (paginado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company?page=0&size=10",
+            "description": "Lista todas as empresas com paginação"
+          }
+        },
+        {
+          "name": "Buscar empresa por CNPJ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}",
+            "description": "Retorna detalhes da empresa pelo CNPJ"
+          }
+        },
+        {
+          "name": "Obter perfil completo da empresa",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}/profile",
+            "description": "Retorna perfil completo: dados CNPJ Já + Serasa"
+          }
+        },
+        {
+          "name": "Criar empresa",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentNumber\": \"00000000000191\",\n  \"companyName\": \"Empresa Exemplo Ltda\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/company",
+            "description": "Cria nova empresa (mínimo: CNPJ e nome)"
+          }
+        },
+        {
+          "name": "PATCH - Correção parcial da empresa",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"street\": \"Rua Nova\",\n  \"number\": \"100\",\n  \"city\": \"São Paulo\",\n  \"state\": \"SP\",\n  \"zip\": \"01310-100\",\n  \"alias\": \"Nome Fantasia\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}",
+            "description": "Atualiza apenas os campos enviados (endereço, capital, nome fantasia, etc.)"
+          }
+        },
+        {
+          "name": "PUT - Atualizar empresa",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Empresa Atualizada Ltda\",\n  \"alias\": \"Nome Fantasia\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}",
+            "description": "Atualiza empresa com os campos enviados (campos não enviados são aplicados como null)"
+          }
+        },
+        {
+          "name": "Resync - CNPJA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}/resync?target=CNPJA",
+            "description": "Re-sincroniza dados cadastrais via API CNPJ Já"
+          }
+        },
+        {
+          "name": "Resync - SERASA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}/resync?target=SERASA",
+            "description": "Cria nova análise de crédito Serasa (cliente deve existir)"
+          }
+        },
+        {
+          "name": "Resync - ALL",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}/resync?target=ALL",
+            "description": "Re-sincroniza CNPJ Já e Serasa"
+          }
+        },
+        {
+          "name": "Enriquecer por CNPJ Já",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/enrich/cnpja/{{cnpj}}",
+            "description": "Consulta API CNPJ Já e persiste/atualiza dados"
+          }
+        },
+        {
+          "name": "Enriquecer por Serasa",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/enrich/serasa/{{cnpj}}",
+            "description": "Consulta Serasa Credit Rating (cliente deve existir)"
+          }
+        },
+        {
+          "name": "Excluir empresa",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/company/{{cnpj}}",
+            "description": "Remove empresa pelo CNPJ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "Criar cliente",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentNumber\": \"00000000000191\",\n  \"name\": \"Cliente Exemplo\",\n  \"email\": \"cliente@exemplo.com\",\n  \"phones\": [\"11999999999\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/clients",
+            "description": "Cadastra novo cliente"
+          }
+        },
+        {
+          "name": "Buscar cliente por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/clients/{{clientId}}",
+            "description": "Retorna cliente pelo UUID"
+          }
+        },
+        {
+          "name": "Buscar cliente por documento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/clients/document/{{cnpj}}",
+            "description": "Retorna cliente pelo CNPJ/CPF"
+          }
+        },
+        {
+          "name": "Atualizar cliente",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Atualizado\",\n  \"email\": \"novo@email.com\",\n  \"phones\": [\"11988887777\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/clients/{{clientId}}",
+            "description": "Atualiza cliente existente"
+          }
+        },
+        {
+          "name": "Excluir cliente por ID",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/clients/{{clientId}}",
+            "description": "Remove cliente pelo UUID"
+          }
+        },
+        {
+          "name": "Excluir cliente por documento",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/clients/document/{{cnpj}}",
+            "description": "Remove cliente pelo CNPJ/CPF"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client Import",
+      "item": [
+        {
+          "name": "Upload CSV - Importar clientes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": []}
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/clients/import/upload",
+            "description": "Importa clientes a partir de arquivo CSV"
+          }
+        },
+        {
+          "name": "Upload CSV - Preview",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": []},
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/clients/import/preview",
+            "description": "Preview do CSV antes de importar"
+          }
+        },
+        {
+          "name": "Preview do arquivo padrão",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/clients/import/preview?limit=20",
+            "description": "Preview do arquivo clientes.csv (caminho configurável)"
+          }
+        },
+        {
+          "name": "Importar do arquivo padrão",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/clients/import/from-file",
+            "description": "Importa do arquivo clientes.csv"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Credit Analysis",
+      "item": [
+        {
+          "name": "Consultar e salvar análise",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/credit-analysis/consultar/{{cnpj}}",
+            "description": "Consulta Serasa e salva análise de crédito"
+          }
+        },
+        {
+          "name": "Buscar análise por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/credit-analysis/1",
+            "description": "Retorna análise pelo ID"
+          }
+        },
+        {
+          "name": "Buscar análises por CNPJ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/credit-analysis/cnpj/{{cnpj}}",
+            "description": "Lista todas as análises do CNPJ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Uso da API (contador)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/admin/api-usage",
+            "description": "Retorna contadores de requisições às APIs externas"
+          }
+        }
+      ]
+    }
+  ]
+}
