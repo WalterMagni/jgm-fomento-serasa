@@ -246,7 +246,7 @@ function downloadCommercialXls(records: CommercialRecord[]) {
     "Risco comissaria",
     "Vencidos data",
     "Vencidos valor",
-    "Vencimento duplicidade",
+    "Último Vencimento da Duplicata",
     "VOP",
     "L1 pontual",
     "L2 atraso",
@@ -488,7 +488,7 @@ function CommercialInformationModal({
               <Field label="Risco comissária" name="riscoComissaria" value={draft.riscoComissaria} onChange={onChange} placeholder="25.000,00" inputMode="numeric" />
               <Field label="Vencidos data" name="vencidosData" value={draft.vencidosData} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
               <Field label="Vencidos valor" name="vencidosValorMonetario" value={draft.vencidosValorMonetario} onChange={onChange} placeholder="687.053,00" inputMode="numeric" />
-              <Field label="Vencimento duplicidade" name="vencidosValor" value={draft.vencidosValor} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
+              <Field label="Último Vencimento da Duplicata" name="vencidosValor" value={draft.vencidosValor} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
             </FormSection>
 
             <FormSection title="Performance">

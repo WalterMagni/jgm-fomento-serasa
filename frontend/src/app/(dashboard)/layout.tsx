@@ -95,9 +95,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-4 w-full">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             {isDark ? (
-              <Image src="/logo-dark.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain hidden dark:block" style={{ width: 'auto', height: 'auto' }} />
+              <Image src="/logo-dark.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain hidden dark:block" />
             ) : (
-              <Image src="/logo-light.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain dark:hidden" style={{ width: 'auto', height: 'auto' }} />
+              <Image src="/logo-light.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain dark:hidden" />
             )}
             <span className="font-heading font-bold text-xl text-primary dark:text-white tracking-tight">
               Fomento
