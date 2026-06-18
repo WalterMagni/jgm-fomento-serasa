@@ -170,6 +170,11 @@ public class PaymentPlaceAnalysisController {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.enrichAgencyFromBacen(entryId)));
     }
 
+    @PostMapping("/lancamentos/{entryId}/cnpj-sacado")
+    public ResponseEntity<PaymentPlaceEntryResponse> enrichPayerCnpj(@PathVariable UUID entryId) {
+        return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.enrichPayerCnpj(entryId)));
+    }
+
     @PostMapping("/lancamentos/{entryId}/analise-ia")
     public ResponseEntity<?> analyzeWithAi(@PathVariable UUID entryId) {
         try {

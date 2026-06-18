@@ -40,6 +40,7 @@ public class PaymentPlaceAnalysisService {
     private final MunicipalityGeocoder geocoder;
     private final PaymentPlaceScorer scorer;
     private final PaymentPlaceAgencyEnricher agencyEnricher;
+    private final ClientProfileService clientProfileService;
     private final com.portal.serasa.infrastructure.integration.gemini.GeminiAiService geminiAiService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final com.portal.serasa.application.port.out.ClientRepository clientRepository;
@@ -205,6 +206,45 @@ public class PaymentPlaceAnalysisService {
      */
     public PaymentPlaceEntryEntity enrichAgencyFromBacen(UUID entryId) {
         return agencyEnricher.enrichSingle(entryId);
+    }
+
+    /**
+     * Consulta (sob demanda) o CNPJ do sacado no CNPJ Já, persiste o endereço/coordenada
+     * precisos em company_details e recalcula as distâncias que envolvem o sacado. Uso
+     * pontual pelo analista para o cruzamento street-level quando o sacado não está na base.
+     */
+    @Transactional
+    public PaymentPlaceEntryEntity enrichPayerCnpj(UUID entryId) {
+        PaymentPlaceEntryEntity entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento de praça de pagamento não encontrado"));
+
+        String cnpj = normalizeCnpj(entry.getPayerDocument());
+        if (cnpj == null) {
+            throw new IllegalArgumentException("Sacado sem CNPJ válido (14 dígitos) para consulta");
+        }
+
+        CompanyDetail company = clientProfileService.enrichByCnpja(cnpj);
+
+        String address = AddressFormat.format(company.getStreet(), company.getNumber(), company.getDetails(),
+                company.getDistrict(), company.getCity(), company.getState(), company.getZip());
+        entry.setPayerAddress(clean(address));
+        if (company.getLatitude() != null && company.getLongitude() != null) {
+            entry.setPayerLatitude(BigDecimal.valueOf(company.getLatitude()));
+            entry.setPayerLongitude(BigDecimal.valueOf(company.getLongitude()));
+        }
+
+        MunicipalityGeocoder.Coordinates payer = coordsOf(entry.getPayerLatitude(), entry.getPayerLongitude());
+        MunicipalityGeocoder.Coordinates agency = coordsOf(entry.getAgencyLatitude(), entry.getAgencyLongitude());
+        MunicipalityGeocoder.Coordinates client = coordsOf(entry.getClientLatitude(), entry.getClientLongitude());
+        entry.setDistanceAgencyPayerKm(geocoder.distanceKm(agency, payer));
+        entry.setDistanceClientPayerKm(geocoder.distanceKm(client, payer));
+
+        scorer.apply(entry);
+        return entryRepository.save(entry);
+    }
+
+    private MunicipalityGeocoder.Coordinates coordsOf(BigDecimal lat, BigDecimal lng) {
+        return (lat == null || lng == null) ? null : new MunicipalityGeocoder.Coordinates(lat, lng);
     }
 
     /** Gera (sob demanda) a justificativa do Gemini para o lançamento e persiste. */

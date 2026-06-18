@@ -11,6 +11,7 @@ import {
   useDeletePaymentPlaceBatch,
   useDecidePaymentPlaceEntry,
   useEnrichAgencyBacen,
+  useEnrichPayerCnpj,
   useImportPaymentPlacePdf,
   usePaymentPlaceBatch,
   usePaymentPlaceBatches,
@@ -225,6 +226,7 @@ export default function PaymentPlacePage() {
   const decideMutation = useDecidePaymentPlaceEntry(activeBatchId);
   const bulkDecideMutation = useBulkDecidePaymentPlace(activeBatchId);
   const enrichAgencyMutation = useEnrichAgencyBacen(activeBatchId);
+  const enrichPayerCnpjMutation = useEnrichPayerCnpj(activeBatchId);
   const aiMutation = useAnalyzeWithAi(activeBatchId);
   const batch = batchQuery.data?.batch;
   const entries = useMemo(() => batchQuery.data?.entries ?? [], [batchQuery.data?.entries]);
@@ -1093,6 +1095,8 @@ export default function PaymentPlacePage() {
                 entry={expandedEntry}
                 onEnrichAgency={() => enrichAgencyMutation.mutate(expandedEntry.id)}
                 enriching={enrichAgencyMutation.isPending}
+                onEnrichPayerCnpj={() => enrichPayerCnpjMutation.mutate(expandedEntry.id)}
+                enrichingPayerCnpj={enrichPayerCnpjMutation.isPending}
                 onAnalyzeAi={() => aiMutation.mutate(expandedEntry.id)}
                 analyzingAi={aiMutation.isPending}
               />
@@ -1155,7 +1159,7 @@ function Field({ label, value }: { label: string; value?: string | number | null
   );
 }
 
-function EntryDetail({ entry, onEnrichAgency, enriching, onAnalyzeAi, analyzingAi }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onAnalyzeAi: () => void; analyzingAi: boolean }) {
+function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enrichingPayerCnpj, onAnalyzeAi, analyzingAi }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onEnrichPayerCnpj: () => void; enrichingPayerCnpj: boolean; onAnalyzeAi: () => void; analyzingAi: boolean }) {
   const points = [
     { label: "Cedente", city: entry.clientCity, lat: entry.clientLatitude, lng: entry.clientLongitude, color: "#612035" },
     { label: "Agência", city: entry.agencyCityPdf, lat: entry.agencyLatitude, lng: entry.agencyLongitude, color: "#D1732C" },
@@ -1300,10 +1304,24 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onAnalyzeAi, analyzingA
               </p>
             </div>
             <div>
-              <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#2956E0" }}>
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2956E0" }} />
-                Sacado
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#2956E0" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2956E0" }} />
+                  Sacado
+                </p>
+                {entry.payerDocument && !entry.payerAddress ? (
+                  <button
+                    type="button"
+                    onClick={onEnrichPayerCnpj}
+                    disabled={enrichingPayerCnpj}
+                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    title="Consultar endereço do sacado pelo CNPJ (CNPJ Já) e recalcular as distâncias"
+                  >
+                    <span className="material-icons-outlined text-[14px]">{enrichingPayerCnpj ? "hourglass_empty" : "person_search"}</span>
+                    Consultar CNPJ
+                  </button>
+                ) : null}
+              </div>
               {entry.payerName ? <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.payerName}</p> : null}
               {entry.payerDocument ? <p className="text-xs text-gray-500">{formatCnpj(entry.payerDocument)}</p> : null}
               <p className="text-sm text-grafite dark:text-white">

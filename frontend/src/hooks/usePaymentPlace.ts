@@ -170,6 +170,47 @@ export function useEnrichAgencyBacen(batchId?: string) {
   });
 }
 
+export function useEnrichPayerCnpj(batchId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<PaymentPlaceEntry, Error, string>({
+    mutationFn: async (entryId) => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/cnpj-sacado`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(text || "Falha ao consultar o CNPJ do sacado");
+      }
+      return response.json();
+    },
+    onMutate: () => {
+      toast.loading("Consultando CNPJ do sacado...", { id: "cnpj-sacado" });
+    },
+    onSuccess: (updatedEntry) => {
+      const found = Boolean(updatedEntry.payerAddress);
+      toast[found ? "success" : "info"](
+        found ? "Endereço do sacado atualizado e distâncias recalculadas" : "CNPJ do sacado consultado",
+        { id: "cnpj-sacado" },
+      );
+      if (batchId) {
+        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", batchId], (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+          };
+        });
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message, { id: "cnpj-sacado" });
+    },
+  });
+}
+
 export function useArchivePaymentPlaceBatch() {
   const queryClient = useQueryClient();
 
