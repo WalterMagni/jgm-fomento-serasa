@@ -239,6 +239,8 @@ export default function PaymentPlacePage() {
           entry.titleNumber,
           entry.payerDocument,
           entry.payerName,
+          entry.clientName,
+          entry.clientDocument,
           entry.clientCity,
           entry.agencyCityPdf,
           entry.payerCity,
@@ -499,6 +501,53 @@ export default function PaymentPlacePage() {
         <Metric label="Pendentes" value={counters.pending} tone="amber" />
       </section>
 
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-grafite dark:text-white">Indicadores do lote</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Leitura rápida da qualidade da praça e da aderência entre sugestão automática e decisão humana.
+            </p>
+          </div>
+          {indicatorsQuery.data?.fileName ? (
+            <p className="hidden max-w-[480px] truncate text-xs text-gray-400 lg:block">{indicatorsQuery.data.fileName}</p>
+          ) : null}
+        </div>
+
+        {indicatorsQuery.isLoading && activeBatchId ? (
+          <div className="rounded-xl border border-border-light bg-surface-light p-4 text-sm text-gray-500 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            Carregando indicadores do lote...
+          </div>
+        ) : indicatorsQuery.data ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <InsightMetric
+              label="Agências localizadas"
+              value={formatPercent(indicatorsQuery.data.locatedAgencyPct)}
+              detail={`${indicatorsQuery.data.locatedAgencyCount} de ${indicatorsQuery.data.totalEntries} com endereço/cidade resolvidos`}
+              tone="emerald"
+            />
+            <InsightMetric
+              label="Baixa confiança geográfica"
+              value={formatPercent(indicatorsQuery.data.lowReliabilityPct)}
+              detail={`${indicatorsQuery.data.lowReliabilityCount} de ${indicatorsQuery.data.totalEntries} marcados como baixa`}
+              tone="red"
+            />
+            <InsightMetric
+              label="Concordância sugestão × analista"
+              value={formatPercent(indicatorsQuery.data.agreementPct)}
+              detail={`${indicatorsQuery.data.agreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
+              tone="blue"
+            />
+            <InsightMetric
+              label="Divergência sugestão × analista"
+              value={formatPercent(indicatorsQuery.data.disagreementPct)}
+              detail={`${indicatorsQuery.data.disagreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
+              tone="amber"
+            />
+          </div>
+        ) : null}
+      </section>
+
       <section className="space-y-4">
         <main className="min-w-0 space-y-4">
           <section className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
@@ -508,7 +557,7 @@ export default function PaymentPlacePage() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Título, documento, cidade, banco/agência..."
+                  placeholder="Título, sacado, cedente, documento, cidade, banco/agência..."
                   className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
                 />
               </label>
@@ -825,55 +874,6 @@ export default function PaymentPlacePage() {
         </main>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-bold text-grafite dark:text-white">Indicadores do lote</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Leitura rápida da qualidade da praça e da aderência entre sugestão automática e decisão humana.
-            </p>
-          </div>
-          {indicatorsQuery.data?.fileName ? (
-            <p className="hidden max-w-[480px] truncate text-xs text-gray-400 lg:block">{indicatorsQuery.data.fileName}</p>
-          ) : null}
-        </div>
-
-        {indicatorsQuery.isLoading && activeBatchId ? (
-          <div className="rounded-xl border border-border-light bg-surface-light p-4 text-sm text-gray-500 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            Carregando indicadores do lote...
-          </div>
-        ) : indicatorsQuery.data ? (
-          <>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <InsightMetric
-                label="Agências localizadas"
-                value={formatPercent(indicatorsQuery.data.locatedAgencyPct)}
-                detail={`${indicatorsQuery.data.locatedAgencyCount} de ${indicatorsQuery.data.totalEntries} com endereço/cidade resolvidos`}
-                tone="emerald"
-              />
-              <InsightMetric
-                label="Baixa confiança geográfica"
-                value={formatPercent(indicatorsQuery.data.lowReliabilityPct)}
-                detail={`${indicatorsQuery.data.lowReliabilityCount} de ${indicatorsQuery.data.totalEntries} marcados como baixa`}
-                tone="red"
-              />
-              <InsightMetric
-                label="Concordância sugestão × analista"
-                value={formatPercent(indicatorsQuery.data.agreementPct)}
-                detail={`${indicatorsQuery.data.agreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
-                tone="blue"
-              />
-              <InsightMetric
-                label="Divergência sugestão × analista"
-                value={formatPercent(indicatorsQuery.data.disagreementPct)}
-                detail={`${indicatorsQuery.data.disagreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
-                tone="amber"
-              />
-            </div>
-          </>
-        ) : null}
-      </section>
-
       {showBatchModal ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 py-20 backdrop-blur-sm">
           <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark">
@@ -1166,7 +1166,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onAnalyzeAi, analyzingA
     <div className="space-y-5">
       <div>
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Distâncias geográficas</p>
-        <p className="text-[11px] text-gray-400">Centroides de município (IBGE). Sinal de análise, não prova.</p>
+        <p className="text-[11px] text-gray-400">Centroide do município (IBGE); a agência usa o endereço exato quando localizado. Sinal de análise, não prova.</p>
         <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <DistanceCard label="Cedente ↔ Agência" from={entry.clientCity} to={entry.agencyCityPdf} value={entry.distanceClientAgencyKm} color="#D1732C" />
           <DistanceCard label="Sacado ↔ Agência" from={entry.payerCity} to={entry.agencyCityPdf} value={entry.distanceAgencyPayerKm} color="#2956E0" />
@@ -1258,7 +1258,18 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onAnalyzeAi, analyzingA
               </p>
               {entry.clientName ? (
                 <>
-                  <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.clientName}</p>
+                  {entry.clientDocument ? (
+                    <Link
+                      href={`/clients/${entry.clientDocument.replace(/\D/g, "")}`}
+                      className="group mt-0.5 inline-flex items-center gap-1 text-sm font-bold text-primary transition-colors hover:underline dark:text-secondary"
+                      title="Abrir ficha da empresa"
+                    >
+                      {entry.clientName}
+                      <span className="material-icons-outlined text-[15px] opacity-60 transition-opacity group-hover:opacity-100">open_in_new</span>
+                    </Link>
+                  ) : (
+                    <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.clientName}</p>
+                  )}
                   {entry.clientDocument ? <p className="text-xs text-gray-500">{formatCnpj(entry.clientDocument)}</p> : null}
                   <p className="text-sm text-grafite dark:text-white">{entry.clientAddress ?? clean(entry.clientCity)}</p>
                 </>

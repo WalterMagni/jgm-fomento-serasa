@@ -1,6 +1,7 @@
 package com.portal.serasa.application.service;
 
 import com.portal.serasa.domain.exception.EntityNotFoundException;
+import com.portal.serasa.infrastructure.integration.bacen.AddressGeocoder;
 import com.portal.serasa.infrastructure.integration.bacen.BacenAgencyClient;
 import com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryEntity;
 import com.portal.serasa.infrastructure.persistence.repository.PaymentPlaceEntryJpaRepository;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class PaymentPlaceAgencyEnricher {
 
     private final MunicipalityGeocoder geocoder;
+    private final AddressGeocoder addressGeocoder;
     private final BancoCompeRegistry bancoCompeRegistry;
     private final BacenAgencyClient bacenAgencyClient;
     private final PaymentPlaceInstitutionClassifier institutionClassifier;
@@ -81,15 +83,22 @@ public class PaymentPlaceAgencyEnricher {
             entry.setAgencyAddressResolved(address);
             institutionClassifier.applyBacenClassification(entry, agency.segmento(), agency.nomeIf());
 
-            if (agency.municipio() != null && agency.uf() != null) {
-                geocoder.resolve(agency.municipio() + "/" + agency.uf()).ifPresent(coords -> {
-                    entry.setAgencyLatitude(coords.latitude());
-                    entry.setAgencyLongitude(coords.longitude());
-                    entry.setDistanceClientAgencyKm(geocoder.distanceKm(
-                            coordsOf(entry.getClientLatitude(), entry.getClientLongitude()), coords));
-                    entry.setDistanceAgencyPayerKm(geocoder.distanceKm(
-                            coords, coordsOf(entry.getPayerLatitude(), entry.getPayerLongitude())));
-                });
+            // Coordenada da agência: tenta street-level pelo endereço completo do Bacen
+            // (precisão intramunicipal); cai no centroide do município quando não resolver.
+            MunicipalityGeocoder.Coordinates agencyCoords = addressGeocoder.geocode(
+                            agency.endereco(), agency.numero(), agency.bairro(),
+                            agency.municipio(), agency.uf(), agency.cep())
+                    .orElseGet(() -> (agency.municipio() != null && agency.uf() != null)
+                            ? geocoder.resolve(agency.municipio() + "/" + agency.uf()).orElse(null)
+                            : null);
+
+            if (agencyCoords != null) {
+                entry.setAgencyLatitude(agencyCoords.latitude());
+                entry.setAgencyLongitude(agencyCoords.longitude());
+                entry.setDistanceClientAgencyKm(geocoder.distanceKm(
+                        coordsOf(entry.getClientLatitude(), entry.getClientLongitude()), agencyCoords));
+                entry.setDistanceAgencyPayerKm(geocoder.distanceKm(
+                        agencyCoords, coordsOf(entry.getPayerLatitude(), entry.getPayerLongitude())));
             }
         });
 
