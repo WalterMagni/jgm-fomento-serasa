@@ -703,6 +703,7 @@ export default function PaymentPlacePage() {
                       <div
                         id={`pp-row-${entry.id}`}
                         onClick={() => setFocusedEntryId(entry.id)}
+                        onDoubleClick={() => { setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
                         className={`flex flex-col gap-2 px-4 py-2.5 transition-colors lg:flex-row lg:items-center ${
                           focused ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40" : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
                         }`}

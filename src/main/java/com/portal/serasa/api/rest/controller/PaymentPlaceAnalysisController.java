@@ -4,6 +4,7 @@ import com.portal.serasa.api.rest.dto.request.PaymentPlaceBulkDecisionRequest;
 import com.portal.serasa.api.rest.dto.request.PaymentPlaceEntryDecisionRequest;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchDetailResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchResponse;
+import com.portal.serasa.api.rest.dto.response.PaymentPlaceCompanySummaryResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceEntryResponse;
 import com.portal.serasa.application.service.PaymentPlaceAnalysisService;
 import com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceBatchEntity;
@@ -51,6 +52,31 @@ public class PaymentPlaceAnalysisController {
                     .entries(result.getEntries().stream().map(this::toEntryResponse).toList())
                     .build());
         }
+    }
+
+    @GetMapping("/empresa/{cnpj}")
+    public ResponseEntity<PaymentPlaceCompanySummaryResponse> companySummary(
+            @PathVariable String cnpj,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(required = false) String decisao,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        var s = paymentPlaceAnalysisService.getCompanySummary(cnpj, from, to, decisao, page, size);
+        return ResponseEntity.ok(PaymentPlaceCompanySummaryResponse.builder()
+                .documentNumber(s.documentNumber())
+                .sacadoCount(s.sacadoCount())
+                .sacadoValue(s.sacadoValue())
+                .cedenteCount(s.cedenteCount())
+                .cedenteValue(s.cedenteValue())
+                .totalCount(s.sacadoCount() + s.cedenteCount())
+                .totalValue(s.sacadoValue().add(s.cedenteValue()))
+                .entries(s.entries().stream().map(this::toEntryResponse).toList())
+                .page(s.page())
+                .size(s.size())
+                .totalPages(s.totalPages())
+                .totalFilteredElements(s.totalFilteredElements())
+                .build());
     }
 
     @GetMapping("/lotes")

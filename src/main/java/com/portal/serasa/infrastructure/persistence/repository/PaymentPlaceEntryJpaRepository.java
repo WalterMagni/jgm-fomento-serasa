@@ -13,4 +13,6 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
     long countByPayerDocumentAndAnalystDecision(String payerDocument, String analystDecision);
 
     long countByClientCodeAndAnalystDecision(String clientCode, String analystDecision);
+
+    List<PaymentPlaceEntryEntity> findByClientDocumentAndAnalystDecisionIsNotNullOrderByDecidedAtDesc(String clientDocument);
 }

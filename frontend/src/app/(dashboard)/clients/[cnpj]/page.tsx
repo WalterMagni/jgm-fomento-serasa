@@ -5,6 +5,9 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useClientProfile } from "../../../../hooks/useClientProfile";
+import { usePaymentPlaceCompany } from "../../../../hooks/usePaymentPlaceCompany";
+import PaymentPlaceEntryReadOnlyModal from "../../../../components/payment-place/PaymentPlaceEntryReadOnlyModal";
+import type { PaymentPlaceEntry } from "../../../../types/payment-place";
 import {
   riskLabel,
   totalDebtFromAnalysis,
@@ -904,6 +907,19 @@ export default function ClientDashboardPage() {
 
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null);
   const { profile, isLoading, isError, refreshCnpja, isRefreshingCnpja, refreshSerasa, isRefreshingSerasa } = useClientProfile(cnpj, selectedAnalysisId);
+  const [pracaFrom, setPracaFrom] = useState("");
+  const [pracaTo, setPracaTo] = useState("");
+  const [pracaDecisao, setPracaDecisao] = useState("");
+  const [pracaPage, setPracaPage] = useState(0);
+  const [pracaSize, setPracaSize] = useState(10);
+  const [pracaSelected, setPracaSelected] = useState<PaymentPlaceEntry | null>(null);
+  const { data: pracaSummary } = usePaymentPlaceCompany(cnpj, {
+    from: pracaFrom || undefined,
+    to: pracaTo || undefined,
+    decisao: pracaDecisao || undefined,
+    page: pracaPage,
+    size: pracaSize,
+  });
 
   const [selectedPartner, setSelectedPartner] = useState<QSAPartner | null>(null);
   const [selectedDirector, setSelectedDirector] = useState<QSADirector | null>(null);
@@ -1293,6 +1309,29 @@ export default function ClientDashboardPage() {
 
       {/* ── Progress Bar ──────────────────────────────────────────────────── */}
       <DataProgressBar hasCnpja={hasCnpjaData} hasSerasa={hasSerasaData} />
+
+      {/* ── Praça de Pagamento: resumo sacado/cedente ─────────────────────── */}
+      {pracaSummary && pracaSummary.totalCount > 0 ? (
+        <div className="mb-6 rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="material-icons-outlined text-primary">swap_horiz</span>
+            <h2 className="font-sans text-base font-bold text-primary">Praça de Pagamento — visão acumulada</h2>
+            <span className="ml-auto text-xs text-gray-400">{pracaSummary.totalCount} títulos decididos</span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4 dark:border-blue-500/20 dark:bg-blue-500/5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">Visão Sacado</p>
+              <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-300">{formatCurrency(pracaSummary.sacadoValue)}</p>
+              <p className="text-xs text-gray-500">{pracaSummary.sacadoCount} título(s) pagos pelo sacado</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-600/30 dark:bg-slate-700/20">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">Visão Cedente</p>
+              <p className="mt-1 text-2xl font-bold text-slate-700 dark:text-slate-200">{formatCurrency(pracaSummary.cedenteValue)}</p>
+              <p className="text-xs text-gray-500">{pracaSummary.cedenteCount} título(s) pagos pelo cedente</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Row 1: identificação + endereço ───────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
@@ -2106,6 +2145,114 @@ export default function ClientDashboardPage() {
       {ca?.paymentHistory && (
         <PaymentHistoryPanel ph={ca.paymentHistory} />
       )}
+
+      {/* ── Praça de Pagamento: lançamentos ─────────────────────────────────── */}
+      {pracaSummary && pracaSummary.totalCount > 0 ? (
+        <div className="mb-6 rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border-light p-5 dark:border-border-dark">
+            <span className="material-icons-outlined text-primary">fact_check</span>
+            <h2 className="font-sans text-base font-bold text-primary">Praça de Pagamento</h2>
+            <span className="text-[11px] text-gray-400">· clique na linha para ver detalhes</span>
+            <span className="ml-auto text-xs text-gray-400">{pracaSummary.totalFilteredElements} de {pracaSummary.totalCount}</span>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap items-end gap-3 border-b border-border-light p-4 dark:border-border-dark">
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">De</span>
+              <input type="date" value={pracaFrom} onChange={(ev) => { setPracaFrom(ev.target.value); setPracaPage(0); }}
+                className="mt-1 block h-9 rounded-lg border border-border-light bg-white px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white" />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Até</span>
+              <input type="date" value={pracaTo} onChange={(ev) => { setPracaTo(ev.target.value); setPracaPage(0); }}
+                className="mt-1 block h-9 rounded-lg border border-border-light bg-white px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white" />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Visão</span>
+              <select value={pracaDecisao} onChange={(ev) => { setPracaDecisao(ev.target.value); setPracaPage(0); }}
+                className="mt-1 block h-9 rounded-lg border border-border-light bg-white px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white">
+                <option value="">Todas</option>
+                <option value="SACADO">Visão Sacado</option>
+                <option value="CEDENTE">Visão Cedente</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Por página</span>
+              <select value={pracaSize} onChange={(ev) => { setPracaSize(Number(ev.target.value)); setPracaPage(0); }}
+                className="mt-1 block h-9 rounded-lg border border-border-light bg-white px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white">
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+              </select>
+            </label>
+            {(pracaFrom || pracaTo || pracaDecisao) ? (
+              <button type="button" onClick={() => { setPracaFrom(""); setPracaTo(""); setPracaDecisao(""); setPracaPage(0); }}
+                className="h-9 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
+                Limpar
+              </button>
+            ) : null}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-white/5 dark:text-gray-400">
+                <tr>
+                  <th className="px-5 py-3">Título</th>
+                  <th className="px-5 py-3">Sacado</th>
+                  <th className="px-5 py-3">Valor pago</th>
+                  <th className="px-5 py-3">Visão</th>
+                  <th className="px-5 py-3">Decidido em</th>
+                  <th className="px-5 py-3">Analista</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                {pracaSummary.entries.length === 0 ? (
+                  <tr><td colSpan={6} className="px-5 py-6 text-sm text-gray-500">Nenhum lançamento para os filtros.</td></tr>
+                ) : pracaSummary.entries.map((e) => (
+                  <tr key={e.id} onClick={() => setPracaSelected(e)} className="cursor-pointer hover:bg-gray-50/70 dark:hover:bg-white/[0.03]">
+                    <td className="px-5 py-3 font-bold text-grafite dark:text-white">{e.titleNumber ?? "-"}</td>
+                    <td className="px-5 py-3 text-grafite dark:text-gray-200">{e.payerName ?? "-"}</td>
+                    <td className="px-5 py-3 text-grafite dark:text-gray-200">{e.paidValue ?? "-"}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-bold ${
+                        e.analystDecision === "SACADO"
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                          : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+                      }`}>
+                        {e.analystDecision === "SACADO" ? "Visão Sacado" : "Visão Cedente"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-gray-500">{e.decidedAt ? new Date(e.decidedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-"}</td>
+                    <td className="px-5 py-3 text-gray-500">{e.decidedByName ?? "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paginação */}
+          {pracaSummary.totalPages > 1 ? (
+            <div className="flex items-center justify-between gap-2 border-t border-border-light p-4 dark:border-border-dark">
+              <span className="text-xs text-gray-500">Página {pracaSummary.page + 1} de {pracaSummary.totalPages}</span>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={pracaSummary.page <= 0} onClick={() => setPracaPage((p) => Math.max(0, p - 1))}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
+                  <span className="material-icons-outlined text-[16px]">chevron_left</span> Anterior
+                </button>
+                <button type="button" disabled={pracaSummary.page >= pracaSummary.totalPages - 1} onClick={() => setPracaPage((p) => p + 1)}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
+                  Próxima <span className="material-icons-outlined text-[16px]">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {pracaSelected ? (
+        <PaymentPlaceEntryReadOnlyModal entry={pracaSelected} onClose={() => setPracaSelected(null)} />
+      ) : null}
 
       <CommercialInformationPanel cnpj={cleanCnpj} />
 

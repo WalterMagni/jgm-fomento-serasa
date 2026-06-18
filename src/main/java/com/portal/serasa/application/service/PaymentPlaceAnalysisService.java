@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -197,6 +198,75 @@ public class PaymentPlaceAnalysisService {
             stampDecision(entry, user);
         }
         return entryRepository.saveAll(entries);
+    }
+
+    /**
+     * Resumo das decisões de praça de pagamento da empresa (como cedente).
+     * Totais (sacado/cedente) são sempre sobre TODO o histórico; a lista de
+     * lançamentos é filtrada (data/decisão) e paginada.
+     */
+    @Transactional(readOnly = true)
+    public CompanyPaymentPlaceSummary getCompanySummary(String cnpj, java.time.LocalDate from, java.time.LocalDate to,
+                                                        String decision, int page, int size) {
+        String doc = normalizeCnpj(cnpj);
+        if (doc == null) {
+            return new CompanyPaymentPlaceSummary(cnpj, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO, List.of(), page, size, 0, 0);
+        }
+        List<PaymentPlaceEntryEntity> decided =
+                entryRepository.findByClientDocumentAndAnalystDecisionIsNotNullOrderByDecidedAtDesc(doc);
+
+        int sacadoCount = 0;
+        int cedenteCount = 0;
+        BigDecimal sacadoValue = BigDecimal.ZERO;
+        BigDecimal cedenteValue = BigDecimal.ZERO;
+        for (PaymentPlaceEntryEntity e : decided) {
+            BigDecimal value = parseBrlValue(e.getPaidValue());
+            if ("SACADO".equals(e.getAnalystDecision())) {
+                sacadoCount++;
+                sacadoValue = sacadoValue.add(value);
+            } else if ("CEDENTE".equals(e.getAnalystDecision())) {
+                cedenteCount++;
+                cedenteValue = cedenteValue.add(value);
+            }
+        }
+
+        String normalizedDecision = (decision == null || decision.isBlank()) ? null : decision.trim().toUpperCase();
+        java.time.LocalDateTime fromDt = from == null ? null : from.atStartOfDay();
+        java.time.LocalDateTime toDt = to == null ? null : to.atTime(23, 59, 59);
+        List<PaymentPlaceEntryEntity> filtered = decided.stream()
+                .filter(e -> normalizedDecision == null || normalizedDecision.equals(e.getAnalystDecision()))
+                .filter(e -> fromDt == null || (e.getDecidedAt() != null && !e.getDecidedAt().isBefore(fromDt)))
+                .filter(e -> toDt == null || (e.getDecidedAt() != null && !e.getDecidedAt().isAfter(toDt)))
+                .toList();
+
+        int safeSize = Math.max(1, Math.min(size, 30));
+        int totalFiltered = filtered.size();
+        int totalPages = (int) Math.ceil(totalFiltered / (double) safeSize);
+        int safePage = Math.max(0, Math.min(page, totalPages == 0 ? 0 : totalPages - 1));
+        int fromIdx = safePage * safeSize;
+        int toIdx = Math.min(fromIdx + safeSize, totalFiltered);
+        List<PaymentPlaceEntryEntity> pageItems = fromIdx >= totalFiltered ? List.of() : filtered.subList(fromIdx, toIdx);
+
+        return new CompanyPaymentPlaceSummary(doc, sacadoCount, sacadoValue, cedenteCount, cedenteValue,
+                pageItems, safePage, safeSize, totalPages, totalFiltered);
+    }
+
+    /** Converte valor no formato brasileiro ("1.016,45") para BigDecimal; nulo/ inválido → zero. */
+    private BigDecimal parseBrlValue(String value) {
+        if (value == null || value.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(value.replaceAll("[^0-9,]", "").replace(",", "."));
+        } catch (NumberFormatException e) {
+            return BigDecimal.ZERO;
+        }
+    }
+
+    public record CompanyPaymentPlaceSummary(String documentNumber, int sacadoCount, BigDecimal sacadoValue,
+                                             int cedenteCount, BigDecimal cedenteValue,
+                                             List<PaymentPlaceEntryEntity> entries,
+                                             int page, int size, int totalPages, int totalFilteredElements) {
     }
 
     @Transactional
