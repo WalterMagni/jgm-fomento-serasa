@@ -196,6 +196,9 @@ public class PaymentPlaceEntryEntity {
     @Column(name = "agency_enriched_at")
     private LocalDateTime agencyEnrichedAt;
 
+    @Column(name = "reopened_at")
+    private LocalDateTime reopenedAt;
+
     @org.springframework.data.annotation.CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

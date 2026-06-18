@@ -186,7 +186,36 @@ public class PaymentPlaceAnalysisService {
         entry.setAnalystDecision(normalizedDecision);
         entry.setAnalystNotes(clean(notes));
         entry.setAnalysisStatus(ENTRY_STATUS_REVIEWED);
+        entry.setReopenedAt(null);
         stampDecision(entry, user);
+        return entryRepository.save(entry);
+    }
+
+    /**
+     * Desfaz a decisão de um lançamento (acionado ao "apagar" a análise na página do
+     * cliente): volta para PENDENTE, limpa a autoria da decisão, marca como reaberto
+     * (para destaque na triagem) e desarquiva o lote se necessário — assim o lançamento
+     * reaparece na Praça de Pagamento mesmo que o lote do dia já tenha sido arquivado.
+     */
+    @Transactional
+    public PaymentPlaceEntryEntity reopenEntry(UUID entryId) {
+        PaymentPlaceEntryEntity entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento de praça de pagamento não encontrado"));
+
+        entry.setAnalystDecision(null);
+        entry.setAnalysisStatus(ENTRY_STATUS_PENDING);
+        entry.setDecidedAt(null);
+        entry.setDecidedByUserId(null);
+        entry.setDecidedByName(null);
+        entry.setReopenedAt(LocalDateTime.now());
+
+        batchRepository.findById(entry.getBatchId()).ifPresent(batch -> {
+            if (STATUS_ARCHIVED.equals(batch.getStatus())) {
+                batch.setStatus(STATUS_IMPORTED);
+                batchRepository.save(batch);
+            }
+        });
+
         return entryRepository.save(entry);
     }
 

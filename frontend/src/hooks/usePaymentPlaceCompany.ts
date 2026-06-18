@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { PaymentPlaceEntry } from "../types/payment-place";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
@@ -47,5 +48,38 @@ export function usePaymentPlaceCompany(cnpj?: string, params: PaymentPlaceCompan
       return res.json();
     },
     placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Desfaz a decisão de um lançamento ("apagar" a análise na página do cliente):
+ * o lançamento volta para PENDENTE na Praça de Pagamento (reaberto e destacado).
+ */
+export function useReopenPaymentPlaceEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation<PaymentPlaceEntry, Error, string>({
+    mutationFn: async (entryId) => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("serasa_token") : null;
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/decisao`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Falha ao remover a análise do lançamento");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Análise removida — lançamento devolvido à Praça de Pagamento");
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceCompany"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
   });
 }

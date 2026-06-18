@@ -80,6 +80,7 @@ export type PaymentPlaceEntry = {
   payerAddress?: string | null;
   agencyAddressResolved?: string | null;
   agencyEnrichedAt?: string | null;
+  reopenedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };

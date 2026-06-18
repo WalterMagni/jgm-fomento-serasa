@@ -337,6 +337,9 @@ export default function PaymentPlacePage() {
       const undecidedA = a.analystDecision ? 1 : 0;
       const undecidedB = b.analystDecision ? 1 : 0;
       if (undecidedA !== undecidedB) return undecidedA - undecidedB; // pendentes primeiro
+      const reopenedA = a.reopenedAt ? 0 : 1;
+      const reopenedB = b.reopenedAt ? 0 : 1;
+      if (reopenedA !== reopenedB) return reopenedA - reopenedB; // reabertos no topo dos pendentes
       return confidenceRank(a.automaticConfidence) - confidenceRank(b.automaticConfidence);
     });
   }, [filteredEntries, sortByConfidence]);
@@ -776,13 +779,22 @@ export default function PaymentPlacePage() {
                         onClick={() => setFocusedEntryId(entry.id)}
                         onDoubleClick={() => { setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
                         className={`flex flex-col gap-2 px-4 py-2.5 transition-colors lg:flex-row lg:items-center ${
-                          focused ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40" : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
+                          focused
+                            ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
+                            : entry.reopenedAt
+                              ? "bg-amber-50/70 ring-1 ring-inset ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-500/40"
+                              : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
                         }`}
                       >
                         {/* Identificação */}
                         <div className="min-w-0 lg:w-[280px]">
                           <div className="flex items-center gap-2">
                             <p className="truncate font-bold text-grafite dark:text-white">{entry.titleNumber}</p>
+                            {entry.reopenedAt ? (
+                              <span className="inline-flex items-center gap-0.5 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                                <span className="material-icons-outlined text-[12px]">undo</span>reaberto
+                              </span>
+                            ) : null}
                             {entry.section === "Agências Não Localizadas" ? (
                               <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">não loc.</span>
                             ) : null}

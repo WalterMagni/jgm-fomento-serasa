@@ -175,6 +175,11 @@ public class PaymentPlaceAnalysisController {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.enrichPayerCnpj(entryId)));
     }
 
+    @DeleteMapping("/lancamentos/{entryId}/decisao")
+    public ResponseEntity<PaymentPlaceEntryResponse> reopenEntry(@PathVariable UUID entryId) {
+        return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.reopenEntry(entryId)));
+    }
+
     @PostMapping("/lancamentos/{entryId}/analise-ia")
     public ResponseEntity<?> analyzeWithAi(@PathVariable UUID entryId) {
         try {
@@ -292,6 +297,7 @@ public class PaymentPlaceAnalysisController {
                 .payerAddress(entity.getPayerAddress())
                 .agencyAddressResolved(entity.getAgencyAddressResolved())
                 .agencyEnrichedAt(entity.getAgencyEnrichedAt())
+                .reopenedAt(entity.getReopenedAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

@@ -71,6 +71,7 @@ public class PaymentPlaceEntryResponse {
     private String payerAddress;
     private String agencyAddressResolved;
     private LocalDateTime agencyEnrichedAt;
+    private LocalDateTime reopenedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

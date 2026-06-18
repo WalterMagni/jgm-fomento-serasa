@@ -5,7 +5,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useClientProfile } from "../../../../hooks/useClientProfile";
-import { usePaymentPlaceCompany } from "../../../../hooks/usePaymentPlaceCompany";
+import { usePaymentPlaceCompany, useReopenPaymentPlaceEntry } from "../../../../hooks/usePaymentPlaceCompany";
 import PaymentPlaceEntryReadOnlyModal from "../../../../components/payment-place/PaymentPlaceEntryReadOnlyModal";
 import type { PaymentPlaceEntry } from "../../../../types/payment-place";
 import {
@@ -913,6 +913,7 @@ export default function ClientDashboardPage() {
   const [pracaPage, setPracaPage] = useState(0);
   const [pracaSize, setPracaSize] = useState(10);
   const [pracaSelected, setPracaSelected] = useState<PaymentPlaceEntry | null>(null);
+  const reopenEntryMutation = useReopenPaymentPlaceEntry();
   const { data: pracaSummary } = usePaymentPlaceCompany(cnpj, {
     from: pracaFrom || undefined,
     to: pracaTo || undefined,
@@ -2204,11 +2205,12 @@ export default function ClientDashboardPage() {
                   <th className="px-5 py-3">Visão</th>
                   <th className="px-5 py-3">Decidido em</th>
                   <th className="px-5 py-3">Analista</th>
+                  <th className="px-5 py-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-light dark:divide-border-dark">
                 {pracaSummary.entries.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-6 text-sm text-gray-500">Nenhum lançamento para os filtros.</td></tr>
+                  <tr><td colSpan={7} className="px-5 py-6 text-sm text-gray-500">Nenhum lançamento para os filtros.</td></tr>
                 ) : pracaSummary.entries.map((e) => (
                   <tr key={e.id} onClick={() => setPracaSelected(e)} className="cursor-pointer hover:bg-gray-50/70 dark:hover:bg-white/[0.03]">
                     <td className="px-5 py-3 font-bold text-grafite dark:text-white">{e.titleNumber ?? "-"}</td>
@@ -2225,6 +2227,24 @@ export default function ClientDashboardPage() {
                     </td>
                     <td className="px-5 py-3 text-gray-500">{e.decidedAt ? new Date(e.decidedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-"}</td>
                     <td className="px-5 py-3 text-gray-500">{e.decidedByName ?? "-"}</td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        type="button"
+                        disabled={reopenEntryMutation.isPending}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          const ok = window.confirm(
+                            `Remover a análise do título ${e.titleNumber ?? ""}?\n\nO lançamento volta para PENDENTE na Praça de Pagamento (reaberto e destacado) e, se o lote do dia estiver arquivado, ele será restaurado.`,
+                          );
+                          if (ok) reopenEntryMutation.mutate(e.id);
+                        }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 dark:border-red-500/20 dark:text-red-300 dark:hover:bg-red-500/10"
+                        title="Remover análise (devolve à Praça de Pagamento)"
+                        aria-label="Remover análise"
+                      >
+                        <span className="material-icons-outlined text-[18px]">delete</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
