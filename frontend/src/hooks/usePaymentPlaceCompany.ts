@@ -48,6 +48,9 @@ export function usePaymentPlaceCompany(cnpj?: string, params: PaymentPlaceCompan
       return res.json();
     },
     placeholderData: (prev) => prev,
+    // Sempre rebusca ao entrar na página da empresa, para refletir decisões/reaberturas
+    // feitas na Praça de Pagamento sem precisar de F5.
+    refetchOnMount: "always",
   });
 }
 
