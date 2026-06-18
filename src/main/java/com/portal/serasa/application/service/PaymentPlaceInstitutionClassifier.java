@@ -5,8 +5,6 @@ import lombok.Data;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -57,17 +55,101 @@ public class PaymentPlaceInstitutionClassifier {
     public PaymentPlacePreAnalysis classify(PaymentPlacePdfParser.PaymentPlaceParsedEntry entry) {
         InstitutionProfile profile = BANK_PROFILES.getOrDefault(normalizeBankCode(entry.getBankCode()), unknownProfile(entry.getBankCode()));
         boolean agencyUnlocated = isAgencyUnlocated(entry.getAgencyCityPdf());
-        String reliability = resolveReliability(profile, agencyUnlocated);
-        String reliabilityReason = resolveReliabilityReason(profile, agencyUnlocated);
-
-        List<String> evidence = new ArrayList<>();
-        evidence.add("Instituição classificada como " + labelCategory(profile.category()) + ".");
-        evidence.add(reliabilityReason);
 
         String agencyCity = normalizeCity(entry.getAgencyCityPdf());
         String payerCity = normalizeCity(entry.getPayerCity());
         String clientCity = normalizeCity(entry.getClientCity());
         String complement = normalizeText(entry.getOccurrenceComplement());
+
+        DerivedAnalysis derived = deriveAnalysis(profile, agencyUnlocated, agencyCity, payerCity, clientCity, complement);
+
+        return PaymentPlacePreAnalysis.builder()
+                .bankName(profile.name())
+                .bacenInstitutionName(profile.name())
+                .bacenInstitutionType(profile.bacenType())
+                .institutionCategory(profile.category())
+                .geographicReliability(derived.reliability())
+                .geographicReliabilityReason(derived.reliabilityReason())
+                .automaticSuggestion(derived.suggestion())
+                .automaticConfidence(derived.confidence())
+                .automaticEvidence(derived.evidence())
+                .build();
+    }
+
+    public void applyBacenClassification(com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryEntity entry,
+                                         String bacenSegment,
+                                         String institutionName) {
+        InstitutionProfile profile = profileFromBacenSegment(bacenSegment)
+                .orElseGet(() -> BANK_PROFILES.getOrDefault(normalizeBankCode(entry.getBankCode()), unknownProfile(entry.getBankCode())));
+        boolean agencyUnlocated = isAgencyUnlocated(entry.getBacenAgencyCity() != null ? entry.getBacenAgencyCity() : entry.getAgencyCityPdf());
+
+        DerivedAnalysis derived = deriveAnalysis(
+                profile,
+                agencyUnlocated,
+                normalizeCity(entry.getBacenAgencyCity() != null ? entry.getBacenAgencyCity() : entry.getAgencyCityPdf()),
+                normalizeCity(entry.getPayerCity()),
+                normalizeCity(entry.getClientCity()),
+                normalizeText(entry.getOccurrenceComplement())
+        );
+
+        entry.setBankName(blankToNull(institutionName) != null ? institutionName.trim() : profile.name());
+        entry.setBacenInstitutionName(blankToNull(institutionName) != null ? institutionName.trim() : profile.name());
+        entry.setBacenInstitutionType(profile.bacenType());
+        entry.setInstitutionCategory(profile.category());
+        entry.setGeographicReliability(derived.reliability());
+        entry.setGeographicReliabilityReason(derived.reliabilityReason());
+    }
+
+    private static Map.Entry<String, InstitutionProfile> profile(String code, String name, String bacenType, String category) {
+        return Map.entry(code, new InstitutionProfile(name, bacenType, category));
+    }
+
+    private static InstitutionProfile unknownProfile(String bankCode) {
+        String suffix = bankCode == null || bankCode.isBlank() ? "" : " " + bankCode.trim();
+        return new InstitutionProfile("Banco" + suffix + " não classificado", "Não identificado", CATEGORY_UNKNOWN);
+    }
+
+    private java.util.Optional<InstitutionProfile> profileFromBacenSegment(String segment) {
+        String normalized = normalizeText(segment);
+        if (normalized.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        if (normalized.contains("COOPERATIVA")) {
+            return java.util.Optional.of(new InstitutionProfile("Instituição Bacen", cleanLabel(segment), CATEGORY_COOPERATIVE));
+        }
+        if (normalized.contains("INSTITUICAO DE PAGAMENTO") || normalized.contains("IP")) {
+            return java.util.Optional.of(new InstitutionProfile("Instituição Bacen", cleanLabel(segment), CATEGORY_DIGITAL));
+        }
+        if (normalized.contains("SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO")
+                || normalized.contains("SCFI")
+                || normalized.contains("SOCIEDADE DE CREDITO DIRETO")
+                || normalized.contains("SCD")
+                || normalized.contains("SOCIEDADE DE EMPRESTIMO")
+                || normalized.contains("SEP")
+                || normalized.contains("FINANCEIRA")) {
+            return java.util.Optional.of(new InstitutionProfile("Instituição Bacen", cleanLabel(segment), CATEGORY_FINANCIAL));
+        }
+        if (normalized.contains("BANCO")
+                || normalized.contains("CAIXA ECONOMICA")
+                || normalized.contains("BANCO MULTIPLO")
+                || normalized.contains("BANCO COMERCIAL")) {
+            return java.util.Optional.of(new InstitutionProfile("Instituição Bacen", cleanLabel(segment), CATEGORY_TRADITIONAL));
+        }
+        return java.util.Optional.of(new InstitutionProfile("Instituição Bacen", cleanLabel(segment), CATEGORY_UNKNOWN));
+    }
+
+    private DerivedAnalysis deriveAnalysis(InstitutionProfile profile,
+                                           boolean agencyUnlocated,
+                                           String agencyCity,
+                                           String payerCity,
+                                           String clientCity,
+                                           String complement) {
+        String reliability = resolveReliability(profile, agencyUnlocated);
+        String reliabilityReason = resolveReliabilityReason(profile, agencyUnlocated);
+
+        java.util.List<String> evidence = new java.util.ArrayList<>();
+        evidence.add("Instituição classificada como " + labelCategory(profile.category()) + ".");
+        evidence.add(reliabilityReason);
 
         String suggestion = "INCONCLUSIVO";
         String confidence = "BAIXA";
@@ -104,27 +186,7 @@ public class PaymentPlaceInstitutionClassifier {
             confidence = "INCONCLUSIVO".equals(suggestion) ? "BAIXA" : "MEDIA";
             evidence.add("A confiabilidade geográfica reduz o peso da praça na decisão.");
         }
-
-        return PaymentPlacePreAnalysis.builder()
-                .bankName(profile.name())
-                .bacenInstitutionName(profile.name())
-                .bacenInstitutionType(profile.bacenType())
-                .institutionCategory(profile.category())
-                .geographicReliability(reliability)
-                .geographicReliabilityReason(reliabilityReason)
-                .automaticSuggestion(suggestion)
-                .automaticConfidence(confidence)
-                .automaticEvidence(String.join("\n", evidence))
-                .build();
-    }
-
-    private static Map.Entry<String, InstitutionProfile> profile(String code, String name, String bacenType, String category) {
-        return Map.entry(code, new InstitutionProfile(name, bacenType, category));
-    }
-
-    private static InstitutionProfile unknownProfile(String bankCode) {
-        String suffix = bankCode == null || bankCode.isBlank() ? "" : " " + bankCode.trim();
-        return new InstitutionProfile("Banco" + suffix + " não classificado", "Não identificado", CATEGORY_UNKNOWN);
+        return new DerivedAnalysis(reliability, reliabilityReason, suggestion, confidence, String.join("\n", evidence));
     }
 
     private static String resolveReliability(InstitutionProfile profile, boolean agencyUnlocated) {
@@ -203,7 +265,22 @@ public class PaymentPlaceInstitutionClassifier {
         return normalized.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
     }
 
+    private static String cleanLabel(String value) {
+        return value == null || value.isBlank() ? "Não identificado" : value.trim();
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
     private record InstitutionProfile(String name, String bacenType, String category) {
+    }
+
+    private record DerivedAnalysis(String reliability,
+                                   String reliabilityReason,
+                                   String suggestion,
+                                   String confidence,
+                                   String evidence) {
     }
 
     @Data

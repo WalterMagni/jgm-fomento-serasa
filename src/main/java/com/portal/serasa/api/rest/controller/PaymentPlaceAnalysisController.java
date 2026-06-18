@@ -3,6 +3,7 @@ package com.portal.serasa.api.rest.controller;
 import com.portal.serasa.api.rest.dto.request.PaymentPlaceBulkDecisionRequest;
 import com.portal.serasa.api.rest.dto.request.PaymentPlaceEntryDecisionRequest;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchDetailResponse;
+import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchIndicatorsResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceCompanySummaryResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceEntryResponse;
@@ -92,6 +93,51 @@ public class PaymentPlaceAnalysisController {
         return ResponseEntity.ok(PaymentPlaceBatchDetailResponse.builder()
                 .batch(toBatchResponse(result.getBatch()))
                 .entries(result.getEntries().stream().map(this::toEntryResponse).toList())
+                .build());
+    }
+
+    @GetMapping("/lotes/{batchId}/indicadores")
+    public ResponseEntity<PaymentPlaceBatchIndicatorsResponse> getBatchIndicators(@PathVariable UUID batchId) {
+        var result = paymentPlaceAnalysisService.getBatchIndicators(batchId);
+        return ResponseEntity.ok(PaymentPlaceBatchIndicatorsResponse.builder()
+                .batchId(result.batch().getId())
+                .fileName(result.batch().getFileName())
+                .totalEntries(result.totalEntries())
+                .locatedAgencyCount(result.locatedAgencyCount())
+                .locatedAgencyPct(result.locatedAgencyPct())
+                .lowReliabilityCount(result.lowReliabilityCount())
+                .lowReliabilityPct(result.lowReliabilityPct())
+                .comparableDecisionCount(result.comparableDecisionCount())
+                .agreementCount(result.agreementCount())
+                .agreementPct(result.agreementPct())
+                .disagreementCount(result.disagreementCount())
+                .disagreementPct(result.disagreementPct())
+                .topRecurringBankAgencies(result.topRecurringBankAgencies().stream()
+                        .map(item -> PaymentPlaceBatchIndicatorsResponse.BankAgencyIndicatorResponse.builder()
+                                .bankAgency(item.bankAgency())
+                                .bankName(item.bankName())
+                                .bankCode(item.bankCode())
+                                .agencyCode(item.agencyCode())
+                                .totalEntries(item.totalEntries())
+                                .decidedEntries(item.decidedEntries())
+                                .agreementCount(item.agreementCount())
+                                .disagreementCount(item.disagreementCount())
+                                .disagreementPct(item.disagreementPct())
+                                .build())
+                        .toList())
+                .topDivergentBankAgencies(result.topDivergentBankAgencies().stream()
+                        .map(item -> PaymentPlaceBatchIndicatorsResponse.BankAgencyIndicatorResponse.builder()
+                                .bankAgency(item.bankAgency())
+                                .bankName(item.bankName())
+                                .bankCode(item.bankCode())
+                                .agencyCode(item.agencyCode())
+                                .totalEntries(item.totalEntries())
+                                .decidedEntries(item.decidedEntries())
+                                .agreementCount(item.agreementCount())
+                                .disagreementCount(item.disagreementCount())
+                                .disagreementPct(item.disagreementPct())
+                                .build())
+                        .toList())
                 .build());
     }
 

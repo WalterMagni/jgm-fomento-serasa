@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceEntry } from "../types/payment-place";
+import { PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry } from "../types/payment-place";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -44,6 +44,22 @@ export function usePaymentPlaceBatch(batchId?: string) {
   });
 }
 
+export function usePaymentPlaceIndicators(batchId?: string) {
+  return useQuery<PaymentPlaceBatchIndicators>({
+    queryKey: ["paymentPlaceIndicators", batchId],
+    enabled: Boolean(batchId),
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/lotes/${batchId}/indicadores`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!response.ok) {
+        throw new Error("Erro ao carregar indicadores da praça de pagamento");
+      }
+      return response.json();
+    },
+  });
+}
+
 export function useImportPaymentPlacePdf() {
   const queryClient = useQueryClient();
 
@@ -72,10 +88,12 @@ export function useImportPaymentPlacePdf() {
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
       queryClient.setQueryData(["paymentPlaceBatch", data.batch.id], data);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", data.batch.id] });
       // Endereço da agência (Bacen) é resolvido em background — refetch para exibir.
       [3000, 8000, 15000].forEach((delay) =>
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch", data.batch.id] });
+          queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", data.batch.id] });
         }, delay),
       );
     },
@@ -103,6 +121,7 @@ export function useDeletePaymentPlaceBatch() {
       toast.success("Lote apagado");
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
       queryClient.removeQueries({ queryKey: ["paymentPlaceBatch", batchId] });
+      queryClient.removeQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -142,6 +161,7 @@ export function useEnrichAgencyBacen(batchId?: string) {
             entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
           };
         });
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
       }
     },
     onError: (error) => {
@@ -169,6 +189,7 @@ export function useArchivePaymentPlaceBatch() {
     onSuccess: (_data, { archived }) => {
       toast.success(archived ? "Lote arquivado" : "Lote restaurado");
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -210,6 +231,7 @@ export function useAnalyzeWithAi(batchId?: string) {
             entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
           };
         });
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
       }
     },
     onError: (error) => {
@@ -245,6 +267,7 @@ export function useBulkDecidePaymentPlace(batchId?: string) {
             entries: current.entries.map((entry) => byId.get(entry.id) ?? entry),
           };
         });
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
       }
     },
     onError: (error) => {
@@ -279,6 +302,7 @@ export function useDecidePaymentPlaceEntry(batchId?: string) {
             entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
           };
         });
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
       }
     },
     onError: (error) => {

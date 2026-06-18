@@ -88,3 +88,32 @@ export type PaymentPlaceBatchDetail = {
   batch: PaymentPlaceBatch;
   entries: PaymentPlaceEntry[];
 };
+
+export type PaymentPlaceBankAgencyIndicator = {
+  bankAgency: string;
+  bankName: string;
+  bankCode: string;
+  agencyCode: string;
+  totalEntries: number;
+  decidedEntries: number;
+  agreementCount: number;
+  disagreementCount: number;
+  disagreementPct: number;
+};
+
+export type PaymentPlaceBatchIndicators = {
+  batchId: string;
+  fileName: string;
+  totalEntries: number;
+  locatedAgencyCount: number;
+  locatedAgencyPct: number;
+  lowReliabilityCount: number;
+  lowReliabilityPct: number;
+  comparableDecisionCount: number;
+  agreementCount: number;
+  agreementPct: number;
+  disagreementCount: number;
+  disagreementPct: number;
+  topRecurringBankAgencies: PaymentPlaceBankAgencyIndicator[];
+  topDivergentBankAgencies: PaymentPlaceBankAgencyIndicator[];
+};

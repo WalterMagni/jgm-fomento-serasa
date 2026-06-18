@@ -30,6 +30,7 @@ public class PaymentPlaceAgencyEnricher {
     private final MunicipalityGeocoder geocoder;
     private final BancoCompeRegistry bancoCompeRegistry;
     private final BacenAgencyClient bacenAgencyClient;
+    private final PaymentPlaceInstitutionClassifier institutionClassifier;
     private final PaymentPlaceScorer scorer;
     private final PaymentPlaceEntryJpaRepository entryRepository;
 
@@ -78,6 +79,7 @@ public class PaymentPlaceAgencyEnricher {
             entry.setBacenAgencyZipCode(blankToNull(agency.cep()));
             entry.setBacenAgencyAddress(address);
             entry.setAgencyAddressResolved(address);
+            institutionClassifier.applyBacenClassification(entry, agency.segmento(), agency.nomeIf());
 
             if (agency.municipio() != null && agency.uf() != null) {
                 geocoder.resolve(agency.municipio() + "/" + agency.uf()).ifPresent(coords -> {

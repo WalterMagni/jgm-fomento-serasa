@@ -17,10 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -104,6 +108,72 @@ public class PaymentPlaceAnalysisService {
                 .batch(batch)
                 .entries(entries)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentPlaceBatchIndicators getBatchIndicators(UUID batchId) {
+        PaymentPlaceBatchEntity batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new EntityNotFoundException("Lote de praça de pagamento não encontrado"));
+        List<PaymentPlaceEntryEntity> entries = entryRepository.findByBatchIdOrderByCreatedAtAsc(batchId);
+
+        int totalEntries = entries.size();
+        int locatedAgencyCount = (int) entries.stream()
+                .filter(this::hasResolvedAgencyLocation)
+                .count();
+        int lowReliabilityCount = (int) entries.stream()
+                .filter(entry -> "BAIXA".equals(entry.getGeographicReliability()))
+                .count();
+
+        List<PaymentPlaceEntryEntity> comparableEntries = entries.stream()
+                .filter(entry -> entry.getAnalystDecision() != null)
+                .filter(entry -> mapSuggestionToDecision(entry.getAutomaticSuggestion()) != null)
+                .toList();
+        int comparableDecisionCount = comparableEntries.size();
+        int agreementCount = (int) comparableEntries.stream()
+                .filter(entry -> entry.getAnalystDecision().equals(mapSuggestionToDecision(entry.getAutomaticSuggestion())))
+                .count();
+        int disagreementCount = comparableDecisionCount - agreementCount;
+
+        Map<BankAgencyKey, List<PaymentPlaceEntryEntity>> groups = entries.stream()
+                .collect(Collectors.groupingBy(this::toBankAgencyKey));
+
+        List<BankAgencyIndicator> rankedIndicators = groups.entrySet().stream()
+                .map(entry -> toBankAgencyIndicator(entry.getKey(), entry.getValue()))
+                .toList();
+
+        Comparator<BankAgencyIndicator> recurringComparator = Comparator
+                .comparingInt(BankAgencyIndicator::totalEntries).reversed()
+                .thenComparingInt(BankAgencyIndicator::disagreementCount).reversed()
+                .thenComparing(BankAgencyIndicator::bankAgency);
+
+        Comparator<BankAgencyIndicator> divergentComparator = Comparator
+                .comparingInt(BankAgencyIndicator::disagreementCount).reversed()
+                .thenComparing(BankAgencyIndicator::disagreementPct).reversed()
+                .thenComparingInt(BankAgencyIndicator::totalEntries).reversed()
+                .thenComparing(BankAgencyIndicator::bankAgency);
+
+        return new PaymentPlaceBatchIndicators(
+                batch,
+                totalEntries,
+                locatedAgencyCount,
+                percentage(locatedAgencyCount, totalEntries),
+                lowReliabilityCount,
+                percentage(lowReliabilityCount, totalEntries),
+                comparableDecisionCount,
+                agreementCount,
+                percentage(agreementCount, comparableDecisionCount),
+                disagreementCount,
+                percentage(disagreementCount, comparableDecisionCount),
+                rankedIndicators.stream()
+                        .sorted(recurringComparator)
+                        .limit(5)
+                        .toList(),
+                rankedIndicators.stream()
+                        .filter(indicator -> indicator.disagreementCount() > 0)
+                        .sorted(divergentComparator)
+                        .limit(5)
+                        .toList()
+        );
     }
 
     @Transactional
@@ -263,10 +333,105 @@ public class PaymentPlaceAnalysisService {
         }
     }
 
+    private boolean hasResolvedAgencyLocation(PaymentPlaceEntryEntity entry) {
+        return hasText(entry.getAgencyAddressResolved())
+                || hasText(entry.getBacenAgencyAddress())
+                || hasText(entry.getBacenAgencyCity())
+                || hasText(entry.getBacenAgencyName());
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String mapSuggestionToDecision(String suggestion) {
+        if ("PROVAVEL_SACADO".equals(suggestion)) {
+            return "SACADO";
+        }
+        if ("PROVAVEL_CEDENTE".equals(suggestion)) {
+            return "CEDENTE";
+        }
+        return null;
+    }
+
+    private BankAgencyKey toBankAgencyKey(PaymentPlaceEntryEntity entry) {
+        return new BankAgencyKey(
+                defaultIfBlank(entry.getBankAgency(), "Não informado"),
+                defaultIfBlank(entry.getBankName(), defaultIfBlank(entry.getBacenInstitutionName(), "Instituição não identificada")),
+                defaultIfBlank(entry.getBankCode(), "—"),
+                defaultIfBlank(entry.getAgencyCode(), "—")
+        );
+    }
+
+    private BankAgencyIndicator toBankAgencyIndicator(BankAgencyKey key, List<PaymentPlaceEntryEntity> entries) {
+        List<PaymentPlaceEntryEntity> comparable = entries.stream()
+                .filter(entry -> entry.getAnalystDecision() != null)
+                .filter(entry -> mapSuggestionToDecision(entry.getAutomaticSuggestion()) != null)
+                .toList();
+        int agreementCount = (int) comparable.stream()
+                .filter(entry -> entry.getAnalystDecision().equals(mapSuggestionToDecision(entry.getAutomaticSuggestion())))
+                .count();
+        int disagreementCount = comparable.size() - agreementCount;
+
+        return new BankAgencyIndicator(
+                key.bankAgency(),
+                key.bankName(),
+                key.bankCode(),
+                key.agencyCode(),
+                entries.size(),
+                (int) entries.stream().filter(entry -> entry.getAnalystDecision() != null).count(),
+                agreementCount,
+                disagreementCount,
+                percentage(disagreementCount, comparable.size())
+        );
+    }
+
+    private BigDecimal percentage(int numerator, int denominator) {
+        if (denominator <= 0 || numerator <= 0) {
+            return BigDecimal.ZERO.setScale(1, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.valueOf(numerator)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(denominator), 1, RoundingMode.HALF_UP);
+    }
+
+    private String defaultIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
     public record CompanyPaymentPlaceSummary(String documentNumber, int sacadoCount, BigDecimal sacadoValue,
                                              int cedenteCount, BigDecimal cedenteValue,
                                              List<PaymentPlaceEntryEntity> entries,
                                              int page, int size, int totalPages, int totalFilteredElements) {
+    }
+
+    public record PaymentPlaceBatchIndicators(PaymentPlaceBatchEntity batch,
+                                              int totalEntries,
+                                              int locatedAgencyCount,
+                                              BigDecimal locatedAgencyPct,
+                                              int lowReliabilityCount,
+                                              BigDecimal lowReliabilityPct,
+                                              int comparableDecisionCount,
+                                              int agreementCount,
+                                              BigDecimal agreementPct,
+                                              int disagreementCount,
+                                              BigDecimal disagreementPct,
+                                              List<BankAgencyIndicator> topRecurringBankAgencies,
+                                              List<BankAgencyIndicator> topDivergentBankAgencies) {
+    }
+
+    public record BankAgencyIndicator(String bankAgency,
+                                      String bankName,
+                                      String bankCode,
+                                      String agencyCode,
+                                      int totalEntries,
+                                      int decidedEntries,
+                                      int agreementCount,
+                                      int disagreementCount,
+                                      BigDecimal disagreementPct) {
+    }
+
+    private record BankAgencyKey(String bankAgency, String bankName, String bankCode, String agencyCode) {
     }
 
     @Transactional

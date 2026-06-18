@@ -14,6 +14,7 @@ import {
   useImportPaymentPlacePdf,
   usePaymentPlaceBatch,
   usePaymentPlaceBatches,
+  usePaymentPlaceIndicators,
 } from "../../../hooks/usePaymentPlace";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
 
@@ -44,6 +45,24 @@ function formatDateTime(value?: string | null) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatPercent(value?: number | null) {
+  if (value === null || value === undefined) return "0,0%";
+  return `${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)}%`;
+}
+
+function formatCurrencyBr(value?: string | number | null) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  }
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  if (normalized.includes("R$")) return normalized;
+  const parsed = Number(normalized.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, ""));
+  if (Number.isNaN(parsed)) return normalized;
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parsed);
 }
 
 function isToday(value?: string | null) {
@@ -202,6 +221,7 @@ export default function PaymentPlacePage() {
   const todayBatch = useMemo(() => batches.find((item) => isToday(item.importedAt)), [batches]);
   const activeBatchId = selectedBatchId ?? todayBatch?.id ?? batches[0]?.id;
   const batchQuery = usePaymentPlaceBatch(activeBatchId);
+  const indicatorsQuery = usePaymentPlaceIndicators(activeBatchId);
   const decideMutation = useDecidePaymentPlaceEntry(activeBatchId);
   const bulkDecideMutation = useBulkDecidePaymentPlace(activeBatchId);
   const enrichAgencyMutation = useEnrichAgencyBacen(activeBatchId);
@@ -725,6 +745,27 @@ export default function PaymentPlacePage() {
                           </p>
                         </div>
 
+                        <div className="min-w-0 lg:w-[360px]">
+                          <div className="space-y-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                            <div className="min-w-0">
+                              <p className="truncate" title={clean(entry.bankName ?? entry.bacenInstitutionName)}>
+                                <span className="font-bold text-gray-600 dark:text-gray-300">Instituição:</span>{" "}
+                                {clean(entry.bankName ?? entry.bacenInstitutionName)}
+                              </p>
+                              <p className="truncate">
+                                <span className="font-bold text-gray-600 dark:text-gray-300">Banco/Agência:</span> {clean(entry.bankAgency)}
+                              </p>
+                              <p className="truncate">
+                                <span className="font-bold text-gray-600 dark:text-gray-300">Vencimento:</span> {clean(entry.dueDate)}
+                              </p>
+                              <p className="truncate">
+                                <span className="font-bold text-gray-600 dark:text-gray-300">Valor pago:</span>{" "}
+                                {formatCurrencyBr(entry.paidValue) ?? clean(entry.paidValue)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Sugestão + distâncias */}
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
@@ -782,6 +823,55 @@ export default function PaymentPlacePage() {
             )}
           </section>
         </main>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-grafite dark:text-white">Indicadores do lote</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Leitura rápida da qualidade da praça e da aderência entre sugestão automática e decisão humana.
+            </p>
+          </div>
+          {indicatorsQuery.data?.fileName ? (
+            <p className="hidden max-w-[480px] truncate text-xs text-gray-400 lg:block">{indicatorsQuery.data.fileName}</p>
+          ) : null}
+        </div>
+
+        {indicatorsQuery.isLoading && activeBatchId ? (
+          <div className="rounded-xl border border-border-light bg-surface-light p-4 text-sm text-gray-500 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            Carregando indicadores do lote...
+          </div>
+        ) : indicatorsQuery.data ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <InsightMetric
+                label="Agências localizadas"
+                value={formatPercent(indicatorsQuery.data.locatedAgencyPct)}
+                detail={`${indicatorsQuery.data.locatedAgencyCount} de ${indicatorsQuery.data.totalEntries} com endereço/cidade resolvidos`}
+                tone="emerald"
+              />
+              <InsightMetric
+                label="Baixa confiança geográfica"
+                value={formatPercent(indicatorsQuery.data.lowReliabilityPct)}
+                detail={`${indicatorsQuery.data.lowReliabilityCount} de ${indicatorsQuery.data.totalEntries} marcados como baixa`}
+                tone="red"
+              />
+              <InsightMetric
+                label="Concordância sugestão × analista"
+                value={formatPercent(indicatorsQuery.data.agreementPct)}
+                detail={`${indicatorsQuery.data.agreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
+                tone="blue"
+              />
+              <InsightMetric
+                label="Divergência sugestão × analista"
+                value={formatPercent(indicatorsQuery.data.disagreementPct)}
+                detail={`${indicatorsQuery.data.disagreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
+                tone="amber"
+              />
+            </div>
+          </>
+        ) : null}
       </section>
 
       {showBatchModal ? (
@@ -1024,6 +1114,34 @@ function DistanceCard({ label, from, to, value, color }: { label: string; from?:
       <p className="mt-1 truncate text-xs text-gray-500" title={`${clean(from)} → ${clean(to)}`}>
         {clean(from)} → {clean(to)}
       </p>
+    </div>
+  );
+}
+
+function InsightMetric({
+  label,
+  value,
+  detail,
+  tone = "gray",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "gray" | "emerald" | "red" | "blue" | "amber";
+}) {
+  const tones: Record<string, string> = {
+    gray: "border-border-light bg-surface-light dark:border-border-dark dark:bg-surface-dark",
+    emerald: "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10",
+    red: "border-red-200 bg-red-50/70 dark:border-red-500/30 dark:bg-red-500/10",
+    blue: "border-blue-200 bg-blue-50/70 dark:border-blue-500/30 dark:bg-blue-500/10",
+    amber: "border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10",
+  };
+
+  return (
+    <div className={`rounded-xl border p-4 shadow-sm ${tones[tone]}`}>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-grafite dark:text-white">{value}</p>
+      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{detail}</p>
     </div>
   );
 }
