@@ -5,7 +5,6 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCompanyList } from "../../hooks/useCompanyList";
 import { useDashboardMetrics } from "../../hooks/useDashboardMetrics";
-import { useImportCsv } from "../../hooks/useImportCsv";
 import { totalPendingFromAnalysis, totalDebtFromAnalysis } from "../../types/company-detail";
 import { toast } from "sonner";
 
@@ -187,7 +186,6 @@ export default function GestaoCarteiraPage() {
     effectiveVisaoCedente,
     effectiveAnalysisStatus,
   );
-  const { importCsv, isImporting } = useImportCsv();
 
   const filteredCompanies = useMemo(() => {
     const result = [...companies];
@@ -261,30 +259,7 @@ export default function GestaoCarteiraPage() {
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Gerencie e analise o risco de crédito dos seus clientes.</p>
         </div>
         <div className="flex gap-3">
-          <input
-            type="file"
-            id="csv-upload"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                importCsv(file);
-                e.target.value = ''; // Reset for consecutive uploads
-              }
-            }}
-          />
           <button
-            onClick={() => document.getElementById('csv-upload')?.click()}
-            disabled={isImporting}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-light bg-surface-light px-4 py-2 text-sm font-medium text-grafite transition-all duration-200 ease-out hover:bg-gray-50 hover:-translate-y-[1px] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-gray-700 shadow-sm"
-          >
-            <span className={`material-icons-outlined text-lg ${isImporting ? 'animate-spin' : ''}`}>
-              {isImporting ? 'sync' : 'upload_file'}
-            </span>
-            {isImporting ? 'Importando...' : 'Importar CSV'}
-          </button>
-          <button 
             onClick={() => setIsModalOpen(true)}
             className="relative inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-hover text-white text-sm font-medium rounded-lg transition-all duration-200 ease-out hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-[1px] shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(0,26,65,0.3)] active:scale-[0.98] active:translate-y-0 active:shadow-none focus:outline-none overflow-hidden group"
           >

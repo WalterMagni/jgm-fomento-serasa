@@ -43,6 +43,55 @@ public class ClientImportService {
         return csvClientReader.createPreview(clients, maxItems);
     }
 
+    /**
+     * Importa SOMENTE o código do cliente (4R) das empresas que JÁ existem (por CNPJ).
+     * Não cria empresas novas, não altera nome/email/telefone/endereço.
+     * Seguro para rodar em produção.
+     */
+    @Transactional
+    public CodeImportResult importCodesOnly(InputStream inputStream) throws IOException, CsvException {
+        List<Client> clients = csvClientReader.readAndParse(inputStream);
+        int updated = 0;
+        int notFound = 0;
+        int withoutCode = 0;
+        int errors = 0;
+        for (Client client : clients) {
+            String code = client.getClientCode();
+            if (code == null || code.isBlank()) {
+                withoutCode++;
+                continue;
+            }
+            try {
+                var existing = clientRepository.findByDocumentNumber(client.getDocumentNumber());
+                if (existing.isEmpty()) {
+                    notFound++;
+                    continue;
+                }
+                Client current = existing.get();
+                current.setClientCode(code);
+                clientRepository.save(current);
+                updated++;
+            } catch (Exception e) {
+                log.warn("Erro ao atualizar código do cliente {}: {}", client.getDocumentNumber(), e.getMessage());
+                errors++;
+            }
+        }
+        log.info("Import somente-código: {} atualizados, {} não encontrados, {} sem código, {} erros",
+                updated, notFound, withoutCode, errors);
+        return new CodeImportResult(clients.size(), updated, notFound, withoutCode, errors);
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.AllArgsConstructor
+    public static class CodeImportResult {
+        private int totalProcessed;
+        private int updated;
+        private int notFound;
+        private int withoutCode;
+        private int errors;
+    }
+
     private ClientImportResult persistWithUpsert(List<Client> clients) {
         int created = 0;
         int updated = 0;

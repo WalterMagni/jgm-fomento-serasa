@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
+import { useImportCsv } from "@/hooks/useImportCsv";
+import { useImportClientCodes } from "@/hooks/useImportClientCodes";
 import { Loader2 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "consumo">("profile");
+  const { importCsv, isImporting: isImportingCsv } = useImportCsv();
+  const { importCodes, isImporting: isImportingCodes } = useImportClientCodes();
   const [entityFilter, setEntityFilter] = useState<"ALL" | "PJ" | "PF">("ALL");
 
   // Profile State
@@ -386,6 +390,66 @@ export default function SettingsPage() {
                           {documentBasePathUpdatedAt && <> em {new Date(documentBasePathUpdatedAt).toLocaleString("pt-BR")}</>}
                         </p>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {canManageUsers && (
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-sans font-bold text-grafite dark:text-white mb-1">Importação de dados (4R)</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      Importe o CSV exportado do ERP 4R.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {/* Importar SÓ os códigos — seguro p/ produção */}
+                      <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4">
+                        <p className="text-sm font-bold text-grafite dark:text-white">Importar códigos do cliente (4R)</p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          Atualiza apenas o <strong>código interno</strong> das empresas que já existem (por CNPJ).
+                          Não cria empresas novas nem altera nome/endereço. Seguro para produção.
+                        </p>
+                        <input
+                          type="file"
+                          id="csv-codes-upload"
+                          accept=".csv"
+                          className="hidden"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) { importCodes(f); e.target.value = ""; } }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById("csv-codes-upload")?.click()}
+                          disabled={isImportingCodes}
+                          className="mt-3 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className={`material-icons-outlined text-lg ${isImportingCodes ? "animate-spin" : ""}`}>{isImportingCodes ? "sync" : "tag"}</span>
+                          {isImportingCodes ? "Importando..." : "Importar códigos"}
+                        </button>
+                      </div>
+
+                      {/* Importação completa — legado */}
+                      <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4">
+                        <p className="text-sm font-bold text-grafite dark:text-white">Importar empresas (CSV completo) <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">legado</span></p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          Cria empresas novas e atualiza código + endereço das existentes (preserva nome/email/telefone).
+                          Usado na carga inicial do sistema.
+                        </p>
+                        <input
+                          type="file"
+                          id="csv-full-upload"
+                          accept=".csv"
+                          className="hidden"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) { importCsv(f); e.target.value = ""; } }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById("csv-full-upload")?.click()}
+                          disabled={isImportingCsv}
+                          className="mt-3 inline-flex items-center justify-center gap-2 border border-border-light bg-white px-4 py-2 rounded-lg text-sm font-medium text-grafite transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        >
+                          <span className={`material-icons-outlined text-lg ${isImportingCsv ? "animate-spin" : ""}`}>{isImportingCsv ? "sync" : "upload_file"}</span>
+                          {isImportingCsv ? "Importando..." : "Importar CSV completo"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

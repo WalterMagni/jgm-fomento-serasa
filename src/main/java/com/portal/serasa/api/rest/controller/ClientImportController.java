@@ -43,6 +43,14 @@ public class ClientImportController {
         }
     }
 
+    @PostMapping(value = "/codigos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ClientImportService.CodeImportResult> importCodesOnly(
+            @RequestParam("file") MultipartFile file) throws IOException, CsvException {
+        try (InputStream is = file.getInputStream()) {
+            return ResponseEntity.ok(clientImportService.importCodesOnly(is));
+        }
+    }
+
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CsvClientReader.CsvClientPreview> previewFromUpload(
             @RequestParam("file") MultipartFile file,
