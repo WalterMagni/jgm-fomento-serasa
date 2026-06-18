@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+/* Tailwind v4: use .dark class on <html> instead of prefers-color-scheme media query */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-background-light: #F7F8FA;
+  --color-background-dark: #121318;
+  --color-surface-light: #FFFFFF;
+  --color-surface-dark: #262833; /* Grafite */
+
+  /* JGM Brand Colors */
+  --color-grafite: #262833;
+  --color-bordo: #612035;
+  --color-areia: #EBEBE6;
+  --color-laranja: #D1732C;
+  --color-azul-claro: #B4C3D6;
+
+  /* Theme mappings */
+  --color-primary: var(--color-bordo);
+  --color-primary-hover: #4e1a2a;
+  --color-secondary: var(--color-laranja);
+  --color-accent: var(--color-azul-claro);
+
+  --color-text-main-light: var(--color-grafite);
+  --color-text-main-dark: var(--color-areia);
+  
+  --color-border-light: #e5e7eb;
+  --color-border-dark: #374151;
+
+  --font-sans: var(--font-source-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-default: 8px;
+}
+
+/* Base styles to toggle dark mode variables if needed, though Tailwind classes work nicely. */
+@layer base {
+  :root {
+    --background: var(--color-background-light);
+    --surface: var(--color-surface-light);
+    --foreground: var(--color-text-main-light);
+    --border: var(--color-border-light);
+  }
+
+  /* Assuming a class-based dark mode strategy in the HTML wrapper. 
+     Tailwind v4 `dark:` variant handles color values with `dark:` classes well. 
+     For background components that rely on var(--background), this is good practice. */
+  .dark {
+    --background: var(--color-background-dark);
+    --surface: var(--color-surface-dark);
+    --foreground: var(--color-text-main-dark);
+    --border: var(--color-border-dark);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply font-sans;
+  }
+}
+
+/* Custom Scrollbar from Stitch design */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-hover);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ── Print / PDF styles ───────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  /* Reset colours for print */
+  body, * {
+    background: white !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  /* Cards: light borders instead of shadows */
+  [class*="rounded-"] {
+    border-color: #ccc !important;
+  }
+
+  /* Avoid page breaks inside cards */
+  .bg-surface-light, [class*="rounded-\[var"] {
+    break-inside: avoid;
+  }
+
+  /* Hide everything that doesn't belong in a report */
+  nav,
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Ensure main content fills the page without padding offsets */
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Remove fixed positioning from the wrapper div */
+  .flex.flex-col.min-h-screen {
+    display: block !important;
+  }
+
+  .flex.pt-16.h-screen {
+    display: block !important;
+    padding-top: 0 !important;
+    height: auto !important;
+  }
+}
