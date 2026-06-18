@@ -49,3 +49,17 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Node / frontend
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-error.log*
+
+# Agentes / ferramentas locais
+.claude/
+.agent/
+.agents/
+temp/
+response.json

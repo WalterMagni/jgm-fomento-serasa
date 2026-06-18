@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Portal Serasa API",
+    "name": "Fomento - Portal Serasa API",
     "description": "Coleção com todas as requisições da API do Portal Serasa",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -12,6 +12,10 @@
     {
       "key": "cnpj",
       "value": "00000000000191"
+    },
+    {
+      "key": "cpf",
+      "value": "00612812987"
     }
   ],
   "item": [
@@ -289,6 +293,83 @@
             "header": [],
             "url": "{{baseUrl}}/api/v1/credit-analysis/cnpj/{{cnpj}}",
             "description": "Lista todas as análises do CNPJ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Person",
+      "item": [
+        {
+          "name": "Listar análises PF (paginado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/person/profiles?page=0&size=20&sort=consultaEm,desc",
+            "description": "Lista análises de pessoa física com paginação"
+          }
+        },
+        {
+          "name": "Obter perfil PF por CPF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/person/{{cpf}}/profile",
+            "description": "Retorna a análise PF mais recente para o CPF"
+          }
+        },
+        {
+          "name": "Consultar PF na Serasa",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/person/enrich/serasa/{{cpf}}",
+            "description": "Consulta o CPF na Serasa e persiste uma nova análise PF"
+          }
+        },
+        {
+          "name": "Consultar PF via mock",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reports\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/person/enrich/serasa/{{cpf}}/from-mock",
+            "description": "Processa um JSON bruto da Serasa PF sem consumir créditos"
+          }
+        },
+        {
+          "name": "Excluir análises PF por CPF",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/person/{{cpf}}",
+            "description": "Remove todas as análises PF do CPF informado"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "Histórico de consumo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/billing/usage",
+            "description": "Retorna o log detalhado de consumo com PF/PJ, tipo e custo"
+          }
+        },
+        {
+          "name": "Configurações de billing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/billing/settings",
+            "description": "Retorna o custo configurado para consultas PJ e PF"
           }
         }
       ]

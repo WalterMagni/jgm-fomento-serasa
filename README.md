@@ -84,11 +84,13 @@ A aplicação ficará disponível em `http://localhost:8080`.
 | GET | `/api/v1/clients/import/preview?limit=20` | Preview do `clientes.csv` na raiz do projeto |
 | POST | `/api/v1/clients/import/from-file` | Importa do `clientes.csv` na raiz do projeto |
 
-### CNPJ Já (Enriquecimento de Empresas)
+### CNPJ Já e Serasa (Mapa de Informações do Cliente)
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | POST | `/api/v1/company/enrich/cnpja/{cnpj}` | Enriquece dados consultando API CNPJ Já e persiste |
+| POST | `/api/v1/company/enrich/serasa/{cnpj}` | Enriquece dados consultando API Serasa (Credit Rating). **Cliente deve existir.** |
+| GET | `/api/v1/company/{cnpj}/profile` | Perfil completo: dados CNPJ Já + Serasa |
 | GET | `/api/v1/company` | Lista empresas (paginado) |
 | GET | `/api/v1/company/{cnpj}` | Busca dados por CNPJ |
 | POST | `/api/v1/company` | Cria empresa manualmente |
@@ -124,6 +126,10 @@ A aplicação ficará disponível em `http://localhost:8080`.
 | DB_PASSWORD | serasa123 | Senha |
 | SERASA_API_URL | https://api.serasa.example.com | URL base da API Serasa |
 | CLIENT_CSV_PATH | clientes.csv | Caminho do arquivo CSV para importação |
-| CNPJA_API_KEY | - | Chave da API CNPJ Já (obrigatória para `/company/enrich`) |
+| CNPJA_API_KEY | - | Chave da API CNPJ Já (obrigatória para `/company/enrich/cnpja`) |
+| SERASA_API_USER | - | Usuário para autenticação Serasa Experian (Basic Auth) |
+| SERASA_API_PASSWORD | - | Senha para autenticação Serasa Experian (Basic Auth) |
 
 Copie `.env.example` para `.env` e configure as variáveis. O arquivo `.env` não é versionado.
+
+**Serasa:** O token é renovado automaticamente (dura 60 min). Para `POST /company/enrich/serasa/{cnpj}`, o cliente deve existir previamente (criar via `POST /clients` ou importar CSV).
