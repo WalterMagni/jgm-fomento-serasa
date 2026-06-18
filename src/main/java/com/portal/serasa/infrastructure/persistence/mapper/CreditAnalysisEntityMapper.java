@@ -11,5 +11,7 @@ public interface CreditAnalysisEntityMapper {
     CreditAnalysis toDomain(CreditAnalysisEntity entity);
 
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "client", ignore = true)
     CreditAnalysisEntity toEntity(CreditAnalysis domain);
 }

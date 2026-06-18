@@ -4,5 +4,6 @@ public enum CreditAnalysisStatus {
     PENDENTE,
     APROVADO,
     REPROVADO,
-    EM_ANALISE
+    EM_ANALISE,
+    CONCLUIDO
 }

@@ -22,6 +22,7 @@ public class ClientImportService {
 
     private final CsvClientReader csvClientReader;
     private final com.portal.serasa.application.port.out.ClientRepository clientRepository;
+    private final MunicipalityGeocoder geocoder;
 
     /**
      * Importa clientes do CSV com upsert e processamento em lotes.
@@ -36,7 +37,8 @@ public class ClientImportService {
     /**
      * Apenas lê e exibe preview dos dados do CSV (sem persistir).
      */
-    public CsvClientReader.CsvClientPreview previewFromCsv(InputStream inputStream, int maxItems) throws IOException, CsvException {
+    public CsvClientReader.CsvClientPreview previewFromCsv(InputStream inputStream, int maxItems)
+            throws IOException, CsvException {
         List<Client> clients = csvClientReader.readAndParse(inputStream);
         return csvClientReader.createPreview(clients, maxItems);
     }
@@ -90,25 +92,28 @@ public class ClientImportService {
 
         for (Client client : batch) {
             try {
+                applyGeocoding(client);
                 var existing = clientRepository.findByDocumentNumber(client.getDocumentNumber());
-                Client toSave;
                 if (existing.isPresent()) {
-                    Client ex = existing.get();
-                    toSave = Client.builder()
-                            .id(ex.getId())
-                            .documentNumber(client.getDocumentNumber())
-                            .name(client.getName() != null ? client.getName() : ex.getName())
-                            .email(client.getEmail() != null ? client.getEmail() : ex.getEmail())
-                            .phones(client.getPhones() != null && !client.getPhones().isEmpty()
-                                    ? client.getPhones() : ex.getPhones())
-                            .createdAt(ex.getCreatedAt())
-                            .build();
+                    // Preserva nome/email/telefones já enriquecidos, mas atualiza
+                    // o código do cliente e o endereço (CSV é a fonte oficial destes).
+                    Client current = existing.get();
+                    current.setClientCode(client.getClientCode());
+                    current.setAddressZip(client.getAddressZip());
+                    current.setAddressStreet(client.getAddressStreet());
+                    current.setAddressNumber(client.getAddressNumber());
+                    current.setAddressComplement(client.getAddressComplement());
+                    current.setAddressDistrict(client.getAddressDistrict());
+                    current.setAddressCity(client.getAddressCity());
+                    current.setAddressUf(client.getAddressUf());
+                    current.setLatitude(client.getLatitude());
+                    current.setLongitude(client.getLongitude());
+                    clientRepository.save(current);
                     updated++;
                 } else {
-                    toSave = client;
                     created++;
+                    clientRepository.save(client);
                 }
-                clientRepository.save(toSave);
             } catch (Exception e) {
                 log.warn("Erro ao salvar cliente {}: {}", client.getDocumentNumber(), e.getMessage());
                 errors++;
@@ -118,7 +123,20 @@ public class ClientImportService {
         return new BatchResult(created, updated, errors);
     }
 
-    private record BatchResult(int created, int updated, int errors) {}
+    /** Resolve lat/lng do município/UF do cliente via centroide IBGE (offline). */
+    private void applyGeocoding(Client client) {
+        if (client.getAddressCity() == null || client.getAddressUf() == null) {
+            return;
+        }
+        geocoder.resolve(client.getAddressCity() + "/" + client.getAddressUf())
+                .ifPresent(coords -> {
+                    client.setLatitude(coords.latitude());
+                    client.setLongitude(coords.longitude());
+                });
+    }
+
+    private record BatchResult(int created, int updated, int errors) {
+    }
 
     @lombok.Data
     @lombok.Builder

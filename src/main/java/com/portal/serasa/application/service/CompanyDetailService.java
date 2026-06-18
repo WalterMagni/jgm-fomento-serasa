@@ -11,6 +11,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -54,6 +56,18 @@ public class CompanyDetailService {
         return companyDetailRepository.findByDocumentNumber(normalizeCnpj(documentNumber));
     }
 
+    public List<CompanyDetail> findByDocumentNumbers(Collection<String> documentNumbers) {
+        if (documentNumbers == null || documentNumbers.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = documentNumbers.stream()
+                .map(this::normalizeCnpj)
+                .filter(documentNumber -> documentNumber != null && documentNumber.length() == 14)
+                .distinct()
+                .toList();
+        return companyDetailRepository.findByDocumentNumberIn(normalized);
+    }
+
     public CompanyDetail create(CompanyDetail companyDetail) {
         String doc = normalizeCnpj(companyDetail.getDocumentNumber());
         if (doc == null || doc.length() != 14) {
@@ -84,6 +98,10 @@ public class CompanyDetailService {
 
     public Page<CompanyDetail> findAll(Pageable pageable) {
         return companyDetailRepository.findAll(pageable);
+    }
+
+    public long countRegisteredEnrichedClients() {
+        return companyDetailRepository.countRegisteredEnrichedClients();
     }
 
     private void applyUpdates(CompanyDetail target, CompanyDetail source) {

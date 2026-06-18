@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -85,10 +86,19 @@ public class ClientController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/document/{documentNumber}/codigo-cliente")
+    public ResponseEntity<ClientResponse> setClientCode(
+            @PathVariable @NotBlank String documentNumber,
+            @RequestBody java.util.Map<String, String> body) {
+        Client saved = clientService.setClientCodeByDocument(documentNumber, body.get("clientCode"));
+        return ResponseEntity.ok(toResponse(saved));
+    }
+
     private ClientResponse toResponse(Client c) {
         return ClientResponse.builder()
                 .id(c.getId())
                 .documentNumber(c.getDocumentNumber())
+                .clientCode(c.getClientCode())
                 .name(c.getName())
                 .email(c.getEmail())
                 .phones(c.getPhones())

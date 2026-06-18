@@ -42,6 +42,43 @@ public class ClientService {
         return clientRepository.findByDocumentNumber(normalizeDocument(documentNumber));
     }
 
+    /**
+     * Define (ou limpa, com code nulo/vazio) o código do cliente (ERP) por CNPJ.
+     * Garante unicidade do código e cria a linha de cliente se ainda não existir
+     * (empresas cadastradas manualmente sem passar pelo clientes.csv).
+     */
+    @Transactional
+    public Client setClientCodeByDocument(String documentNumber, String code) {
+        String doc = normalizeDocument(documentNumber);
+        if (doc == null || doc.length() != 14) {
+            throw new IllegalArgumentException("Documento deve conter 14 dígitos (CNPJ)");
+        }
+        // Canônico: dígitos sem zeros à esquerda (casa com o "000693" do PDF e o "693" do CSV).
+        String normalizedCode = null;
+        if (code != null) {
+            String digits = code.replaceAll("\\D", "").replaceFirst("^0+", "");
+            normalizedCode = digits.isEmpty() ? null : digits;
+        }
+
+        if (normalizedCode != null) {
+            Optional<Client> owner = clientRepository.findByClientCode(normalizedCode);
+            if (owner.isPresent() && !doc.equals(owner.get().getDocumentNumber())) {
+                throw new IllegalArgumentException(
+                        "Código " + normalizedCode + " já está vinculado a outra empresa ("
+                                + (owner.get().getName() != null ? owner.get().getName() : owner.get().getDocumentNumber()) + ")");
+            }
+        }
+
+        Client client = clientRepository.findByDocumentNumber(doc).orElseGet(() -> {
+            String name = companyDetailRepository.findByDocumentNumber(doc)
+                    .map(cd -> cd.getCompanyName() != null ? cd.getCompanyName() : cd.getAlias())
+                    .orElse(null);
+            return Client.builder().documentNumber(doc).name(name).build();
+        });
+        client.setClientCode(normalizedCode);
+        return clientRepository.save(client);
+    }
+
     @Transactional
     public Client update(java.util.UUID id, Client updates) {
         Client existing = clientRepository.findById(id)

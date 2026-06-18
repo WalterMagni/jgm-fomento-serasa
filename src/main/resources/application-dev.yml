@@ -6,3 +6,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+# A chave do Gemini vem de ${GEMINI_API_KEY} (definida em application.yml e no .env).
+# NUNCA commitar chave em texto puro aqui.

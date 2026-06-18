@@ -30,8 +30,16 @@ public class CsvClientReader {
     private static final char QUOTE = '"';
 
     // Índices das colunas (0-based)
+    private static final int COL_CODIGO_CLIENTE = 0;
     private static final int COL_CNPJ_CPF = 1;
     private static final int COL_NOME_RAZAO_SOCIAL = 4;
+    private static final int COL_ENDERECO_CEP = 5;
+    private static final int COL_ENDERECO_LOGRADOURO = 6;
+    private static final int COL_ENDERECO_NUMERO = 7;
+    private static final int COL_ENDERECO_COMPLEMENTO = 8;
+    private static final int COL_ENDERECO_BAIRRO = 9;
+    private static final int COL_MUNICIPIO = 11;
+    private static final int COL_UF = 12;
     private static final int COL_TELEFONE = 13;
     private static final int COL_CELULAR1 = 14;
     private static final int COL_CELULAR2 = 15;
@@ -49,7 +57,8 @@ public class CsvClientReader {
                 .withQuoteChar(QUOTE)
                 .build();
 
-        try (var reader = new CSVReaderBuilder(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+        try (var reader = new CSVReaderBuilder(
+                new InputStreamReader(inputStream, java.nio.charset.Charset.forName("ISO-8859-1")))
                 .withCSVParser(parser)
                 .build()) {
 
@@ -74,7 +83,8 @@ public class CsvClientReader {
                         clients.add(client);
                     }
                 } catch (Exception e) {
-                    log.warn("Linha {} ignorada por erro: {} - Dados: {}", rowNum, e.getMessage(), Arrays.toString(row));
+                    log.warn("Linha {} ignorada por erro: {} - Dados: {}", rowNum, e.getMessage(),
+                            Arrays.toString(row));
                 }
                 rowNum++;
             }
@@ -85,7 +95,8 @@ public class CsvClientReader {
     }
 
     /**
-     * Exibe preview dos dados parseados (para uso em logs ou endpoint de visualização).
+     * Exibe preview dos dados parseados (para uso em logs ou endpoint de
+     * visualização).
      */
     public CsvClientPreview createPreview(List<Client> clients, int maxItems) {
         List<ClientPreviewItem> items = clients.stream()
@@ -121,9 +132,17 @@ public class CsvClientReader {
 
         return Client.builder()
                 .documentNumber(documentNumber)
+                .clientCode(normalizeClientCode(getCell(row, COL_CODIGO_CLIENTE)))
                 .name(name)
                 .email(email)
                 .phones(new ArrayList<>(phones))
+                .addressZip(normalizeZip(getCell(row, COL_ENDERECO_CEP)))
+                .addressStreet(sanitize(getCell(row, COL_ENDERECO_LOGRADOURO)))
+                .addressNumber(sanitize(getCell(row, COL_ENDERECO_NUMERO)))
+                .addressComplement(sanitize(getCell(row, COL_ENDERECO_COMPLEMENTO)))
+                .addressDistrict(sanitize(getCell(row, COL_ENDERECO_BAIRRO)))
+                .addressCity(sanitize(getCell(row, COL_MUNICIPIO)))
+                .addressUf(sanitize(getCell(row, COL_UF)))
                 .build();
     }
 
@@ -160,9 +179,30 @@ public class CsvClientReader {
         return value.trim();
     }
 
+    /** Código canônico do cliente: dígitos sem zeros à esquerda (casa com o "000693" do PDF). */
+    private String normalizeClientCode(String value) {
+        if (value == null) {
+            return null;
+        }
+        String digits = value.replaceAll("\\D", "").replaceFirst("^0+", "");
+        return digits.isEmpty() ? null : digits;
+    }
+
+    /** Normaliza CEP para o formato 00000-000; retorna null se não tiver 8 dígitos. */
+    private String normalizeZip(String value) {
+        if (value == null) {
+            return null;
+        }
+        String digits = value.replaceAll("\\D", "");
+        if (digits.length() != 8) {
+            return null;
+        }
+        return digits.substring(0, 5) + "-" + digits.substring(5);
+    }
+
     private Set<String> collectPhones(String[] row) {
         Set<String> phones = new LinkedHashSet<>();
-        for (int col : new int[]{COL_TELEFONE, COL_CELULAR1, COL_CELULAR2}) {
+        for (int col : new int[] { COL_TELEFONE, COL_CELULAR1, COL_CELULAR2 }) {
             String raw = getCell(row, col);
             if (raw != null && !raw.isBlank()) {
                 String cleaned = raw.replaceAll("\\D", "");
@@ -184,5 +224,6 @@ public class CsvClientReader {
         private final List<ClientPreviewItem> previewRows;
     }
 
-    public record ClientPreviewItem(String documentNumber, String name, String email, List<String> phones) {}
+    public record ClientPreviewItem(String documentNumber, String name, String email, List<String> phones) {
+    }
 }

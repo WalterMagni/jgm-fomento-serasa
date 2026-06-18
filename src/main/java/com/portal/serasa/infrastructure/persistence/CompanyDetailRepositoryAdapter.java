@@ -10,8 +10,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -37,8 +40,23 @@ public class CompanyDetailRepositoryAdapter implements CompanyDetailRepository {
     }
 
     @Override
+    public List<CompanyDetail> findByDocumentNumberIn(Collection<String> documentNumbers) {
+        if (documentNumbers == null || documentNumbers.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByDocumentNumberIn(documentNumbers).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Page<CompanyDetail> findAll(Pageable pageable) {
         return jpaRepository.findAll(pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public long countRegisteredEnrichedClients() {
+        return jpaRepository.countRegisteredEnrichedClients();
     }
 
     @Override

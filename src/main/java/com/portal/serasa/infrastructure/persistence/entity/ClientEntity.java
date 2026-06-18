@@ -33,8 +33,38 @@ public class ClientEntity {
     @Column(name = "document_number", nullable = false, unique = true, length = 14)
     private String documentNumber;
 
+    @Column(name = "client_code", length = 20)
+    private String clientCode;
+
     @Column(length = 500)
     private String name;
+
+    @Column(name = "address_zip", length = 10)
+    private String addressZip;
+
+    @Column(name = "address_street", length = 255)
+    private String addressStreet;
+
+    @Column(name = "address_number", length = 20)
+    private String addressNumber;
+
+    @Column(name = "address_complement", length = 120)
+    private String addressComplement;
+
+    @Column(name = "address_district", length = 120)
+    private String addressDistrict;
+
+    @Column(name = "address_city", length = 120)
+    private String addressCity;
+
+    @Column(name = "address_uf", length = 2)
+    private String addressUf;
+
+    @Column(name = "latitude")
+    private java.math.BigDecimal latitude;
+
+    @Column(name = "longitude")
+    private java.math.BigDecimal longitude;
 
     @Column(length = 255)
     private String email;

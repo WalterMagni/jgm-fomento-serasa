@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public interface CreditAnalysisUseCase {
 
-    CreditAnalysis consultarESalvar(String cnpj);
-
     Optional<CreditAnalysis> buscarPorId(Long id);
 
     List<CreditAnalysis> buscarPorCnpj(String cnpj);
