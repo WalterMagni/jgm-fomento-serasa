@@ -7,6 +7,18 @@ import { ReactNode, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
+/** Decodifica o JWT e diz se já expirou (ou é inválido). */
+function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (!payload.exp) return false;
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+}
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -48,14 +60,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [isDark, themeReady]);
 
-  // Auth Guard — runs after hydration, no extra setState cascade needed.
+  // Auth Guard — valida presença E expiração do token (sessão de 8h).
   useEffect(() => {
     const token = localStorage.getItem('serasa_token');
     const storedName = localStorage.getItem('serasa_user_name');
-    
-    if (!token) {
-      router.push('/login');
-    } else if (storedName) {
+
+    if (isTokenExpired(token)) {
+      localStorage.removeItem('serasa_token');
+      router.replace('/login?expired=1');
+      return;
+    }
+    if (storedName) {
       setTimeout(() => {
         setUserName(storedName);
         const parts = storedName.split(' ');
@@ -66,6 +81,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         }
       }, 0);
     }
+  }, [router]);
+
+  // Verifica a expiração periodicamente — derruba a sessão ao passar das 8h mesmo com a aba aberta.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (isTokenExpired(localStorage.getItem('serasa_token'))) {
+        localStorage.removeItem('serasa_token');
+        router.replace('/login?expired=1');
+      }
+    }, 60_000);
+    return () => clearInterval(id);
   }, [router]);
 
   const pageLabel = pathname === '/'
