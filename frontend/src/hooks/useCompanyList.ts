@@ -12,9 +12,9 @@ const getAuthHeaders = () => {
   };
 };
 
-export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = '', analysisStatus = '') {
+export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = '', analysisStatus = '', origin = '') {
   const listQuery = useQuery<PageResponse<ClientProfile>>({
-    queryKey: ['companyList', page, size, search, visaoCedente, analysisStatus],
+    queryKey: ['companyList', page, size, search, visaoCedente, analysisStatus, origin],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
@@ -28,6 +28,9 @@ export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = 
       }
       if (analysisStatus.trim()) {
         params.set('analysisStatus', analysisStatus.trim());
+      }
+      if (origin.trim()) {
+        params.set('origin', origin.trim());
       }
       const res = await fetch(`${API_BASE_URL}/company/profiles?${params.toString()}`, {
         headers: getAuthHeaders(),

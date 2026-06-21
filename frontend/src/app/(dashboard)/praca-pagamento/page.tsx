@@ -1334,7 +1334,22 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                   </button>
                 ) : null}
               </div>
-              {entry.payerName ? <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.payerName}</p> : null}
+              {entry.payerName ? (
+                // Só vira link quando o sacado está cadastrado (payerAddress resolvido do company_details).
+                // Sem cadastro, a ficha /clients/{cnpj} abriria em branco — então fica texto até consultar o CNPJ.
+                entry.payerDocument && entry.payerAddress ? (
+                  <Link
+                    href={`/clients/${entry.payerDocument.replace(/\D/g, "")}`}
+                    className="group mt-0.5 inline-flex items-center gap-1 text-sm font-bold text-primary transition-colors hover:underline dark:text-secondary"
+                    title="Abrir ficha do sacado"
+                  >
+                    {entry.payerName}
+                    <span className="material-icons-outlined text-[15px] opacity-60 transition-opacity group-hover:opacity-100">open_in_new</span>
+                  </Link>
+                ) : (
+                  <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.payerName}</p>
+                )
+              ) : null}
               {entry.payerDocument ? <p className="text-xs text-gray-500">{formatCnpj(entry.payerDocument)}</p> : null}
               <p className="text-sm text-grafite dark:text-white">
                 {entry.payerAddress ?? (

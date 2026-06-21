@@ -77,7 +77,7 @@ export default function PaymentPlaceEntryReadOnlyModal({ entry, onClose }: { ent
                 <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-bold ${
                   entry.analystDecision === "SACADO" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300" : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                 }`}>
-                  {entry.analystDecision === "SACADO" ? "Visão Sacado" : "Visão Cedente"}
+                  {entry.analystDecision === "SACADO" ? "Praça Sacado" : "Praça Cedente"}
                 </span>
               ) : null}
             </div>

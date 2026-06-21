@@ -927,6 +927,9 @@ export default function ClientDashboardPage() {
   const [openNegCards, setOpenNegCards] = useState<Record<string, boolean>>({});
   const [showInactivePartners, setShowInactivePartners] = useState(false);
   const [showPredecessors, setShowPredecessors] = useState(false);
+  const [qsaCollapsed, setQsaCollapsed] = useState(false);
+  const [showAllAdmins, setShowAllAdmins] = useState(false);
+  const [showAllSocios, setShowAllSocios] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailNotificacaoCedente] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -1000,6 +1003,32 @@ export default function ClientDashboardPage() {
   const activePartners = partners.filter((partner) => !partner.status?.toUpperCase().includes("BAIX"));
   const inactivePartners = partners.filter((partner) => partner.status?.toUpperCase().includes("BAIX"));
   const visiblePartners = showInactivePartners ? [...activePartners, ...inactivePartners] : activePartners;
+  // QSA: esquerda = Administradores, direita = Sócios. Serasa (partners/directors) tem prioridade;
+  // senão usa companyDetail.members, separando por papel.
+  const isAdminRole = (role?: string | null) => (role ?? "").toLowerCase().includes("admin");
+  const qsaMembers: CompanyMember[] = companyDetail?.members ?? [];
+  const memberRoleText = (m: CompanyMember) => (typeof m.role === "string" ? m.role : m.role?.text) ?? "";
+  const memberAdmins = qsaMembers.filter((m) => isAdminRole(memberRoleText(m)));
+  const memberSocios = qsaMembers.filter((m) => !isAdminRole(memberRoleText(m)));
+  const adminCount = directors.length > 0 ? directors.length : memberAdmins.length;
+  const socioCount = partners.length > 0 ? visiblePartners.length : memberSocios.length;
+  const hasAdmins = adminCount > 0;
+  const hasSocios = socioCount > 0;
+  const visibleDirectors = showAllAdmins ? directors : directors.slice(0, 2);
+  const visibleMemberAdmins = showAllAdmins ? memberAdmins : memberAdmins.slice(0, 2);
+  const visibleSocioPartners = showAllSocios ? visiblePartners : visiblePartners.slice(0, 2);
+  const visibleMemberSocios = showAllSocios ? memberSocios : memberSocios.slice(0, 2);
+  // Fallback members → estrutura do modal (sócio/admin), para ficarem clicáveis com consulta PF.
+  const memberDoc = (m: CompanyMember) => (m.documentNumber ?? "").replace(/\D/g, "");
+  const memberDocType = (doc: string) => (doc.length === 11 ? "CPF" : doc.length === 14 ? "CNPJ" : undefined);
+  const memberToPartner = (m: CompanyMember): QSAPartner => {
+    const doc = memberDoc(m);
+    return { name: m.person?.name || m.name || "Sócio", documentId: doc || undefined, documentType: memberDocType(doc) };
+  };
+  const memberToDirector = (m: CompanyMember): QSADirector => {
+    const doc = memberDoc(m);
+    return { name: m.person?.name || m.name || "Administrador", documentId: doc || undefined, documentType: memberDocType(doc), role: memberRoleText(m) };
+  };
   const inquiries  = inq?.inquiryCompanyResponse?.results ?? [];
   const inquiryHistory = inq?.inquiryCompanyResponse?.quantity?.historical ?? [];
   const maxInquiryOccurrences = inquiryHistory.reduce((max, item) => Math.max(max, item.occurrences ?? 0), 0);
@@ -1319,17 +1348,10 @@ export default function ClientDashboardPage() {
             <h2 className="font-sans text-base font-bold text-primary">Praça de Pagamento — visão acumulada</h2>
             <span className="ml-auto text-xs text-gray-400">{pracaSummary.totalCount} títulos decididos</span>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4 dark:border-blue-500/20 dark:bg-blue-500/5">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">Visão Sacado</p>
-              <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-300">{formatCurrency(pracaSummary.sacadoValue)}</p>
-              <p className="text-xs text-gray-500">{pracaSummary.sacadoCount} título(s) pagos pelo sacado</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-600/30 dark:bg-slate-700/20">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">Visão Cedente</p>
-              <p className="mt-1 text-2xl font-bold text-slate-700 dark:text-slate-200">{formatCurrency(pracaSummary.cedenteValue)}</p>
-              <p className="text-xs text-gray-500">{pracaSummary.cedenteCount} título(s) pagos pelo cedente</p>
-            </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-600/30 dark:bg-slate-700/20">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">Visão Cedente</p>
+            <p className="mt-1 text-2xl font-bold text-slate-700 dark:text-slate-200">{formatCurrency(pracaSummary.cedenteValue)}</p>
+            <p className="text-xs text-gray-500">{pracaSummary.cedenteCount} título(s) pagos pelo cedente</p>
           </div>
         </div>
       ) : null}
@@ -1360,7 +1382,7 @@ export default function ClientDashboardPage() {
                   {formatCNPJ(ca?.cnpj || companyDetail?.documentNumber || "")}
                 </dd>
               </div>
-              <ClientCodeField cnpj={cnpj} value={profile?.client?.clientCode} />
+              <ClientCodeField cnpj={cnpj} value={profile?.client?.clientCode} origin={profile?.client?.origin} />
               <div>
                 <dt className="text-[11px] font-sans font-bold text-gray-400 uppercase tracking-wide">Razão Social</dt>
                 <dd className="text-sm font-serif text-grafite dark:text-gray-200">
@@ -1656,24 +1678,98 @@ export default function ClientDashboardPage() {
         aiAnalysisDate={ca?.aiAnalysisDate ?? null}
       />
 
-      {/* ── QSA — Quadro Societário (full width) ─────────────────────────── */}
-      {(partners.length > 0 || directors.length > 0 || (companyDetail?.members && companyDetail.members.length > 0)) && (
+      {/* ── QSA — Quadro Societário (minimizável; Administradores à esquerda, Sócios à direita) ── */}
+      {(hasAdmins || hasSocios) && (
         <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none mb-6">
-          <h2 className="font-sans font-bold text-base text-primary mb-5 flex items-center gap-2">
-            <span className="material-icons-outlined text-lg">people</span> QSA — Quadro Societário
-          </h2>
+          <button
+            type="button"
+            onClick={() => setQsaCollapsed((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 group"
+          >
+            <h2 className="font-sans font-bold text-base text-primary flex items-center gap-2">
+              <span className="material-icons-outlined text-lg">people</span> QSA — Quadro Societário
+            </h2>
+            <span className="flex items-center gap-2 text-xs text-gray-400 font-sans">
+              {adminCount + socioCount} no total
+              <span className="material-icons-outlined text-gray-400 group-hover:text-primary transition-colors">
+                {qsaCollapsed ? "expand_more" : "expand_less"}
+              </span>
+            </span>
+          </button>
 
-          <div className={`grid gap-6 ${partners.length > 0 && directors.length > 0 ? "md:grid-cols-2 md:divide-x md:divide-border-light dark:md:divide-border-dark" : "grid-cols-1"}`}>
-            {/* ── Sócios ── */}
-            {(partners.length > 0 || (companyDetail?.members && companyDetail.members.length > 0)) && (
-              <div className={partners.length > 0 && directors.length > 0 ? "md:pr-6" : ""}>
+          {!qsaCollapsed && (
+          <div className={`mt-5 grid gap-6 ${hasAdmins && hasSocios ? "md:grid-cols-2 md:divide-x md:divide-border-light dark:md:divide-border-dark" : "grid-cols-1"}`}>
+            {/* ── Administradores (esquerda) ── */}
+            {hasAdmins && (
+              <div className={hasSocios ? "md:pr-6" : ""}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-1 h-4 rounded-full bg-secondary inline-block" />
+                  <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-widest">Administradores</p>
+                  <span className="ml-auto text-xs text-gray-400 font-sans">{adminCount}</span>
+                </div>
+                <div className="space-y-2">
+                  {directors.length > 0 ? visibleDirectors.map((d, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDirector(d)}
+                      className="w-full text-left flex items-start gap-3 p-3 bg-background-light dark:bg-background-dark rounded-lg hover:bg-secondary/5 dark:hover:bg-secondary/10 transition-colors cursor-pointer group"
+                    >
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs font-sans flex-shrink-0 ${
+                        d.restrictionSign ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-secondary/20 text-secondary"
+                      }`}>
+                        {d.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200 truncate">{d.name}</p>
+                        <p className="text-xs font-serif text-gray-500">{d.role} · {d.status}</p>
+                        {d.sinceDate && <p className="text-[10px] text-gray-400">Desde: {formatDate(d.sinceDate)}</p>}
+                      </div>
+                      <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0">chevron_right</span>
+                    </button>
+                  )) : visibleMemberAdmins.map((m: CompanyMember, i: number) => {
+                    const name = m.person?.name || m.name || "Administrador";
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedDirector(memberToDirector(m))}
+                        className="w-full text-left flex items-start gap-3 p-3 bg-background-light dark:bg-background-dark rounded-lg hover:bg-secondary/5 dark:hover:bg-secondary/10 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-secondary/20 text-secondary flex items-center justify-center font-bold text-xs font-sans flex-shrink-0">
+                          {name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200 truncate">{name}</p>
+                          <p className="text-xs font-serif text-gray-500">{memberRoleText(m)}</p>
+                        </div>
+                        <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0">chevron_right</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {adminCount > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllAdmins((v) => !v)}
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-sans font-bold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    {showAllAdmins ? "Mostrar menos" : `Ver mais ${adminCount - 2}`}
+                    <span className="material-icons-outlined text-sm">{showAllAdmins ? "expand_less" : "expand_more"}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Sócios (direita) ── */}
+            {hasSocios && (
+              <div className={hasAdmins ? "md:pl-6" : ""}>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-1 h-4 rounded-full bg-primary inline-block" />
                   <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-widest">Sócios</p>
-                  <span className="ml-auto text-xs text-gray-400 font-sans">
-                    {partners.length > 0 ? activePartners.length : companyDetail?.members?.length ?? 0}
-                  </span>
+                  <span className="ml-auto text-xs text-gray-400 font-sans">{socioCount}</span>
                 </div>
+                {hasAdmins && (
+                  <div className="md:hidden border-t border-border-light dark:border-border-dark mb-3 -mx-3" />
+                )}
                 {partners.length > 0 && inactivePartners.length > 0 && (
                   <div className="flex items-center justify-between gap-4 mb-3 rounded-lg border border-border-light dark:border-border-dark px-3 py-2 bg-background-light dark:bg-background-dark">
                     <p className="text-xs font-sans text-gray-500 dark:text-gray-400">
@@ -1690,7 +1786,7 @@ export default function ClientDashboardPage() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  {partners.length > 0 ? visiblePartners.map((p, i) => {
+                  {partners.length > 0 ? visibleSocioPartners.map((p, i) => {
                     const partnerCpf = (p.documentId ?? "").replace(/\D/g, "");
                     const isCpf = partnerCpf.length === 11;
                     const pfSummary = isCpf ? profile?.partnerPfAnalyses?.[partnerCpf] : undefined;
@@ -1735,60 +1831,52 @@ export default function ClientDashboardPage() {
                         )}
                       </div>
                     );
-                  }) : companyDetail?.members?.map((m: CompanyMember, i: number) => {
-                    const roleText = typeof m.role === "string" ? m.role : m.role?.text;
+                  }) : visibleMemberSocios.map((m: CompanyMember, i: number) => {
                     const name = m.person?.name || m.name || "Sócio";
+                    const doc = memberDoc(m);
+                    const isCpf = doc.length === 11;
+                    const pfSummary = isCpf ? profile?.partnerPfAnalyses?.[doc] : undefined;
                     return (
-                      <div key={i} className="flex items-start gap-3 p-3 bg-background-light dark:bg-background-dark rounded-lg">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs font-sans flex-shrink-0">
-                          {name.substring(0, 2).toUpperCase()}
+                      <div key={i} className="flex items-center bg-background-light dark:bg-background-dark rounded-lg overflow-hidden">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedPartner(memberToPartner(m))}
+                          onKeyDown={(e) => e.key === "Enter" && setSelectedPartner(memberToPartner(m))}
+                          className="flex items-start gap-3 p-3 flex-1 min-w-0 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors cursor-pointer group"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs font-sans flex-shrink-0">
+                            {name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200 truncate">{name}</p>
+                            <p className="text-xs font-serif text-gray-500">{memberRoleText(m)}{doc ? ` · ${memberDocType(doc)}: ${doc}` : ""}</p>
+                          </div>
+                          <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-primary transition-colors self-center flex-shrink-0">chevron_right</span>
                         </div>
-                        <div>
-                          <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200">{name}</p>
-                          <p className="text-xs font-serif text-gray-500">{roleText}</p>
-                        </div>
+                        {isCpf && pfSummary && (
+                          <div className="pr-3 flex-shrink-0">
+                            <PartnerPFBadge cpf={doc} pfSummary={pfSummary} companyCnpj={cleanCnpj} companyLabel={companyLabel} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {/* ── Administradores ── */}
-            {directors.length > 0 && (
-              <div className={partners.length > 0 ? "md:pl-6" : ""}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-1 h-4 rounded-full bg-secondary inline-block" />
-                  <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-widest">Administradores</p>
-                  <span className="ml-auto text-xs text-gray-400 font-sans">{directors.length}</span>
-                </div>
-                {partners.length > 0 && (
-                  <div className="md:hidden border-t border-border-light dark:border-border-dark mb-3 -mx-3" />
+                {socioCount > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllSocios((v) => !v)}
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-sans font-bold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    {showAllSocios ? "Mostrar menos" : `Ver mais ${socioCount - 2}`}
+                    <span className="material-icons-outlined text-sm">{showAllSocios ? "expand_less" : "expand_more"}</span>
+                  </button>
                 )}
-                <div className="space-y-2">
-                  {directors.map((d, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedDirector(d)}
-                      className="w-full text-left flex items-start gap-3 p-3 bg-background-light dark:bg-background-dark rounded-lg hover:bg-secondary/5 dark:hover:bg-secondary/10 transition-colors cursor-pointer group"
-                    >
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs font-sans flex-shrink-0 ${
-                        d.restrictionSign ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-secondary/20 text-secondary"
-                      }`}>
-                        {d.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200 truncate">{d.name}</p>
-                        <p className="text-xs font-serif text-gray-500">{d.role} · {d.status}</p>
-                        {d.sinceDate && <p className="text-[10px] text-gray-400">Desde: {formatDate(d.sinceDate)}</p>}
-                      </div>
-                      <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0">chevron_right</span>
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -1803,7 +1891,16 @@ export default function ClientDashboardPage() {
         companyCnpj={cleanCnpj}
         companyLabel={companyLabel}
       />
-      <PartnerDetailModal director={selectedDirector} onClose={() => setSelectedDirector(null)} />
+      <PartnerDetailModal
+        director={selectedDirector}
+        onClose={() => setSelectedDirector(null)}
+        pfSummary={(() => {
+          const cpf = (selectedDirector?.documentId ?? "").replace(/\D/g, "");
+          return cpf.length === 11 ? profile?.partnerPfAnalyses?.[cpf] : undefined;
+        })()}
+        companyCnpj={cleanCnpj}
+        companyLabel={companyLabel}
+      />
 
       {/* ── Dados Negativos (só com Serasa) ──────────────────────────────── */}
       {hasSerasaData && (() => {
@@ -2147,7 +2244,13 @@ export default function ClientDashboardPage() {
         <PaymentHistoryPanel ph={ca.paymentHistory} />
       )}
 
-      {/* ── Praça de Pagamento: lançamentos ─────────────────────────────────── */}
+      <CommercialInformationPanel cnpj={cleanCnpj} />
+
+      <CompanyNotesPanel cnpj={cleanCnpj} />
+
+      <CompanyDocumentsPanel cnpj={cleanCnpj} />
+
+      {/* ── Praça de Pagamento: lançamentos (último bloco antes da Zona de Perigo) ── */}
       {pracaSummary && pracaSummary.totalCount > 0 ? (
         <div className="mb-6 rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
           <div className="flex flex-wrap items-center gap-2 border-b border-border-light p-5 dark:border-border-dark">
@@ -2168,15 +2271,6 @@ export default function ClientDashboardPage() {
               <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Até</span>
               <input type="date" value={pracaTo} onChange={(ev) => { setPracaTo(ev.target.value); setPracaPage(0); }}
                 className="mt-1 block h-9 rounded-lg border border-border-light bg-white px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white" />
-            </label>
-            <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Visão</span>
-              <select value={pracaDecisao} onChange={(ev) => { setPracaDecisao(ev.target.value); setPracaPage(0); }}
-                className="mt-1 block h-9 rounded-lg border border-border-light bg-white px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white">
-                <option value="">Todas</option>
-                <option value="SACADO">Visão Sacado</option>
-                <option value="CEDENTE">Visão Cedente</option>
-              </select>
             </label>
             <label className="block">
               <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Por página</span>
@@ -2202,7 +2296,7 @@ export default function ClientDashboardPage() {
                   <th className="px-5 py-3">Título</th>
                   <th className="px-5 py-3">Sacado</th>
                   <th className="px-5 py-3">Valor pago</th>
-                  <th className="px-5 py-3">Visão</th>
+                  <th className="px-5 py-3">Praça</th>
                   <th className="px-5 py-3">Decidido em</th>
                   <th className="px-5 py-3">Analista</th>
                   <th className="px-5 py-3 text-right">Ações</th>
@@ -2222,7 +2316,7 @@ export default function ClientDashboardPage() {
                           ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
                           : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                       }`}>
-                        {e.analystDecision === "SACADO" ? "Visão Sacado" : "Visão Cedente"}
+                        {e.analystDecision === "SACADO" ? "Praça Sacado" : "Praça Cedente"}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-gray-500">{e.decidedAt ? new Date(e.decidedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-"}</td>
@@ -2274,12 +2368,6 @@ export default function ClientDashboardPage() {
         <PaymentPlaceEntryReadOnlyModal entry={pracaSelected} onClose={() => setPracaSelected(null)} />
       ) : null}
 
-      <CommercialInformationPanel cnpj={cleanCnpj} />
-
-      <CompanyNotesPanel cnpj={cleanCnpj} />
-
-      <CompanyDocumentsPanel cnpj={cleanCnpj} />
-
       <div className="mt-10 rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/20 p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -2306,15 +2394,41 @@ export default function ClientDashboardPage() {
   );
 }
 
-function ClientCodeField({ cnpj, value }: { cnpj: string; value?: string | null }) {
+function ClientCodeField({ cnpj, value, origin }: { cnpj: string; value?: string | null; origin?: string | null }) {
+  const isSacado = origin === "SACADO_PRACA";
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [code, setCode] = useState(value ?? "");
   const [saving, setSaving] = useState(false);
+  const [promoting, setPromoting] = useState(false);
   React.useEffect(() => setCode(value ?? ""), [value]);
 
   const cleanCnpj = (cnpj || "").replace(/\D/g, "");
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+
+  // Promove um sacado a cliente da carteira: passa a exigir código 4R.
+  const addToCarteira = async () => {
+    setPromoting(true);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("serasa_token") : null;
+      const res = await fetch(`${API}/clients/document/${cleanCnpj}/origem`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ origin: "CARTEIRA" }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(t || "Falha ao adicionar à carteira");
+      }
+      toast.success("Empresa adicionada à carteira. Cadastre o código 4R.");
+      setEditing(true);
+      queryClient.invalidateQueries({ queryKey: ["clientProfile", cleanCnpj] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao adicionar à carteira");
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -2374,6 +2488,22 @@ function ClientCodeField({ cnpj, value }: { cnpj: string; value?: string | null 
             <span className="material-icons-outlined text-[16px]">edit</span>
           </button>
         </dd>
+      ) : isSacado ? (
+        <dd className="mt-1 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+            <span className="material-icons-outlined text-[14px]">badge</span>
+            Sacado — código 4R não necessário
+          </span>
+          <button
+            type="button"
+            onClick={addToCarteira}
+            disabled={promoting}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border-light px-2 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+          >
+            <span className="material-icons-outlined text-[14px]">{promoting ? "hourglass_empty" : "add_business"}</span>
+            Adicionar à carteira
+          </button>
+        </dd>
       ) : (
         <dd className="mt-1 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
@@ -2391,7 +2521,11 @@ function ClientCodeField({ cnpj, value }: { cnpj: string; value?: string | null 
         </dd>
       )}
       {!value && !editing ? (
-        <p className="mt-1 text-[11px] text-gray-400">Sem o código, o cedente não aparece na Praça de Pagamento.</p>
+        <p className="mt-1 text-[11px] text-gray-400">
+          {isSacado
+            ? "Empresa cadastrada como sacado da Praça de Pagamento. O código 4R só é necessário se ela virar cliente da carteira (cedente)."
+            : "Sem o código, o cedente não aparece na Praça de Pagamento."}
+        </p>
       ) : null}
     </div>
   );

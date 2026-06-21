@@ -158,6 +158,7 @@ export default function GestaoCarteiraPage() {
   const [pageSize, setPageSize] = useState(50);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCedente, setFilteredCedente] = useState("");
+  const [filteredOrigin, setFilteredOrigin] = useState("");
   const [activeCardFilter, setActiveCardFilter] = useState<'' | 'analyzed' | 'cedente' | 'pending'>('');
   const [nameSortDir, setNameSortDir] = useState<'asc' | 'desc' | null>(null);
   
@@ -185,6 +186,7 @@ export default function GestaoCarteiraPage() {
     searchQuery,
     effectiveVisaoCedente,
     effectiveAnalysisStatus,
+    filteredOrigin,
   );
 
   const filteredCompanies = useMemo(() => {
@@ -383,11 +385,11 @@ export default function GestaoCarteiraPage() {
       {/* Filters */}
       <div className="mb-6 rounded-2xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] dark:bg-surface-dark border border-gray-100 dark:border-gray-800">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-          <div className="md:col-span-6 relative">
+          <div className="md:col-span-4 relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
               <span className="material-icons-outlined">search</span>
             </span>
-            <input 
+            <input
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-grafite placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 outline-none transition-shadow hover:shadow-sm" 
@@ -395,7 +397,7 @@ export default function GestaoCarteiraPage() {
               type="text"
             />
           </div>
-          <div className="md:col-span-4">
+          <div className="md:col-span-3">
             <select
               value={filteredCedente}
               onChange={(e) => {
@@ -408,6 +410,20 @@ export default function GestaoCarteiraPage() {
               <option value="SIM">✓ Cedente (SIM)</option>
               <option value="NAO">✗ Não Cedente (NÃO)</option>
               <option value="PENDENTE">⏳ Pendente</option>
+            </select>
+          </div>
+          <div className="md:col-span-3">
+            <select
+              value={filteredOrigin}
+              onChange={(e) => {
+                setFilteredOrigin(e.target.value);
+                setPage(0);
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-sm text-grafite focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none transition-shadow hover:shadow-sm"
+            >
+              <option value="">Origem — Todas</option>
+              <option value="SACADO_PRACA">🔵 Apenas sacado</option>
+              <option value="CARTEIRA">📁 Apenas carteira</option>
             </select>
           </div>
           <div className="md:col-span-2 flex justify-end gap-2">
@@ -476,7 +492,7 @@ export default function GestaoCarteiraPage() {
                             {company?.companyName || profile.client?.name || 'Razão Social não informada'}
                           </Link>
                           <NadaConstaIndicator analysis={analysis} />
-                          {!profile.client?.clientCode ? (
+                          {!profile.client?.clientCode && profile.client?.origin !== "SACADO_PRACA" ? (
                             <span
                               className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
                               title="Empresa sem código de cliente (ERP) — não cruza na Praça de Pagamento"

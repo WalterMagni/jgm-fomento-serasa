@@ -481,6 +481,8 @@ export interface Client {
   id: string;
   documentNumber: string;
   clientCode?: string | null;
+  /** CARTEIRA | MANUAL | SACADO_PRACA — sacado não exige código 4R. */
+  origin?: string | null;
   name: string;
   createdAt?: string;
   updatedAt?: string;
