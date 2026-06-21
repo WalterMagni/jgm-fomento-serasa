@@ -77,6 +77,14 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
   const [selectedFilePreviewUrls, setSelectedFilePreviewUrls] = useState<Record<string, string>>({});
   const [editFilePreviewUrls, setEditFilePreviewUrls] = useState<Record<string, string>>({});
   const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
+  const [lightbox, setLightbox] = useState<{ url: string; note: CompanyNote; attachment: CompanyNoteAttachment } | null>(null);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLightbox(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
   const [expandedAttachmentNotes, setExpandedAttachmentNotes] = useState<Record<string, boolean>>({});
 
   const authors = Array.from(new Set(notes.map((note) => note.authorEmail))).sort();
@@ -911,8 +919,9 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                 {isImageFile(attachment) && attachment.id && attachmentPreviewUrls[previewKey] && (
                                   <button
                                     type="button"
-                                    onClick={() => handleDownloadAttachment(note, attachment)}
-                                    className="block"
+                                    onClick={() => setLightbox({ url: attachmentPreviewUrls[previewKey], note, attachment })}
+                                    className="group relative block"
+                                    title="Expandir imagem"
                                   >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
@@ -920,6 +929,10 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                       alt={attachmentLabel(attachment)}
                                       className="max-h-[320px] rounded-[16px] border border-[#eadde3] object-contain"
                                     />
+                                    <span className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                      <span className="material-icons-outlined text-[14px]">zoom_in</span>
+                                      Expandir
+                                    </span>
                                   </button>
                                 )}
                                 <button
@@ -957,6 +970,49 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
           )}
         </div>
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setLightbox(null)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-surface-dark"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
+              <p className="truncate text-sm font-semibold text-grafite dark:text-white">{attachmentLabel(lightbox.attachment)}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadAttachment(lightbox.note, lightbox.attachment)}
+                  disabled={isDownloadingAttachment === `${lightbox.note.id}:${lightbox.attachment.id ?? "legacy"}`}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-primary/90 disabled:opacity-60"
+                >
+                  <span className="material-icons-outlined text-[16px]">download</span>
+                  Baixar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLightbox(null)}
+                  className="inline-flex items-center justify-center rounded-full border border-border-light p-1.5 text-gray-500 transition hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
+                  title="Fechar (Esc)"
+                >
+                  <span className="material-icons-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-center overflow-auto bg-gray-50 p-4 dark:bg-black/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightbox.url}
+                alt={attachmentLabel(lightbox.attachment)}
+                className="max-h-[65vh] max-w-full rounded-lg object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
