@@ -23,7 +23,7 @@ public interface ClientRepository {
 
     Page<Client> search(String term, Pageable pageable);
 
-    Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, Pageable pageable);
+    Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, String origin, Pageable pageable);
 
     long count();
 

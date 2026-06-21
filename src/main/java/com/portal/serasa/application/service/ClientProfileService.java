@@ -156,6 +156,9 @@ public class ClientProfileService {
                 log.info("Criando matriz {} do grupo da filial {} (CNPJ Já, sem Serasa)",
                         headOfficeDocumentNumber, documentNumber);
                 enrichByCnpja(headOfficeDocumentNumber);
+                // Matriz nascida de um grupo sacado também é sacado: não exige código 4R
+                // (markSacadoOrigin protege quem já tem código/origem).
+                markSacadoOrigin(headOfficeDocumentNumber);
             } catch (Exception e) {
                 log.warn("Não foi possível criar a matriz {} via CNPJ Já: {}",
                         headOfficeDocumentNumber, e.getMessage());
@@ -207,6 +210,29 @@ public class ClientProfileService {
      */
     private void ensureAllBranchesFromReceita(String headOfficeDocumentNumber) {
         // no-op — implementar na Fase Receita.
+    }
+
+    /** Origem de cliente criado a partir de um sacado da Praça de Pagamento (não exige código 4R). */
+    public static final String ORIGIN_SACADO_PRACA = "SACADO_PRACA";
+
+    /**
+     * Marca o cliente como originado de sacado (não exige código 4R). Só marca quando ainda não tem
+     * origem definida E não tem código 4R: um cliente de carteira/cedente tem código (ou origem) e
+     * fica protegido, nunca é rebaixado a sacado mesmo que apareça como sacado de um título.
+     */
+    public void markSacadoOrigin(String cnpj) {
+        String documentNumber = normalizeCnpj(cnpj);
+        if (documentNumber == null) {
+            return;
+        }
+        clientRepository.findByDocumentNumber(documentNumber).ifPresent(client -> {
+            boolean semOrigem = client.getOrigin() == null || client.getOrigin().isBlank();
+            boolean semCodigo = client.getClientCode() == null || client.getClientCode().isBlank();
+            if (semOrigem && semCodigo) {
+                client.setOrigin(ORIGIN_SACADO_PRACA);
+                clientRepository.save(client);
+            }
+        });
     }
 
     private CreditAnalysis saveSerasaAnalysis(Client client, String documentNumber, String rawJson) {
@@ -371,17 +397,21 @@ public class ClientProfileService {
      * ou credit_analysis também aparecem, com esses campos nulos.
      */
     public Page<ClientProfile> findAllProfiles(Pageable pageable, String search) {
-        return findAllProfiles(pageable, search, null, null);
+        return findAllProfiles(pageable, search, null, null, null);
     }
 
     public Page<ClientProfile> findAllProfiles(Pageable pageable, String search, String visaoCedente, String analysisStatus) {
+        return findAllProfiles(pageable, search, visaoCedente, analysisStatus, null);
+    }
+
+    public Page<ClientProfile> findAllProfiles(Pageable pageable, String search, String visaoCedente, String analysisStatus, String origin) {
         Pageable sorted = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 org.springframework.data.domain.Sort.by(
                         org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
 
-        Page<Client> clients = clientRepository.searchProfiles(search, visaoCedente, analysisStatus, sorted);
+        Page<Client> clients = clientRepository.searchProfiles(search, visaoCedente, analysisStatus, origin, sorted);
 
         List<String> documentNumbers = clients.getContent().stream()
                 .map(Client::getDocumentNumber)

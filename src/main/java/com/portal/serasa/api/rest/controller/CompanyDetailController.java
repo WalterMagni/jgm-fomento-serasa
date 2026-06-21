@@ -607,9 +607,10 @@ public class CompanyDetailController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String visaoCedente,
             @RequestParam(required = false) String analysisStatus,
+            @RequestParam(required = false) String origin,
             Pageable pageable) {
         return ResponseEntity.ok(
-                clientProfileService.findAllProfiles(pageable, search, visaoCedente, analysisStatus)
+                clientProfileService.findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin)
                         .map(this::toProfileResponse));
     }
 
@@ -952,6 +953,7 @@ public class CompanyDetailController {
                 .id(c.getId())
                 .documentNumber(c.getDocumentNumber())
                 .clientCode(c.getClientCode())
+                .origin(c.getOrigin())
                 .name(c.getName())
                 .email(c.getEmail())
                 .phones(c.getPhones())

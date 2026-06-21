@@ -63,6 +63,9 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
                    from CreditAnalysisEntity ca
                    where ca.cnpj = c.documentNumber
                )))
+          and (:originBlank = true
+               or (:origin = 'SACADO_PRACA' and c.origin = 'SACADO_PRACA')
+               or (:origin = 'CARTEIRA' and (c.origin is null or c.origin <> 'SACADO_PRACA')))
         """)
     Page<ClientEntity> searchProfiles(
             @Param("search") String search,
@@ -71,6 +74,8 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
             @Param("visaoCedenteBlank") boolean visaoCedenteBlank,
             @Param("analysisStatus") String analysisStatus,
             @Param("analysisStatusBlank") boolean analysisStatusBlank,
+            @Param("origin") String origin,
+            @Param("originBlank") boolean originBlank,
             Pageable pageable);
 
     List<ClientEntity> findByDocumentNumberIn(Collection<String> documentNumbers);

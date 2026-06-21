@@ -32,6 +32,8 @@ public class PaymentPlaceSacadoEnricher {
         }
         try {
             clientProfileService.enrichByCnpja(payerDocument);
+            // Empresa que nasce de sacado não exige código 4R (markSacadoOrigin protege carteira/cedente).
+            clientProfileService.markSacadoOrigin(payerDocument);
             clientProfileService.ensureCompanyGroup(payerDocument);
         } catch (Exception e) {
             log.warn("Não foi possível criar perfil do sacado {} via CNPJ Já: {}", payerDocument, e.getMessage());

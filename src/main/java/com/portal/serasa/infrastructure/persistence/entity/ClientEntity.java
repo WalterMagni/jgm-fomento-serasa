@@ -36,6 +36,9 @@ public class ClientEntity {
     @Column(name = "client_code", length = 20)
     private String clientCode;
 
+    @Column(name = "origin", length = 20)
+    private String origin;
+
     @Column(length = 500)
     private String name;
 

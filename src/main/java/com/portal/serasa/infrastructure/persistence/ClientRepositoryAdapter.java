@@ -63,10 +63,11 @@ public class ClientRepositoryAdapter implements ClientRepository {
     }
 
     @Override
-    public Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, Pageable pageable) {
+    public Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, String origin, Pageable pageable) {
         String normalizedTerm = term == null ? "" : term.trim();
         String normalizedVisaoCedente = visaoCedente == null ? "" : visaoCedente.trim().toUpperCase();
         String normalizedAnalysisStatus = analysisStatus == null ? "" : analysisStatus.trim().toUpperCase();
+        String normalizedOrigin = origin == null ? "" : origin.trim().toUpperCase();
         return jpaRepository.searchProfiles(
                 normalizedTerm,
                 normalizedTerm.isBlank(),
@@ -74,6 +75,8 @@ public class ClientRepositoryAdapter implements ClientRepository {
                 normalizedVisaoCedente.isBlank(),
                 normalizedAnalysisStatus,
                 normalizedAnalysisStatus.isBlank(),
+                normalizedOrigin,
+                normalizedOrigin.isBlank(),
                 pageable
         ).map(mapper::toDomain);
     }

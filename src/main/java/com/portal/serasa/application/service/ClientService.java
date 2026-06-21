@@ -79,6 +79,26 @@ public class ClientService {
         return clientRepository.save(client);
     }
 
+    /**
+     * Define a origem do cliente (ex.: promover um sacado a CARTEIRA, passando a exigir código 4R).
+     * Cria a linha do cliente se ainda não existir, herdando o nome do company_details.
+     */
+    public Client setOriginByDocument(String documentNumber, String origin) {
+        String doc = normalizeDocument(documentNumber);
+        if (doc == null || doc.length() != 14) {
+            throw new IllegalArgumentException("Documento deve conter 14 dígitos (CNPJ)");
+        }
+        String normalizedOrigin = origin == null ? null : origin.trim().toUpperCase();
+        Client client = clientRepository.findByDocumentNumber(doc).orElseGet(() -> {
+            String name = companyDetailRepository.findByDocumentNumber(doc)
+                    .map(cd -> cd.getCompanyName() != null ? cd.getCompanyName() : cd.getAlias())
+                    .orElse(null);
+            return Client.builder().documentNumber(doc).name(name).build();
+        });
+        client.setOrigin(normalizedOrigin);
+        return clientRepository.save(client);
+    }
+
     @Transactional
     public Client update(java.util.UUID id, Client updates) {
         Client existing = clientRepository.findById(id)

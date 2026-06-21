@@ -94,11 +94,20 @@ public class ClientController {
         return ResponseEntity.ok(toResponse(saved));
     }
 
+    @PatchMapping("/document/{documentNumber}/origem")
+    public ResponseEntity<ClientResponse> setOrigin(
+            @PathVariable @NotBlank String documentNumber,
+            @RequestBody java.util.Map<String, String> body) {
+        Client saved = clientService.setOriginByDocument(documentNumber, body.get("origin"));
+        return ResponseEntity.ok(toResponse(saved));
+    }
+
     private ClientResponse toResponse(Client c) {
         return ClientResponse.builder()
                 .id(c.getId())
                 .documentNumber(c.getDocumentNumber())
                 .clientCode(c.getClientCode())
+                .origin(c.getOrigin())
                 .name(c.getName())
                 .email(c.getEmail())
                 .phones(c.getPhones())

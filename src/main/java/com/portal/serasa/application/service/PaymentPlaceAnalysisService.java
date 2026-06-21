@@ -276,6 +276,10 @@ public class PaymentPlaceAnalysisService {
         }
 
         CompanyDetail company = clientProfileService.enrichByCnpja(cnpj);
+        // Empresa que nasce de sacado não exige código 4R (markSacadoOrigin protege carteira/cedente).
+        clientProfileService.markSacadoOrigin(cnpj);
+        // Garante o grupo: se o sacado é filial, cria a matriz (CNPJ Já, sem Serasa) e herda a análise.
+        clientProfileService.ensureCompanyGroup(cnpj);
 
         String address = AddressFormat.format(company.getStreet(), company.getNumber(), company.getDetails(),
                 company.getDistrict(), company.getCity(), company.getState(), company.getZip());

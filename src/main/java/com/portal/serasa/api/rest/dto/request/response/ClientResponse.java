@@ -18,6 +18,7 @@ public class ClientResponse {
     private UUID id;
     private String documentNumber;
     private String clientCode;
+    private String origin;
     private String name;
     private String email;
     private List<String> phones;
