@@ -5,10 +5,12 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
+  CompanyNotInPortfolioError,
   useAnalyzeWithAi,
   useArchivePaymentPlaceBatch,
   useBulkDecidePaymentPlace,
   useCompanyBranches,
+  useLinkCedenteCnpj,
   useDeletePaymentPlaceBatch,
   useDecidePaymentPlaceEntry,
   useEnrichAgencyBacen,
@@ -1122,6 +1124,16 @@ export default function PaymentPlacePage() {
   );
 }
 
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 10) / 10;
+}
+
 function DistanceCard({ label, from, to, value, color }: { label: string; from?: string | null; to?: string | null; value?: number | null; color: string }) {
   const km = formatKm(value);
   return (
@@ -1172,7 +1184,88 @@ function Field({ label, value }: { label: string; value?: string | number | null
   );
 }
 
+function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
+  const [cnpj, setCnpj] = useState("");
+  const [confirmCnpj, setConfirmCnpj] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const link = useLinkCedenteCnpj(entry.batchId);
+
+  const submit = (create: boolean) => {
+    const digits = cnpj.replace(/\D/g, "");
+    if (digits.length !== 14) {
+      setError("Informe um CNPJ com 14 dígitos");
+      return;
+    }
+    setError(null);
+    link.mutate(
+      { entryId: entry.id, cnpj: digits, create },
+      {
+        onSuccess: () => {
+          setConfirmCnpj(null);
+          setCnpj("");
+        },
+        onError: (e) => {
+          if (e instanceof CompanyNotInPortfolioError) {
+            setConfirmCnpj(digits);
+          } else {
+            setError(e.message);
+          }
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="mt-2">
+      <div className="flex items-center gap-2">
+        <input
+          value={cnpj}
+          onChange={(e) => setCnpj(e.target.value)}
+          placeholder={`CNPJ do cedente (cód. ${entry.clientCode ?? ""})`}
+          inputMode="numeric"
+          className="h-8 w-full max-w-[230px] rounded-md border border-border-light px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+        />
+        <button
+          type="button"
+          onClick={() => submit(false)}
+          disabled={link.isPending}
+          className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          <span className="material-icons-outlined text-[15px]">search</span>
+          {link.isPending && !confirmCnpj ? "Consultando…" : "Consultar"}
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-gray-400">Busca na carteira e vincula o código a este CNPJ.</p>
+      {error ? <p className="mt-1 text-[11px] text-red-500">{error}</p> : null}
+      {confirmCnpj ? (
+        <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="font-semibold">{formatCnpj(confirmCnpj)} não está na carteira.</p>
+          <p className="mt-0.5">Criar a empresa com os dados do CNPJ Já e vincular o código {entry.clientCode}?</p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => submit(true)}
+              disabled={link.isPending}
+              className="rounded-md bg-secondary px-3 py-1 font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              {link.isPending ? "Criando…" : "Criar e vincular"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmCnpj(null)}
+              className="rounded-md border border-amber-300 px-3 py-1 font-semibold text-amber-900 transition hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enrichingPayerCnpj, onAnalyzeAi, analyzingAi }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onEnrichPayerCnpj: () => void; enrichingPayerCnpj: boolean; onAnalyzeAi: () => void; analyzingAi: boolean }) {
+  // Filiais do sacado (camada opcional, verde).
   const [showBranches, setShowBranches] = useState(false);
   const branchesQuery = useCompanyBranches(entry.payerDocument ?? undefined, showBranches);
   const branchPoints = (branchesQuery.data ?? [])
@@ -1184,6 +1277,34 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
       lng: b.longitude,
       color: "#1F9D55",
     }));
+
+  // Filiais do cedente: carregadas eager ao abrir o lançamento e salvas no cache
+  // (por raiz). Clicar numa filial recalcula as distâncias do cedente.
+  const [showCedenteBranches, setShowCedenteBranches] = useState(true);
+  const [selectedCedenteBranch, setSelectedCedenteBranch] = useState<string | null>(null);
+  const cedenteBranchesQuery = useCompanyBranches(entry.clientDocument ?? undefined, true);
+  const cedenteBranches = (cedenteBranchesQuery.data ?? []).filter(
+    (b) => typeof b.latitude === "number" && typeof b.longitude === "number",
+  );
+  const cedenteBranchMarkers = cedenteBranches.map((b) => ({
+    id: b.cnpj,
+    label: b.matriz ? "Matriz (cedente)" : "Filial (cedente)",
+    city: b.municipio,
+    lat: b.latitude as number,
+    lng: b.longitude as number,
+  }));
+  const selBranch = cedenteBranches.find((b) => b.cnpj === selectedCedenteBranch) ?? null;
+
+  const agencyHasCoords = typeof entry.agencyLatitude === "number" && typeof entry.agencyLongitude === "number";
+  const payerHasCoords = typeof entry.payerLatitude === "number" && typeof entry.payerLongitude === "number";
+  const distClientAgency = selBranch && agencyHasCoords
+    ? haversineKm(selBranch.latitude as number, selBranch.longitude as number, entry.agencyLatitude as number, entry.agencyLongitude as number)
+    : entry.distanceClientAgencyKm;
+  const distClientPayer = selBranch && payerHasCoords
+    ? haversineKm(selBranch.latitude as number, selBranch.longitude as number, entry.payerLatitude as number, entry.payerLongitude as number)
+    : entry.distanceClientPayerKm;
+  const cedenteLabel = selBranch ? (selBranch.matriz ? "Matriz" : "Filial") : "Cedente";
+  const cedenteCity = selBranch ? selBranch.municipio : entry.clientCity;
 
   const points = [
     { label: "Cedente", city: entry.clientCity, lat: entry.clientLatitude, lng: entry.clientLongitude, color: "#612035" },
@@ -1198,10 +1319,17 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Distâncias geográficas</p>
         <p className="text-[11px] text-gray-400">Centroide do município (IBGE); a agência usa o endereço exato quando localizado. Sinal de análise, não prova.</p>
         <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <DistanceCard label="Cedente ↔ Agência" from={entry.clientCity} to={entry.agencyCityPdf} value={entry.distanceClientAgencyKm} color="#D1732C" />
+          <DistanceCard label={`${cedenteLabel} ↔ Agência`} from={cedenteCity} to={entry.agencyCityPdf} value={distClientAgency} color={selBranch ? "#7C3AED" : "#D1732C"} />
           <DistanceCard label="Sacado ↔ Agência" from={entry.payerCity} to={entry.agencyCityPdf} value={entry.distanceAgencyPayerKm} color="#2956E0" />
-          <DistanceCard label="Cedente ↔ Sacado" from={entry.clientCity} to={entry.payerCity} value={entry.distanceClientPayerKm} color="#612035" />
+          <DistanceCard label={`${cedenteLabel} ↔ Sacado`} from={cedenteCity} to={entry.payerCity} value={distClientPayer} color={selBranch ? "#7C3AED" : "#612035"} />
         </div>
+        {selBranch ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800 dark:bg-violet-500/10 dark:text-violet-300">
+            <span className="material-icons-outlined text-[14px]">alt_route</span>
+            Distâncias recalculadas pela filial do cedente em <strong>{selBranch.municipio ?? "—"}</strong> ({selBranch.cnpj})
+            <button type="button" onClick={() => setSelectedCedenteBranch(null)} className="ml-auto font-semibold underline">Limpar</button>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -1304,9 +1432,12 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                   <p className="text-sm text-grafite dark:text-white">{entry.clientAddress ?? clean(entry.clientCity)}</p>
                 </>
               ) : (
-                <p className="mt-0.5 text-sm text-gray-400">
-                  Sem cadastro vinculado (município: {clean(entry.clientCity)})
-                </p>
+                <>
+                  <p className="mt-0.5 text-sm text-gray-400">
+                    Sem cadastro vinculado (município: {clean(entry.clientCity)})
+                  </p>
+                  {entry.clientCode ? <CedenteLinkField entry={entry} /> : null}
+                </>
               )}
             </div>
             <div>
@@ -1420,27 +1551,49 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#612035" }} />Cedente</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#D1732C" }} />Agência</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#2956E0" }} />Sacado</span>
+          {showCedenteBranches && cedenteBranchMarkers.length > 0 ? (
+            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#7C3AED" }} />Filiais do cedente</span>
+          ) : null}
           {showBranches ? (
             <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#1F9D55" }} />Filiais do sacado</span>
           ) : null}
-          <button
-            type="button"
-            onClick={() => setShowBranches((v) => !v)}
-            disabled={!entry.payerDocument}
-            className="ml-auto rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-          >
-            {branchesQuery.isFetching
-              ? "Carregando filiais…"
-              : showBranches
-                ? `Ocultar filiais${branchPoints.length ? ` (${branchPoints.length})` : ""}`
-                : "Mostrar filiais do sacado"}
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            {cedenteBranchMarkers.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowCedenteBranches((v) => !v)}
+                className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+              >
+                {showCedenteBranches ? `Ocultar filiais do cedente (${cedenteBranchMarkers.length})` : `Filiais do cedente (${cedenteBranchMarkers.length})`}
+              </button>
+            ) : cedenteBranchesQuery.isFetching ? (
+              <span className="text-[11px] text-gray-400">Carregando filiais do cedente…</span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowBranches((v) => !v)}
+              disabled={!entry.payerDocument}
+              className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+            >
+              {branchesQuery.isFetching
+                ? "Carregando filiais…"
+                : showBranches
+                  ? `Ocultar filiais${branchPoints.length ? ` (${branchPoints.length})` : ""}`
+                  : "Mostrar filiais do sacado"}
+            </button>
+          </div>
         </div>
         {showBranches && branchesQuery.isError ? (
           <p className="text-[11px] text-red-500">{(branchesQuery.error as Error)?.message ?? "Erro ao carregar filiais"}</p>
         ) : null}
         <div className="min-h-[300px] flex-1 overflow-hidden rounded-xl border border-border-light shadow-sm dark:border-border-dark">
-          <PaymentPlaceMap points={points} />
+          <PaymentPlaceMap
+            points={points}
+            branches={showCedenteBranches ? cedenteBranchMarkers : []}
+            selectedBranchId={selectedCedenteBranch}
+            onBranchClick={(id) => setSelectedCedenteBranch((cur) => (cur === id ? null : id))}
+            branchColor="#7C3AED"
+          />
         </div>
       </div>
       </div>

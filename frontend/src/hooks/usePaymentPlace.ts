@@ -231,6 +231,46 @@ export function useEnrichPayerCnpj(batchId?: string) {
   });
 }
 
+export class CompanyNotInPortfolioError extends Error {
+  cnpj: string;
+  constructor(cnpj: string) {
+    super(`CNPJ ${cnpj} não está na carteira`);
+    this.cnpj = cnpj;
+    this.name = "CompanyNotInPortfolioError";
+  }
+}
+
+export function useLinkCedenteCnpj(batchId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<PaymentPlaceEntry, Error, { entryId: string; cnpj: string; create?: boolean }>({
+    mutationFn: async ({ entryId, cnpj, create }) => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/cnpj-cedente`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ cnpj, create: Boolean(create) }),
+      });
+      if (response.status === 409) {
+        const data = await response.json().catch(() => ({}));
+        throw new CompanyNotInPortfolioError(data.message || cnpj);
+      }
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Falha ao vincular CNPJ do cedente");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success("Cedente vinculado — todos os títulos do código foram atualizados");
+      // Vários lançamentos do mesmo código mudaram → revalida listagens inteiras.
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceCompany"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
+    },
+  });
+}
+
 export function useArchivePaymentPlaceBatch() {
   const queryClient = useQueryClient();
 

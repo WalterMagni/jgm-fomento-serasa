@@ -42,6 +42,7 @@ public class PaymentPlaceAnalysisService {
     private final PaymentPlaceAgencyEnricher agencyEnricher;
     private final PaymentPlaceSacadoEnricher sacadoEnricher;
     private final ClientProfileService clientProfileService;
+    private final ClientService clientService;
     private final com.portal.serasa.infrastructure.integration.gemini.GeminiAiService geminiAiService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final com.portal.serasa.application.port.out.ClientRepository clientRepository;
@@ -301,6 +302,68 @@ public class PaymentPlaceAnalysisService {
 
     private MunicipalityGeocoder.Coordinates coordsOf(BigDecimal lat, BigDecimal lng) {
         return (lat == null || lng == null) ? null : new MunicipalityGeocoder.Coordinates(lat, lng);
+    }
+
+    /**
+     * Triangula um cedente sem cadastro a partir do seu código (ERP): vincula o
+     * código ao CNPJ informado e re-resolve o lançamento. Se o CNPJ não estiver
+     * na carteira e {@code createIfMissing=false}, lança {@link CompanyNotInPortfolioException}
+     * para o frontend perguntar se quer criar a empresa (dados do CNPJ Já).
+     */
+    @Transactional
+    public PaymentPlaceEntryEntity linkCedenteCnpj(UUID entryId, String rawCnpj, boolean createIfMissing) {
+        PaymentPlaceEntryEntity entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento de praça de pagamento não encontrado"));
+
+        String code = entry.getClientCode();
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("Lançamento sem código de cedente para vincular");
+        }
+        String cnpj = normalizeCnpj(rawCnpj);
+        if (cnpj == null) {
+            throw new IllegalArgumentException("CNPJ inválido (informe 14 dígitos)");
+        }
+
+        if (!companyDetailRepository.existsByDocumentNumber(cnpj)) {
+            if (!createIfMissing) {
+                throw new com.portal.serasa.domain.exception.CompanyNotInPortfolioException(cnpj);
+            }
+            clientProfileService.enrichByCnpja(cnpj); // cria company_details com dados do CNPJ Já
+        }
+
+        // Vincula o código ao CNPJ (upsert de clients + valida unicidade do código).
+        clientService.setClientCodeByDocument(cnpj, code);
+
+        // Re-resolve TODOS os lançamentos pendentes do mesmo código (não só este),
+        // pois o cedente é denormalizado no import e ficaria null nos demais títulos.
+        String normCode = normalizeClientCode(code);
+        List<PaymentPlaceEntryEntity> targets = entryRepository.findUnresolvedByNormalizedClientCode(normCode);
+        if (targets.stream().noneMatch(t -> t.getId().equals(entry.getId()))) {
+            targets = new java.util.ArrayList<>(targets);
+            targets.add(entry);
+        }
+        targets.forEach(this::reresolveCedente);
+        entryRepository.saveAll(targets);
+        return targets.stream().filter(t -> t.getId().equals(entry.getId())).findFirst().orElse(entry);
+    }
+
+    /** Re-resolve o cedente de um lançamento (nome/CNPJ/endereço/coords/distâncias/score). */
+    private void reresolveCedente(PaymentPlaceEntryEntity entry) {
+        MunicipalityGeocoder.Coordinates clientCentroid = coordsOf(entry.getClientLatitude(), entry.getClientLongitude());
+        ResolvedClient cedente = resolveCedente(entry.getClientCode(), clientCentroid);
+        MunicipalityGeocoder.Coordinates client = cedente.coordinates();
+        entry.setClientName(cedente.name());
+        entry.setClientDocument(cedente.document());
+        entry.setClientAddress(cedente.address());
+        if (client != null) {
+            entry.setClientLatitude(client.latitude());
+            entry.setClientLongitude(client.longitude());
+        }
+        MunicipalityGeocoder.Coordinates agency = coordsOf(entry.getAgencyLatitude(), entry.getAgencyLongitude());
+        MunicipalityGeocoder.Coordinates payer = coordsOf(entry.getPayerLatitude(), entry.getPayerLongitude());
+        entry.setDistanceClientAgencyKm(geocoder.distanceKm(client, agency));
+        entry.setDistanceClientPayerKm(geocoder.distanceKm(client, payer));
+        scorer.apply(entry);
     }
 
     /** Gera (sob demanda) a justificativa do Gemini para o lançamento e persiste. */

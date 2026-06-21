@@ -29,4 +29,15 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
             + "OR regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') = :doc) "
             + "ORDER BY e.decided_at DESC NULLS LAST", nativeQuery = true)
     List<PaymentPlaceEntryEntity> findCedenteDecidedForCompany(@Param("doc") String doc);
+
+    /**
+     * Lançamentos ainda sem cedente resolvido (client_document nulo) cujo código,
+     * normalizado (só dígitos, sem zeros à esquerda), bate com :code. Usado para
+     * propagar a vinculação de um CNPJ a todos os títulos do mesmo cedente.
+     */
+    @Query(value = "SELECT * FROM payment_place_entries e "
+            + "WHERE e.client_document IS NULL "
+            + "AND regexp_replace(regexp_replace(COALESCE(e.client_code, ''), '\\D', '', 'g'), '^0+', '') = :code",
+            nativeQuery = true)
+    List<PaymentPlaceEntryEntity> findUnresolvedByNormalizedClientCode(@Param("code") String code);
 }

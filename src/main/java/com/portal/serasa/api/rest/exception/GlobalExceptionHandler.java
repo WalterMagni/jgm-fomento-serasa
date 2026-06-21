@@ -117,6 +117,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(com.portal.serasa.domain.exception.CompanyNotInPortfolioException.class)
+    public ResponseEntity<ErrorResponse> handleCompanyNotInPortfolio(
+            com.portal.serasa.domain.exception.CompanyNotInPortfolioException ex,
+            HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Company Not In Portfolio")
+                .message(ex.getCnpj())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(
             IllegalArgumentException ex,

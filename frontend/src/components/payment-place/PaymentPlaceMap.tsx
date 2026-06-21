@@ -24,16 +24,33 @@ export type GeoPoint = {
   color: string;
 };
 
+export type BranchMarker = {
+  id: string;
+  label: string;
+  city?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+};
+
 type Props = {
   points: GeoPoint[];
+  branches?: BranchMarker[];
+  selectedBranchId?: string | null;
+  onBranchClick?: (id: string) => void;
+  branchColor?: string;
 };
 
 function isValid(point: GeoPoint): point is GeoPoint & { lat: number; lng: number } {
   return typeof point.lat === "number" && typeof point.lng === "number";
 }
 
-export default function PaymentPlaceMap({ points }: Props) {
+function isValidBranch(b: BranchMarker): b is BranchMarker & { lat: number; lng: number } {
+  return typeof b.lat === "number" && typeof b.lng === "number";
+}
+
+export default function PaymentPlaceMap({ points, branches, selectedBranchId, onBranchClick, branchColor = "#7C3AED" }: Props) {
   const valid = useMemo(() => points.filter(isValid), [points]);
+  const validBranches = useMemo(() => (branches ?? []).filter(isValidBranch), [branches]);
 
   const center = useMemo<[number, number]>(() => {
     if (valid.length === 0) return [-14.235, -51.925]; // centro do Brasil
@@ -74,7 +91,31 @@ export default function PaymentPlaceMap({ points }: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds points={groups.map((g) => g.center)} />
+      <FitBounds points={[...groups.map((g) => g.center), ...validBranches.map((b) => [b.lat, b.lng] as [number, number])]} />
+      {validBranches.map((b) => {
+        const selected = b.id === selectedBranchId;
+        return (
+          <CircleMarker
+            key={`branch-${b.id}`}
+            center={[b.lat, b.lng]}
+            radius={selected ? 9 : 6}
+            pathOptions={{
+              color: selected ? "#111" : "#fff",
+              weight: selected ? 3 : 1.5,
+              fillColor: branchColor,
+              fillOpacity: selected ? 1 : 0.85,
+            }}
+            eventHandlers={{ click: () => onBranchClick?.(b.id) }}
+          >
+            <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+              <span className="text-xs font-bold" style={{ color: branchColor }}>● </span>
+              <span className="text-xs font-bold">{b.label}</span>
+              {b.city ? <span className="text-[11px]"> · {b.city}</span> : null}
+              <span className="block text-[10px] text-gray-500">clique para recalcular</span>
+            </Tooltip>
+          </CircleMarker>
+        );
+      })}
       {groups.length >= 2 ? (
         <Polyline
           positions={groups.map((g) => g.center)}

@@ -185,6 +185,15 @@ public class PaymentPlaceAnalysisController {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.enrichPayerCnpj(entryId)));
     }
 
+    @PostMapping("/lancamentos/{entryId}/cnpj-cedente")
+    public ResponseEntity<PaymentPlaceEntryResponse> linkCedenteCnpj(
+            @PathVariable UUID entryId,
+            @RequestBody java.util.Map<String, Object> body) {
+        String cnpj = body.get("cnpj") == null ? null : body.get("cnpj").toString();
+        boolean create = Boolean.parseBoolean(String.valueOf(body.getOrDefault("create", false)));
+        return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.linkCedenteCnpj(entryId, cnpj, create)));
+    }
+
     @DeleteMapping("/lancamentos/{entryId}/decisao")
     public ResponseEntity<PaymentPlaceEntryResponse> reopenEntry(@PathVariable UUID entryId) {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.reopenEntry(entryId)));
