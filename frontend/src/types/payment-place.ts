@@ -118,3 +118,15 @@ export type PaymentPlaceBatchIndicators = {
   topRecurringBankAgencies: PaymentPlaceBankAgencyIndicator[];
   topDivergentBankAgencies: PaymentPlaceBankAgencyIndicator[];
 };
+
+export type CompanyBranch = {
+  cnpj: string;
+  matriz: boolean;
+  inSystem: boolean;
+  nomeFantasia?: string | null;
+  uf?: string | null;
+  municipio?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};

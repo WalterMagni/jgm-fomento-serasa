@@ -8,6 +8,7 @@ import {
   useAnalyzeWithAi,
   useArchivePaymentPlaceBatch,
   useBulkDecidePaymentPlace,
+  useCompanyBranches,
   useDeletePaymentPlaceBatch,
   useDecidePaymentPlaceEntry,
   useEnrichAgencyBacen,
@@ -1172,10 +1173,23 @@ function Field({ label, value }: { label: string; value?: string | number | null
 }
 
 function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enrichingPayerCnpj, onAnalyzeAi, analyzingAi }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onEnrichPayerCnpj: () => void; enrichingPayerCnpj: boolean; onAnalyzeAi: () => void; analyzingAi: boolean }) {
+  const [showBranches, setShowBranches] = useState(false);
+  const branchesQuery = useCompanyBranches(entry.payerDocument ?? undefined, showBranches);
+  const branchPoints = (branchesQuery.data ?? [])
+    .filter((b) => typeof b.latitude === "number" && typeof b.longitude === "number")
+    .map((b) => ({
+      label: b.matriz ? "Matriz (sacado)" : "Filial (sacado)",
+      city: b.municipio,
+      lat: b.latitude,
+      lng: b.longitude,
+      color: "#1F9D55",
+    }));
+
   const points = [
     { label: "Cedente", city: entry.clientCity, lat: entry.clientLatitude, lng: entry.clientLongitude, color: "#612035" },
     { label: "Agência", city: entry.agencyCityPdf, lat: entry.agencyLatitude, lng: entry.agencyLongitude, color: "#D1732C" },
     { label: "Sacado", city: entry.payerCity, lat: entry.payerLatitude, lng: entry.payerLongitude, color: "#2956E0" },
+    ...(showBranches ? branchPoints : []),
   ];
 
   return (
@@ -1406,7 +1420,25 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#612035" }} />Cedente</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#D1732C" }} />Agência</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#2956E0" }} />Sacado</span>
+          {showBranches ? (
+            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#1F9D55" }} />Filiais do sacado</span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setShowBranches((v) => !v)}
+            disabled={!entry.payerDocument}
+            className="ml-auto rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+          >
+            {branchesQuery.isFetching
+              ? "Carregando filiais…"
+              : showBranches
+                ? `Ocultar filiais${branchPoints.length ? ` (${branchPoints.length})` : ""}`
+                : "Mostrar filiais do sacado"}
+          </button>
         </div>
+        {showBranches && branchesQuery.isError ? (
+          <p className="text-[11px] text-red-500">{(branchesQuery.error as Error)?.message ?? "Erro ao carregar filiais"}</p>
+        ) : null}
         <div className="min-h-[300px] flex-1 overflow-hidden rounded-xl border border-border-light shadow-sm dark:border-border-dark">
           <PaymentPlaceMap points={points} />
         </div>

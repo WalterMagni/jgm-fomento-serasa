@@ -71,6 +71,13 @@ gemini:
     key: ${GEMINI_API_KEY:${GOOGLE_GENERATIVE_AI_API_KEY:}}
   model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
 
+bigquery:
+  enabled: ${BIGQUERY_ENABLED:false}
+  project-id: ${BIGQUERY_PROJECT_ID:}
+  credentials-path: ${GOOGLE_APPLICATION_CREDENTIALS:}
+  branches:
+    cache-ttl-days: ${BIGQUERY_BRANCHES_TTL_DAYS:30}
+
 email:
   cedente:
     from: ${EMAIL_FROM:jgmempresarial@jgmempresarial.com}

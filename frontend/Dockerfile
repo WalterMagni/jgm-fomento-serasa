@@ -2,7 +2,8 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps && \
+    npm install --no-save --legacy-peer-deps @next/swc-linux-x64-gnu@16.1.6
 
 # ── Stage 2: builder ──────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder

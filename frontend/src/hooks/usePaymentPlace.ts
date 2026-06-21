@@ -1,8 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry } from "../types/payment-place";
+import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry } from "../types/payment-place";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+
+export function useCompanyBranches(cnpj?: string, enabled = false) {
+  return useQuery<CompanyBranch[]>({
+    queryKey: ["companyBranches", cnpj],
+    enabled: Boolean(cnpj) && enabled,
+    staleTime: 1000 * 60 * 30,
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/filiais/${cnpj}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (response.status === 503) {
+        throw new Error("Consulta de filiais indisponível (BigQuery não configurado)");
+      }
+      if (!response.ok) {
+        throw new Error("Erro ao carregar filiais");
+      }
+      return response.json();
+    },
+  });
+}
 
 function getAuthHeaders(contentType?: string) {
   if (typeof window === "undefined") return {};

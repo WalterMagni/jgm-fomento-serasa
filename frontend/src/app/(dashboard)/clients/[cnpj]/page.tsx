@@ -35,6 +35,7 @@ import { AiAnalysisCard } from "./AiAnalysisCard";
 import { CompanyNotesPanel } from "./CompanyNotesPanel";
 import { CommercialInformationPanel } from "./CommercialInformationPanel";
 import { CompanyDocumentsPanel } from "./CompanyDocumentsPanel";
+import { CompanyBranchesPanel } from "./CompanyBranchesPanel";
 import { useEnrichPersonSerasa } from "../../../../hooks/usePersonProfile";
 import type { PersonAnalysisSummary } from "../../../../types/person-analysis";
 
@@ -1606,6 +1607,8 @@ export default function ClientDashboardPage() {
           </div>
         </div>
       </div>
+
+      <CompanyBranchesPanel cnpj={cleanCnpj} />
 
       {/* ── Serasa: chamada ou pendências ────────────────────────────────── */}
       {(!hasSerasaData || totalPendingFromAnalysis(ca) > 0) && (

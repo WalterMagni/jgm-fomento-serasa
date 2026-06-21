@@ -63,3 +63,8 @@ yarn-error.log*
 .agents/
 temp/
 response.json
+
+# Credencial da service account BigQuery / GCP (NUNCA commitar)
+gcp-bq-key.json
+*-bq-key.json
+jgm-fomento-*.json

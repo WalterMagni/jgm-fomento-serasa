@@ -38,7 +38,17 @@ import java.util.UUID;
 public class PaymentPlaceAnalysisController {
 
     private final PaymentPlaceAnalysisService paymentPlaceAnalysisService;
+    private final com.portal.serasa.application.service.CompanyBranchService companyBranchService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    @GetMapping("/filiais/{cnpj}")
+    public ResponseEntity<List<com.portal.serasa.api.rest.dto.response.CompanyBranchResponse>> branches(
+            @PathVariable String cnpj) {
+        if (!companyBranchService.isAvailable()) {
+            return ResponseEntity.status(503).build();
+        }
+        return ResponseEntity.ok(companyBranchService.getBranches(cnpj));
+    }
 
     @PostMapping(value = "/importar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PaymentPlaceBatchDetailResponse> importPdf(@RequestParam("file") MultipartFile file)
