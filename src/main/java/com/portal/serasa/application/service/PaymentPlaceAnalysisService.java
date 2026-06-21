@@ -40,6 +40,7 @@ public class PaymentPlaceAnalysisService {
     private final MunicipalityGeocoder geocoder;
     private final PaymentPlaceScorer scorer;
     private final PaymentPlaceAgencyEnricher agencyEnricher;
+    private final PaymentPlaceSacadoEnricher sacadoEnricher;
     private final ClientProfileService clientProfileService;
     private final com.portal.serasa.infrastructure.integration.gemini.GeminiAiService geminiAiService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -188,7 +189,29 @@ public class PaymentPlaceAnalysisService {
         entry.setAnalysisStatus(ENTRY_STATUS_REVIEWED);
         entry.setReopenedAt(null);
         stampDecision(entry, user);
-        return entryRepository.save(entry);
+        PaymentPlaceEntryEntity saved = entryRepository.save(entry);
+        if ("CEDENTE".equals(normalizedDecision)) {
+            scheduleSacadoProfile(saved.getPayerDocument());
+        }
+        return saved;
+    }
+
+    /**
+     * Após o commit da decisão, garante (em background) o perfil da empresa do sacado.
+     * Quando o título é CEDENTE, o valor passa a aparecer também na Visão Cedente do sacado —
+     * então ele precisa existir como empresa no sistema (busca padrão CNPJ Já; Serasa fica manual).
+     */
+    private void scheduleSacadoProfile(String payerDocument) {
+        if (payerDocument == null || payerDocument.isBlank()) {
+            return;
+        }
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        sacadoEnricher.ensureProfile(payerDocument);
+                    }
+                });
     }
 
     /**
@@ -332,17 +355,23 @@ public class PaymentPlaceAnalysisService {
         }
         List<PaymentPlaceEntryEntity> entries = entryRepository.findAllById(decisionsByEntryId.keySet());
         for (PaymentPlaceEntryEntity entry : entries) {
-            entry.setAnalystDecision(normalizeDecision(decisionsByEntryId.get(entry.getId())));
+            String normalizedDecision = normalizeDecision(decisionsByEntryId.get(entry.getId()));
+            entry.setAnalystDecision(normalizedDecision);
             entry.setAnalysisStatus(ENTRY_STATUS_REVIEWED);
             stampDecision(entry, user);
+            if ("CEDENTE".equals(normalizedDecision)) {
+                scheduleSacadoProfile(entry.getPayerDocument());
+            }
         }
         return entryRepository.saveAll(entries);
     }
 
     /**
-     * Resumo das decisões de praça de pagamento da empresa (como cedente).
-     * Totais (sacado/cedente) são sempre sobre TODO o histórico; a lista de
-     * lançamentos é filtrada (data/decisão) e paginada.
+     * Resumo da Praça de Pagamento da empresa. Visão Cedente acumulada = todos os títulos
+     * decididos como CEDENTE em que a empresa é o cedente OU o sacado do título. Decisões
+     * SACADO não entram (não somam para nenhuma das partes). Totais são sobre TODO o
+     * histórico; a lista de lançamentos é filtrada por data e paginada. A Visão Sacado é
+     * mantida zerada no retorno por compatibilidade do contrato (o frontend não a exibe mais).
      */
     @Transactional(readOnly = true)
     public CompanyPaymentPlaceSummary getCompanySummary(String cnpj, java.time.LocalDate from, java.time.LocalDate to,
@@ -351,29 +380,22 @@ public class PaymentPlaceAnalysisService {
         if (doc == null) {
             return new CompanyPaymentPlaceSummary(cnpj, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO, List.of(), page, size, 0, 0);
         }
-        List<PaymentPlaceEntryEntity> decided =
-                entryRepository.findByClientDocumentAndAnalystDecisionIsNotNullOrderByDecidedAtDesc(doc);
+        // Regra Visão Cedente: soma os títulos decididos como CEDENTE em que a empresa participa
+        // como cedente (clientDocument) OU como sacado (payerDocument). Decisões SACADO não somam
+        // para ninguém. A query normaliza ambos os documentos (payer costuma vir mascarado do PDF).
+        List<PaymentPlaceEntryEntity> cedenteEntries = entryRepository.findCedenteDecidedForCompany(doc);
 
         int sacadoCount = 0;
-        int cedenteCount = 0;
+        int cedenteCount = cedenteEntries.size();
         BigDecimal sacadoValue = BigDecimal.ZERO;
         BigDecimal cedenteValue = BigDecimal.ZERO;
-        for (PaymentPlaceEntryEntity e : decided) {
-            BigDecimal value = parseBrlValue(e.getPaidValue());
-            if ("SACADO".equals(e.getAnalystDecision())) {
-                sacadoCount++;
-                sacadoValue = sacadoValue.add(value);
-            } else if ("CEDENTE".equals(e.getAnalystDecision())) {
-                cedenteCount++;
-                cedenteValue = cedenteValue.add(value);
-            }
+        for (PaymentPlaceEntryEntity e : cedenteEntries) {
+            cedenteValue = cedenteValue.add(parseBrlValue(e.getPaidValue()));
         }
 
-        String normalizedDecision = (decision == null || decision.isBlank()) ? null : decision.trim().toUpperCase();
         java.time.LocalDateTime fromDt = from == null ? null : from.atStartOfDay();
         java.time.LocalDateTime toDt = to == null ? null : to.atTime(23, 59, 59);
-        List<PaymentPlaceEntryEntity> filtered = decided.stream()
-                .filter(e -> normalizedDecision == null || normalizedDecision.equals(e.getAnalystDecision()))
+        List<PaymentPlaceEntryEntity> filtered = cedenteEntries.stream()
                 .filter(e -> fromDt == null || (e.getDecidedAt() != null && !e.getDecidedAt().isBefore(fromDt)))
                 .filter(e -> toDt == null || (e.getDecidedAt() != null && !e.getDecidedAt().isAfter(toDt)))
                 .toList();

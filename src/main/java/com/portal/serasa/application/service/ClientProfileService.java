@@ -133,6 +133,82 @@ public class ClientProfileService {
         return companyDetail;
     }
 
+    /**
+     * Garante a consistência do grupo (matriz + filiais) de um CNPJ recém-criado — usado quando
+     * o sacado de um título vira empresa no sistema. Não consulta Serasa (dado caro): só cria a
+     * matriz via CNPJ Já se faltar e herda a análise de crédito que a matriz já tiver.
+     *
+     * Idempotente e tolerante a falha — nunca propaga erro, pois roda em background após a decisão
+     * do analista e não pode quebrá-la.
+     */
+    public void ensureCompanyGroup(String cnpj) {
+        String documentNumber = normalizeCnpj(cnpj);
+        if (documentNumber == null || documentNumber.length() != 14) {
+            return;
+        }
+
+        String headOfficeDocumentNumber = calculateHeadOfficeCnpj(documentNumber);
+        boolean isFilial = !documentNumber.equals(headOfficeDocumentNumber);
+
+        // 1. A matriz precisa existir antes da filial (regra do grupo). CNPJ Já, sem Serasa.
+        if (isFilial && companyDetailService.findByDocumentNumber(headOfficeDocumentNumber).isEmpty()) {
+            try {
+                log.info("Criando matriz {} do grupo da filial {} (CNPJ Já, sem Serasa)",
+                        headOfficeDocumentNumber, documentNumber);
+                enrichByCnpja(headOfficeDocumentNumber);
+            } catch (Exception e) {
+                log.warn("Não foi possível criar a matriz {} via CNPJ Já: {}",
+                        headOfficeDocumentNumber, e.getMessage());
+            }
+        }
+
+        // 2. Backfill: se a matriz já tem análise Serasa, a filial nova herda na hora (sem nova consulta).
+        if (isFilial) {
+            backfillSerasaFromHeadOffice(documentNumber, headOfficeDocumentNumber);
+        }
+
+        // 3. Costura para a Fase Receita: enumerar TODAS as filiais da raiz (BigQuery). No-op por ora.
+        ensureAllBranchesFromReceita(headOfficeDocumentNumber);
+    }
+
+    /**
+     * Copia a análise Serasa mais recente da matriz para um CNPJ do grupo que ainda não a tenha.
+     * Endereço NUNCA é copiado (cada CNPJ guarda o seu via company_detail) — só a análise de crédito,
+     * que é a mesma para todo o grupo.
+     */
+    private void backfillSerasaFromHeadOffice(String targetDocumentNumber, String headOfficeDocumentNumber) {
+        if (targetDocumentNumber.equals(headOfficeDocumentNumber)) {
+            return;
+        }
+        if (creditAnalysisRepository.findLatestByCnpj(targetDocumentNumber).isPresent()) {
+            return; // filial já tem análise própria/herdada
+        }
+        Optional<CreditAnalysis> headOfficeAnalysis = creditAnalysisRepository.findLatestByCnpj(headOfficeDocumentNumber);
+        if (headOfficeAnalysis.isEmpty()) {
+            return; // matriz ainda não tem Serasa — nada a herdar
+        }
+
+        Optional<CompanyDetail> targetDetail = companyDetailService.findByDocumentNumber(targetDocumentNumber);
+        Client targetClient = ensureClient(
+                targetDocumentNumber,
+                targetDetail.map(CompanyDetail::getCompanyName).orElse(null));
+        CreditAnalysis copy = copyAnalysisToDocument(
+                headOfficeAnalysis.get(), targetClient.getId(), targetDocumentNumber);
+        creditAnalysisRepository.save(copy);
+        log.info("Filial {} herdou a análise Serasa da matriz {}.",
+                targetDocumentNumber, headOfficeDocumentNumber);
+    }
+
+    /**
+     * Fase Receita (adiada): aqui entrará a enumeração de TODAS as filiais da raiz via base Receita
+     * (BigQuery Base dos Dados, br_me_cnpj.estabelecimentos), criando company_detail de cada uma a
+     * partir do endereço da Receita + cache group_synced_at na matriz. Hoje é no-op: o grupo se
+     * popula só com as filiais que aparecem nos lotes (viram sacado).
+     */
+    private void ensureAllBranchesFromReceita(String headOfficeDocumentNumber) {
+        // no-op — implementar na Fase Receita.
+    }
+
     private CreditAnalysis saveSerasaAnalysis(Client client, String documentNumber, String rawJson) {
         CreditAnalysis analysis = serasaCreditRatingMapper.toDomain(client.getId(), documentNumber, rawJson);
         return creditAnalysisRepository.save(analysis);
@@ -147,8 +223,11 @@ public class ClientProfileService {
         String headOfficeDocumentNumber = calculateHeadOfficeCnpj(documentNumber);
         boolean isHeadOffice = documentNumber.equals(headOfficeDocumentNumber);
         if (!isHeadOffice && companyDetailService.findByDocumentNumber(headOfficeDocumentNumber).isEmpty()) {
-            throw new EntityNotFoundException(
-                    "Cadastre a matriz " + headOfficeDocumentNumber + " antes de criar ou consultar a filial " + documentNumber);
+            // Regra do grupo: a matriz precisa existir antes da filial. Em vez de bloquear,
+            // criamos a matriz automaticamente via CNPJ Já (sem Serasa — dado caro fica manual).
+            log.info("Matriz {} ausente; criando automaticamente antes da filial {}",
+                    headOfficeDocumentNumber, documentNumber);
+            enrichByCnpja(headOfficeDocumentNumber);
         }
 
         return enrichByCnpja(documentNumber);
