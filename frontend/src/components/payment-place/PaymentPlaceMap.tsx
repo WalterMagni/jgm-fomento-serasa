@@ -16,6 +16,23 @@ function FitBounds({ points }: { points: [number, number][] }) {
   return null;
 }
 
+// Zoom pelo scroll só depois de clicar no mapa; desliga ao tirar o mouse,
+// para não sequestrar a rolagem da página/modal.
+function ScrollZoomOnClick() {
+  const map = useMap();
+  useEffect(() => {
+    const enable = () => map.scrollWheelZoom.enable();
+    const disable = () => map.scrollWheelZoom.disable();
+    map.on("click", enable);
+    map.on("mouseout", disable);
+    return () => {
+      map.off("click", enable);
+      map.off("mouseout", disable);
+    };
+  }, [map]);
+  return null;
+}
+
 export type GeoPoint = {
   label: string;
   city?: string | null;
@@ -92,6 +109,7 @@ export default function PaymentPlaceMap({ points, branches, selectedBranchId, on
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitBounds points={[...groups.map((g) => g.center), ...validBranches.map((b) => [b.lat, b.lng] as [number, number])]} />
+      <ScrollZoomOnClick />
       {validBranches.map((b) => {
         const selected = b.id === selectedBranchId;
         return (

@@ -7,7 +7,6 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   CompanyNotInPortfolioError,
-  useAnalyzeWithAi,
   useArchivePaymentPlaceBatch,
   useBulkDecidePaymentPlace,
   useCompanyBranches,
@@ -81,6 +80,14 @@ function isToday(value?: string | null) {
 function clean(value?: string | number | null) {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
+}
+
+// Chave de dia local (YYYY-MM-DD) a partir de uma data ISO.
+function toYmd(value?: string | null) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function normalize(value: string) {
@@ -224,10 +231,16 @@ export default function PaymentPlacePage() {
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null);
   const [sortByConfidence, setSortByConfidence] = useState(true);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const [analysisTab, setAnalysisTab] = useState<"PENDENTES" | "DECIDIDOS" | "TODOS">("PENDENTES");
   const [listCollapsed, setListCollapsed] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [copyMenu, setCopyMenu] = useState<{ x: number; y: number; entry: PaymentPlaceEntry } | null>(null);
   const [copyMenuVisible, setCopyMenuVisible] = useState(false);
   const [mapEntry, setMapEntry] = useState<{ entry: PaymentPlaceEntry; pair: "ALL" | "CED_AG" | "SAC_AG" | "CED_SAC" } | null>(null);
@@ -241,7 +254,6 @@ export default function PaymentPlacePage() {
 
   const allBatches = useMemo(() => batchesQuery.data ?? [], [batchesQuery.data]);
   const batches = useMemo(() => allBatches.filter((item) => item.status !== "ARQUIVADO"), [allBatches]);
-  const archivedBatches = useMemo(() => allBatches.filter((item) => item.status === "ARQUIVADO"), [allBatches]);
   const todayBatch = useMemo(() => batches.find((item) => isToday(item.importedAt)), [batches]);
   // Todos os lotes ativos são exibidos juntos (sem seleção). Mescla os lançamentos.
   const activeBatchIds = useMemo(() => batches.map((b) => b.id), [batches]);
@@ -251,7 +263,6 @@ export default function PaymentPlacePage() {
   const bulkDecideMutation = useBulkDecidePaymentPlace();
   const enrichAgencyMutation = useEnrichAgencyBacen();
   const enrichPayerCnpjMutation = useEnrichPayerCnpj();
-  const aiMutation = useAnalyzeWithAi();
   const reopenMutation = useReopenPaymentPlaceEntry();
   const fileNameByBatch = useMemo(() => new Map(batches.map((b) => [b.id, b.fileName])), [batches]);
   const entries = useMemo(() => batchDetails.details.flatMap((d) => d.entries), [batchDetails.details]);
@@ -262,6 +273,18 @@ export default function PaymentPlacePage() {
     }),
     [batches],
   );
+  // Calendário de lotes: agrupa todos (ativos + arquivados) por dia de importação.
+  const batchesByDay = useMemo(() => {
+    const m = new Map<string, typeof allBatches>();
+    for (const b of allBatches) {
+      const key = toYmd(b.importedAt);
+      if (!key) continue;
+      const arr = m.get(key);
+      if (arr) arr.push(b);
+      else m.set(key, [b]);
+    }
+    return m;
+  }, [allBatches]);
 
   const filteredEntries = useMemo(() => {
     const query = normalize(search);
@@ -372,6 +395,14 @@ export default function PaymentPlacePage() {
     });
   };
 
+  // Abre o calendário de lotes já focado no dia de hoje.
+  const openBatchModal = () => {
+    const now = new Date();
+    setCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedDay(toYmd(now.toISOString()));
+    setShowBatchModal(true);
+  };
+
   // Menu de cópia rápida: long-press (~550ms) ou clique-direito numa linha.
   const clearLongPress = () => {
     if (longPressTimer.current) {
@@ -456,6 +487,27 @@ export default function PaymentPlacePage() {
     if (decisions.length) bulkDecideMutation.mutate(decisions);
   };
 
+  // Seleção em lote (modo selecionar).
+  const toggleSelect = (id: string) => {
+    setSelectedIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    clearSelection();
+  };
+  const selectAllVisible = () => setSelectedIds(new Set(sortedEntries.map((e) => e.id)));
+  const bulkDecideSelected = (decision: "SACADO" | "CEDENTE" | "INCONCLUSIVO") => {
+    const decisions = Array.from(selectedIds).map((entryId) => ({ entryId, decision }));
+    if (!decisions.length) return;
+    bulkDecideMutation.mutate(decisions, { onSuccess: () => exitSelectMode() });
+  };
+
   // Esc fecha o modal de detalhes, o mapa ou o menu de cópia.
   useEffect(() => {
     if (!expandedEntryId && !copyMenu && !mapEntry) return;
@@ -515,7 +567,7 @@ export default function PaymentPlacePage() {
           </div>
           <button
             type="button"
-            onClick={() => setShowBatchModal(true)}
+            onClick={openBatchModal}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border-light bg-white px-4 text-sm font-bold text-grafite shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-white/5"
           >
             <span className="material-icons-outlined text-[20px]">inventory_2</span>
@@ -704,6 +756,19 @@ export default function PaymentPlacePage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                    className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors ${
+                      selectMode
+                        ? "border-primary bg-primary text-white dark:border-secondary dark:bg-secondary"
+                        : "border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    }`}
+                    title="Selecionar vários lançamentos para decidir em lote"
+                  >
+                    <span className="material-icons-outlined text-[16px]">{selectMode ? "close" : "checklist"}</span>
+                    {selectMode ? "Cancelar" : "Selecionar"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={acceptHighConfidence}
                     disabled={highConfidenceUndecided.length === 0 || bulkDecideMutation.isPending}
                     className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -738,7 +803,7 @@ export default function PaymentPlacePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setShowBatchModal(true)}
+                        onClick={openBatchModal}
                         className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                         title="Gerenciar lotes (arquivar/apagar)"
                       >
@@ -778,6 +843,57 @@ export default function PaymentPlacePage() {
                   {counters.reviewed}/{entries.length} decididos
                 </span>
               </div>
+
+              {selectMode ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2 dark:border-secondary/30 dark:bg-secondary/10">
+                  <span className="px-1 text-sm font-bold text-primary dark:text-secondary">
+                    {selectedIds.size} selecionado{selectedIds.size === 1 ? "" : "s"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={selectAllVisible}
+                    className="inline-flex h-8 items-center rounded-lg border border-border-light bg-white px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-gray-300 dark:hover:bg-white/5"
+                  >
+                    Selecionar todos ({sortedEntries.length})
+                  </button>
+                  {selectedIds.size > 0 ? (
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      className="inline-flex h-8 items-center rounded-lg border border-border-light bg-white px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    >
+                      Limpar
+                    </button>
+                  ) : null}
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="hidden text-xs font-medium text-gray-500 sm:inline">Definir selecionados como:</span>
+                    <button
+                      type="button"
+                      onClick={() => bulkDecideSelected("SACADO")}
+                      disabled={selectedIds.size === 0 || bulkDecideMutation.isPending}
+                      className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Sacado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => bulkDecideSelected("CEDENTE")}
+                      disabled={selectedIds.size === 0 || bulkDecideMutation.isPending}
+                      className="inline-flex h-8 items-center rounded-lg bg-slate-700 px-3 text-xs font-bold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Cedente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => bulkDecideSelected("INCONCLUSIVO")}
+                      disabled={selectedIds.size === 0 || bulkDecideMutation.isPending}
+                      className="inline-flex h-8 items-center rounded-lg bg-amber-500 px-3 text-xs font-bold text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Inconclusivo
+                    </button>
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             {listCollapsed ? (
@@ -799,21 +915,29 @@ export default function PaymentPlacePage() {
               <div className="divide-y divide-border-light dark:divide-border-dark">
                 {sortedEntries.map((entry) => {
                   const focused = entry.id === focusedEntryId;
+                  const selected = selectedIds.has(entry.id);
                   const suggested = entry.automaticSuggestion === "PROVAVEL_SACADO" ? "SACADO" : entry.automaticSuggestion === "PROVAVEL_CEDENTE" ? "CEDENTE" : null;
                   return (
                     <Fragment key={entry.id}>
                       <div
                         id={`pp-row-${entry.id}`}
-                        onClick={() => setFocusedEntryId(entry.id)}
-                        onDoubleClick={() => { setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
-                        className={`flex flex-col gap-2 px-4 py-2.5 transition-colors lg:flex-row lg:items-center ${
-                          focused
-                            ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
-                            : entry.reopenedAt
-                              ? "bg-amber-50/70 ring-1 ring-inset ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-500/40"
-                              : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
+                        onClick={() => (selectMode ? toggleSelect(entry.id) : setFocusedEntryId(entry.id))}
+                        onDoubleClick={() => { if (selectMode) return; setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
+                        className={`flex flex-col gap-2 px-4 transition-colors lg:flex-row lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
+                          selected
+                            ? "bg-primary/10 ring-1 ring-inset ring-primary/50 dark:bg-secondary/15 dark:ring-secondary/50"
+                            : focused && !selectMode
+                              ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
+                              : entry.reopenedAt
+                                ? "bg-amber-50/70 ring-1 ring-inset ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-500/40"
+                                : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
                         }`}
                       >
+                        {selectMode ? (
+                          <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ${selected ? "border-primary bg-primary text-white dark:border-secondary dark:bg-secondary" : "border-gray-300 dark:border-gray-600"}`}>
+                            {selected ? <span className="material-icons-outlined text-[16px]">check</span> : null}
+                          </span>
+                        ) : null}
                         {/* Área de dados — long-press / clique-direito copia */}
                         <div
                           onContextMenu={(e) => { e.preventDefault(); setCopyMenu({ x: e.clientX, y: e.clientY, entry }); }}
@@ -868,15 +992,24 @@ export default function PaymentPlacePage() {
                         </div>
                         </div>
 
+                        {selectMode ? (
+                          <div className="flex min-w-0 flex-1 items-center justify-end">
+                            <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
+                          </div>
+                        ) : null}
+
                         {/* Sugestão + distâncias — cada distância abre o mapa do par */}
+                        {!selectMode ? (
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
                           <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "CED_AG" }); }} />
                           <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "SAC_AG" }); }} />
                           <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "CED_SAC" }); }} />
                         </div>
+                        ) : null}
 
                         {/* Decisão + ações */}
+                        {!selectMode ? (
                         <div className="flex items-center justify-end gap-2 lg:w-[300px]">
                           {entry.analystDecision ? <DecisionPill decision={entry.analystDecision} /> : null}
                           <button
@@ -942,6 +1075,7 @@ export default function PaymentPlacePage() {
                             <span className="material-icons-outlined text-[18px]">open_in_full</span>
                           </button>
                         </div>
+                        ) : null}
                       </div>
                     </Fragment>
                   );
@@ -981,99 +1115,167 @@ export default function PaymentPlacePage() {
               </div>
             </div>
 
-            <div className="max-h-[520px] overflow-y-auto p-3">
-              {batchesQuery.isLoading ? (
-                <div className="p-4 text-sm text-gray-500">Carregando lotes...</div>
-              ) : batches.length === 0 ? (
-                <div className="p-4 text-sm text-gray-500">Nenhum lote importado.</div>
-              ) : (
-                <div className="space-y-2">
-                  {batches.map((item) => {
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-start gap-3 rounded-lg border border-border-light bg-white p-3 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark dark:hover:bg-white/5"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setShowBatchModal(false)}
-                          className="min-w-0 flex-1 text-left"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="line-clamp-2 text-sm font-bold text-grafite dark:text-white">{item.fileName}</p>
-                            <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                              {item.totalEntries}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(item.importedAt)}</p>
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            {item.auditEntries} auditoria / {item.unlocatedAgencyEntries} agências
-                          </p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => archiveBatchMutation.mutate({ batchId: item.id, archived: true })}
-                          disabled={archiveBatchMutation.isPending}
-                          className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                          title="Arquivar lote"
-                        >
-                          <span className="material-icons-outlined text-[18px]">inventory_2</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteBatch(item.id)}
-                          disabled={deleteBatchMutation.isPending}
-                          className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 dark:border-red-500/20 dark:text-red-300 dark:hover:bg-red-500/10"
-                          title="Apagar lote"
-                        >
-                          <span className="material-icons-outlined text-[18px]">delete</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {archivedBatches.length > 0 ? (
-                <div className="mt-3 border-t border-border-light pt-3 dark:border-border-dark">
+            <div className="max-h-[560px] overflow-y-auto p-4">
+              {/* Navegação de mês/ano */}
+              <div className="mb-3 flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setShowArchived((v) => !v)}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-white/5"
+                    onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    title="Ano anterior"
+                    aria-label="Ano anterior"
                   >
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="material-icons-outlined text-[16px]">inventory_2</span>
-                      Arquivados ({archivedBatches.length})
-                    </span>
-                    <span className="material-icons-outlined text-[18px]">{showArchived ? "expand_less" : "expand_more"}</span>
+                    <span className="material-icons-outlined text-[18px]">keyboard_double_arrow_left</span>
                   </button>
-                  {showArchived ? (
-                    <div className="mt-2 space-y-2">
-                      {archivedBatches.map((item) => (
+                  <button
+                    type="button"
+                    onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    title="Mês anterior"
+                    aria-label="Mês anterior"
+                  >
+                    <span className="material-icons-outlined text-[18px]">chevron_left</span>
+                  </button>
+                </div>
+                <p className="text-sm font-bold capitalize text-grafite dark:text-white">
+                  {calendarMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    title="Próximo mês"
+                    aria-label="Próximo mês"
+                  >
+                    <span className="material-icons-outlined text-[18px]">chevron_right</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    title="Próximo ano"
+                    aria-label="Próximo ano"
+                  >
+                    <span className="material-icons-outlined text-[18px]">keyboard_double_arrow_right</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Cabeçalho dos dias da semana */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase text-gray-400">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d, i) => (
+                  <span key={i}>{d}</span>
+                ))}
+              </div>
+
+              {/* Grade do mês */}
+              {(() => {
+                const year = calendarMonth.getFullYear();
+                const month = calendarMonth.getMonth();
+                const firstWeekday = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const todayYmd = toYmd(new Date().toISOString());
+                const cells: (number | null)[] = [];
+                for (let i = 0; i < firstWeekday; i++) cells.push(null);
+                for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+                return (
+                  <div className="mt-1 grid grid-cols-7 gap-1">
+                    {cells.map((day, idx) => {
+                      if (day === null) return <div key={`b-${idx}`} />;
+                      const ymd = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                      const dayBatches = batchesByDay.get(ymd) ?? [];
+                      const count = dayBatches.length;
+                      const isTodayCell = ymd === todayYmd;
+                      const selected = ymd === selectedDay;
+                      return (
+                        <button
+                          key={ymd}
+                          type="button"
+                          onClick={() => setSelectedDay(count > 0 ? (selected ? null : ymd) : ymd)}
+                          className={`relative flex h-10 items-center justify-center rounded-lg text-sm transition-colors ${
+                            selected
+                              ? "bg-primary text-white dark:bg-secondary"
+                              : count > 0
+                                ? "bg-primary/5 font-bold text-grafite hover:bg-primary/10 dark:bg-secondary/10 dark:text-white"
+                                : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-white/5"
+                          } ${isTodayCell && !selected ? "ring-1 ring-primary/50 dark:ring-secondary/50" : ""}`}
+                        >
+                          {day}
+                          {count > 0 ? (
+                            <span className={`absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${selected ? "bg-white text-primary dark:text-secondary" : "bg-red-500 text-white"}`}>
+                              {count}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* Lotes do dia selecionado */}
+              <div className="mt-4 border-t border-border-light pt-3 dark:border-border-dark">
+                {!selectedDay ? (
+                  <p className="px-1 py-2 text-xs text-gray-400">Selecione um dia para ver os lotes importados.</p>
+                ) : (batchesByDay.get(selectedDay) ?? []).length === 0 ? (
+                  <p className="px-1 py-2 text-xs text-gray-400">Nenhum lote importado em {new Date(`${selectedDay}T12:00:00`).toLocaleDateString("pt-BR")}.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="px-1 text-xs font-bold text-gray-500 dark:text-gray-300">
+                      {new Date(`${selectedDay}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                    </p>
+                    {(batchesByDay.get(selectedDay) ?? []).map((item) => {
+                      const archived = item.status === "ARQUIVADO";
+                      return (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3 rounded-lg border border-border-light bg-gray-50/50 p-3 dark:border-border-dark dark:bg-white/[0.02]"
+                          className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
+                            archived
+                              ? "border-border-light bg-gray-50/50 dark:border-border-dark dark:bg-white/[0.02]"
+                              : "border-border-light bg-white hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark dark:hover:bg-white/5"
+                          }`}
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="line-clamp-1 text-sm font-medium text-gray-600 dark:text-gray-300">{item.fileName}</p>
-                            <p className="mt-1 text-xs text-gray-400">{formatDateTime(item.importedAt)} · {item.totalEntries} lançamentos</p>
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="line-clamp-2 text-sm font-bold text-grafite dark:text-white">
+                                {item.fileName}
+                                {archived ? <span className="ml-1.5 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold text-gray-600 dark:bg-white/10 dark:text-gray-300">arquivado</span> : null}
+                              </p>
+                              <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                {item.totalEntries}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(item.importedAt)}</p>
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                              {item.auditEntries} auditoria / {item.unlocatedAgencyEntries} agências
+                            </p>
                           </div>
                           <button
                             type="button"
-                            onClick={() => archiveBatchMutation.mutate({ batchId: item.id, archived: false })}
+                            onClick={() => archiveBatchMutation.mutate({ batchId: item.id, archived: !archived })}
                             disabled={archiveBatchMutation.isPending}
-                            className="inline-flex h-9 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                            title="Restaurar lote"
+                            className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                            title={archived ? "Restaurar lote" : "Arquivar lote"}
                           >
-                            <span className="material-icons-outlined text-[16px]">unarchive</span>
-                            Restaurar
+                            <span className="material-icons-outlined text-[18px]">{archived ? "unarchive" : "inventory_2"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteBatch(item.id)}
+                            disabled={deleteBatchMutation.isPending}
+                            className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 dark:border-red-500/20 dark:text-red-300 dark:hover:bg-red-500/10"
+                            title="Apagar lote"
+                          >
+                            <span className="material-icons-outlined text-[18px]">delete</span>
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1299,8 +1501,6 @@ export default function PaymentPlacePage() {
                 enriching={enrichAgencyMutation.isPending}
                 onEnrichPayerCnpj={() => enrichPayerCnpjMutation.mutate(expandedEntry.id)}
                 enrichingPayerCnpj={enrichPayerCnpjMutation.isPending}
-                onAnalyzeAi={() => aiMutation.mutate(expandedEntry.id)}
-                analyzingAi={aiMutation.isPending}
               />
             </div>
           </div>
@@ -1451,7 +1651,7 @@ function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
   );
 }
 
-function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enrichingPayerCnpj, onAnalyzeAi, analyzingAi }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onEnrichPayerCnpj: () => void; enrichingPayerCnpj: boolean; onAnalyzeAi: () => void; analyzingAi: boolean }) {
+function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enrichingPayerCnpj }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onEnrichPayerCnpj: () => void; enrichingPayerCnpj: boolean }) {
   // Filiais do sacado (camada opcional, verde).
   const [showBranches, setShowBranches] = useState(false);
   const branchesQuery = useCompanyBranches(entry.payerDocument ?? undefined, showBranches);
@@ -1521,78 +1721,6 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <div className="space-y-4">
-        <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Pré-análise automática</p>
-            <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
-          </div>
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <span className="font-bold text-blue-600 dark:text-blue-300">Sacado {entry.scoreSacado ?? 0}</span>
-            <span className="text-gray-300">·</span>
-            <span className="font-bold text-slate-600 dark:text-slate-300">Cedente {entry.scoreCedente ?? 0}</span>
-          </div>
-          {entry.automaticEvidence ? (
-            <ul className="mt-3 space-y-1 border-t border-border-light pt-3 text-xs text-gray-600 dark:border-border-dark dark:text-gray-300">
-              {entry.automaticEvidence.split("\n").filter(Boolean).map((line, i) => (
-                <li key={i} className="flex gap-1.5">
-                  <span className="text-gray-300">•</span>
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 shadow-sm dark:border-violet-500/30 dark:bg-violet-500/5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300">
-              <span className="material-icons-outlined text-[16px]">auto_awesome</span>
-              Análise com IA (Gemini)
-            </p>
-            <button
-              type="button"
-              onClick={onAnalyzeAi}
-              disabled={analyzingAi}
-              className="inline-flex h-7 items-center gap-1 rounded-lg bg-violet-600 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-violet-700 disabled:opacity-60"
-            >
-              <span className="material-icons-outlined text-[14px]">{analyzingAi ? "hourglass_empty" : "auto_awesome"}</span>
-              {entry.aiAnalysis?.summary ? "Reanalisar" : "Analisar"}
-            </button>
-          </div>
-          {entry.aiAnalysis?.summary ? (
-            <div className="mt-3 space-y-3 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <SuggestionPill suggestion={entry.aiAnalysis.suggestion} confidence={entry.aiAnalysis.confidence} />
-              </div>
-              <p className="text-grafite dark:text-gray-200">{entry.aiAnalysis.summary}</p>
-              {entry.aiAnalysis.factorsFor?.length ? (
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">A favor</p>
-                  <ul className="mt-1 space-y-0.5 text-xs text-gray-600 dark:text-gray-300">
-                    {entry.aiAnalysis.factorsFor.map((f, i) => <li key={i} className="flex gap-1.5"><span className="text-emerald-500">+</span>{f}</li>)}
-                  </ul>
-                </div>
-              ) : null}
-              {entry.aiAnalysis.factorsAgainst?.length ? (
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">Contra / incertezas</p>
-                  <ul className="mt-1 space-y-0.5 text-xs text-gray-600 dark:text-gray-300">
-                    {entry.aiAnalysis.factorsAgainst.map((f, i) => <li key={i} className="flex gap-1.5"><span className="text-amber-500">−</span>{f}</li>)}
-                  </ul>
-                </div>
-              ) : null}
-              {entry.aiAnalysis.recommendation ? (
-                <p className="rounded-lg bg-white px-3 py-2 text-xs text-grafite dark:bg-background-dark dark:text-gray-200">
-                  <span className="font-bold">Recomendação: </span>{entry.aiAnalysis.recommendation}
-                </p>
-              ) : null}
-              {entry.aiAnalyzedAt ? <p className="text-[11px] text-gray-400">Gerado em {formatDateTime(entry.aiAnalyzedAt)} · a IA é apoio, a decisão é do analista</p> : null}
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Gere uma justificativa em linguagem natural com base nos dados e no score. A IA é apoio — a decisão é do analista.</p>
-          )}
-        </div>
-
         <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
           <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Partes do título</p>
           <div className="mt-3 space-y-3">

@@ -408,7 +408,7 @@ export function useAnalyzeWithAi() {
 export function useBulkDecidePaymentPlace() {
   const queryClient = useQueryClient();
 
-  return useMutation<PaymentPlaceEntry[], Error, { entryId: string; decision: "SACADO" | "CEDENTE" }[]>({
+  return useMutation<PaymentPlaceEntry[], Error, { entryId: string; decision: "SACADO" | "CEDENTE" | "INCONCLUSIVO" }[]>({
     mutationFn: async (decisions) => {
       const response = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/decisoes`, {
         method: "PATCH",
