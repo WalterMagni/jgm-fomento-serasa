@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry } from "../types/payment-place";
 
@@ -62,6 +62,76 @@ export function usePaymentPlaceBatch(batchId?: string) {
       return response.json();
     },
   });
+}
+
+// Busca os detalhes de vários lotes em paralelo e mescla os lançamentos.
+export function usePaymentPlaceBatchDetails(batchIds: string[]) {
+  const results = useQueries({
+    queries: batchIds.map((id) => ({
+      queryKey: ["paymentPlaceBatch", id],
+      enabled: Boolean(id),
+      queryFn: async () => {
+        const response = await fetch(`${API_BASE_URL}/praca-pagamento/lotes/${id}`, {
+          headers: getAuthHeaders("application/json"),
+        });
+        if (!response.ok) {
+          throw new Error("Erro ao carregar lançamentos do lote");
+        }
+        return response.json() as Promise<PaymentPlaceBatchDetail>;
+      },
+    })),
+  });
+  const details = results.map((r) => r.data).filter(Boolean) as PaymentPlaceBatchDetail[];
+  return {
+    details,
+    isLoading: results.some((r) => r.isLoading),
+    isFetching: results.some((r) => r.isFetching),
+  };
+}
+
+// Indicadores agregados de todos os lotes ativos (soma contagens, recalcula %).
+export function usePaymentPlaceIndicatorsAll(batchIds: string[]) {
+  const results = useQueries({
+    queries: batchIds.map((id) => ({
+      queryKey: ["paymentPlaceIndicators", id],
+      enabled: Boolean(id),
+      queryFn: async () => {
+        const response = await fetch(`${API_BASE_URL}/praca-pagamento/lotes/${id}/indicadores`, {
+          headers: getAuthHeaders("application/json"),
+        });
+        if (!response.ok) {
+          throw new Error("Erro ao carregar indicadores da praça de pagamento");
+        }
+        return response.json() as Promise<PaymentPlaceBatchIndicators>;
+      },
+    })),
+  });
+  const list = results.map((r) => r.data).filter(Boolean) as PaymentPlaceBatchIndicators[];
+  const isLoading = results.some((r) => r.isLoading);
+  if (list.length === 0) return { data: null as null | Omit<PaymentPlaceBatchIndicators, "batchId" | "fileName" | "topRecurringBankAgencies" | "topDivergentBankAgencies">, isLoading };
+  const sum = (f: keyof PaymentPlaceBatchIndicators) => list.reduce((acc, i) => acc + (Number(i[f]) || 0), 0);
+  const pct = (n: number, d: number) => (d ? (n / d) * 100 : 0);
+  const totalEntries = sum("totalEntries");
+  const locatedAgencyCount = sum("locatedAgencyCount");
+  const lowReliabilityCount = sum("lowReliabilityCount");
+  const comparableDecisionCount = sum("comparableDecisionCount");
+  const agreementCount = sum("agreementCount");
+  const disagreementCount = sum("disagreementCount");
+  return {
+    data: {
+      totalEntries,
+      locatedAgencyCount,
+      locatedAgencyPct: pct(locatedAgencyCount, totalEntries),
+      lowReliabilityCount,
+      lowReliabilityPct: pct(lowReliabilityCount, totalEntries),
+      comparableDecisionCount,
+      agreementCount,
+      agreementPct: pct(agreementCount, comparableDecisionCount),
+      disagreementCount,
+      disagreementPct: pct(disagreementCount, comparableDecisionCount),
+    },
+    isLoading,
+  };
 }
 
 export function usePaymentPlaceIndicators(batchId?: string) {
@@ -149,7 +219,7 @@ export function useDeletePaymentPlaceBatch() {
   });
 }
 
-export function useEnrichAgencyBacen(batchId?: string) {
+export function useEnrichAgencyBacen() {
   const queryClient = useQueryClient();
 
   return useMutation<PaymentPlaceEntry, Error, string>({
@@ -173,16 +243,14 @@ export function useEnrichAgencyBacen(batchId?: string) {
         found ? "Endereço da agência atualizado" : "Agência não localizada no cadastro Bacen",
         { id: "bacen-agency" },
       );
-      if (batchId) {
-        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", batchId], (current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
-          };
-        });
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
-      }
+      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
     },
     onError: (error) => {
       toast.error(error.message, { id: "bacen-agency" });
@@ -190,7 +258,7 @@ export function useEnrichAgencyBacen(batchId?: string) {
   });
 }
 
-export function useEnrichPayerCnpj(batchId?: string) {
+export function useEnrichPayerCnpj() {
   const queryClient = useQueryClient();
 
   return useMutation<PaymentPlaceEntry, Error, string>({
@@ -214,16 +282,14 @@ export function useEnrichPayerCnpj(batchId?: string) {
         found ? "Endereço do sacado atualizado e distâncias recalculadas" : "CNPJ do sacado consultado",
         { id: "cnpj-sacado" },
       );
-      if (batchId) {
-        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", batchId], (current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
-          };
-        });
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
-      }
+      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
     },
     onError: (error) => {
       toast.error(error.message, { id: "cnpj-sacado" });
@@ -240,7 +306,7 @@ export class CompanyNotInPortfolioError extends Error {
   }
 }
 
-export function useLinkCedenteCnpj(batchId?: string) {
+export function useLinkCedenteCnpj() {
   const queryClient = useQueryClient();
 
   return useMutation<PaymentPlaceEntry, Error, { entryId: string; cnpj: string; create?: boolean }>({
@@ -298,7 +364,7 @@ export function useArchivePaymentPlaceBatch() {
   });
 }
 
-export function useAnalyzeWithAi(batchId?: string) {
+export function useAnalyzeWithAi() {
   const queryClient = useQueryClient();
 
   return useMutation<PaymentPlaceEntry, Error, string>({
@@ -324,16 +390,14 @@ export function useAnalyzeWithAi(batchId?: string) {
     },
     onSuccess: (updatedEntry) => {
       toast.success("Análise da IA concluída", { id: "ai-analysis" });
-      if (batchId) {
-        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", batchId], (current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
-          };
-        });
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
-      }
+      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
     },
     onError: (error) => {
       toast.error(error.message, { id: "ai-analysis" });
@@ -341,7 +405,7 @@ export function useAnalyzeWithAi(batchId?: string) {
   });
 }
 
-export function useBulkDecidePaymentPlace(batchId?: string) {
+export function useBulkDecidePaymentPlace() {
   const queryClient = useQueryClient();
 
   return useMutation<PaymentPlaceEntry[], Error, { entryId: string; decision: "SACADO" | "CEDENTE" }[]>({
@@ -359,17 +423,23 @@ export function useBulkDecidePaymentPlace(batchId?: string) {
     },
     onSuccess: (updated) => {
       toast.success(`${updated.length} decisões aplicadas`);
-      if (batchId) {
-        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", batchId], (current) => {
+      const byBatch = new Map<string, PaymentPlaceEntry[]>();
+      updated.forEach((e) => {
+        const arr = byBatch.get(e.batchId) ?? [];
+        arr.push(e);
+        byBatch.set(e.batchId, arr);
+      });
+      byBatch.forEach((list, bId) => {
+        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", bId], (current) => {
           if (!current) return current;
-          const byId = new Map(updated.map((e) => [e.id, e]));
+          const byId = new Map(list.map((e) => [e.id, e]));
           return {
             ...current,
             entries: current.entries.map((entry) => byId.get(entry.id) ?? entry),
           };
         });
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
-      }
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", bId] });
+      });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -377,10 +447,10 @@ export function useBulkDecidePaymentPlace(batchId?: string) {
   });
 }
 
-export function useDecidePaymentPlaceEntry(batchId?: string) {
+export function useDecidePaymentPlaceEntry() {
   const queryClient = useQueryClient();
 
-  return useMutation<PaymentPlaceEntry, Error, { entryId: string; decision: "SACADO" | "CEDENTE"; notes?: string }>({
+  return useMutation<PaymentPlaceEntry, Error, { entryId: string; decision: "SACADO" | "CEDENTE" | "INCONCLUSIVO"; notes?: string }>({
     mutationFn: async ({ entryId, decision, notes }) => {
       const response = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/decisao`, {
         method: "PATCH",
@@ -395,16 +465,14 @@ export function useDecidePaymentPlaceEntry(batchId?: string) {
     },
     onSuccess: (updatedEntry) => {
       toast.success("Decisão salva");
-      if (batchId) {
-        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", batchId], (current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
-          };
-        });
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
-      }
+      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
     },
     onError: (error) => {
       toast.error(error.message);

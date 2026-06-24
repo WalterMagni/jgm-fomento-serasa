@@ -2,6 +2,7 @@
 
 import { ChangeEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -16,9 +17,9 @@ import {
   useEnrichAgencyBacen,
   useEnrichPayerCnpj,
   useImportPaymentPlacePdf,
-  usePaymentPlaceBatch,
+  usePaymentPlaceBatchDetails,
   usePaymentPlaceBatches,
-  usePaymentPlaceIndicators,
+  usePaymentPlaceIndicatorsAll,
 } from "../../../hooks/usePaymentPlace";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
 
@@ -161,26 +162,40 @@ function SuggestionPill({ suggestion, confidence }: { suggestion?: string | null
   );
 }
 
-function DistanceChip({ label, value, highlight }: { label: string; value?: number | null; highlight?: boolean }) {
+function DistanceChip({ label, value, highlight, onClick }: { label: string; value?: number | null; highlight?: boolean; onClick?: () => void }) {
   const km = formatKm(value);
   if (!km) return null;
-  return (
-    <span
-      className={`inline-flex flex-col rounded-md px-2.5 py-1 leading-tight ${
-        highlight
-          ? "bg-primary/10 text-primary dark:bg-secondary/15 dark:text-secondary"
-          : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
-      }`}
-    >
+  const base = `inline-flex flex-col rounded-md px-2.5 py-1 leading-tight ${
+    highlight
+      ? "bg-primary/10 text-primary dark:bg-secondary/15 dark:text-secondary"
+      : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+  }`;
+  const inner = (
+    <>
       <span className="text-[11px] font-medium opacity-70">{label}</span>
       <span className="text-sm font-bold">{km}</span>
-    </span>
+    </>
   );
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} title={`Ver mapa · ${label}`} className={`${base} text-left transition hover:ring-2 hover:ring-primary/40 dark:hover:ring-secondary/40`}>
+        {inner}
+      </button>
+    );
+  }
+  return <span className={base}>{inner}</span>;
 }
 
 function DecisionPill({ decision }: { decision?: string | null }) {
   if (!decision) {
     return <span className="text-xs font-medium text-gray-400">Sem decisão</span>;
+  }
+  if (decision === "INCONCLUSIVO") {
+    return (
+      <span className="inline-flex h-7 items-center rounded-full bg-amber-100 px-3 text-xs font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+        Inconclusivo
+      </span>
+    );
   }
   const isPayer = decision === "SACADO";
   return (
@@ -197,7 +212,6 @@ function DecisionPill({ decision }: { decision?: string | null }) {
 }
 
 export default function PaymentPlacePage() {
-  const [selectedBatchId, setSelectedBatchId] = useState<string | undefined>();
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [sectionFilter, setSectionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -213,6 +227,11 @@ export default function PaymentPlacePage() {
   const [analysisTab, setAnalysisTab] = useState<"PENDENTES" | "DECIDIDOS" | "TODOS">("PENDENTES");
   const [listCollapsed, setListCollapsed] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [copyMenu, setCopyMenu] = useState<{ x: number; y: number; entry: PaymentPlaceEntry } | null>(null);
+  const [copyMenuVisible, setCopyMenuVisible] = useState(false);
+  const [mapEntry, setMapEntry] = useState<{ entry: PaymentPlaceEntry; pair: "ALL" | "CED_AG" | "SAC_AG" | "CED_SAC" } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStart = useRef<{ x: number; y: number } | null>(null);
 
   const batchesQuery = usePaymentPlaceBatches();
   const importMutation = useImportPaymentPlacePdf();
@@ -223,16 +242,24 @@ export default function PaymentPlacePage() {
   const batches = useMemo(() => allBatches.filter((item) => item.status !== "ARQUIVADO"), [allBatches]);
   const archivedBatches = useMemo(() => allBatches.filter((item) => item.status === "ARQUIVADO"), [allBatches]);
   const todayBatch = useMemo(() => batches.find((item) => isToday(item.importedAt)), [batches]);
-  const activeBatchId = selectedBatchId ?? todayBatch?.id ?? batches[0]?.id;
-  const batchQuery = usePaymentPlaceBatch(activeBatchId);
-  const indicatorsQuery = usePaymentPlaceIndicators(activeBatchId);
-  const decideMutation = useDecidePaymentPlaceEntry(activeBatchId);
-  const bulkDecideMutation = useBulkDecidePaymentPlace(activeBatchId);
-  const enrichAgencyMutation = useEnrichAgencyBacen(activeBatchId);
-  const enrichPayerCnpjMutation = useEnrichPayerCnpj(activeBatchId);
-  const aiMutation = useAnalyzeWithAi(activeBatchId);
-  const batch = batchQuery.data?.batch;
-  const entries = useMemo(() => batchQuery.data?.entries ?? [], [batchQuery.data?.entries]);
+  // Todos os lotes ativos são exibidos juntos (sem seleção). Mescla os lançamentos.
+  const activeBatchIds = useMemo(() => batches.map((b) => b.id), [batches]);
+  const batchDetails = usePaymentPlaceBatchDetails(activeBatchIds);
+  const indicatorsQuery = usePaymentPlaceIndicatorsAll(activeBatchIds);
+  const decideMutation = useDecidePaymentPlaceEntry();
+  const bulkDecideMutation = useBulkDecidePaymentPlace();
+  const enrichAgencyMutation = useEnrichAgencyBacen();
+  const enrichPayerCnpjMutation = useEnrichPayerCnpj();
+  const aiMutation = useAnalyzeWithAi();
+  const fileNameByBatch = useMemo(() => new Map(batches.map((b) => [b.id, b.fileName])), [batches]);
+  const entries = useMemo(() => batchDetails.details.flatMap((d) => d.entries), [batchDetails.details]);
+  const batchMeta = useMemo(
+    () => ({
+      auditEntries: batches.reduce((acc, b) => acc + (b.auditEntries ?? 0), 0),
+      unlocatedAgencyEntries: batches.reduce((acc, b) => acc + (b.unlocatedAgencyEntries ?? 0), 0),
+    }),
+    [batches],
+  );
 
   const filteredEntries = useMemo(() => {
     const query = normalize(search);
@@ -292,44 +319,92 @@ export default function PaymentPlacePage() {
     };
   }, [entries]);
 
-  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      importMutation.mutate(file, {
-        onSuccess: (data) => setSelectedBatchId(data.batch.id),
-      });
-    }
+  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    if (files.length === 0) return;
+
+    // Importa sequencialmente: cada PDF gera seu próprio lote/card.
+    let lastBatchId: string | null = null;
+    let ok = 0;
+    for (let i = 0; i < files.length; i++) {
+      if (files.length > 1) {
+        toast.loading(`Importando arquivo ${i + 1} de ${files.length}...`, { id: "payment-place-import" });
+      }
+      try {
+        const data = await importMutation.mutateAsync(files[i]);
+        lastBatchId = data.batch.id;
+        ok++;
+      } catch {
+        // erro já notificado via toast no hook; segue para o próximo arquivo
+      }
+    }
+    if (files.length > 1) {
+      toast.success(`${ok} de ${files.length} arquivos importados`, { id: "payment-place-import", duration: 5000 });
+    }
+    void lastBatchId; // todos os lotes ativos já aparecem juntos
   };
 
   const deleteBatch = (batchId: string) => {
     const batchToDelete = batches.find((item) => item.id === batchId);
     const confirmed = window.confirm(`Apagar o lote "${batchToDelete?.fileName ?? "selecionado"}"?`);
     if (!confirmed) return;
-
-    deleteBatchMutation.mutate(batchId, {
-      onSuccess: () => {
-        if (activeBatchId === batchId) {
-          setSelectedBatchId(undefined);
-        }
-      },
-    });
+    deleteBatchMutation.mutate(batchId);
   };
 
-  const archiveBatch = () => {
-    if (!activeBatchId) return;
-    archiveBatchMutation.mutate(
-      { batchId: activeBatchId, archived: true },
-      { onSuccess: () => setSelectedBatchId(undefined) },
-    );
-  };
-
-  const decide = (entry: PaymentPlaceEntry, decision: "SACADO" | "CEDENTE") => {
+  const decide = (entry: PaymentPlaceEntry, decision: "SACADO" | "CEDENTE" | "INCONCLUSIVO") => {
     decideMutation.mutate({
       entryId: entry.id,
       decision,
       notes: notesByEntry[entry.id],
     });
+  };
+
+  // Menu de cópia rápida: long-press (~550ms) ou clique-direito numa linha.
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    longPressStart.current = null;
+  };
+
+  const handleRowPointerDown = (entry: PaymentPlaceEntry, ev: React.PointerEvent) => {
+    if (ev.button !== 0) return; // só botão principal / toque
+    const { clientX, clientY } = ev;
+    longPressStart.current = { x: clientX, y: clientY };
+    longPressTimer.current = setTimeout(() => {
+      setCopyMenu({ x: clientX, y: clientY, entry });
+      longPressStart.current = null;
+    }, 550);
+  };
+
+  const handleRowPointerMove = (ev: React.PointerEvent) => {
+    if (!longPressStart.current) return;
+    const dx = Math.abs(ev.clientX - longPressStart.current.x);
+    const dy = Math.abs(ev.clientY - longPressStart.current.y);
+    if (dx > 10 || dy > 10) clearLongPress(); // rolou/arrastou → cancela
+  };
+
+  const closeCopyMenu = () => {
+    setCopyMenuVisible(false);
+    setTimeout(() => setCopyMenu(null), 160); // espera o fade-out
+  };
+
+  const copyField = async (label: string, value?: string | number | null) => {
+    const text = value == null ? "" : String(value).trim();
+    if (!text) {
+      toast.error(`Sem ${label}`);
+      closeCopyMenu();
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiado`, { duration: 1500 });
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+    closeCopyMenu();
   };
 
   const confidenceRank = (c?: string | null) => (c === "ALTA" ? 0 : c === "MEDIA" ? 1 : c === "BAIXA" ? 2 : 3);
@@ -369,86 +444,28 @@ export default function PaymentPlacePage() {
     if (decisions.length) bulkDecideMutation.mutate(decisions);
   };
 
-  // Mantém o foco do teclado em um lançamento válido da lista visível.
+  // Esc fecha o modal de detalhes, o mapa ou o menu de cópia.
   useEffect(() => {
-    if (sortedEntries.length === 0) {
-      if (focusedEntryId !== null) setFocusedEntryId(null);
-      return;
-    }
-    if (!focusedEntryId || !sortedEntries.some((e) => e.id === focusedEntryId)) {
-      setFocusedEntryId(sortedEntries[0].id);
-    }
-  }, [sortedEntries, focusedEntryId]);
-
-  // Atalhos de teclado: S=sacado, C=cedente, ↑/↓ navega, E/Enter abre detalhe, Esc fecha.
-  useEffect(() => {
+    if (!expandedEntryId && !copyMenu && !mapEntry) return;
     const handler = (ev: KeyboardEvent) => {
-      const key = ev.key.toLowerCase();
-
-      // Esc fecha o modal, mesmo com foco em campo de texto.
-      if (ev.key === "Escape" && expandedEntryId) {
-        setExpandedEntryId(null);
-        ev.preventDefault();
-        return;
-      }
-
-      const target = ev.target as HTMLElement | null;
-      const typing = !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
-      if (typing) return;
-
-      // Com o modal aberto: S/C decide, I analisa IA, ←/→ navega lançamentos, ↑/↓ rola o conteúdo.
-      if (expandedEntryId) {
-        const openIdx = sortedEntries.findIndex((e) => e.id === expandedEntryId);
-        const open = sortedEntries[openIdx] ?? entries.find((e) => e.id === expandedEntryId);
-        const openAt = (i: number) => {
-          const t = sortedEntries[Math.max(0, Math.min(i, sortedEntries.length - 1))];
-          if (t) {
-            setExpandedEntryId(t.id);
-            setFocusedEntryId(t.id);
-            modalBodyRef.current?.scrollTo({ top: 0 });
-          }
-        };
-        if (open && key === "s") { decide(open, "SACADO"); ev.preventDefault(); }
-        else if (open && key === "c") { decide(open, "CEDENTE"); ev.preventDefault(); }
-        else if (open && key === "i") { aiMutation.mutate(open.id); ev.preventDefault(); }
-        else if (ev.key === "ArrowRight") { openAt(openIdx + 1); ev.preventDefault(); }
-        else if (ev.key === "ArrowLeft") { openAt(openIdx - 1); ev.preventDefault(); }
-        else if (ev.key === "ArrowDown") { modalBodyRef.current?.scrollBy({ top: 220, behavior: "smooth" }); ev.preventDefault(); }
-        else if (ev.key === "ArrowUp") { modalBodyRef.current?.scrollBy({ top: -220, behavior: "smooth" }); ev.preventDefault(); }
-        return;
-      }
-
-      if (sortedEntries.length === 0) return;
-      const idx = Math.max(0, sortedEntries.findIndex((e) => e.id === focusedEntryId));
-      const current = sortedEntries[idx];
-      const focusAt = (i: number) => setFocusedEntryId(sortedEntries[Math.max(0, Math.min(i, sortedEntries.length - 1))].id);
-
-      if (key === "s") {
-        decide(current, "SACADO");
-        focusAt(idx + 1);
-        ev.preventDefault();
-      } else if (key === "c") {
-        decide(current, "CEDENTE");
-        focusAt(idx + 1);
-        ev.preventDefault();
-      } else if (key === "i") {
-        aiMutation.mutate(current.id);
-        ev.preventDefault();
-      } else if (ev.key === "ArrowDown") {
-        focusAt(idx + 1);
-        ev.preventDefault();
-      } else if (ev.key === "ArrowUp") {
-        focusAt(idx - 1);
-        ev.preventDefault();
-      } else if (key === "e" || ev.key === "Enter") {
-        setExpandedEntryId(current.id);
+      if (ev.key === "Escape") {
+        if (copyMenu) closeCopyMenu();
+        else if (mapEntry) setMapEntry(null);
+        else setExpandedEntryId(null);
         ev.preventDefault();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedEntries, focusedEntryId, expandedEntryId, entries, aiMutation]);
+  }, [expandedEntryId, copyMenu, mapEntry]);
+
+  // Aciona o fade-in no frame seguinte ao montar o menu de cópia.
+  useEffect(() => {
+    if (!copyMenu) return;
+    const id = requestAnimationFrame(() => setCopyMenuVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, [copyMenu]);
+
 
   // Rola o lançamento focado para dentro da área visível.
   useEffect(() => {
@@ -495,15 +512,15 @@ export default function PaymentPlacePage() {
           <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90">
             <span className="material-icons-outlined text-[20px]">upload_file</span>
             Importar PDF
-            <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleFile} disabled={importMutation.isPending} />
+            <input type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleFile} disabled={importMutation.isPending} />
           </label>
         </div>
       </header>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
         <Metric label="Lançamentos" value={entries.length} />
-        <Metric label="Auditoria eletrônica" value={batch?.auditEntries ?? 0} />
-        <Metric label="Agências não localizadas" value={batch?.unlocatedAgencyEntries ?? 0} />
+        <Metric label="Auditoria eletrônica" value={batchMeta.auditEntries} />
+        <Metric label="Agências não localizadas" value={batchMeta.unlocatedAgencyEntries} />
         <Metric label="Digitais/cooperativas" value={counters.digitalOrCooperative} />
         <Metric label="Baixa confiança" value={counters.lowReliability} tone="red" />
         <Metric label="Pendentes" value={counters.pending} tone="amber" />
@@ -512,17 +529,17 @@ export default function PaymentPlacePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-grafite dark:text-white">Indicadores do lote</h2>
+            <h2 className="text-sm font-bold text-grafite dark:text-white">Indicadores {batches.length > 1 ? "dos lotes" : "do lote"}</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Leitura rápida da qualidade da praça e da aderência entre sugestão automática e decisão humana.
             </p>
           </div>
-          {indicatorsQuery.data?.fileName ? (
-            <p className="hidden max-w-[480px] truncate text-xs text-gray-400 lg:block">{indicatorsQuery.data.fileName}</p>
+          {batches.length > 1 ? (
+            <p className="hidden max-w-[480px] truncate text-xs text-gray-400 lg:block">{batches.length} lotes ativos</p>
           ) : null}
         </div>
 
-        {indicatorsQuery.isLoading && activeBatchId ? (
+        {indicatorsQuery.isLoading && batches.length > 0 ? (
           <div className="rounded-xl border border-border-light bg-surface-light p-4 text-sm text-gray-500 shadow-sm dark:border-border-dark dark:bg-surface-dark">
             Carregando indicadores do lote...
           </div>
@@ -633,6 +650,7 @@ export default function PaymentPlacePage() {
                   <option value="SEM_DECISAO">Sem decisão</option>
                   <option value="SACADO">Sacado</option>
                   <option value="CEDENTE">Cedente</option>
+                  <option value="INCONCLUSIVO">Inconclusivo</option>
                 </select>
               </label>
               <button
@@ -656,15 +674,18 @@ export default function PaymentPlacePage() {
             <div className="flex flex-col gap-3 border-b border-border-light p-4 dark:border-border-dark">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-grafite dark:text-white">{batch ? batch.fileName : "Nenhum lote selecionado"}</h2>
+                  <h2 className="truncate text-sm font-bold text-grafite dark:text-white">
+                    {batches.length === 0 ? "Nenhum lote ativo" : batches.length === 1 ? batches[0].fileName : `Todos os lotes (${batches.length})`}
+                  </h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {filteredEntries.length} de {entries.length} exibidos · Sacados {counters.payer} · Cedentes {counters.assignor}
                   </p>
-                  {batch ? (
+                  {batches.length > 0 ? (
                     <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                       <span className="material-icons-outlined text-[14px]">schedule</span>
-                      Importado em {formatDateTime(batch.importedAt)}
-                      {batch.importedByName ? ` por ${batch.importedByName}` : ""}
+                      {batches.length === 1
+                        ? `Importado em ${formatDateTime(batches[0].importedAt)}${batches[0].importedByName ? ` por ${batches[0].importedByName}` : ""}`
+                        : `${batches.length} lotes ativos exibidos juntos`}
                     </p>
                   ) : null}
                 </div>
@@ -692,7 +713,7 @@ export default function PaymentPlacePage() {
                     <span className="material-icons-outlined text-[16px]">sort</span>
                     Confiança
                   </button>
-                  {activeBatchId ? (
+                  {batches.length > 0 ? (
                     <>
                       <button
                         type="button"
@@ -705,13 +726,12 @@ export default function PaymentPlacePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={archiveBatch}
-                        disabled={archiveBatchMutation.isPending}
-                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                        title="Arquivar este lote"
+                        onClick={() => setShowBatchModal(true)}
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                        title="Gerenciar lotes (arquivar/apagar)"
                       >
                         <span className="material-icons-outlined text-[16px]">inventory_2</span>
-                        Arquivar
+                        Lotes
                       </button>
                     </>
                   ) : null}
@@ -746,13 +766,6 @@ export default function PaymentPlacePage() {
                   {counters.reviewed}/{entries.length} decididos
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400">
-                Atalhos: <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">S</kbd> sacado ·{" "}
-                <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">C</kbd> cedente ·{" "}
-                <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">↑↓</kbd> navegar ·{" "}
-                <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">E</kbd> detalhes ·{" "}
-                <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">I</kbd> análise IA
-              </p>
             </div>
 
             {listCollapsed ? (
@@ -764,10 +777,10 @@ export default function PaymentPlacePage() {
                 <span className="material-icons-outlined text-[18px]">unfold_more</span>
                 Lista minimizada — {counters.pending} pendentes. Clique para expandir.
               </button>
-            ) : batchQuery.isLoading ? (
+            ) : batchDetails.isLoading ? (
               <div className="p-6 text-sm text-gray-500">Carregando lançamentos...</div>
-            ) : !activeBatchId ? (
-              <div className="p-6 text-sm text-gray-500">Importe ou selecione um lote para iniciar a análise.</div>
+            ) : batches.length === 0 ? (
+              <div className="p-6 text-sm text-gray-500">Importe um lote para iniciar a análise.</div>
             ) : sortedEntries.length === 0 ? (
               <div className="p-6 text-sm text-gray-500">Nenhum lançamento encontrado para os filtros atuais.</div>
             ) : (
@@ -789,6 +802,16 @@ export default function PaymentPlacePage() {
                               : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
                         }`}
                       >
+                        {/* Área de dados — long-press / clique-direito copia */}
+                        <div
+                          onContextMenu={(e) => { e.preventDefault(); setCopyMenu({ x: e.clientX, y: e.clientY, entry }); }}
+                          onPointerDown={(e) => handleRowPointerDown(entry, e)}
+                          onPointerMove={handleRowPointerMove}
+                          onPointerUp={clearLongPress}
+                          onPointerLeave={clearLongPress}
+                          onPointerCancel={clearLongPress}
+                          className="flex flex-col gap-2 lg:flex-row lg:items-center lg:cursor-context-menu"
+                        >
                         {/* Identificação */}
                         <div className="min-w-0 lg:w-[280px]">
                           <div className="flex items-center gap-2">
@@ -831,13 +854,14 @@ export default function PaymentPlacePage() {
                             </div>
                           </div>
                         </div>
+                        </div>
 
-                        {/* Sugestão + distâncias */}
+                        {/* Sugestão + distâncias — cada distância abre o mapa do par */}
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
-                          <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
-                          <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
-                          <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
+                          <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "CED_AG" }); }} />
+                          <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "SAC_AG" }); }} />
+                          <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "CED_SAC" }); }} />
                         </div>
 
                         {/* Decisão + ações */}
@@ -870,6 +894,19 @@ export default function PaymentPlacePage() {
                             }`}
                           >
                             Cedente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); decide(entry, "INCONCLUSIVO"); }}
+                            disabled={decideMutation.isPending}
+                            title="Marcar como inconclusivo (I)"
+                            className={`inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold transition-colors disabled:opacity-60 ${
+                              entry.analystDecision === "INCONCLUSIVO"
+                                ? "bg-amber-500 text-white"
+                                : "border border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                            }`}
+                          >
+                            Inconclusivo
                           </button>
                           <button
                             type="button"
@@ -928,22 +965,14 @@ export default function PaymentPlacePage() {
               ) : (
                 <div className="space-y-2">
                   {batches.map((item) => {
-                    const active = item.id === activeBatchId;
                     return (
                       <div
                         key={item.id}
-                        className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
-                          active
-                            ? "border-primary bg-primary/5 dark:border-secondary dark:bg-secondary/10"
-                            : "border-border-light bg-white hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark dark:hover:bg-white/5"
-                        }`}
+                        className="flex items-start gap-3 rounded-lg border border-border-light bg-white p-3 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark dark:hover:bg-white/5"
                       >
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedBatchId(item.id);
-                            setShowBatchModal(false);
-                          }}
+                          onClick={() => setShowBatchModal(false)}
                           className="min-w-0 flex-1 text-left"
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -1026,6 +1055,118 @@ export default function PaymentPlacePage() {
         </div>
       ) : null}
 
+      {mapEntry && typeof document !== "undefined" ? (() => {
+        const e = mapEntry.entry;
+        const CED = { label: "Cedente", city: e.clientCity, lat: e.clientLatitude, lng: e.clientLongitude, color: "#612035" };
+        const AG = { label: "Agência", city: e.agencyCityPdf, lat: e.agencyLatitude, lng: e.agencyLongitude, color: "#D1732C" };
+        const SAC = { label: "Sacado", city: e.payerCity, lat: e.payerLatitude, lng: e.payerLongitude, color: "#2956E0" };
+        const view = {
+          ALL: { points: [CED, AG, SAC], card: <><DistanceCard label="Cedente ↔ Agência" from={e.clientCity} to={e.agencyCityPdf} value={e.distanceClientAgencyKm} color="#D1732C" /><DistanceCard label="Sacado ↔ Agência" from={e.payerCity} to={e.agencyCityPdf} value={e.distanceAgencyPayerKm} color="#2956E0" /><DistanceCard label="Cedente ↔ Sacado" from={e.clientCity} to={e.payerCity} value={e.distanceClientPayerKm} color="#612035" /></> },
+          CED_AG: { points: [CED, AG], card: <DistanceCard label="Cedente ↔ Agência" from={e.clientCity} to={e.agencyCityPdf} value={e.distanceClientAgencyKm} color="#D1732C" /> },
+          SAC_AG: { points: [SAC, AG], card: <DistanceCard label="Sacado ↔ Agência" from={e.payerCity} to={e.agencyCityPdf} value={e.distanceAgencyPayerKm} color="#2956E0" /> },
+          CED_SAC: { points: [CED, SAC], card: <DistanceCard label="Cedente ↔ Sacado" from={e.clientCity} to={e.payerCity} value={e.distanceClientPayerKm} color="#612035" /> },
+        }[mapEntry.pair];
+        const setPair = (pair: typeof mapEntry.pair) => setMapEntry({ entry: e, pair });
+        return createPortal(
+        <div
+          className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setMapEntry(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-2xl dark:border-border-dark dark:bg-surface-dark"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-border-light p-4 dark:border-border-dark">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-grafite dark:text-white">{e.titleNumber}</p>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  Sacado: {clean(e.payerName)} · Cedente: {e.clientName ?? "—"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapEntry(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
+                aria-label="Fechar"
+              >
+                <span className="material-icons-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-border-light px-4 py-2 dark:border-border-dark">
+              {([
+                ["ALL", "Todos"],
+                ["CED_AG", "Cedente ↔ Agência"],
+                ["SAC_AG", "Sacado ↔ Agência"],
+                ["CED_SAC", "Cedente ↔ Sacado"],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPair(key)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                    mapEntry.pair === key
+                      ? "bg-primary text-white dark:bg-secondary"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className={`grid grid-cols-1 gap-2 p-4 ${mapEntry.pair === "ALL" ? "sm:grid-cols-3" : ""}`}>
+              {view.card}
+            </div>
+            <div className="min-h-[340px] flex-1 overflow-hidden border-t border-border-light dark:border-border-dark">
+              <PaymentPlaceMap points={view.points} />
+            </div>
+          </div>
+        </div>,
+        document.body,
+        );
+      })() : null}
+
+      {copyMenu && typeof document !== "undefined" ? createPortal(
+        <div
+          className={`fixed inset-0 z-[130] bg-black/30 backdrop-blur-[2px] transition-opacity duration-150 ${copyMenuVisible ? "opacity-100" : "opacity-0"}`}
+          onClick={closeCopyMenu}
+          onContextMenu={(e) => { e.preventDefault(); closeCopyMenu(); }}
+        >
+          <div
+            className={`absolute w-[280px] max-w-[calc(100vw-24px)] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-border-light bg-surface-light py-1 shadow-2xl transition-all duration-150 dark:border-border-dark dark:bg-surface-dark ${
+              copyMenuVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
+            }`}
+            style={{
+              left: Math.max(8, Math.min(copyMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 296)),
+              top: Math.max(8, Math.min(copyMenu.y, (typeof window !== "undefined" ? window.innerHeight : 9999) - 332)),
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {([
+              ["Nº do título", copyMenu.entry.titleNumber],
+              ["Sacado", copyMenu.entry.payerName],
+              ["Cedente", copyMenu.entry.clientName],
+              ["Valor pago", formatCurrencyBr(copyMenu.entry.paidValue) ?? copyMenu.entry.paidValue],
+              ["Vencimento", copyMenu.entry.dueDate],
+              ["Instituição", copyMenu.entry.bankName ?? copyMenu.entry.bacenInstitutionName],
+              ["Banco/Agência", copyMenu.entry.bankAgency],
+            ] as const).map(([label, value]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => copyField(label, value)}
+                className="flex w-full flex-col px-3 py-1.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</span>
+                <span className="text-sm font-medium leading-snug text-grafite dark:text-white">
+                  {value == null || String(value).trim() === "" ? <span className="text-gray-400">—</span> : String(value)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      ) : null}
+
       {expandedEntry && typeof document !== "undefined" ? createPortal(
         <div
           className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 backdrop-blur-sm"
@@ -1043,19 +1184,18 @@ export default function PaymentPlacePage() {
                   {expandedEntry.analystDecision ? <DecisionPill decision={expandedEntry.analystDecision} /> : null}
                 </div>
                 <p className="truncate text-xs text-gray-500">{clean(expandedEntry.payerName)} · {clean(expandedEntry.payerDocument)}</p>
+                {fileNameByBatch.get(expandedEntry.batchId) ? (
+                  <p className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11px] text-gray-400" title={fileNameByBatch.get(expandedEntry.batchId)}>
+                    <span className="material-icons-outlined text-[13px]">description</span>
+                    <span className="truncate">{fileNameByBatch.get(expandedEntry.batchId)}</span>
+                  </p>
+                ) : null}
                 {expandedEntry.decidedAt ? (
                   <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-300">
                     <span className="material-icons-outlined text-[13px]">how_to_reg</span>
                     Decidido{expandedEntry.decidedByName ? ` por ${expandedEntry.decidedByName}` : ""} em {formatDateTime(expandedEntry.decidedAt)}
                   </p>
                 ) : null}
-                <p className="mt-0.5 hidden text-[11px] text-gray-400 lg:block">
-                  <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">←→</kbd> trocar lançamento ·{" "}
-                  <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">↑↓</kbd> rolar ·{" "}
-                  <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">S</kbd>/<kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">C</kbd> decidir ·{" "}
-                  <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">I</kbd> IA ·{" "}
-                  <kbd className="rounded bg-gray-100 px-1 font-mono dark:bg-white/10">Esc</kbd> fechar
-                </p>
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
                 <button
@@ -1077,6 +1217,17 @@ export default function PaymentPlacePage() {
                   }`}
                 >
                   Cedente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => decide(expandedEntry, "INCONCLUSIVO")}
+                  disabled={decideMutation.isPending}
+                  title="Inconclusivo (I)"
+                  className={`inline-flex h-9 items-center justify-center rounded-lg px-4 text-xs font-bold transition-colors disabled:opacity-60 ${
+                    expandedEntry.analystDecision === "INCONCLUSIVO" ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-500/15 dark:text-amber-300"
+                  }`}
+                >
+                  Inconclusivo
                 </button>
                 <button
                   type="button"
@@ -1188,7 +1339,7 @@ function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
   const [cnpj, setCnpj] = useState("");
   const [confirmCnpj, setConfirmCnpj] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const link = useLinkCedenteCnpj(entry.batchId);
+  const link = useLinkCedenteCnpj();
 
   const submit = (create: boolean) => {
     const digits = cnpj.replace(/\D/g, "");
@@ -1278,11 +1429,11 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
       color: "#1F9D55",
     }));
 
-  // Filiais do cedente: carregadas eager ao abrir o lançamento e salvas no cache
-  // (por raiz). Clicar numa filial recalcula as distâncias do cedente.
-  const [showCedenteBranches, setShowCedenteBranches] = useState(true);
+  // Filiais do cedente: busca SÓ no clique (custo de BigQuery). Cacheadas por raiz.
+  // Clicar numa filial recalcula as distâncias do cedente.
+  const [showCedenteBranches, setShowCedenteBranches] = useState(false);
   const [selectedCedenteBranch, setSelectedCedenteBranch] = useState<string | null>(null);
-  const cedenteBranchesQuery = useCompanyBranches(entry.clientDocument ?? undefined, true);
+  const cedenteBranchesQuery = useCompanyBranches(entry.clientDocument ?? undefined, showCedenteBranches);
   const cedenteBranches = (cedenteBranchesQuery.data ?? []).filter(
     (b) => typeof b.latitude === "number" && typeof b.longitude === "number",
   );
@@ -1558,17 +1709,27 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
             <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#1F9D55" }} />Filiais do sacado</span>
           ) : null}
           <div className="ml-auto flex items-center gap-2">
-            {cedenteBranchMarkers.length > 0 ? (
+            {!showCedenteBranches ? (
               <button
                 type="button"
-                onClick={() => setShowCedenteBranches((v) => !v)}
-                className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                onClick={() => setShowCedenteBranches(true)}
+                disabled={!entry.clientDocument}
+                title={entry.clientDocument ? undefined : "Cedente sem CNPJ vinculado"}
+                className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >
-                {showCedenteBranches ? `Ocultar filiais do cedente (${cedenteBranchMarkers.length})` : `Filiais do cedente (${cedenteBranchMarkers.length})`}
+                Filiais do cedente
               </button>
             ) : cedenteBranchesQuery.isFetching ? (
               <span className="text-[11px] text-gray-400">Carregando filiais do cedente…</span>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setShowCedenteBranches(false); setSelectedCedenteBranch(null); }}
+                className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+              >
+                Ocultar filiais do cedente ({cedenteBranchMarkers.length})
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowBranches((v) => !v)}
