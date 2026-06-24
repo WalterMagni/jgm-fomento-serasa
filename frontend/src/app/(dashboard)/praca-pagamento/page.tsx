@@ -21,6 +21,7 @@ import {
   usePaymentPlaceBatches,
   usePaymentPlaceIndicatorsAll,
 } from "../../../hooks/usePaymentPlace";
+import { useReopenPaymentPlaceEntry } from "../../../hooks/usePaymentPlaceCompany";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
 
 const PaymentPlaceMap = dynamic(() => import("../../../components/payment-place/PaymentPlaceMap"), {
@@ -251,6 +252,7 @@ export default function PaymentPlacePage() {
   const enrichAgencyMutation = useEnrichAgencyBacen();
   const enrichPayerCnpjMutation = useEnrichPayerCnpj();
   const aiMutation = useAnalyzeWithAi();
+  const reopenMutation = useReopenPaymentPlaceEntry();
   const fileNameByBatch = useMemo(() => new Map(batches.map((b) => [b.id, b.fileName])), [batches]);
   const entries = useMemo(() => batchDetails.details.flatMap((d) => d.entries), [batchDetails.details]);
   const batchMeta = useMemo(
@@ -357,6 +359,16 @@ export default function PaymentPlacePage() {
       entryId: entry.id,
       decision,
       notes: notesByEntry[entry.id],
+    });
+  };
+
+  // Reabre uma análise já decidida: volta para PENDENTE e remove o registro do lado da empresa.
+  const reopen = (entry: PaymentPlaceEntry) => {
+    if (!window.confirm("Reabrir esta análise? Ela volta para Pendentes e sai das informações da empresa.")) return;
+    reopenMutation.mutate(entry.id, {
+      onSuccess: () => {
+        if (expandedEntryId === entry.id) setExpandedEntryId(null);
+      },
     });
   };
 
@@ -908,6 +920,18 @@ export default function PaymentPlacePage() {
                           >
                             Inconclusivo
                           </button>
+                          {entry.analystDecision ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); reopen(entry); }}
+                              disabled={reopenMutation.isPending}
+                              title="Reabrir análise (volta para Pendentes e sai da empresa)"
+                              aria-label="Reabrir análise"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                            >
+                              <span className="material-icons-outlined text-[16px]">undo</span>
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
@@ -1229,6 +1253,18 @@ export default function PaymentPlacePage() {
                 >
                   Inconclusivo
                 </button>
+                {expandedEntry.analystDecision ? (
+                  <button
+                    type="button"
+                    onClick={() => reopen(expandedEntry)}
+                    disabled={reopenMutation.isPending}
+                    title="Reabrir análise (volta para Pendentes e sai da empresa)"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-200 px-3 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                  >
+                    <span className="material-icons-outlined text-[16px]">undo</span>
+                    Reabrir
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setExpandedEntryId(null)}
