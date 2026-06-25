@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Icon from "@/components/ui/Icon";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ function AiOrb({ isLoading }: { isLoading: boolean }) {
         </>
       )}
       <div className={`relative w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-sky-400 to-blue-600 shadow-[0_0_20px_rgba(56,189,248,0.5)] ${isLoading ? "animate-[pulse_2s_ease-in-out_infinite]" : ""}`}>
-        <span className="material-icons-outlined text-white text-xl">{isLoading ? "psychology" : "auto_awesome"}</span>
+        <Icon name={isLoading ? "psychology" : "auto_awesome"} className="text-white text-xl" />
       </div>
     </div>
   );
@@ -135,9 +136,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                   title={data?.available ? "Reanalisar" : "Gerar Análise"}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-xs font-sans font-medium transition-all duration-150 shadow-sm"
                 >
-                  <span className="material-icons-outlined text-sm">
-                    {data?.available ? "refresh" : "auto_awesome"}
-                  </span>
+                  <Icon name={data?.available ? "refresh" : "auto_awesome"} className="text-sm" />
                   {data?.available ? "Reanalisar" : "Gerar Análise"}
                 </button>
               )}
@@ -145,7 +144,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                 <span className="text-xs text-sky-600/70 dark:text-sky-400/60 font-sans">Aguardando consulta Serasa</span>
               )}
               <button onClick={() => setIsExpanded(v => !v)} className="p-1.5 rounded-lg hover:bg-sky-200/50 dark:hover:bg-sky-800/30 transition-colors">
-                <span className="material-icons-outlined text-base text-sky-600 dark:text-sky-400">{isExpanded ? "expand_less" : "expand_more"}</span>
+                <Icon name={isExpanded ? "expand_less" : "expand_more"} className="text-base text-sky-600 dark:text-sky-400" />
               </button>
             </div>
           </div>
@@ -156,7 +155,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
               {isLoading && (
                 <div className="space-y-3 ai-fade-in">
                   <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400 text-sm font-sans mb-4">
-                    <span className="material-icons-outlined text-base animate-spin">sync</span>
+                    <Icon name="sync" className="text-base animate-spin" />
                     Processando dados com Gemini AI...
                   </div>
                   <ShimmerLine w="w-full" h="h-4" />
@@ -172,7 +171,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
               {/* No analysis yet */}
               {!isLoading && (!data || (!data.available && !data.errorMessage?.includes("Não foi possível"))) && hasSerasaData && (
                 <div className="ai-fade-in flex items-start gap-3 p-4 rounded-xl bg-sky-100/60 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800">
-                  <span className="material-icons-outlined text-sky-500 text-xl flex-shrink-0">auto_awesome</span>
+                  <Icon name="auto_awesome" className="text-sky-500 text-xl flex-shrink-0" />
                   <div>
                     <p className="text-sm font-sans font-medium text-sky-800 dark:text-sky-200">Análise não gerada ainda.</p>
                     <p className="text-xs text-sky-600 dark:text-sky-400 mt-0.5">Clique em &quot;Gerar Análise&quot; para criar o parecer com IA.</p>
@@ -183,7 +182,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
               {/* Error */}
               {!isLoading && data && !data.available && data.errorMessage?.includes("Não foi possível") && (
                 <div className="ai-fade-in flex items-start gap-3 p-4 rounded-xl bg-sky-100/60 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800">
-                  <span className="material-icons-outlined text-sky-500 text-xl flex-shrink-0">info</span>
+                  <Icon name="info" className="text-sky-500 text-xl flex-shrink-0" />
                   <p className="text-sm font-sans text-sky-800 dark:text-sky-200">{data.errorMessage}</p>
                 </div>
               )}
@@ -193,7 +192,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                 <div className="space-y-5 ai-fade-in">
                   {/* Disclaimer */}
                   <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/50">
-                    <span className="material-icons-outlined text-amber-500 text-base flex-shrink-0 mt-px">warning_amber</span>
+                    <Icon name="warning_amber" className="text-amber-500 text-base flex-shrink-0 mt-px" />
                     <p className="text-xs font-sans text-amber-800 dark:text-amber-200 leading-relaxed">
                       <strong>Aviso:</strong> Esta análise é gerada por IA com base nos dados da Serasa Experian, que podem conter imprecisões.
                       Exemplo: empresas classificadas sem funcionários pelo Serasa que efetivamente possuem colaboradores. Use como ferramenta auxiliar — não substitui a análise humana.
@@ -211,7 +210,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                       )}
                       {rec && (
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-sky-200 dark:border-sky-700 bg-white/60 dark:bg-sky-900/20 font-sans font-bold text-sm text-sky-900 dark:text-sky-100">
-                          <span className={`material-icons-outlined text-base ${rec.color}`}>{rec.icon}</span>
+                          <Icon name={rec.icon} className={`text-base ${rec.color}`} />
                           {rec.label}
                         </div>
                       )}
@@ -228,7 +227,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                   {data.visaoCedente && (
                     <div className="rounded-xl bg-white/70 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700/60 p-4">
                       <p className="text-[10px] font-sans font-bold text-sky-700 dark:text-sky-300 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <span className="material-icons-outlined text-sm">receipt_long</span>
+                        <Icon name="receipt_long" className="text-sm" />
                         Visão Cedente (Factoring)
                       </p>
                       <p className="text-sm font-serif text-sky-950 dark:text-sky-100 leading-relaxed whitespace-pre-line">{data.visaoCedente}</p>
@@ -240,12 +239,12 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                       {(data.pontosFortes?.length ?? 0) > 0 && (
                         <div className="rounded-xl bg-emerald-50/80 dark:bg-emerald-900/15 border border-emerald-200 dark:border-emerald-800/50 p-4">
                           <p className="text-[10px] font-sans font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <span className="material-icons-outlined text-sm">thumb_up</span>Pontos Positivos
+                            <Icon name="thumb_up" className="text-sm" />Pontos Positivos
                           </p>
                           <ul className="space-y-1.5">
                             {data.pontosFortes!.map((p, i) => (
                               <li key={i} className="flex items-start gap-2 text-sm font-serif text-emerald-900 dark:text-emerald-200">
-                                <span className="material-icons-outlined text-emerald-500 text-sm flex-shrink-0 mt-px">check_circle</span>{p}
+                                <Icon name="check_circle" className="text-emerald-500 text-sm flex-shrink-0 mt-px" />{p}
                               </li>
                             ))}
                           </ul>
@@ -254,12 +253,12 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
                       {(data.pontosAtencao?.length ?? 0) > 0 && (
                         <div className="rounded-xl bg-amber-50/80 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/50 p-4">
                           <p className="text-[10px] font-sans font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <span className="material-icons-outlined text-sm">warning</span>Pontos de Atenção
+                            <Icon name="warning" className="text-sm" />Pontos de Atenção
                           </p>
                           <ul className="space-y-1.5">
                             {data.pontosAtencao!.map((p, i) => (
                               <li key={i} className="flex items-start gap-2 text-sm font-serif text-amber-900 dark:text-amber-200">
-                                <span className="material-icons-outlined text-amber-500 text-sm flex-shrink-0 mt-px">error_outline</span>{p}
+                                <Icon name="error_outline" className="text-amber-500 text-sm flex-shrink-0 mt-px" />{p}
                               </li>
                             ))}
                           </ul>
@@ -273,7 +272,7 @@ export function AiAnalysisCard({ cnpj, hasSerasaData, initialData, aiAnalysisDat
               {/* No Serasa data */}
               {!isLoading && !hasSerasaData && (
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-sky-100/50 dark:bg-sky-900/15">
-                  <span className="material-icons-outlined text-sky-400 text-xl">lock_clock</span>
+                  <Icon name="lock_clock" className="text-sky-400 text-xl" />
                   <p className="text-sm font-sans text-sky-700 dark:text-sky-300">Consulte o Serasa para liberar a análise de IA.</p>
                 </div>
               )}

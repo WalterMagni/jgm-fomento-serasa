@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Icon from "@/components/ui/Icon";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { PaymentPlaceEntry } from "../../types/payment-place";
@@ -85,13 +86,13 @@ export default function PaymentPlaceEntryReadOnlyModal({ entry, onClose }: { ent
             <p className="truncate text-xs text-gray-500">{clean(entry.payerName)} · {clean(entry.payerDocument)}</p>
             {entry.decidedAt ? (
               <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-300">
-                <span className="material-icons-outlined text-[13px]">how_to_reg</span>
+                <Icon name="how_to_reg" size={13} />
                 Decidido{entry.decidedByName ? ` por ${entry.decidedByName}` : ""} em {fmtDateTime(entry.decidedAt)}
               </p>
             ) : null}
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Fechar (Esc)" aria-label="Fechar">
-            <span className="material-icons-outlined text-[18px]">close</span>
+            <Icon name="close" size={18} />
           </button>
         </div>
 
@@ -127,7 +128,7 @@ export default function PaymentPlaceEntryReadOnlyModal({ entry, onClose }: { ent
 
               {ai?.summary ? (
                 <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 dark:border-violet-500/30 dark:bg-violet-500/5">
-                  <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300"><span className="material-icons-outlined text-[16px]">auto_awesome</span>Análise com IA (Gemini)</p>
+                  <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300"><Icon name="auto_awesome" size={16} />Análise com IA (Gemini)</p>
                   <p className="mt-2 text-sm text-grafite dark:text-gray-200">{ai.summary}</p>
                   {ai.recommendation ? <p className="mt-2 rounded-lg bg-white px-3 py-2 text-xs text-grafite dark:bg-background-dark dark:text-gray-200"><span className="font-bold">Recomendação: </span>{ai.recommendation}</p> : null}
                 </div>

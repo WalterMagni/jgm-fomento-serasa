@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Icon from "@/components/ui/Icon";
 import type {
   AdvancedCommercialPaymentHistory,
   SegmentPaymentHistory,
@@ -62,14 +63,12 @@ function ExpandSection({
         onClick={() => onToggle(id)}
         className="w-full flex items-center gap-3 p-4 bg-surface-light dark:bg-surface-dark hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors text-left"
       >
-        <span className="material-icons-outlined text-lg text-primary flex-shrink-0">{icon}</span>
+        <Icon name={icon} className="text-lg text-primary flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-sans font-bold text-grafite dark:text-white">{title}</p>
           <div className="flex flex-wrap gap-1.5 mt-1">{summary}</div>
         </div>
-        <span className={`material-icons-outlined text-gray-400 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}>
-          expand_more
-        </span>
+        <Icon name="expand_more" className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
       </button>
 
       {expanded && (
@@ -320,7 +319,7 @@ function RefCards({ refs }: { refs: BusinessReferenceEntry[] }) {
         return (
           <div key={i} className="rounded-xl p-4 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <span className={`material-icons-outlined text-xl ${color}`}>{icon}</span>
+              <Icon name={icon} className={`text-xl ${color}`} />
               <p className="text-xs font-sans font-bold text-gray-400 uppercase tracking-wider">{ref.businessDescription}</p>
             </div>
             <p className="text-xl font-sans font-bold text-grafite dark:text-white">
@@ -448,7 +447,7 @@ function VisaoTab({
   if (noData) {
     return (
       <div className="py-10 text-center">
-        <span className="material-icons-outlined text-4xl text-gray-300 dark:text-gray-600">inbox</span>
+        <Icon name="inbox" className="text-4xl text-gray-300 dark:text-gray-600" />
         <p className="text-sm text-gray-400 font-serif mt-2">Sem dados para esta visão.</p>
       </div>
     );
@@ -512,9 +511,7 @@ function VisaoTab({
                 ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
                 : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-700"
             }`}>
-              <span className={`material-icons-outlined text-xl ${
-                (delaySummary.averageDelayDaysFrom ?? 0) === 0 ? "text-green-600" : "text-amber-600"
-              }`}>schedule</span>
+              <Icon name="schedule" className={`text-xl ${ (delaySummary.averageDelayDaysFrom ?? 0) === 0 ? "text-green-600" : "text-amber-600" }`} />
               <div>
                 <p className="text-[10px] font-sans font-bold text-gray-400 uppercase tracking-wide">Prazo Médio de Atraso (período geral)</p>
                 <p className={`text-base font-sans font-bold mt-0.5 ${
@@ -662,7 +659,7 @@ export function PaymentHistoryPanel({ ph }: Props) {
   return (
     <div className="mb-6">
       <h2 className="font-sans font-bold text-base text-grafite dark:text-white mb-3 flex items-center gap-2">
-        <span className="material-icons-outlined text-lg text-primary">receipt_long</span>
+        <Icon name="receipt_long" className="text-lg text-primary" />
         Histórico de Pagamentos
       </h2>
 
@@ -682,7 +679,7 @@ export function PaymentHistoryPanel({ ph }: Props) {
                     : "border-transparent text-gray-500 hover:text-grafite dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 }`}
               >
-                <span className="material-icons-outlined text-base">{tab.icon}</span>
+                <Icon name={tab.icon} className="text-base" />
                 {tab.label}
                 {count > 0 && (
                   <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${

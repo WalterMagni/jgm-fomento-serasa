@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "@/components/ui/Icon";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useState, useEffect } from "react";
@@ -144,7 +145,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               title={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors"
             >
-              <span className="material-icons-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
+              <Icon name={isDark ? 'light_mode' : 'dark_mode'} />
             </button>
             <div className="relative group">
               <button className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700 hover:opacity-80 transition-opacity">
@@ -164,7 +165,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   }}
                   className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 rounded-lg"
                 >
-                  <span className="material-icons-outlined text-[18px]">logout</span>
+                  <Icon name="logout" size={18} />
                   Sair
                 </button>
               </div>
@@ -190,9 +191,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined transition-transform duration-200 ${pathname === '/' || pathname.startsWith('/clients/') ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`}>
-                    folder_shared
-                  </span>
+                  <Icon name="folder_shared" className={`transition-transform duration-200 ${pathname === '/' || pathname.startsWith('/clients/') ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans ${pathname === '/' || pathname.startsWith('/clients/') ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Gestão de Carteira
                   </span>
@@ -207,9 +206,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined transition-transform duration-200 ${pathname === '/commercial-information' ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`}>
-                    business_center
-                  </span>
+                  <Icon name="business_center" className={`transition-transform duration-200 ${pathname === '/commercial-information' ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans ${pathname === '/commercial-information' ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Informações Comerciais
                   </span>
@@ -224,9 +221,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined transition-transform duration-200 ${pathname.startsWith('/reports') ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`}>
-                    swap_horiz
-                  </span>
+                  <Icon name="swap_horiz" className={`transition-transform duration-200 ${pathname.startsWith('/reports') ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans ${pathname.startsWith('/reports') ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Visão Cedente
                   </span>
@@ -241,9 +236,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined transition-transform duration-200 ${pathname === '/praca-pagamento' ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`}>
-                    account_balance
-                  </span>
+                  <Icon name="account_balance" className={`transition-transform duration-200 ${pathname === '/praca-pagamento' ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans ${pathname === '/praca-pagamento' ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Praça de Pagamento
                   </span>
@@ -258,9 +251,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/60 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined text-[20px] transition-transform duration-200 ${pathname === '/praca-pagamento/inconclusivos' ? 'text-white scale-110' : 'text-white/60 group-hover:text-white group-hover:scale-110'}`}>
-                    rule
-                  </span>
+                  <Icon name="rule" size={20} className={`transition-transform duration-200 ${pathname === '/praca-pagamento/inconclusivos' ? 'text-white scale-110' : 'text-white/60 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans text-sm ${pathname === '/praca-pagamento/inconclusivos' ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Inconclusivos
                   </span>
@@ -275,9 +266,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/60 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined text-[20px] transition-transform duration-200 ${pathname === '/praca-pagamento/historico' ? 'text-white scale-110' : 'text-white/60 group-hover:text-white group-hover:scale-110'}`}>
-                    history
-                  </span>
+                  <Icon name="history" size={20} className={`transition-transform duration-200 ${pathname === '/praca-pagamento/historico' ? 'text-white scale-110' : 'text-white/60 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans text-sm ${pathname === '/praca-pagamento/historico' ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Histórico
                   </span>
@@ -292,9 +281,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined transition-transform duration-200 ${pathname === '/individuals' || pathname.startsWith('/individuals/') ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`}>
-                    person_search
-                  </span>
+                  <Icon name="person_search" className={`transition-transform duration-200 ${pathname === '/individuals' || pathname.startsWith('/individuals/') ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans ${pathname === '/individuals' || pathname.startsWith('/individuals/') ? 'font-bold' : 'font-medium'} hidden lg:block`}>
                     Pessoas Físicas
                   </span>
@@ -310,7 +297,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : 'text-white/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span className={`material-icons-outlined transition-transform duration-200 ${pathname === '/settings' ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`}>settings</span>
+                  <Icon name="settings" className={`transition-transform duration-200 ${pathname === '/settings' ? 'text-white scale-110' : 'text-white/70 group-hover:text-white group-hover:scale-110'}`} />
                   <span className={`font-sans ${pathname === '/settings' ? 'font-bold' : 'font-medium'} hidden lg:block`}>Sistema</span>
                 </Link>
               </li>

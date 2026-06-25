@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Icon from "@/components/ui/Icon";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -130,7 +131,7 @@ function SectionCard({
     <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-6">
       <div className="flex items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-2">
-          <span className="material-icons-outlined text-xl text-primary">{icon}</span>
+          <Icon name={icon} className="text-xl text-primary" />
           <h2 className="text-base font-heading font-bold text-grafite dark:text-white">{title}</h2>
         </div>
         {actions}
@@ -174,17 +175,13 @@ function NegativeCard({
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
-          <span className={`material-icons-outlined text-xl ${hasData ? "text-red-500" : "text-gray-400"}`}>
-            {icon}
-          </span>
+          <Icon name={icon} className={`text-xl ${hasData ? "text-red-500" : "text-gray-400"}`} />
           <span className="text-xs font-sans font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             {title}
           </span>
         </div>
         {hasDetail && (
-          <span className="material-icons-outlined text-base text-gray-400 dark:text-gray-500">
-            {isOpen ? "expand_less" : "expand_more"}
-          </span>
+          <Icon name={isOpen ? "expand_less" : "expand_more"} className="text-base text-gray-400 dark:text-gray-500" />
         )}
       </div>
       <p
@@ -215,15 +212,13 @@ function NegDetailTable({
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-red-200 dark:border-red-800 mt-3">
       <p className="text-xs font-sans font-bold text-red-600 dark:text-red-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-        <span className="material-icons-outlined text-sm">receipt_long</span>
+        <Icon name="receipt_long" className="text-sm" />
         {title}
       </p>
       <div className="overflow-x-auto">{children}</div>
       {hasMissing && (
         <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700">
-          <span className="material-icons-outlined text-sm text-amber-600 dark:text-amber-400 mt-0.5 shrink-0">
-            info
-          </span>
+          <Icon name="info" className="text-sm text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs font-sans text-amber-700 dark:text-amber-300">
             Exibindo <strong>{shownCount}</strong> de <strong>{totalCount}</strong> ocorrência(s).
           </p>
@@ -528,7 +523,7 @@ export default function PersonDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <span className="material-icons-outlined text-5xl text-gray-300 dark:text-gray-600 animate-spin">refresh</span>
+        <Icon name="refresh" className="text-5xl text-gray-300 dark:text-gray-600 animate-spin" />
       </div>
     );
   }
@@ -536,7 +531,7 @@ export default function PersonDetailPage() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-4">
-        <span className="material-icons-outlined text-5xl text-red-400">error_outline</span>
+        <Icon name="error_outline" className="text-5xl text-red-400" />
         <p className="text-gray-500 font-sans">Erro ao carregar dados. Tente novamente.</p>
         <button onClick={() => router.back()} className="text-sm text-primary font-sans underline">
           Voltar
@@ -548,7 +543,7 @@ export default function PersonDetailPage() {
   if (!profile) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-6">
-        <span className="material-icons-outlined text-6xl text-gray-300 dark:text-gray-600">person_search</span>
+        <Icon name="person_search" className="text-6xl text-gray-300 dark:text-gray-600" />
         <div className="text-center">
           <p className="font-heading font-bold text-grafite dark:text-white text-lg">Nenhuma análise encontrada</p>
           <p className="text-sm text-gray-500 font-sans mt-1">
@@ -561,7 +556,7 @@ export default function PersonDetailPage() {
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-sans font-bold text-sm text-white transition-all"
           style={{ background: "#E4006F" }}
         >
-          <span className="material-icons-outlined text-base">{isConsulting ? "hourglass_empty" : "analytics"}</span>
+          <Icon name={isConsulting ? "hourglass_empty" : "analytics"} className="text-base" />
           {isConsulting ? "Consultando..." : "Consultar Serasa"}
         </button>
       </div>
@@ -690,7 +685,7 @@ export default function PersonDetailPage() {
           onClick={handleGoIndividuals}
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors"
         >
-          <span className="material-icons-outlined text-base">arrow_back</span>
+          <Icon name="arrow_back" className="text-base" />
           Voltar para Pessoas Físicas
         </button>
         {contextualBackLabel && (
@@ -699,7 +694,7 @@ export default function PersonDetailPage() {
             onClick={handleGoBack}
             className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors"
           >
-            <span className="material-icons-outlined text-base">arrow_back</span>
+            <Icon name="arrow_back" className="text-base" />
             {contextualBackLabel}
           </button>
         )}
@@ -709,7 +704,7 @@ export default function PersonDetailPage() {
         <Link href="/individuals" className="hover:text-primary transition-colors">
           Pessoas Físicas
         </Link>
-        <span className="material-icons-outlined text-base">chevron_right</span>
+        <Icon name="chevron_right" className="text-base" />
         <span className="text-grafite dark:text-white font-medium truncate max-w-xs">
           {profile.personName ?? formatCpf(profile.cpf)}
         </span>
@@ -733,12 +728,12 @@ export default function PersonDetailPage() {
               </h1>
               {totalNeg > 0 ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
-                  <span className="material-icons-outlined text-[11px]">warning</span>
+                  <Icon name="warning" size={11} />
                   {totalNeg} restrição{totalNeg !== 1 ? "ões" : ""}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
-                  <span className="material-icons-outlined text-[11px]">check_circle</span>
+                  <Icon name="check_circle" size={11} />
                   Sem restrições
                 </span>
               )}
@@ -760,14 +755,14 @@ export default function PersonDetailPage() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl font-sans font-bold text-sm text-white transition-all self-start"
               style={{ background: "#E4006F" }}
             >
-              <span className="material-icons-outlined text-base">{isConsulting ? "hourglass_empty" : "refresh"}</span>
+              <Icon name={isConsulting ? "hourglass_empty" : "refresh"} className="text-base" />
               {isConsulting ? "Consultando..." : "Atualizar Serasa"}
             </button>
             <button
               onClick={handleDownloadPdf}
               className="flex items-center gap-2 px-4 py-2 rounded-xl font-sans font-bold text-sm border border-gray-300 bg-white text-grafite dark:border-gray-600 dark:bg-gray-800 dark:text-white transition-all self-start"
             >
-              <span className="material-icons-outlined text-base">picture_as_pdf</span>
+              <Icon name="picture_as_pdf" className="text-base" />
               Gerar PDF
             </button>
           </div>
@@ -1069,7 +1064,7 @@ export default function PersonDetailPage() {
                 className="flex items-center justify-between py-3 border-b border-border-light/50 dark:border-border-dark/50 last:border-0"
               >
                 <div className="flex items-center gap-3">
-                  <span className="material-icons-outlined text-base text-gray-400">search</span>
+                  <Icon name="search" className="text-base text-gray-400" />
                   <span className="text-sm font-sans text-grafite dark:text-gray-200">
                     {inquiry.segmentDescription ?? "Consulta"}
                   </span>
@@ -1138,9 +1133,7 @@ export default function PersonDetailPage() {
                 onClick={() => setShowInactiveCompanies((current) => !current)}
                 className="inline-flex items-center gap-1 rounded-full border border-border-light dark:border-border-dark px-3 py-1 text-[11px] font-sans font-bold uppercase tracking-wide text-gray-500 transition-colors hover:border-primary/30 hover:text-primary"
               >
-                <span className="material-icons-outlined text-sm">
-                  {showInactiveCompanies ? "unfold_less" : "unfold_more"}
-                </span>
+                <Icon name={showInactiveCompanies ? "unfold_less" : "unfold_more"} className="text-sm" />
                 {showInactiveCompanies ? "Ocultar baixadas" : `Ver baixadas (${inactivePartnerCompanies.length})`}
               </button>
             ) : undefined
@@ -1193,7 +1186,7 @@ export default function PersonDetailPage() {
                         className="text-xs font-sans font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5"
                       >
                         Ver empresa
-                        <span className="material-icons-outlined text-sm">open_in_new</span>
+                        <Icon name="open_in_new" className="text-sm" />
                       </Link>
                     )}
                     {cnpjClean.length === 14 && !isRegistered && (
@@ -1203,9 +1196,7 @@ export default function PersonDetailPage() {
                         disabled={creatingCompanyCnpj === cnpjClean}
                         className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] font-sans font-bold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <span className="material-icons-outlined text-sm">
-                          {creatingCompanyCnpj === cnpjClean ? "hourglass_empty" : "add_business"}
-                        </span>
+                        <Icon name={creatingCompanyCnpj === cnpjClean ? "hourglass_empty" : "add_business"} className="text-sm" />
                         {creatingCompanyCnpj === cnpjClean ? "Criando..." : "Criar empresa"}
                       </button>
                     )}

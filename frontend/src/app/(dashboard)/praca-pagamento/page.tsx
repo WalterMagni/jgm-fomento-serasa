@@ -25,6 +25,7 @@ import {
 import { useReopenPaymentPlaceEntry } from "../../../hooks/usePaymentPlaceCompany";
 import { AttachmentBadge, AttachmentViewerModal, EntryAttachmentsPanel } from "../../../components/payment-place/EntryAttachments";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
+import Icon from "../../../components/ui/Icon";
 
 const PaymentPlaceMap = dynamic(() => import("../../../components/payment-place/PaymentPlaceMap"), {
   ssr: false,
@@ -166,7 +167,7 @@ function SuggestionPill({ suggestion, confidence }: { suggestion?: string | null
         ? "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
         : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300";
   return (
-    <span className={`inline-flex h-7 items-center gap-1 rounded-full px-3 text-xs font-bold ${tone}`}>
+    <span className={`inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-3 text-xs font-bold ${tone}`}>
       {suggestionLabel(suggestion)}
       {confidence ? <span className="font-medium opacity-70">· {reliabilityLabel(confidence).toLowerCase()}</span> : null}
     </span>
@@ -176,7 +177,7 @@ function SuggestionPill({ suggestion, confidence }: { suggestion?: string | null
 function DistanceChip({ label, value, highlight, onClick }: { label: string; value?: number | null; highlight?: boolean; onClick?: () => void }) {
   const km = formatKm(value);
   if (!km) return null;
-  const base = `inline-flex flex-col rounded-md px-2.5 py-1 leading-tight ${
+  const base = `inline-flex flex-col whitespace-nowrap rounded-md px-2.5 py-1 leading-tight ${
     highlight
       ? "bg-primary/10 text-primary dark:bg-secondary/15 dark:text-secondary"
       : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
@@ -610,7 +611,7 @@ export default function PaymentPlacePage() {
                 : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
             }`}
           >
-            <span className="material-icons-outlined text-[20px]">{todayBatch ? "check_circle" : "error"}</span>
+            <Icon name={todayBatch ? "check_circle" : "error"} size={20} />
             {todayBatch ? "Lote do dia importado" : "Lote do dia não importado"}
           </div>
           <button
@@ -618,12 +619,12 @@ export default function PaymentPlacePage() {
             onClick={openBatchModal}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border-light bg-white px-4 text-sm font-bold text-grafite shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-white/5"
           >
-            <span className="material-icons-outlined text-[20px]">inventory_2</span>
+            <Icon name="inventory_2" size={20} />
             Lotes
           </button>
           <div className="relative inline-flex">
             <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-l-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90">
-              <span className="material-icons-outlined text-[20px]">upload_file</span>
+              <Icon name="upload_file" size={20} />
               Importar PDF
               <input type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleFile} disabled={importMutation.isPending} />
             </label>
@@ -634,7 +635,7 @@ export default function PaymentPlacePage() {
               title="Mais opções de importação"
               aria-label="Mais opções de importação"
             >
-              <span className={`material-icons-outlined text-[20px] transition-transform ${importMenuOpen ? "rotate-180" : ""}`}>expand_more</span>
+              <Icon name="expand_more" size={20} className={`transition-transform ${importMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {importMenuOpen ? (
               <>
@@ -645,7 +646,7 @@ export default function PaymentPlacePage() {
                     onClick={openCustomImport}
                     className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
                   >
-                    <span className="material-icons-outlined mt-0.5 text-[18px] text-primary dark:text-secondary">event</span>
+                    <Icon name="event" size={18} className="mt-0.5 text-primary dark:text-secondary" />
                     <span>
                       <span className="block text-sm font-bold text-grafite dark:text-white">Importar relatórios anteriores</span>
                       <span className="block text-[11px] text-gray-500 dark:text-gray-400">Escolha o arquivo e o dia do lote</span>
@@ -810,7 +811,7 @@ export default function PaymentPlacePage() {
                   </p>
                   {batches.length > 0 ? (
                     <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                      <span className="material-icons-outlined text-[14px]">schedule</span>
+                      <Icon name="schedule" size={14} />
                       {batches.length === 1
                         ? `Importado em ${formatDateTime(batches[0].importedAt)}${batches[0].importedByName ? ` por ${batches[0].importedByName}` : ""}`
                         : `${batches.length} lotes ativos exibidos juntos`}
@@ -828,7 +829,7 @@ export default function PaymentPlacePage() {
                     }`}
                     title="Selecionar vários lançamentos para decidir em lote"
                   >
-                    <span className="material-icons-outlined text-[16px]">{selectMode ? "close" : "checklist"}</span>
+                    <Icon name={selectMode ? "close" : "checklist"} size={16} />
                     {selectMode ? "Cancelar" : "Selecionar"}
                   </button>
                   <button
@@ -838,7 +839,7 @@ export default function PaymentPlacePage() {
                     className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     title="Aceitar as sugestões de alta confiança ainda não decididas"
                   >
-                    <span className="material-icons-outlined text-[16px]">done_all</span>
+                    <Icon name="done_all" size={16} />
                     Aceitar {highConfidenceUndecided.length} de alta confiança
                   </button>
                   <button
@@ -851,7 +852,7 @@ export default function PaymentPlacePage() {
                     }`}
                     title="Ordenar por confiança (pendentes primeiro)"
                   >
-                    <span className="material-icons-outlined text-[16px]">sort</span>
+                    <Icon name="sort" size={16} />
                     Confiança
                   </button>
                   {batches.length > 0 ? (
@@ -863,7 +864,7 @@ export default function PaymentPlacePage() {
                         title={listCollapsed ? "Expandir lista" : "Minimizar lista"}
                         aria-label={listCollapsed ? "Expandir lista" : "Minimizar lista"}
                       >
-                        <span className="material-icons-outlined text-[18px]">{listCollapsed ? "unfold_more" : "unfold_less"}</span>
+                        <Icon name={listCollapsed ? "unfold_more" : "unfold_less"} size={18} />
                       </button>
                       <button
                         type="button"
@@ -871,7 +872,7 @@ export default function PaymentPlacePage() {
                         className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                         title="Gerenciar lotes (arquivar/apagar)"
                       >
-                        <span className="material-icons-outlined text-[16px]">inventory_2</span>
+                        <Icon name="inventory_2" size={16} />
                         Lotes
                       </button>
                     </>
@@ -966,7 +967,7 @@ export default function PaymentPlacePage() {
                 onClick={() => setListCollapsed(false)}
                 className="flex w-full items-center justify-center gap-2 p-4 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-white/5"
               >
-                <span className="material-icons-outlined text-[18px]">unfold_more</span>
+                <Icon name="unfold_more" size={18} />
                 Lista minimizada — {counters.pending} pendentes. Clique para expandir.
               </button>
             ) : batchDetails.isLoading ? (
@@ -993,13 +994,13 @@ export default function PaymentPlacePage() {
                             : focused && !selectMode
                               ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
                               : entry.reopenedAt
-                                ? "bg-amber-50/70 ring-1 ring-inset ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-500/40"
+                                ? "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/10"
                                 : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
                         }`}
                       >
                         {selectMode ? (
                           <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ${selected ? "border-primary bg-primary text-white dark:border-secondary dark:bg-secondary" : "border-gray-300 dark:border-gray-600"}`}>
-                            {selected ? <span className="material-icons-outlined text-[16px]">check</span> : null}
+                            {selected ? <Icon name="check" size={16} /> : null}
                           </span>
                         ) : null}
                         {/* Área de dados — long-press / clique-direito copia */}
@@ -1018,8 +1019,8 @@ export default function PaymentPlacePage() {
                             <p className="truncate font-bold text-grafite dark:text-white">{entry.titleNumber}</p>
                             {entry.attachmentCount ? <AttachmentBadge count={entry.attachmentCount} onClick={() => setViewerEntry(entry)} /> : null}
                             {entry.reopenedAt ? (
-                              <span className="inline-flex items-center gap-0.5 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                                <span className="material-icons-outlined text-[12px]">undo</span>reaberto
+                              <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Análise reaberta">
+                                <Icon name="undo" size={11} />reaberto
                               </span>
                             ) : null}
                             {entry.section === "Agências Não Localizadas" ? (
@@ -1127,7 +1128,7 @@ export default function PaymentPlacePage() {
                               aria-label="Reabrir análise"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
                             >
-                              <span className="material-icons-outlined text-[16px]">undo</span>
+                              <Icon name="undo" size={16} />
                             </button>
                           ) : null}
                           <button
@@ -1137,7 +1138,7 @@ export default function PaymentPlacePage() {
                             title="Ver detalhes"
                             aria-label="Ver detalhes"
                           >
-                            <span className="material-icons-outlined text-[18px]">open_in_full</span>
+                            <Icon name="open_in_full" size={18} />
                           </button>
                         </div>
                         ) : null}
@@ -1166,7 +1167,7 @@ export default function PaymentPlacePage() {
                   className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                   title="Atualizar lotes"
                 >
-                  <span className="material-icons-outlined text-[18px]">refresh</span>
+                  <Icon name="refresh" size={18} />
                 </button>
                 <button
                   type="button"
@@ -1175,7 +1176,7 @@ export default function PaymentPlacePage() {
                   title="Fechar lotes"
                   aria-label="Fechar lotes"
                 >
-                  <span className="material-icons-outlined text-[18px]">close</span>
+                  <Icon name="close" size={18} />
                 </button>
               </div>
             </div>
@@ -1191,7 +1192,7 @@ export default function PaymentPlacePage() {
                     title="Ano anterior"
                     aria-label="Ano anterior"
                   >
-                    <span className="material-icons-outlined text-[18px]">keyboard_double_arrow_left</span>
+                    <Icon name="keyboard_double_arrow_left" size={18} />
                   </button>
                   <button
                     type="button"
@@ -1200,7 +1201,7 @@ export default function PaymentPlacePage() {
                     title="Mês anterior"
                     aria-label="Mês anterior"
                   >
-                    <span className="material-icons-outlined text-[18px]">chevron_left</span>
+                    <Icon name="chevron_left" size={18} />
                   </button>
                 </div>
                 <p className="text-sm font-bold capitalize text-grafite dark:text-white">
@@ -1214,7 +1215,7 @@ export default function PaymentPlacePage() {
                     title="Próximo mês"
                     aria-label="Próximo mês"
                   >
-                    <span className="material-icons-outlined text-[18px]">chevron_right</span>
+                    <Icon name="chevron_right" size={18} />
                   </button>
                   <button
                     type="button"
@@ -1223,7 +1224,7 @@ export default function PaymentPlacePage() {
                     title="Próximo ano"
                     aria-label="Próximo ano"
                   >
-                    <span className="material-icons-outlined text-[18px]">keyboard_double_arrow_right</span>
+                    <Icon name="keyboard_double_arrow_right" size={18} />
                   </button>
                 </div>
               </div>
@@ -1324,7 +1325,7 @@ export default function PaymentPlacePage() {
                             className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                             title={archived ? "Restaurar lote" : "Arquivar lote"}
                           >
-                            <span className="material-icons-outlined text-[18px]">{archived ? "unarchive" : "inventory_2"}</span>
+                            <Icon name={archived ? "unarchive" : "inventory_2"} size={18} />
                           </button>
                           <button
                             type="button"
@@ -1333,7 +1334,7 @@ export default function PaymentPlacePage() {
                             className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 dark:border-red-500/20 dark:text-red-300 dark:hover:bg-red-500/10"
                             title="Apagar lote"
                           >
-                            <span className="material-icons-outlined text-[18px]">delete</span>
+                            <Icon name="delete" size={18} />
                           </button>
                         </div>
                       );
@@ -1360,7 +1361,7 @@ export default function PaymentPlacePage() {
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                 aria-label="Fechar"
               >
-                <span className="material-icons-outlined text-[18px]">close</span>
+                <Icon name="close" size={18} />
               </button>
             </div>
 
@@ -1369,7 +1370,7 @@ export default function PaymentPlacePage() {
               <div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Arquivo(s) PDF</p>
                 <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-light px-3 py-4 text-sm text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-400 dark:hover:bg-white/5">
-                  <span className="material-icons-outlined text-[20px]">upload_file</span>
+                  <Icon name="upload_file" size={20} />
                   {customFiles.length === 0 ? "Selecionar PDF" : `${customFiles.length} arquivo(s) selecionado(s)`}
                   <input
                     type="file"
@@ -1394,13 +1395,13 @@ export default function PaymentPlacePage() {
                 <div className="rounded-lg border border-border-light p-2 dark:border-border-dark">
                   <div className="mb-2 flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_left</span></button>
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><span className="material-icons-outlined text-[16px]">chevron_left</span></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
                     </div>
                     <p className="text-sm font-bold capitalize text-grafite dark:text-white">{`${customMonth.toLocaleDateString("pt-BR", { month: "long" })}/${String(customMonth.getFullYear()).slice(-2)}`}</p>
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><span className="material-icons-outlined text-[16px]">chevron_right</span></button>
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_right</span></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-gray-400">
@@ -1463,7 +1464,7 @@ export default function PaymentPlacePage() {
                   disabled={customFiles.length === 0 || importMutation.isPending}
                   className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span className="material-icons-outlined text-[18px]">upload_file</span>
+                  <Icon name="upload_file" size={18} />
                   Importar
                 </button>
               </div>
@@ -1510,7 +1511,7 @@ export default function PaymentPlacePage() {
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
                 aria-label="Fechar"
               >
-                <span className="material-icons-outlined text-[20px]">close</span>
+                <Icon name="close" size={20} />
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 border-b border-border-light px-4 py-2 dark:border-border-dark">
@@ -1607,13 +1608,13 @@ export default function PaymentPlacePage() {
                 <p className="truncate text-xs text-gray-500">{clean(expandedEntry.payerName)} · {clean(expandedEntry.payerDocument)}</p>
                 {fileNameByBatch.get(expandedEntry.batchId) ? (
                   <p className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11px] text-gray-400" title={fileNameByBatch.get(expandedEntry.batchId)}>
-                    <span className="material-icons-outlined text-[13px]">description</span>
+                    <Icon name="description" size={13} />
                     <span className="truncate">{fileNameByBatch.get(expandedEntry.batchId)}</span>
                   </p>
                 ) : null}
                 {expandedEntry.decidedAt ? (
                   <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-300">
-                    <span className="material-icons-outlined text-[13px]">how_to_reg</span>
+                    <Icon name="how_to_reg" size={13} />
                     Decidido{expandedEntry.decidedByName ? ` por ${expandedEntry.decidedByName}` : ""} em {formatDateTime(expandedEntry.decidedAt)}
                   </p>
                 ) : null}
@@ -1658,7 +1659,7 @@ export default function PaymentPlacePage() {
                     title="Reabrir análise (volta para Pendentes e sai da empresa)"
                     className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-200 px-3 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
                   >
-                    <span className="material-icons-outlined text-[16px]">undo</span>
+                    <Icon name="undo" size={16} />
                     Reabrir
                   </button>
                 ) : null}
@@ -1669,7 +1670,7 @@ export default function PaymentPlacePage() {
                   title="Fechar (Esc)"
                   aria-label="Fechar"
                 >
-                  <span className="material-icons-outlined text-[18px]">close</span>
+                  <Icon name="close" size={18} />
                 </button>
               </div>
             </div>
@@ -1862,7 +1863,7 @@ function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
           disabled={link.isPending}
           className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
         >
-          <span className="material-icons-outlined text-[15px]">search</span>
+          <Icon name="search" size={15} />
           {link.isPending && !confirmCnpj ? "Consultando…" : "Consultar"}
         </button>
       </div>
@@ -1956,7 +1957,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
         </div>
         {selBranch ? (
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800 dark:bg-violet-500/10 dark:text-violet-300">
-            <span className="material-icons-outlined text-[14px]">alt_route</span>
+            <Icon name="alt_route" size={14} />
             Distâncias recalculadas pela filial do cedente em <strong>{selBranch.municipio ?? "—"}</strong> ({selBranch.cnpj})
             <button type="button" onClick={() => setSelectedCedenteBranch(null)} className="ml-auto font-semibold underline">Limpar</button>
           </div>
@@ -1982,7 +1983,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                       title="Abrir ficha da empresa"
                     >
                       {entry.clientName}
-                      <span className="material-icons-outlined text-[15px] opacity-60 transition-opacity group-hover:opacity-100">open_in_new</span>
+                      <Icon name="open_in_new" size={15} className="opacity-60 transition-opacity group-hover:opacity-100" />
                     </Link>
                   ) : (
                     <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.clientName}</p>
@@ -2014,7 +2015,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                     className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Consultar endereço do sacado pelo CNPJ (CNPJ Já) e recalcular as distâncias"
                   >
-                    <span className="material-icons-outlined text-[14px]">{enrichingPayerCnpj ? "hourglass_empty" : "person_search"}</span>
+                    <Icon name={enrichingPayerCnpj ? "hourglass_empty" : "person_search"} size={14} />
                     Consultar CNPJ
                   </button>
                 ) : null}
@@ -2029,7 +2030,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                     title="Abrir ficha do sacado"
                   >
                     {entry.payerName}
-                    <span className="material-icons-outlined text-[15px] opacity-60 transition-opacity group-hover:opacity-100">open_in_new</span>
+                    <Icon name="open_in_new" size={15} className="opacity-60 transition-opacity group-hover:opacity-100" />
                   </Link>
                 ) : (
                   <p className="mt-0.5 text-sm font-bold text-grafite dark:text-white">{entry.payerName}</p>
@@ -2058,7 +2059,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                   disabled={enriching}
                   className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                 >
-                  <span className="material-icons-outlined text-[14px]">{enriching ? "hourglass_empty" : "travel_explore"}</span>
+                  <Icon name={enriching ? "hourglass_empty" : "travel_explore"} size={14} />
                   {entry.agencyAddressResolved ? "Atualizar (Bacen)" : "Buscar no Bacen"}
                 </button>
               </div>

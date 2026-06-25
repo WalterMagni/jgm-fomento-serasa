@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "@/components/ui/Icon";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CreditAnalysisData, totalDebtFromAnalysis, totalPendingFromAnalysis } from "../../../../types/company-detail";
@@ -257,7 +258,7 @@ function MetricCard({
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">{label}</p>
           <p className={`mt-2 text-3xl font-bold text-grafite dark:text-white ${accent}`}>{value}</p>
         </div>
-        <span className="material-icons-outlined text-[22px] text-primary/70">{icon}</span>
+        <Icon name={icon} size={22} className="text-primary/70" />
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400">{hint}</p>
     </div>
@@ -472,10 +473,10 @@ function BrazilHeatMap({
 
 function renderSortIcon(field: SortField, sortField: SortField, sortDir: "asc" | "desc") {
   if (sortField !== field) {
-    return <span className="material-icons-outlined text-[14px] opacity-20">sort</span>;
+    return <Icon name="sort" size={14} className="opacity-20" />;
   }
 
-  return <span className="material-icons-outlined text-[14px]">{sortDir === "asc" ? "arrow_upward" : "arrow_downward"}</span>;
+  return <Icon name={sortDir === "asc" ? "arrow_upward" : "arrow_downward"} size={14} />;
 }
 
 export default function VisaoCedentePage() {
@@ -726,14 +727,14 @@ export default function VisaoCedentePage() {
           <div className="max-w-3xl">
             <nav className="mb-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <Link href="/" className="hover:text-primary transition-colors">Carteira</Link>
-              <span className="material-icons-outlined text-[14px]">chevron_right</span>
+              <Icon name="chevron_right" size={14} />
               <span className="text-grafite dark:text-white font-medium">Relatórios</span>
-              <span className="material-icons-outlined text-[14px]">chevron_right</span>
+              <Icon name="chevron_right" size={14} />
               <span className="text-grafite dark:text-white font-medium">Visão Cedente</span>
             </nav>
 
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-primary shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-              <span className="material-icons-outlined text-[16px]">insights</span>
+              <Icon name="insights" size={16} />
               BI Comercial
             </div>
 
@@ -943,9 +944,7 @@ export default function VisaoCedentePage() {
                 disabled={!aiPrompt.trim() || isAiLoading}
                 className="inline-flex items-center gap-2 rounded-full bg-grafite px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary dark:hover:bg-[#8d5b2d]"
               >
-                <span className={`material-icons-outlined text-[18px] ${isAiLoading ? "animate-spin" : ""}`}>
-                  {isAiLoading ? "sync" : "auto_awesome"}
-                </span>
+                <Icon name={isAiLoading ? "sync" : "auto_awesome"} size={18} className={`${isAiLoading ? "animate-spin" : ""}`} />
                 {isAiLoading ? "Gerando relatório" : "Gerar relatório com IA"}
               </button>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1007,9 +1006,7 @@ export default function VisaoCedentePage() {
         {(aiReport || isAiLoading) && (
           <div className="mt-6 rounded-[28px] border border-sky-200/70 bg-[linear-gradient(135deg,_rgba(240,249,255,0.96),_rgba(232,245,255,0.92))] p-5 shadow-[0_18px_50px_-36px_rgba(58,123,175,0.65)] dark:border-sky-800/40 dark:bg-[linear-gradient(135deg,_rgba(18,48,72,0.34),_rgba(10,25,39,0.38))]">
             <div className="mb-4 flex items-center gap-3">
-              <span className={`material-icons-outlined text-sky-600 dark:text-sky-300 ${isAiLoading ? "animate-spin" : ""}`}>
-                {isAiLoading ? "sync" : "auto_awesome"}
-              </span>
+              <Icon name={isAiLoading ? "sync" : "auto_awesome"} className={`text-sky-600 dark:text-sky-300 ${isAiLoading ? "animate-spin" : ""}`} />
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-600/80 dark:text-sky-300/80">Narrativa Gemini</p>
                 <h3 className="font-sans text-xl font-bold text-sky-950 dark:text-sky-100">
@@ -1066,7 +1063,7 @@ export default function VisaoCedentePage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">Ranking Territorial</p>
               <h2 className="mt-2 font-sans text-2xl font-bold text-grafite dark:text-white">Top estados por volume</h2>
             </div>
-            <span className="material-icons-outlined text-[22px] text-primary/60">leaderboard</span>
+            <Icon name="leaderboard" size={22} className="text-primary/60" />
           </div>
 
           <div className="space-y-3">
@@ -1126,7 +1123,7 @@ export default function VisaoCedentePage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">Faixas de Capital</p>
               <h2 className="mt-2 font-sans text-2xl font-bold text-grafite dark:text-white">Distribuição da base</h2>
             </div>
-            <span className="material-icons-outlined text-[22px] text-primary/60">stacked_bar_chart</span>
+            <Icon name="stacked_bar_chart" size={22} className="text-primary/60" />
           </div>
 
           <div className="space-y-4">
@@ -1177,7 +1174,7 @@ export default function VisaoCedentePage() {
               onClick={() => setFilters(EMPTY_FILTERS)}
               className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 transition-colors hover:border-primary hover:text-primary dark:border-white/10 dark:text-gray-400 dark:hover:border-primary dark:hover:text-primary"
             >
-              <span className="material-icons-outlined text-[15px]">clear</span>
+              <Icon name="clear" size={15} />
               Limpar filtros
             </button>
           )}
@@ -1186,7 +1183,7 @@ export default function VisaoCedentePage() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
           <div className="relative md:col-span-4">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <span className="material-icons-outlined text-[18px]">search</span>
+              <Icon name="search" size={18} />
             </span>
             <input
               value={filters.search}
@@ -1305,14 +1302,14 @@ export default function VisaoCedentePage() {
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    <span className="material-icons-outlined mb-2 block animate-spin text-2xl">sync</span>
+                    <Icon name="sync" className="mb-2 block animate-spin text-2xl" />
                     Carregando relatório...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-red-500">
-                    <span className="material-icons-outlined mb-2 block text-2xl">error_outline</span>
+                    <Icon name="error_outline" className="mb-2 block text-2xl" />
                     Erro ao carregar dados. Verifique sua conexão.
                   </td>
                 </tr>
@@ -1381,23 +1378,21 @@ export default function VisaoCedentePage() {
                               title={isExpanded ? "Recolher" : "Expandir QSA"}
                               className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-primary/10 hover:text-primary"
                             >
-                              <span className="material-icons-outlined text-[18px]">
-                                {isExpanded ? "expand_less" : "expand_more"}
-                              </span>
+                              <Icon name={isExpanded ? "expand_less" : "expand_more"} size={18} />
                             </button>
                             <Link
                               href={`/clients/${company.cnpj}`}
                               title="Ver perfil completo"
                               className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-primary/10 hover:text-primary"
                             >
-                              <span className="material-icons-outlined text-[18px]">visibility</span>
+                              <Icon name="visibility" size={18} />
                             </Link>
                             <Link
                               href={`/clients/${company.cnpj}`}
                               title="Abrir relatório"
                               className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-grafite dark:hover:bg-white/5 dark:hover:text-white"
                             >
-                              <span className="material-icons-outlined text-[18px]">picture_as_pdf</span>
+                              <Icon name="picture_as_pdf" size={18} />
                             </Link>
                           </div>
                         </td>
@@ -1498,7 +1493,7 @@ export default function VisaoCedentePage() {
             href="/"
             className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-primary dark:text-gray-400 dark:hover:text-primary"
           >
-            <span className="material-icons-outlined text-[16px]">arrow_back</span>
+            <Icon name="arrow_back" size={16} />
             Voltar para carteira
           </Link>
         </div>

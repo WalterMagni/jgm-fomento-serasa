@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -26,8 +27,9 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
+  const [enabled, setEnabled] = useState(false);
 
-  const { data, isFetching, isError, error } = useCompanyBranches(cnpj, true);
+  const { data, isFetching, isError, error } = useCompanyBranches(cnpj, enabled);
 
   const createProfile = useMutation({
     mutationFn: async (branchCnpj: string) => {
@@ -54,7 +56,7 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
   return (
     <div className="mb-6 rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-border-light p-5 dark:border-border-dark">
-        <span className="material-icons-outlined text-primary">account_tree</span>
+        <Icon name="account_tree" className="text-primary" />
         <h2 className="font-sans text-base font-bold text-primary">Filiais</h2>
         <span className="text-[11px] text-gray-400">· estabelecimentos ativos da raiz do CNPJ (Receita Federal)</span>
         {branches.length > 0 ? (
@@ -63,7 +65,16 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
       </div>
 
       <div className="p-5">
-        {isFetching ? (
+        {!enabled ? (
+          <button
+            type="button"
+            onClick={() => setEnabled(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            <Icon name="travel_explore" size={18} />
+            Buscar filiais
+          </button>
+        ) : isFetching ? (
           <p className="text-sm text-gray-500">Buscando filiais…</p>
         ) : isError ? (
           <p className="text-sm text-gray-500">{(error as Error)?.message ?? "Erro ao buscar filiais"}</p>

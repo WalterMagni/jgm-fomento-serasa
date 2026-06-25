@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "@/components/ui/Icon";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCompanyList } from "../../hooks/useCompanyList";
@@ -97,7 +98,7 @@ function PendenciaBadge({ analysis }: { analysis: import("../../types/company-de
   if (count === 0) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full px-2.5 py-0.5">
-        <span className="material-icons-outlined text-[12px]">check_circle</span>
+        <Icon name="check_circle" size={12} />
         Nada consta
       </span>
     );
@@ -116,7 +117,7 @@ function PendenciaBadge({ analysis }: { analysis: import("../../types/company-de
         className="inline-flex items-center gap-1 text-xs font-bold text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-full px-2.5 py-0.5 cursor-help"
         tabIndex={0}
       >
-        <span className="material-icons-outlined text-[12px]">warning_amber</span>
+        <Icon name="warning_amber" size={12} />
         {count} · {formatted}
       </span>
     </Tooltip>
@@ -147,7 +148,7 @@ function NadaConstaIndicator({ analysis }: { analysis: import("../../types/compa
         aria-label='Empresa com sinalização "NADA CONSTA"'
         tabIndex={0}
       >
-        <span className="material-icons-outlined text-[14px] leading-none">priority_high</span>
+        <Icon name="priority_high" size={14} className="leading-none" />
       </span>
     </Tooltip>
   );
@@ -266,7 +267,7 @@ export default function GestaoCarteiraPage() {
             className="relative inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-hover text-white text-sm font-medium rounded-lg transition-all duration-200 ease-out hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-[1px] shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(0,26,65,0.3)] active:scale-[0.98] active:translate-y-0 active:shadow-none focus:outline-none overflow-hidden group"
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-            <span className="material-icons-outlined text-lg relative z-10">add</span>
+            <Icon name="add" className="text-lg relative z-10" />
             <span className="relative z-10">Novo Cliente</span>
           </button>
         </div>
@@ -278,7 +279,7 @@ export default function GestaoCarteiraPage() {
           <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2">Total de Clientes</span>
           <div className="flex items-center gap-3">
              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border border-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-               <span className="material-icons-outlined">business</span>
+               <Icon name="business" />
              </div>
              {isCompaniesLoading ? (
                <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
@@ -303,11 +304,11 @@ export default function GestaoCarteiraPage() {
         >
           <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2 flex items-center gap-1.5">
             Empresas Analisadas
-            {activeCardFilter === 'analyzed' && <span className="material-icons-outlined text-[14px] text-secondary">filter_alt</span>}
+            {activeCardFilter === 'analyzed' && <Icon name="filter_alt" size={14} className="text-secondary" />}
           </span>
           <div className="flex items-center gap-3">
              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 border border-secondary/10 flex items-center justify-center text-secondary dark:text-secondary">
-               <span className="material-icons-outlined">check_circle</span>
+               <Icon name="check_circle" />
              </div>
              {isMetricsLoading ? (
                <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
@@ -333,11 +334,11 @@ export default function GestaoCarteiraPage() {
           <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2 flex items-center gap-1.5">
             Visão Cedente
             <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-            {activeCardFilter === 'cedente' && <span className="material-icons-outlined text-[14px] text-green-600">filter_alt</span>}
+            {activeCardFilter === 'cedente' && <Icon name="filter_alt" size={14} className="text-green-600" />}
           </span>
           <div className="flex items-center gap-3">
              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/10 to-green-500/5 dark:from-green-500/20 dark:to-green-500/10 border border-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400">
-               <span className="material-icons-outlined">swap_horiz</span>
+               <Icon name="swap_horiz" />
              </div>
              {isMetricsLoading ? (
                <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
@@ -365,11 +366,11 @@ export default function GestaoCarteiraPage() {
         >
           <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2 flex items-center gap-2">
              Aguardando Análise
-             {activeCardFilter === 'pending' && <span className="material-icons-outlined text-[14px] text-amber-600">filter_alt</span>}
+             {activeCardFilter === 'pending' && <Icon name="filter_alt" size={14} className="text-amber-600" />}
           </span>
           <div className="flex items-center gap-3">
              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border border-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-               <span className="material-icons-outlined">hourglass_empty</span>
+               <Icon name="hourglass_empty" />
              </div>
              {isMetricsLoading || isCompaniesLoading ? (
                <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
@@ -387,7 +388,7 @@ export default function GestaoCarteiraPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
           <div className="md:col-span-4 relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <span className="material-icons-outlined">search</span>
+              <Icon name="search" />
             </span>
             <input
               value={searchQuery}
@@ -453,9 +454,9 @@ export default function GestaoCarteiraPage() {
                 >
                   <div className="flex items-center gap-1">
                     Cliente / CNPJ
-                    {nameSortDir === 'asc' && <span className="material-icons-outlined text-[16px]">arrow_upward</span>}
-                    {nameSortDir === 'desc' && <span className="material-icons-outlined text-[16px]">arrow_downward</span>}
-                    {!nameSortDir && <span className="material-icons-outlined text-[16px] opacity-20">sort</span>}
+                    {nameSortDir === 'asc' && <Icon name="arrow_upward" size={16} />}
+                    {nameSortDir === 'desc' && <Icon name="arrow_downward" size={16} />}
+                    {!nameSortDir && <Icon name="sort" size={16} className="opacity-20" />}
                   </div>
                 </th>
                 <th className="px-6 py-4">Data / UF</th>
@@ -468,7 +469,7 @@ export default function GestaoCarteiraPage() {
               {isCompaniesLoading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    <span className="material-icons-outlined animate-spin text-2xl mb-2">sync</span>
+                    <Icon name="sync" className="animate-spin text-2xl mb-2" />
                     <p>Carregando clientes...</p>
                   </td>
                 </tr>
@@ -497,7 +498,7 @@ export default function GestaoCarteiraPage() {
                               className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
                               title="Empresa sem código de cliente (ERP) — não cruza na Praça de Pagamento"
                             >
-                              <span className="material-icons-outlined text-[12px]">warning</span>
+                              <Icon name="warning" size={12} />
                               sem código
                             </span>
                           ) : null}
@@ -525,7 +526,7 @@ export default function GestaoCarteiraPage() {
                         className="rounded-md p-1.5 text-gray-400 hover:bg-accent-blue/20 hover:text-grafite dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-white transition-colors"
                         aria-label="Visualizar relatório"
                       >
-                        <span className="material-icons-outlined text-lg">visibility</span>
+                        <Icon name="visibility" className="text-lg" />
                       </Link>
                     </td>
                   </tr>
@@ -569,7 +570,7 @@ export default function GestaoCarteiraPage() {
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
               <h3 id="modal-title" className="text-lg font-bold font-sans text-grafite dark:text-white">Adicionar Novo Cliente</h3>
               <button onClick={cancelModal} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                <span className="material-icons-outlined">close</span>
+                <Icon name="close" />
               </button>
             </div>
             <div className="p-6">
@@ -602,9 +603,7 @@ export default function GestaoCarteiraPage() {
                   style={{ backgroundColor: "#2956E0" }}
                   className="flex flex-col items-center justify-center py-3 px-4 rounded-lg text-white font-sans font-medium text-sm shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(41,86,224,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
                 >
-                  <span className={`material-icons-outlined mb-1 text-white text-[24px] ${isFetchingCnpja ? 'animate-spin' : ''}`}>
-                    {isFetchingCnpja ? 'autorenew' : 'domain'}
-                  </span>
+                  <Icon name={isFetchingCnpja ? 'autorenew' : 'domain'} size={24} className={`mb-1 text-white ${isFetchingCnpja ? 'animate-spin' : ''}`} />
                   <span>CNPJ Já</span>
                 </button>
                 <button
@@ -613,9 +612,7 @@ export default function GestaoCarteiraPage() {
                   style={{ backgroundColor: "#E4006F" }}
                   className="flex flex-col items-center justify-center py-3 px-4 rounded-lg text-white font-sans font-medium text-sm shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(228,0,111,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
                 >
-                  <span className={`material-icons-outlined mb-1 text-white text-[24px] ${isFetchingSerasa ? 'animate-spin' : ''}`}>
-                    {isFetchingSerasa ? 'autorenew' : 'verified_user'}
-                  </span>
+                  <Icon name={isFetchingSerasa ? 'autorenew' : 'verified_user'} size={24} className={`mb-1 text-white ${isFetchingSerasa ? 'animate-spin' : ''}`} />
                   <span>Serasa</span>
                 </button>
               </div>

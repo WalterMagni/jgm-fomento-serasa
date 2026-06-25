@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "@/components/ui/Icon";
 import { useEffect, useMemo, useState } from "react";
 import { usePaymentPlaceHistory } from "../../../../hooks/usePaymentPlaceCompany";
 import { AttachmentBadge, AttachmentViewerModal } from "../../../../components/payment-place/EntryAttachments";
@@ -110,7 +111,7 @@ export default function HistoricoPage() {
         {/* Coluna esquerda: busca + calendário */}
         <div className="space-y-4">
           <div className="relative">
-            <span className="material-icons-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400">search</span>
+            <Icon name="search" size={20} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -124,7 +125,7 @@ export default function HistoricoPage() {
                 className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"
                 aria-label="Limpar busca"
               >
-                <span className="material-icons-outlined text-[18px]">close</span>
+                <Icon name="close" size={18} />
               </button>
             ) : null}
           </div>
@@ -132,13 +133,13 @@ export default function HistoricoPage() {
           <div className="rounded-xl border border-border-light bg-surface-light p-3 shadow-sm dark:border-border-dark dark:bg-surface-dark">
             <div className="mb-2 flex items-center justify-between gap-1">
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_left</span></button>
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><span className="material-icons-outlined text-[16px]">chevron_left</span></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
               </div>
               <p className="text-sm font-bold capitalize text-grafite dark:text-white">{`${calendarMonth.toLocaleDateString("pt-BR", { month: "long" })}/${String(calendarMonth.getFullYear()).slice(-2)}`}</p>
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><span className="material-icons-outlined text-[16px]">chevron_right</span></button>
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_right</span></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-gray-400">
@@ -190,7 +191,7 @@ export default function HistoricoPage() {
 
           {entries.length === 0 && !isFetching ? (
             <div className="rounded-xl border border-dashed border-border-light p-10 text-center text-sm text-gray-500 dark:border-border-dark dark:text-gray-400">
-              <span className="material-icons-outlined mb-2 block text-[32px] text-gray-300">history</span>
+              <Icon name="history" size={32} className="mb-2 block text-gray-300" />
               Nenhum lançamento encontrado.
             </div>
           ) : (
@@ -218,9 +219,9 @@ export default function HistoricoPage() {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-light pt-2 text-[11px] text-gray-400 dark:border-border-dark">
-                    <span className="inline-flex items-center gap-1"><span className="material-icons-outlined text-[13px]">description</span>{e.batchFileName ?? "—"}</span>
-                    <span className="inline-flex items-center gap-1"><span className="material-icons-outlined text-[13px]">schedule</span>Importado em {formatDateTime(e.batchImportedAt)}</span>
-                    {e.dueDate ? <span className="inline-flex items-center gap-1"><span className="material-icons-outlined text-[13px]">event</span>Venc. {e.dueDate}</span> : null}
+                    <span className="inline-flex items-center gap-1"><Icon name="description" size={13} />{e.batchFileName ?? "—"}</span>
+                    <span className="inline-flex items-center gap-1"><Icon name="schedule" size={13} />Importado em {formatDateTime(e.batchImportedAt)}</span>
+                    {e.dueDate ? <span className="inline-flex items-center gap-1"><Icon name="event" size={13} />Venc. {e.dueDate}</span> : null}
                   </div>
                 </div>
               ))}
@@ -236,7 +237,7 @@ export default function HistoricoPage() {
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 className="inline-flex h-9 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >
-                <span className="material-icons-outlined text-[16px]">chevron_left</span>Anterior
+                <Icon name="chevron_left" size={16} />Anterior
               </button>
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Página {page + 1} de {totalPages}</span>
               <button
@@ -245,7 +246,7 @@ export default function HistoricoPage() {
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 className="inline-flex h-9 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >
-                Próxima<span className="material-icons-outlined text-[16px]">chevron_right</span>
+                Próxima<Icon name="chevron_right" size={16} />
               </button>
             </div>
           ) : null}

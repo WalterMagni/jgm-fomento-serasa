@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { toast } from "sonner";
 import {
   PaymentPlaceAttachment,
@@ -58,7 +59,7 @@ function AttachmentThumb({ entryId, attachment }: { entryId: string; attachment:
   }
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-1" style={{ color: kind.color }}>
-      <span className="material-icons-outlined text-[34px]">{kind.icon}</span>
+      <Icon name={kind.icon} size={34} />
       <span className="text-[10px] font-bold tracking-wide">{kind.label}</span>
     </div>
   );
@@ -121,7 +122,7 @@ export function EntryAttachmentsPanel({ entryId }: { entryId: string }) {
             : "border-border-light hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
         }`}
       >
-        <span className="material-icons-outlined text-[26px] text-gray-400">{upload.isPending ? "hourglass_empty" : "cloud_upload"}</span>
+        <Icon name={upload.isPending ? "hourglass_empty" : "cloud_upload"} size={26} className="text-gray-400" />
         <p className="text-sm font-bold text-grafite dark:text-white">{upload.isPending ? "Enviando..." : "Arraste, cole (Ctrl+V) ou clique para anexar"}</p>
         <p className="text-[11px] text-gray-400">PDF, imagem, TXT… até 5 MB cada</p>
         <input
@@ -159,7 +160,7 @@ export function EntryAttachmentsPanel({ entryId }: { entryId: string }) {
                 title="Remover anexo"
                 aria-label="Remover anexo"
               >
-                <span className="material-icons-outlined text-[16px]">delete</span>
+                <Icon name="delete" size={16} />
               </button>
             </div>
           ))}
@@ -207,7 +208,7 @@ export function AttachmentBadge({ count, onClick }: { count: number; onClick?: (
   if (!count) return null;
   const content = (
     <>
-      <span className="material-icons-outlined text-[13px]">attach_file</span>
+      <Icon name="attach_file" size={13} />
       {count}
     </>
   );
@@ -264,7 +265,7 @@ export function AttachmentViewerModal({ entryId, title, onClose }: { entryId: st
             <p className="text-xs text-gray-500 dark:text-gray-400">{items.length} arquivo(s)</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10" aria-label="Fechar">
-            <span className="material-icons-outlined text-[20px]">close</span>
+            <Icon name="close" size={20} />
           </button>
         </div>
         <div className="flex min-h-0 flex-1">
@@ -283,7 +284,7 @@ export function AttachmentViewerModal({ entryId, title, onClose }: { entryId: st
                     onClick={() => setSelectedId(a.id)}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors ${sel ? "bg-primary/5 dark:bg-secondary/10" : "hover:bg-gray-50 dark:hover:bg-white/5"}`}
                   >
-                    <span className={`material-icons-outlined text-[18px] ${sel ? "text-primary dark:text-secondary" : "text-gray-400"}`}>{iconFor(a.contentType, a.fileName)}</span>
+                    <Icon name={iconFor(a.contentType, a.fileName)} size={18} className={`${sel ? "text-primary dark:text-secondary" : "text-gray-400"}`} />
                     <span className="min-w-0 flex-1">
                       <span className={`block truncate text-xs font-bold ${sel ? "text-primary dark:text-secondary" : "text-grafite dark:text-white"}`}>{a.fileName ?? "anexo"}</span>
                       <span className="block text-[10px] text-gray-400">{formatBytes(a.fileSize)}</span>
@@ -304,7 +305,7 @@ export function AttachmentViewerModal({ entryId, title, onClose }: { entryId: st
         {active ? (
           <div className="flex items-center justify-end gap-2 border-t border-border-light p-2 dark:border-border-dark">
             <button type="button" onClick={() => openInNewTab(entryId, active.id)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
-              <span className="material-icons-outlined text-[16px]">open_in_new</span>Abrir em nova aba
+              <Icon name="open_in_new" size={16} />Abrir em nova aba
             </button>
           </div>
         ) : null}

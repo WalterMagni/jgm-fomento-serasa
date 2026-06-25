@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -218,7 +219,7 @@ function PartnerDetailModal({ partner, director, onClose, pfSummary, companyCnpj
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex-shrink-0"
           >
-            <span className="material-icons-outlined text-base">close</span>
+            <Icon name="close" className="text-base" />
           </button>
         </div>
 
@@ -260,7 +261,7 @@ function PartnerDetailModal({ partner, director, onClose, pfSummary, companyCnpj
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-sans font-bold text-white bg-primary hover:bg-primary/90 transition-colors flex-shrink-0"
                 >
-                  <span className="material-icons-outlined text-sm">open_in_new</span>
+                  <Icon name="open_in_new" className="text-sm" />
                   Ver análise
                 </button>
               </div>
@@ -311,7 +312,7 @@ function PartnerPFBadge({ cpf, pfSummary, companyCnpj, companyLabel, inModal = f
         className="inline-flex items-center gap-1 text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
         title="Ver análise PF"
       >
-        <span className="material-icons-outlined" style={{ fontSize: 10 }}>person</span>
+        <Icon name="person" style={{ fontSize: 10 }} />
         Ver PF
         {pfSummary.hasNegative && <span className="w-1.5 h-1.5 rounded-full bg-red-500 ml-0.5 flex-shrink-0" />}
       </button>
@@ -327,7 +328,7 @@ function PartnerPFBadge({ cpf, pfSummary, companyCnpj, companyLabel, inModal = f
         style={{ background: "#E4006F" }}
         title="Consultar Serasa PF"
       >
-        <span className="material-icons-outlined text-sm">{isPending ? "hourglass_empty" : "person_search"}</span>
+        <Icon name={isPending ? "hourglass_empty" : "person_search"} className="text-sm" />
         {isPending ? "Consultando..." : "Consultar PF"}
       </button>
     );
@@ -340,7 +341,7 @@ function PartnerPFBadge({ cpf, pfSummary, companyCnpj, companyLabel, inModal = f
       className="inline-flex items-center gap-1 text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-colors disabled:opacity-50"
       title="Consultar Serasa PF"
     >
-      <span className="material-icons-outlined" style={{ fontSize: 10 }}>{isPending ? "hourglass_empty" : "person_search"}</span>
+      <Icon name={isPending ? "hourglass_empty" : "person_search"} style={{ fontSize: 10 }} />
       {isPending ? "..." : "Consultar PF"}
     </button>
   );
@@ -384,7 +385,7 @@ function DataProgressBar({ hasCnpja, hasSerasa }: { hasCnpja: boolean; hasSerasa
                 <span className="material-symbols-outlined text-xl">{step.icon}</span>
                 {step.done && (
                   <span className="absolute -bottom-1 -right-1 bg-green-500 border-2 border-surface-light dark:border-surface-dark w-4 h-4 rounded-full flex items-center justify-center">
-                    <span className="material-icons-outlined text-[10px] text-white">check</span>
+                    <Icon name="check" size={10} className="text-white" />
                   </span>
                 )}
               </div>
@@ -471,9 +472,7 @@ function NegativeCard({
             {isClean ? "Nada Consta" : `${count} ocorr.`}
           </span>
           {hasDetail && (
-            <span className="material-icons-outlined text-base text-gray-400 dark:text-gray-500">
-              {isOpen ? "expand_less" : "expand_more"}
-            </span>
+            <Icon name={isOpen ? "expand_less" : "expand_more"} className="text-base text-gray-400 dark:text-gray-500" />
           )}
         </div>
       </div>
@@ -491,13 +490,13 @@ function NegDetailTable({ title, children, shownCount, totalCount }: {
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-red-200 dark:border-red-800 mt-3">
       <p className="text-xs font-sans font-bold text-red-600 dark:text-red-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-        <span className="material-icons-outlined text-sm">receipt_long</span>
+        <Icon name="receipt_long" className="text-sm" />
         {title}
       </p>
       <div className="overflow-x-auto">{children}</div>
       {hasMissing && (
         <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700">
-          <span className="material-icons-outlined text-sm text-amber-600 dark:text-amber-400 mt-0.5 shrink-0">info</span>
+          <Icon name="info" className="text-sm text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs font-sans text-amber-700 dark:text-amber-300">
             Exibindo <strong>{shownCount}</strong> de <strong>{totalCount}</strong> ocorrência(s). A Serasa pode ter registros adicionais não retornados nesta consulta — o valor total exibido no card reflete todos os registros cadastrados.
           </p>
@@ -718,7 +717,7 @@ function SerasaConclusions({ items }: { items: { conclusionLine: string }[] }) {
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
       <h2 className="font-sans font-bold text-base text-primary mb-4 flex items-center gap-2">
-        <span className="material-icons-outlined text-lg">psychology</span>
+        <Icon name="psychology" className="text-lg" />
         Conclusões Econômico-Financeiras
       </h2>
       <ol className="space-y-2">
@@ -753,7 +752,7 @@ function FinancialIndices({ items, dates }: { items: Record<string, unknown>[]; 
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
       <h2 className="font-sans font-bold text-base text-primary mb-4 flex items-center gap-2">
-        <span className="material-icons-outlined text-lg">bar_chart</span>
+        <Icon name="bar_chart" className="text-lg" />
         Índices Financeiros
       </h2>
       <div className="space-y-5">
@@ -819,7 +818,7 @@ function AccountingSummary({ items, statements, dates }: {
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
       <h2 className="font-sans font-bold text-base text-primary mb-1 flex items-center gap-2">
-        <span className="material-icons-outlined text-lg">table_chart</span>
+        <Icon name="table_chart" className="text-lg" />
         DRE — Demonstrativo de Resultados
       </h2>
       {unit && <p className="text-[10px] text-gray-400 font-serif mb-4">{unit} · {statements?.lastStatement}</p>}
@@ -867,7 +866,7 @@ function BankReferencesCard({ items, message, updateDate }: {
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
       <h2 className="font-sans font-bold text-base text-primary mb-4 flex items-center gap-2">
-        <span className="material-icons-outlined text-lg">account_balance</span>
+        <Icon name="account_balance" className="text-lg" />
         Referências Bancárias
         {updateDate && <span className="ml-auto text-xs font-sans text-gray-400">Atualizado: {updateDate}</span>}
       </h2>
@@ -946,7 +945,7 @@ export default function ClientDashboardPage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <p className="text-gray-500 font-sans flex items-center gap-2">
-          <span className="material-icons-outlined animate-spin">sync</span> Carregando dados...
+          <Icon name="sync" className="animate-spin" /> Carregando dados...
         </p>
       </div>
     );
@@ -1167,12 +1166,12 @@ export default function ClientDashboardPage() {
         <div className="min-w-0">
           <div className="mb-3 flex flex-col items-start gap-2">
             <button onClick={handleGoPortfolio} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors">
-              <span className="material-icons-outlined text-base">arrow_back</span>
+              <Icon name="arrow_back" className="text-base" />
               Voltar à Carteira
             </button>
             {contextualBackLabel && (
               <button onClick={handleGoBack} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors">
-                <span className="material-icons-outlined text-base">arrow_back</span>
+                <Icon name="arrow_back" className="text-base" />
                 {contextualBackLabel}
               </button>
             )}
@@ -1203,7 +1202,7 @@ export default function ClientDashboardPage() {
                 style={{ backgroundColor: CNPJA_COLOR }}
                 className="inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl text-white font-sans font-semibold text-sm shadow-[0_1px_2px_rgba(0,0,0,0.08),_0_2px_6px_rgba(41,86,224,0.22)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
               >
-                <span className={`material-icons-outlined text-[18px] ${isRefreshingCnpja ? "animate-spin" : ""}`}>domain</span>
+                <Icon name="domain" size={18} className={`${isRefreshingCnpja ? "animate-spin" : ""}`} />
                 {isRefreshingCnpja ? "Consultando..." : "CNPJ Já"}
               </button>
               <button
@@ -1212,12 +1211,12 @@ export default function ClientDashboardPage() {
                 style={{ backgroundColor: SERASA_COLOR }}
                 className="inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl text-white font-sans font-semibold text-sm shadow-[0_1px_2px_rgba(0,0,0,0.08),_0_2px_6px_rgba(228,0,111,0.22)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
               >
-                <span className={`material-icons-outlined text-[18px] ${isRefreshingSerasa ? "animate-spin" : ""}`}>security</span>
+                <Icon name="security" size={18} className={`${isRefreshingSerasa ? "animate-spin" : ""}`} />
                 {isRefreshingSerasa ? "Consultando..." : "Serasa"}
               </button>
               <details className="relative sm:ml-auto">
                 <summary className="list-none inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-grafite dark:border-gray-600 dark:bg-gray-800 dark:text-white font-sans font-semibold text-sm shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                  <span className="material-icons-outlined text-[18px]">more_horiz</span>
+                  <Icon name="more_horiz" size={18} />
                   Mais ações
                 </summary>
                 <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-border-light dark:border-border-dark bg-white dark:bg-gray-900 shadow-xl p-2">
@@ -1225,7 +1224,7 @@ export default function ClientDashboardPage() {
                     onClick={handleGeneratePdf}
                     className="w-full text-left inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-sans font-medium text-grafite dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
-                    <span className="material-icons-outlined text-[18px]">picture_as_pdf</span>
+                    <Icon name="picture_as_pdf" size={18} />
                     Gerar PDF
                   </button>
                   {ca?.visaoCedente === "SIM" && emailNotificacaoCedente && (
@@ -1234,9 +1233,7 @@ export default function ClientDashboardPage() {
                       disabled={isSendingEmail}
                       className="w-full text-left inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-sans font-medium text-grafite dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
                     >
-                      <span className={`material-icons-outlined text-[18px] ${isSendingEmail ? "animate-spin" : ""}`}>
-                        {isSendingEmail ? "sync" : "mail"}
-                      </span>
+                      <Icon name={isSendingEmail ? "sync" : "mail"} size={18} className={`${isSendingEmail ? "animate-spin" : ""}`} />
                       {isSendingEmail ? "Enviando e-mail..." : "Enviar análise por e-mail"}
                     </button>
                   )}
@@ -1252,7 +1249,7 @@ export default function ClientDashboardPage() {
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
               <h2 className="font-sans font-bold text-base text-primary flex items-center gap-2">
-                <span className="material-icons-outlined text-lg">history</span>
+                <Icon name="history" className="text-lg" />
                 Histórico de Consultas
               </h2>
               <p className="text-xs text-gray-500 font-sans mt-1">
@@ -1324,11 +1321,7 @@ export default function ClientDashboardPage() {
                         )}
                       </div>
                     </div>
-                    <span className={`material-icons-outlined text-sm flex-shrink-0 mt-1 ${
-                      isSelected ? "text-primary" : "text-gray-300"
-                    }`}>
-                      chevron_right
-                    </span>
+                    <Icon name="chevron_right" className={`text-sm flex-shrink-0 mt-1 ${ isSelected ? "text-primary" : "text-gray-300" }`} />
                   </div>
                 </button>
               );
@@ -1347,7 +1340,7 @@ export default function ClientDashboardPage() {
       {pracaSummary && pracaSummary.totalCount > 0 ? (
         <div className="mb-6 rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
           <div className="mb-3 flex items-center gap-2">
-            <span className="material-icons-outlined text-primary">swap_horiz</span>
+            <Icon name="swap_horiz" className="text-primary" />
             <h2 className="font-sans text-base font-bold text-primary">Praça de Pagamento — visão acumulada</h2>
             <span className="ml-auto text-xs text-gray-400">{pracaSummary.totalCount} títulos decididos</span>
           </div>
@@ -1367,7 +1360,7 @@ export default function ClientDashboardPage() {
           <div className="flex flex-1 flex-col bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-sans font-bold text-base text-primary flex items-center gap-2">
-                <span className="material-icons-outlined text-lg">business</span> Identificação
+                <Icon name="business" className="text-lg" /> Identificação
               </h2>
               <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sans font-bold border shadow-sm ${
                 companyDetail?.statusText === "Ativa"
@@ -1481,9 +1474,7 @@ export default function ClientDashboardPage() {
                         {predecessors.length} altera{predecessors.length === 1 ? "ção" : "ções"} de nome identificada{predecessors.length === 1 ? "" : "s"}
                       </dd>
                     </div>
-                    <span className="material-icons-outlined text-gray-400">
-                      {showPredecessors ? "expand_less" : "expand_more"}
-                    </span>
+                    <Icon name={showPredecessors ? "expand_less" : "expand_more"} className="text-gray-400" />
                   </button>
 
                   <div className="mt-3 border-t border-border-light dark:border-border-dark pt-3">
@@ -1516,7 +1507,7 @@ export default function ClientDashboardPage() {
                         className="mt-3 inline-flex items-center gap-1 text-xs font-sans font-bold text-primary hover:text-primary/80 transition-colors"
                       >
                         Ver mais {hiddenPredecessorCount} altera{hiddenPredecessorCount === 1 ? "ção" : "ções"}
-                        <span className="material-icons-outlined text-sm">expand_more</span>
+                        <Icon name="expand_more" className="text-sm" />
                       </button>
                     )}
                     {predecessors.length > 5 && showPredecessors && (
@@ -1526,7 +1517,7 @@ export default function ClientDashboardPage() {
                         className="mt-3 inline-flex items-center gap-1 text-xs font-sans font-bold text-gray-500 hover:text-primary transition-colors"
                       >
                         Mostrar apenas 5
-                        <span className="material-icons-outlined text-sm">expand_less</span>
+                        <Icon name="expand_less" className="text-sm" />
                       </button>
                     )}
                   </div>
@@ -1556,7 +1547,7 @@ export default function ClientDashboardPage() {
         <div className="flex flex-col">
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark flex-1 flex flex-col print:border-gray-400 print:shadow-none">
             <h2 className="font-sans font-bold text-base text-primary mb-4 flex items-center gap-2">
-              <span className="material-icons-outlined text-lg">streetview</span> Endereço da Sede
+              <Icon name="streetview" className="text-lg" /> Endereço da Sede
             </h2>
             <div className="mb-4">
               <p className="text-[11px] font-sans font-bold text-gray-400 uppercase tracking-wide mb-1">Localização</p>
@@ -1574,13 +1565,13 @@ export default function ClientDashboardPage() {
               <div className="mb-4 space-y-1.5">
                 {cr?.phone && (cr.phone.areaCode || cr.phone.phoneNumber) && (
                   <div className="flex items-center gap-2 text-sm font-serif text-grafite dark:text-gray-200">
-                    <span className="material-icons-outlined text-base text-gray-400">phone</span>
+                    <Icon name="phone" className="text-base text-gray-400" />
                     {`(${cr.phone.areaCode || ""}) ${cr.phone.phoneNumber || ""}`}
                   </div>
                 )}
                 {cr?.companyUrl && (
                   <div className="flex items-center gap-2 text-sm font-serif text-grafite dark:text-gray-200">
-                    <span className="material-icons-outlined text-base text-gray-400">language</span>
+                    <Icon name="language" className="text-base text-gray-400" />
                     <a href={cr.companyUrl.startsWith("http") ? cr.companyUrl : `https://${cr.companyUrl}`}
                        target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors truncate">
                       {cr.companyUrl}
@@ -1595,13 +1586,13 @@ export default function ClientDashboardPage() {
                 <div className="relative rounded-lg overflow-hidden border border-border-light dark:border-border-dark">
                   <MapEmbed mode="streetview" searchQuery={mapsSearchQuery} lat={companyDetail?.latitude} lng={companyDetail?.longitude} />
                   <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-white text-[11px] font-sans font-bold z-10 flex items-center gap-1">
-                    <span className="material-icons-outlined text-[13px]">directions_walk</span> Street View
+                    <Icon name="directions_walk" size={13} /> Street View
                   </div>
                 </div>
                 <div className="relative rounded-lg overflow-hidden border border-border-light dark:border-border-dark">
                   <MapEmbed mode="map" searchQuery={mapsSearchQuery} lat={companyDetail?.latitude} lng={companyDetail?.longitude} />
                   <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-white text-[11px] font-sans font-bold z-10 flex items-center gap-1">
-                    <span className="material-icons-outlined text-[13px]">map</span> Mapa
+                    <Icon name="map" size={13} /> Mapa
                   </div>
                 </div>
               </div>
@@ -1618,7 +1609,7 @@ export default function ClientDashboardPage() {
           {!hasSerasaData ? (
           <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 shadow-sm border border-border-light dark:border-border-dark flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-              <span className="material-icons-outlined text-3xl">security_update_warning</span>
+              <Icon name="security_update_warning" className="text-3xl" />
             </div>
             <h3 className="text-xl font-bold font-sans text-grafite dark:text-white mb-2">Relatório Serasa não consultado</h3>
             <p className="text-gray-500 mb-6 text-sm max-w-xs">Clique em &ldquo;Consultar Serasa&rdquo; para obter o relatório RELATORIO_AVANCADO_PJ_ANALITICO.</p>
@@ -1628,7 +1619,7 @@ export default function ClientDashboardPage() {
               style={{ backgroundColor: SERASA_COLOR }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-sans font-bold shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(228,0,111,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
             >
-              <span className={`material-icons-outlined ${isRefreshingSerasa ? "animate-spin" : ""}`}>security</span>
+              <Icon name="security" className={`${isRefreshingSerasa ? "animate-spin" : ""}`} />
               {isRefreshingSerasa ? "Consultando..." : "Consultar Serasa Agora"}
             </button>
           </div>
@@ -1649,7 +1640,7 @@ export default function ClientDashboardPage() {
                 <div className="bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800 overflow-hidden">
                   <div className="px-3 py-2 border-b border-red-200 dark:border-red-800">
                     <p className="text-xs font-sans font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
-                      <span className="material-icons-outlined text-sm">warning_amber</span>
+                      <Icon name="warning_amber" className="text-sm" />
                       {totalPendingFromAnalysis(ca)} pendência(s) · {fmt(totalDebtFromAnalysis(ca))}
                     </p>
                   </div>
@@ -1692,13 +1683,11 @@ export default function ClientDashboardPage() {
             className="w-full flex items-center justify-between gap-2 group"
           >
             <h2 className="font-sans font-bold text-base text-primary flex items-center gap-2">
-              <span className="material-icons-outlined text-lg">people</span> QSA — Quadro Societário
+              <Icon name="people" className="text-lg" /> QSA — Quadro Societário
             </h2>
             <span className="flex items-center gap-2 text-xs text-gray-400 font-sans">
               {adminCount + socioCount} no total
-              <span className="material-icons-outlined text-gray-400 group-hover:text-primary transition-colors">
-                {qsaCollapsed ? "expand_more" : "expand_less"}
-              </span>
+              <Icon name={qsaCollapsed ? "expand_more" : "expand_less"} className="text-gray-400 group-hover:text-primary transition-colors" />
             </span>
           </button>
 
@@ -1729,7 +1718,7 @@ export default function ClientDashboardPage() {
                         <p className="text-xs font-serif text-gray-500">{d.role} · {d.status}</p>
                         {d.sinceDate && <p className="text-[10px] text-gray-400">Desde: {formatDate(d.sinceDate)}</p>}
                       </div>
-                      <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0">chevron_right</span>
+                      <Icon name="chevron_right" className="text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0" />
                     </button>
                   )) : visibleMemberAdmins.map((m: CompanyMember, i: number) => {
                     const name = m.person?.name || m.name || "Administrador";
@@ -1746,7 +1735,7 @@ export default function ClientDashboardPage() {
                           <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200 truncate">{name}</p>
                           <p className="text-xs font-serif text-gray-500">{memberRoleText(m)}</p>
                         </div>
-                        <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0">chevron_right</span>
+                        <Icon name="chevron_right" className="text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0" />
                       </button>
                     );
                   })}
@@ -1758,7 +1747,7 @@ export default function ClientDashboardPage() {
                     className="mt-3 inline-flex items-center gap-1 text-xs font-sans font-bold text-primary hover:text-primary/80 transition-colors"
                   >
                     {showAllAdmins ? "Mostrar menos" : `Ver mais ${adminCount - 2}`}
-                    <span className="material-icons-outlined text-sm">{showAllAdmins ? "expand_less" : "expand_more"}</span>
+                    <Icon name={showAllAdmins ? "expand_less" : "expand_more"} className="text-sm" />
                   </button>
                 )}
               </div>
@@ -1827,7 +1816,7 @@ export default function ClientDashboardPage() {
                               </p>
                             )}
                           </div>
-                          <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-primary transition-colors self-center flex-shrink-0">chevron_right</span>
+                          <Icon name="chevron_right" className="text-sm text-gray-300 group-hover:text-primary transition-colors self-center flex-shrink-0" />
                         </div>
                         {isCpf && pfSummary && (
                           <div className="pr-3 flex-shrink-0">
@@ -1857,7 +1846,7 @@ export default function ClientDashboardPage() {
                             <p className="text-sm font-sans font-bold text-grafite dark:text-gray-200 truncate">{name}</p>
                             <p className="text-xs font-serif text-gray-500">{memberRoleText(m)}{doc ? ` · ${memberDocType(doc)}: ${doc}` : ""}</p>
                           </div>
-                          <span className="material-icons-outlined text-sm text-gray-300 group-hover:text-primary transition-colors self-center flex-shrink-0">chevron_right</span>
+                          <Icon name="chevron_right" className="text-sm text-gray-300 group-hover:text-primary transition-colors self-center flex-shrink-0" />
                         </div>
                         {isCpf && pfSummary && (
                           <div className="pr-3 flex-shrink-0">
@@ -1875,7 +1864,7 @@ export default function ClientDashboardPage() {
                     className="mt-3 inline-flex items-center gap-1 text-xs font-sans font-bold text-primary hover:text-primary/80 transition-colors"
                   >
                     {showAllSocios ? "Mostrar menos" : `Ver mais ${socioCount - 2}`}
-                    <span className="material-icons-outlined text-sm">{showAllSocios ? "expand_less" : "expand_more"}</span>
+                    <Icon name={showAllSocios ? "expand_less" : "expand_more"} className="text-sm" />
                   </button>
                 )}
               </div>
@@ -1948,7 +1937,7 @@ export default function ClientDashboardPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-sans font-bold text-base text-grafite dark:text-white flex items-center gap-2">
-                <span className="material-icons-outlined text-lg text-primary">warning_amber</span> Dados Negativos
+                <Icon name="warning_amber" className="text-lg text-primary" /> Dados Negativos
               </h2>
               {expandableIds.length > 0 && (
                 <button
@@ -1971,13 +1960,7 @@ export default function ClientDashboardPage() {
                   : "border border-amber-300/80 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10"
               }`}>
                 <div className="flex items-start gap-3">
-                  <span className={`material-icons-outlined mt-0.5 text-[18px] ${
-                    isNadaConstaSignal
-                      ? "text-red-700 dark:text-red-400"
-                      : "text-amber-700 dark:text-amber-400"
-                  }`}>
-                    {isNadaConstaSignal ? "priority_high" : "info"}
-                  </span>
+                  <Icon name={isNadaConstaSignal ? "priority_high" : "info"} size={18} className={`mt-0.5 ${ isNadaConstaSignal ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400" }`} />
                   <div>
                     <p className={`text-[11px] font-sans font-bold uppercase tracking-[0.16em] ${
                       isNadaConstaSignal
@@ -2050,9 +2033,7 @@ export default function ClientDashboardPage() {
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-wide">Concentre — Protestos em Cartório</p>
                   {notaryCount > 0 && (
-                    <span className="material-icons-outlined text-base text-gray-400 dark:text-gray-500">
-                      {isOpen("concentre") ? "expand_less" : "expand_more"}
-                    </span>
+                    <Icon name={isOpen("concentre") ? "expand_less" : "expand_more"} className="text-base text-gray-400 dark:text-gray-500" />
                   )}
                 </div>
                 <p className={`text-sm font-serif ${notaryCount === 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
@@ -2098,7 +2079,7 @@ export default function ClientDashboardPage() {
               {/* Fatos Relevantes */}
               <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
                 <h2 className="font-sans font-bold text-base text-primary mb-4 flex items-center gap-2">
-                  <span className="material-icons-outlined text-lg">gavel</span> Fatos Relevantes
+                  <Icon name="gavel" className="text-lg" /> Fatos Relevantes
                 </h2>
                 <dl className="space-y-3">
                   {factItems.map(({ id, label, section, records }) => {
@@ -2121,9 +2102,7 @@ export default function ClientDashboardPage() {
                         <dd className={`flex items-center gap-1 text-sm font-bold font-sans ${isClean ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
                           {count === 0 ? "Nada Consta" : `${count}× · ${fmt(balance)}`}
                           {hasDetail && (
-                            <span className="material-icons-outlined text-base text-gray-400">
-                              {open ? "expand_less" : "expand_more"}
-                            </span>
+                            <Icon name={open ? "expand_less" : "expand_more"} className="text-base text-gray-400" />
                           )}
                         </dd>
                       </div>
@@ -2135,7 +2114,7 @@ export default function ClientDashboardPage() {
               {/* Consultas Recentes */}
               <div className="xl:col-span-2 bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none">
                 <h2 className="font-sans font-bold text-base text-primary mb-4 flex items-center gap-2">
-                  <span className="material-icons-outlined text-lg">manage_search</span> Consultas ao CNPJ
+                  <Icon name="manage_search" className="text-lg" /> Consultas ao CNPJ
                   {inq?.inquiryCompanyResponse?.quantity?.actual != null && (
                     <span className="ml-auto text-xs font-sans text-gray-400">
                       {inq.inquiryCompanyResponse.quantity.actual} nos últimos 30 dias
@@ -2259,7 +2238,7 @@ export default function ClientDashboardPage() {
       {pracaSummary && pracaSummary.totalCount > 0 ? (
         <div className="mb-6 rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
           <div className="flex flex-wrap items-center gap-2 border-b border-border-light p-5 dark:border-border-dark">
-            <span className="material-icons-outlined text-primary">fact_check</span>
+            <Icon name="fact_check" className="text-primary" />
             <h2 className="font-sans text-base font-bold text-primary">Praça de Pagamento</h2>
             <span className="text-[11px] text-gray-400">· clique na linha para ver detalhes</span>
             <span className="ml-auto text-xs text-gray-400">{pracaSummary.totalFilteredElements} de {pracaSummary.totalCount}</span>
@@ -2346,7 +2325,7 @@ export default function ClientDashboardPage() {
                         title="Remover análise (devolve à Praça de Pagamento)"
                         aria-label="Remover análise"
                       >
-                        <span className="material-icons-outlined text-[18px]">delete</span>
+                        <Icon name="delete" size={18} />
                       </button>
                     </td>
                   </tr>
@@ -2362,11 +2341,11 @@ export default function ClientDashboardPage() {
               <div className="flex items-center gap-2">
                 <button type="button" disabled={pracaSummary.page <= 0} onClick={() => setPracaPage((p) => Math.max(0, p - 1))}
                   className="inline-flex h-8 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
-                  <span className="material-icons-outlined text-[16px]">chevron_left</span> Anterior
+                  <Icon name="chevron_left" size={16} /> Anterior
                 </button>
                 <button type="button" disabled={pracaSummary.page >= pracaSummary.totalPages - 1} onClick={() => setPracaPage((p) => p + 1)}
                   className="inline-flex h-8 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
-                  Próxima <span className="material-icons-outlined text-[16px]">chevron_right</span>
+                  Próxima <Icon name="chevron_right" size={16} />
                 </button>
               </div>
             </div>
@@ -2395,7 +2374,7 @@ export default function ClientDashboardPage() {
             onClick={handleDeleteCompany}
             className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl border border-red-300 bg-white text-red-700 dark:border-red-800 dark:bg-red-950/10 dark:text-red-400 font-sans font-semibold text-sm hover:bg-red-100 dark:hover:bg-red-900/20 active:scale-[0.98] transition-all duration-200"
           >
-            <span className="material-icons-outlined text-[18px]">delete</span>
+            <Icon name="delete" size={18} />
             Excluir Empresa
           </button>
         </div>
@@ -2498,13 +2477,13 @@ function ClientCodeField({ cnpj, value, origin }: { cnpj: string; value?: string
         <dd className="mt-0.5 flex items-center gap-2">
           <span className="text-sm font-serif font-medium text-grafite dark:text-gray-200">{value}</span>
           <button type="button" onClick={() => setEditing(true)} className="text-gray-400 hover:text-primary" title="Editar código">
-            <span className="material-icons-outlined text-[16px]">edit</span>
+            <Icon name="edit" size={16} />
           </button>
         </dd>
       ) : isSacado ? (
         <dd className="mt-1 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-            <span className="material-icons-outlined text-[14px]">badge</span>
+            <Icon name="badge" size={14} />
             Sacado — código 4R não necessário
           </span>
           <button
@@ -2513,14 +2492,14 @@ function ClientCodeField({ cnpj, value, origin }: { cnpj: string; value?: string
             disabled={promoting}
             className="inline-flex h-7 items-center gap-1 rounded-md border border-border-light px-2 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
           >
-            <span className="material-icons-outlined text-[14px]">{promoting ? "hourglass_empty" : "add_business"}</span>
+            <Icon name={promoting ? "hourglass_empty" : "add_business"} size={14} />
             Adicionar à carteira
           </button>
         </dd>
       ) : (
         <dd className="mt-1 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-            <span className="material-icons-outlined text-[14px]">warning</span>
+            <Icon name="warning" size={14} />
             Sem código de cliente vinculado
           </span>
           <button
@@ -2528,7 +2507,7 @@ function ClientCodeField({ cnpj, value, origin }: { cnpj: string; value?: string
             onClick={() => setEditing(true)}
             className="inline-flex h-7 items-center gap-1 rounded-md border border-border-light px-2 text-xs font-bold text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
           >
-            <span className="material-icons-outlined text-[14px]">add</span>
+            <Icon name="add" size={14} />
             Cadastrar
           </button>
         </dd>

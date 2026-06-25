@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { toast } from "sonner";
 import { useCompanyNotes } from "../../../../hooks/useCompanyNotes";
 import type { CompanyNote, CompanyNoteAttachment } from "../../../../types/company-note";
@@ -78,6 +79,9 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
   const [editFilePreviewUrls, setEditFilePreviewUrls] = useState<Record<string, string>>({});
   const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<{ url: string; note: CompanyNote; attachment: CompanyNoteAttachment } | null>(null);
+  const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => { setZoomed(false); }, [lightbox]);
 
   useEffect(() => {
     if (!lightbox) return;
@@ -428,7 +432,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
         <div ref={composerRef} className="rounded-[24px] border border-[#ead8e0] bg-white/90 p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#612035] text-white shadow-lg shadow-[#612035]/15">
-              <span className="material-icons-outlined text-[22px]">edit_note</span>
+              <Icon name="edit_note" size={22} />
             </div>
             <div>
               <h2 className="text-[15px] font-sans font-bold uppercase tracking-[0.14em] text-[#612035]">
@@ -460,7 +464,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                     onClick={() => setReplyTarget(null)}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e6d6dd] bg-white text-[#8f7080] transition hover:bg-[#f4ecef]"
                   >
-                    <span className="material-icons-outlined text-[16px]">close</span>
+                    <Icon name="close" size={16} />
                   </button>
                 </div>
               </div>
@@ -515,7 +519,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                   </p>
                 </div>
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#e3d2da] bg-white px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#612035] transition hover:bg-[#f7eff2]">
-                  <span className="material-icons-outlined text-[16px]">attach_file</span>
+                  <Icon name="attach_file" size={16} />
                   Escolher arquivos
                   <input
                     type="file"
@@ -548,7 +552,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                       onClick={clearSelectedFiles}
                       className="inline-flex items-center gap-1 rounded-full border border-[#e6d6dd] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#8f7080] transition hover:bg-[#f4ecef]"
                     >
-                      <span className="material-icons-outlined text-[14px]">layers_clear</span>
+                      <Icon name="layers_clear" size={14} />
                       Remover todos
                     </button>
                   </div>
@@ -567,7 +571,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                             onClick={() => removeSelectedFile(file)}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e6d6dd] bg-white text-[#8f7080] transition hover:bg-[#f4ecef]"
                           >
-                            <span className="material-icons-outlined text-[16px]">close</span>
+                            <Icon name="close" size={16} />
                           </button>
                         </div>
                         {isImageFile(file) && selectedFilePreviewUrls[key] && (
@@ -599,9 +603,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               disabled={!draft.trim() || isCreating}
               className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#612035] px-4 font-sans text-sm font-semibold text-white shadow-lg shadow-[#612035]/20 transition hover:bg-[#4f1b2b] disabled:cursor-not-allowed disabled:bg-[#c7aeb8] disabled:shadow-none"
             >
-              <span className="material-icons-outlined text-[18px]">
-                {isCreating ? "hourglass_top" : "add_comment"}
-              </span>
+              <Icon name={isCreating ? "hourglass_top" : "add_comment"} size={18} />
               {isCreating ? "Salvando..." : "Salvar anotação"}
             </button>
           </div>
@@ -650,14 +652,14 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
           {isLoading ? (
             <div className="flex min-h-[220px] items-center justify-center">
               <p className="flex items-center gap-2 font-sans text-sm text-[#8b6f7a]">
-                <span className="material-icons-outlined animate-spin text-[18px]">sync</span>
+                <Icon name="sync" size={18} className="animate-spin" />
                 Carregando anotações...
               </p>
             </div>
           ) : normalizedNotes.length === 0 ? (
             <div className="mt-6 flex min-h-[220px] flex-col items-center justify-center rounded-[22px] border border-dashed border-[#ead8e0] bg-[#fcfafb] px-6 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f6eef1] text-[#8b5f70]">
-                <span className="material-icons-outlined text-[26px]">history_edu</span>
+                <Icon name="history_edu" size={26} />
               </div>
               <h4 className="mt-4 font-sans text-base font-semibold text-grafite">
                 Ainda não há anotações para esta empresa
@@ -703,7 +705,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                           onClick={() => setReplyTarget(note)}
                           className="inline-flex items-center gap-1 self-start rounded-full border border-[#dfd0d8] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2]"
                         >
-                          <span className="material-icons-outlined text-[14px]">reply</span>
+                          <Icon name="reply" size={14} />
                           Citar
                         </button>
                         {note.canDelete && (
@@ -714,7 +716,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                               disabled={editingNoteId === note.id}
                               className="inline-flex items-center gap-1 self-start rounded-full border border-[#dfd0d8] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2] disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              <span className="material-icons-outlined text-[14px]">edit</span>
+                              <Icon name="edit" size={14} />
                               Editar
                             </button>
                             <button
@@ -723,7 +725,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                               disabled={isDeleting}
                               className="inline-flex items-center gap-1 self-start rounded-full border border-red-200 bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              <span className="material-icons-outlined text-[14px]">delete</span>
+                              <Icon name="delete" size={14} />
                               Apagar
                             </button>
                           </>
@@ -791,7 +793,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                 </p>
                               </div>
                               <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#e3d2da] bg-white px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#612035] transition hover:bg-[#f7eff2]">
-                                <span className="material-icons-outlined text-[16px]">attach_file</span>
+                                <Icon name="attach_file" size={16} />
                                 Escolher arquivos
                                 <input
                                   type="file"
@@ -824,7 +826,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                     onClick={clearEditFiles}
                                     className="inline-flex items-center gap-1 rounded-full border border-[#e6d6dd] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#8f7080] transition hover:bg-[#f4ecef]"
                                   >
-                                    <span className="material-icons-outlined text-[14px]">layers_clear</span>
+                                    <Icon name="layers_clear" size={14} />
                                     Remover todos
                                   </button>
                                 </div>
@@ -843,7 +845,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                             onClick={() => removeEditFile(file)}
                                             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e6d6dd] bg-white text-[#8f7080] transition hover:bg-[#f4ecef]"
                                           >
-                                            <span className="material-icons-outlined text-[16px]">close</span>
+                                            <Icon name="close" size={16} />
                                           </button>
                                         </div>
                                         {isImageFile(file) && editFilePreviewUrls[key] && (
@@ -879,9 +881,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                 disabled={!editDraft.trim() || isUpdating || isAddingAttachments}
                                 className="inline-flex items-center gap-1 rounded-full border border-[#612035] bg-[#612035] px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#4f1b2b] disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                <span className={`material-icons-outlined text-[14px] ${isUpdating || isAddingAttachments ? "animate-spin" : ""}`}>
-                                  {isUpdating || isAddingAttachments ? "sync" : "save"}
-                                </span>
+                                <Icon name={isUpdating || isAddingAttachments ? "sync" : "save"} size={14} className={`${isUpdating || isAddingAttachments ? "animate-spin" : ""}`} />
                                 {isUpdating || isAddingAttachments ? "Salvando..." : "Salvar edição"}
                               </button>
                             </div>
@@ -904,9 +904,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                 onClick={() => toggleAttachments(note.id)}
                                 className="inline-flex items-center gap-1 rounded-full border border-[#dfd0d8] bg-white px-3 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2]"
                               >
-                                <span className="material-icons-outlined text-[13px]">
-                                  {expandedAttachmentNotes[note.id] ? "expand_less" : "expand_more"}
-                                </span>
+                                <Icon name={expandedAttachmentNotes[note.id] ? "expand_less" : "expand_more"} size={13} />
                                 {expandedAttachmentNotes[note.id] ? "Recolher anexos" : "Expandir anexos"}
                               </button>
                             )}
@@ -930,7 +928,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                       className="max-h-[320px] rounded-[16px] border border-[#eadde3] object-contain"
                                     />
                                     <span className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100">
-                                      <span className="material-icons-outlined text-[14px]">zoom_in</span>
+                                      <Icon name="zoom_in" size={14} />
                                       Expandir
                                     </span>
                                   </button>
@@ -941,9 +939,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                   disabled={isDownloadingAttachment === downloadKey}
                                   className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#d8d4ec] bg-[#f8f6ff] px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#5d4ea1] transition hover:bg-[#f0ecff] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                  <span className={`material-icons-outlined text-[16px] ${isDownloadingAttachment === downloadKey ? "animate-spin" : ""}`}>
-                                    {isDownloadingAttachment === downloadKey ? "sync" : "attach_file"}
-                                  </span>
+                                  <Icon name={isDownloadingAttachment === downloadKey ? "sync" : "attach_file"} size={16} className={`${isDownloadingAttachment === downloadKey ? "animate-spin" : ""}`} />
                                   {isDownloadingAttachment === downloadKey ? "Baixando..." : attachmentLabel(attachment)}
                                 </button>
                                 {note.canDelete && (
@@ -953,7 +949,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                     disabled={isDeletingAttachment}
                                     className="ml-2 mt-3 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
-                                    <span className="material-icons-outlined text-[16px]">delete</span>
+                                    <Icon name="delete" size={16} />
                                     Remover anexo
                                   </button>
                                 )}
@@ -977,7 +973,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
           onClick={() => setLightbox(null)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-surface-dark"
+            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-surface-dark"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
@@ -985,11 +981,19 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setZoomed((v) => !v)}
+                  className="inline-flex items-center justify-center rounded-full border border-border-light p-1.5 text-gray-500 transition hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
+                  title={zoomed ? "Ajustar à tela" : "Ampliar (tamanho real)"}
+                >
+                  <Icon name={zoomed ? "zoom_out_map" : "zoom_in"} size={18} />
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleDownloadAttachment(lightbox.note, lightbox.attachment)}
                   disabled={isDownloadingAttachment === `${lightbox.note.id}:${lightbox.attachment.id ?? "legacy"}`}
                   className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-primary/90 disabled:opacity-60"
                 >
-                  <span className="material-icons-outlined text-[16px]">download</span>
+                  <Icon name="download" size={16} />
                   Baixar
                 </button>
                 <button
@@ -998,16 +1002,21 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                   className="inline-flex items-center justify-center rounded-full border border-border-light p-1.5 text-gray-500 transition hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
                   title="Fechar (Esc)"
                 >
-                  <span className="material-icons-outlined text-[18px]">close</span>
+                  <Icon name="close" size={18} />
                 </button>
               </div>
             </div>
-            <div className="flex items-center justify-center overflow-auto bg-gray-50 p-4 dark:bg-black/20">
+            <div className="flex max-h-[82vh] items-center justify-center overflow-auto bg-gray-50 p-4 dark:bg-black/20">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={lightbox.url}
                 alt={attachmentLabel(lightbox.attachment)}
-                className="max-h-[65vh] max-w-full rounded-lg object-contain"
+                onClick={() => setZoomed((v) => !v)}
+                className={
+                  zoomed
+                    ? "max-w-none cursor-zoom-out rounded-lg"
+                    : "max-h-[78vh] max-w-full cursor-zoom-in rounded-lg object-contain"
+                }
               />
             </div>
           </div>

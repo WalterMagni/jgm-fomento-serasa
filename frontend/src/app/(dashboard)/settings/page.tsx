@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Icon from "@/components/ui/Icon";
 import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
 import { useImportClientCodes } from "@/hooks/useImportClientCodes";
@@ -421,7 +422,7 @@ export default function SettingsPage() {
                           disabled={isImportingCodes}
                           className="mt-3 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <span className={`material-icons-outlined text-lg ${isImportingCodes ? "animate-spin" : ""}`}>{isImportingCodes ? "sync" : "tag"}</span>
+                          <Icon name={isImportingCodes ? "sync" : "tag"} className={`text-lg ${isImportingCodes ? "animate-spin" : ""}`} />
                           {isImportingCodes ? "Importando..." : "Importar códigos"}
                         </button>
                       </div>
@@ -446,7 +447,7 @@ export default function SettingsPage() {
                           disabled={isImportingCsv}
                           className="mt-3 inline-flex items-center justify-center gap-2 border border-border-light bg-white px-4 py-2 rounded-lg text-sm font-medium text-grafite transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                         >
-                          <span className={`material-icons-outlined text-lg ${isImportingCsv ? "animate-spin" : ""}`}>{isImportingCsv ? "sync" : "upload_file"}</span>
+                          <Icon name={isImportingCsv ? "sync" : "upload_file"} className={`text-lg ${isImportingCsv ? "animate-spin" : ""}`} />
                           {isImportingCsv ? "Importando..." : "Importar CSV completo"}
                         </button>
                       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { toast } from "sonner";
 import { usePersonNotes } from "../../../../hooks/usePersonNotes";
 import type { CompanyNote, CompanyNoteAttachment } from "../../../../types/company-note";
@@ -290,7 +291,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
         <div ref={composerRef} className="rounded-[24px] border border-[#ead8e0] bg-white/90 p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#612035] text-white shadow-lg shadow-[#612035]/15">
-              <span className="material-icons-outlined text-[22px]">edit_note</span>
+              <Icon name="edit_note" size={22} />
             </div>
             <div>
               <h2 className="text-[15px] font-sans font-bold uppercase tracking-[0.14em] text-[#612035]">
@@ -322,7 +323,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                     onClick={() => setReplyTarget(null)}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e6d6dd] bg-white text-[#8f7080] transition hover:bg-[#f4ecef]"
                   >
-                    <span className="material-icons-outlined text-[16px]">close</span>
+                    <Icon name="close" size={16} />
                   </button>
                 </div>
               </div>
@@ -377,7 +378,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                   </p>
                 </div>
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#e3d2da] bg-white px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#612035] transition hover:bg-[#f7eff2]">
-                  <span className="material-icons-outlined text-[16px]">attach_file</span>
+                  <Icon name="attach_file" size={16} />
                   Escolher arquivos
                   <input
                     type="file"
@@ -410,7 +411,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                       onClick={clearSelectedFiles}
                       className="inline-flex items-center gap-1 rounded-full border border-[#e6d6dd] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#8f7080] transition hover:bg-[#f4ecef]"
                     >
-                      <span className="material-icons-outlined text-[14px]">layers_clear</span>
+                      <Icon name="layers_clear" size={14} />
                       Remover todos
                     </button>
                   </div>
@@ -429,7 +430,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                             onClick={() => removeSelectedFile(file)}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e6d6dd] bg-white text-[#8f7080] transition hover:bg-[#f4ecef]"
                           >
-                            <span className="material-icons-outlined text-[16px]">close</span>
+                            <Icon name="close" size={16} />
                           </button>
                         </div>
                         {isImageFile(file) && selectedFilePreviewUrls[key] && (
@@ -461,9 +462,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
               disabled={!draft.trim() || isCreating}
               className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#612035] px-4 font-sans text-sm font-semibold text-white shadow-lg shadow-[#612035]/20 transition hover:bg-[#4f1b2b] disabled:cursor-not-allowed disabled:bg-[#c7aeb8] disabled:shadow-none"
             >
-              <span className="material-icons-outlined text-[18px]">
-                {isCreating ? "hourglass_top" : "add_comment"}
-              </span>
+              <Icon name={isCreating ? "hourglass_top" : "add_comment"} size={18} />
               {isCreating ? "Salvando..." : "Salvar anotação"}
             </button>
           </div>
@@ -512,14 +511,14 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
           {isLoading ? (
             <div className="flex min-h-[220px] items-center justify-center">
               <p className="flex items-center gap-2 font-sans text-sm text-[#8b6f7a]">
-                <span className="material-icons-outlined animate-spin text-[18px]">sync</span>
+                <Icon name="sync" size={18} className="animate-spin" />
                 Carregando anotações...
               </p>
             </div>
           ) : normalizedNotes.length === 0 ? (
             <div className="mt-6 flex min-h-[220px] flex-col items-center justify-center rounded-[22px] border border-dashed border-[#ead8e0] bg-[#fcfafb] px-6 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f6eef1] text-[#8b5f70]">
-                <span className="material-icons-outlined text-[26px]">history_edu</span>
+                <Icon name="history_edu" size={26} />
               </div>
               <h4 className="mt-4 font-sans text-base font-semibold text-grafite">
                 Ainda não há anotações para esta pessoa
@@ -565,7 +564,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                           onClick={() => setReplyTarget(note)}
                           className="inline-flex items-center gap-1 self-start rounded-full border border-[#dfd0d8] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2]"
                         >
-                          <span className="material-icons-outlined text-[14px]">reply</span>
+                          <Icon name="reply" size={14} />
                           Citar
                         </button>
                         {note.canDelete && (
@@ -575,7 +574,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                             disabled={isDeleting}
                             className="inline-flex items-center gap-1 self-start rounded-full border border-red-200 bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            <span className="material-icons-outlined text-[14px]">delete</span>
+                            <Icon name="delete" size={14} />
                             Apagar
                           </button>
                         )}
@@ -609,9 +608,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                                 onClick={() => toggleAttachments(note.id)}
                                 className="inline-flex items-center gap-1 rounded-full border border-[#dfd0d8] bg-white px-3 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2]"
                               >
-                                <span className="material-icons-outlined text-[13px]">
-                                  {expandedAttachmentNotes[note.id] ? "expand_less" : "expand_more"}
-                                </span>
+                                <Icon name={expandedAttachmentNotes[note.id] ? "expand_less" : "expand_more"} size={13} />
                                 {expandedAttachmentNotes[note.id] ? "Recolher anexos" : "Expandir anexos"}
                               </button>
                             )}
@@ -641,9 +638,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                                   disabled={isDownloadingAttachment === downloadKey}
                                   className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#d8d4ec] bg-[#f8f6ff] px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#5d4ea1] transition hover:bg-[#f0ecff] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                  <span className={`material-icons-outlined text-[16px] ${isDownloadingAttachment === downloadKey ? "animate-spin" : ""}`}>
-                                    {isDownloadingAttachment === downloadKey ? "sync" : "attach_file"}
-                                  </span>
+                                  <Icon name={isDownloadingAttachment === downloadKey ? "sync" : "attach_file"} size={16} className={`${isDownloadingAttachment === downloadKey ? "animate-spin" : ""}`} />
                                   {isDownloadingAttachment === downloadKey ? "Baixando..." : attachmentLabel(attachment)}
                                 </button>
                               </div>

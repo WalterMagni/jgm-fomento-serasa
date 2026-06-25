@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -453,7 +454,7 @@ function CommercialInformationModal({
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-grafite dark:hover:bg-gray-800 dark:hover:text-white"
           >
-            <span className="material-icons-outlined text-lg">close</span>
+            <Icon name="close" className="text-lg" />
           </button>
         </div>
 
@@ -526,7 +527,7 @@ function CommercialInformationModal({
             disabled={isSaving}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-sans font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <span className="material-icons-outlined text-base">save</span>
+            <Icon name="save" className="text-base" />
             {isSaving ? "Salvando..." : "Salvar ficha"}
           </button>
         </div>
@@ -681,7 +682,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="flex items-center gap-2 font-sans text-base font-bold text-primary">
-            <span className="material-icons-outlined text-lg">business_center</span>
+            <Icon name="business_center" className="text-lg" />
             Informações Comerciais
           </h2>
           <p className="mt-1 text-xs font-sans text-gray-500">
@@ -693,7 +694,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
           onClick={openNewRecord}
           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-sans font-bold text-white shadow-sm transition-colors hover:bg-primary/90"
         >
-          <span className="material-icons-outlined text-base">add_business</span>
+          <Icon name="add_business" className="text-base" />
           Nova informação comercial
         </button>
       </div>
@@ -787,9 +788,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
                       >
                         <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="material-icons-outlined text-sm text-gray-400">
-                              {isExpanded ? "expand_less" : "expand_more"}
-                            </span>
+                            <Icon name={isExpanded ? "expand_less" : "expand_more"} className="text-sm text-gray-400" />
                             {formatDate(record.data)}
                           </span>
                         </td>

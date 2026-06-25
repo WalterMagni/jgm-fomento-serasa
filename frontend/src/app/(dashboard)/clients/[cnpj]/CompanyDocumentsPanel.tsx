@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -439,7 +440,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2">
-            <span className="material-icons-outlined text-primary">folder_open</span>
+            <Icon name="folder_open" className="text-primary" />
             <h2 className="font-serif text-xl font-bold text-primary">Documentos da Empresa</h2>
           </div>
           <p className="text-sm font-sans text-gray-500">
@@ -454,9 +455,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                 : "border-red-200 bg-red-50 text-red-700"
             }`}
           >
-            <span className="material-icons-outlined text-[16px]">
-              {documents?.mapped ? "check_circle" : "error_outline"}
-            </span>
+            <Icon name={documents?.mapped ? "check_circle" : "error_outline"} size={16} />
             {documents?.mapped ? "Pasta mapeada" : "Pasta não mapeada"}
           </span>
           {documents?.mapped && (
@@ -466,7 +465,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                 onClick={() => setShowRootEditor((current) => !current)}
                 className="inline-flex h-9 items-center gap-2 rounded-lg border border-border-light px-3 text-xs font-sans font-bold text-gray-600 transition-colors hover:bg-gray-50"
               >
-                <span className="material-icons-outlined text-[16px]">folder_open</span>
+                <Icon name="folder_open" size={16} />
                 Alterar pasta
               </button>
               <button
@@ -475,7 +474,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                 disabled={removeMapping.isPending}
                 className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-sans font-bold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span className="material-icons-outlined text-[16px]">link_off</span>
+                <Icon name="link_off" size={16} />
                 {removeMapping.isPending ? "Removendo..." : "Remover mapeamento"}
               </button>
             </>
@@ -501,7 +500,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
               disabled={!rootPathDraft.trim() || mapRoot.isPending}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-sans font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="material-icons-outlined text-[18px]">link</span>
+              <Icon name="link" size={18} />
               {mapRoot.isPending ? "Mapeando..." : "Mapear pasta"}
             </button>
           </div>
@@ -514,7 +513,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
               }}
               className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border-light bg-white px-3 text-xs font-sans font-bold text-gray-600 transition-colors hover:bg-gray-50"
             >
-              <span className="material-icons-outlined text-[16px]">folder_open</span>
+              <Icon name="folder_open" size={16} />
               Abrir explorador
             </button>
             <button
@@ -523,7 +522,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
               disabled={createDefaultFolder.isPending}
               className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 text-xs font-sans font-bold text-primary transition-colors hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="material-icons-outlined text-[16px]">create_new_folder</span>
+              <Icon name="create_new_folder" size={16} />
               {createDefaultFolder.isPending ? "Criando..." : "Criar pasta padrão"}
             </button>
           </div>
@@ -549,7 +548,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
               onClick={() => documentsQuery.refetch()}
               className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border-light bg-white px-3 text-xs font-sans font-bold text-gray-600 transition-colors hover:bg-gray-50"
             >
-              <span className="material-icons-outlined text-[15px]">refresh</span>
+              <Icon name="refresh" size={15} />
               Atualizar
             </button>
           </div>
@@ -560,7 +559,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
         <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="rounded-lg border border-border-light bg-white p-3 dark:bg-gray-900/20">
             <div className="mb-3 flex items-center gap-2 text-xs font-sans font-bold uppercase tracking-wide text-gray-400">
-              <span className="material-icons-outlined text-[16px]">folder_open</span>
+              <Icon name="folder_open" size={16} />
               Pastas
             </div>
             <button
@@ -570,7 +569,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                 !documents.currentPath ? "bg-primary/10 font-bold text-primary" : "text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <span className="material-icons-outlined text-[17px]">home</span>
+              <Icon name="home" size={17} />
               Raiz
             </button>
             {folders.slice(0, 12).map((folder) => (
@@ -580,7 +579,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                 onClick={() => setCurrentPath(folder.path)}
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-sans text-gray-600 transition-colors hover:bg-gray-50"
               >
-                <span className="material-icons-outlined text-[17px] text-amber-500">folder</span>
+                <Icon name="folder" size={17} className="text-amber-500" />
                 <span className="truncate">{folder.name}</span>
               </button>
             ))}
@@ -605,7 +604,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
             {isDragActive && (
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/10 backdrop-blur-[1px]">
                 <div className="rounded-xl border border-primary/25 bg-white px-5 py-4 text-center shadow-lg">
-                  <span className="material-icons-outlined text-3xl text-primary">upload_file</span>
+                  <Icon name="upload_file" className="text-3xl text-primary" />
                   <p className="mt-1 text-sm font-sans font-bold text-primary">Solte para enviar nesta pasta</p>
                 </div>
               </div>
@@ -634,7 +633,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                   onClick={() => setCurrentPath(documents.parentPath || "")}
                   className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border-light bg-white px-3 text-xs font-sans font-bold text-gray-600 transition-colors hover:bg-gray-50"
                 >
-                  <span className="material-icons-outlined text-[15px]">arrow_upward</span>
+                  <Icon name="arrow_upward" size={15} />
                   Voltar
                 </button>
               )}
@@ -645,7 +644,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                   disabled={createFolder.isPending}
                   className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border-light bg-white px-3 text-xs font-sans font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="material-icons-outlined text-[15px]">create_new_folder</span>
+                  <Icon name="create_new_folder" size={15} />
                   {createFolder.isPending ? "Criando..." : "Nova pasta"}
                 </button>
                 <p className="text-[11px] font-sans text-gray-400">
@@ -697,9 +696,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                       >
                         <td className="px-4 py-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <span className={`material-icons-outlined inline-flex h-9 w-9 items-center justify-center rounded-lg text-[22px] ${icon.bg} ${icon.color}`}>
-                              {icon.icon}
-                            </span>
+                            <Icon name={icon.icon} size={22} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${icon.bg} ${icon.color}`} />
                             <div className="min-w-0">
                               <p className="truncate text-sm font-sans font-bold text-grafite">{item.name}</p>
                               {item.type === "file" && item.extension && (
@@ -719,7 +716,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 hover:text-primary disabled:opacity-50"
                               title="Opções"
                             >
-                              <span className="material-icons-outlined text-[18px]">more_vert</span>
+                              <Icon name="more_vert" size={18} />
                             </button>
                             {actionMenuPath === item.path && (
                               <div className={`absolute right-0 z-30 w-56 overflow-hidden rounded-lg border border-border-light bg-white py-1 text-left shadow-xl ${openUp ? "bottom-9" : "top-9"}`}>
@@ -732,7 +729,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                                     }}
                                     className="flex w-full items-center gap-2 px-3 py-2 text-sm font-sans text-gray-700 transition-colors hover:bg-gray-50"
                                   >
-                                    <span className="material-icons-outlined text-[16px]">open_in_new</span>
+                                    <Icon name="open_in_new" size={16} />
                                     Abrir
                                   </button>
                                 )}
@@ -741,7 +738,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                                   onClick={() => handleOpenExplorer(item)}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-sm font-sans text-gray-700 transition-colors hover:bg-gray-50"
                                 >
-                                  <span className="material-icons-outlined text-[16px]">folder_open</span>
+                                  <Icon name="folder_open" size={16} />
                                   Abrir no explorador
                                 </button>
                                 <button
@@ -749,7 +746,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                                   onClick={() => handleCopyPath(item)}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-sm font-sans text-gray-700 transition-colors hover:bg-gray-50"
                                 >
-                                  <span className="material-icons-outlined text-[16px]">content_copy</span>
+                                  <Icon name="content_copy" size={16} />
                                   Copiar caminho
                                 </button>
                                 <button
@@ -757,7 +754,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                                   onClick={() => handleRenameFile(item)}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-sm font-sans text-gray-700 transition-colors hover:bg-gray-50"
                                 >
-                                  <span className="material-icons-outlined text-[16px]">drive_file_rename_outline</span>
+                                  <Icon name="drive_file_rename_outline" size={16} />
                                   Renomear
                                 </button>
                                 <button
@@ -765,7 +762,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                                   onClick={() => handleDuplicateFile(item)}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-sm font-sans text-gray-700 transition-colors hover:bg-gray-50"
                                 >
-                                  <span className="material-icons-outlined text-[16px]">file_copy</span>
+                                  <Icon name="file_copy" size={16} />
                                   Duplicar
                                 </button>
                               </div>
@@ -802,7 +799,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                 onClick={() => setPickerOpen(false)}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
               >
-                <span className="material-icons-outlined text-[20px]">close</span>
+                <Icon name="close" size={20} />
               </button>
             </div>
 
@@ -855,7 +852,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                       onClick={() => setPickerPath(folderPickerQuery.data?.parentPath || "")}
                       className="mb-2 flex w-full items-center gap-3 rounded-lg border border-border-light px-3 py-2 text-left text-sm font-sans text-gray-600 transition-colors hover:bg-gray-50"
                     >
-                      <span className="material-icons-outlined text-[20px]">arrow_upward</span>
+                      <Icon name="arrow_upward" size={20} />
                       Voltar pasta
                     </button>
                   )}
@@ -867,7 +864,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                       className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-primary/5"
                     >
                       <span className="flex min-w-0 items-center gap-3">
-                        <span className="material-icons-outlined text-[22px] text-amber-500">folder</span>
+                        <Icon name="folder" size={22} className="text-amber-500" />
                         <span className="truncate text-sm font-sans font-bold text-grafite dark:text-white">{directory.name}</span>
                       </span>
                       <span className="text-xs font-sans text-gray-400">{formatDateTime(directory.modifiedAt)}</span>
@@ -900,7 +897,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
                   disabled={mapRoot.isPending || !folderPickerQuery.data?.configured || !folderPickerQuery.data?.currentPath}
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-sans font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="material-icons-outlined text-[18px]">check</span>
+                  <Icon name="check" size={18} />
                   {mapRoot.isPending ? "Selecionando..." : "Selecionar pasta"}
                 </button>
               </div>

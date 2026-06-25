@@ -28,11 +28,19 @@
   --color-border-light: #e5e7eb;
   --color-border-dark: #374151;
 
-  --font-sans: var(--font-source-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  /* Repaginação: corpo Hanken Grotesk, títulos Clash Display. Serif preservado p/ relatórios. */
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-source-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Clash Display", var(--font-hanken), ui-sans-serif, sans-serif;
+  --font-clash-display: "Clash Display", var(--font-hanken), ui-sans-serif, sans-serif;
 
   --radius-default: 8px;
+}
+
+/* Títulos em Clash Display, números tabulares no app todo. */
+.font-display {
+  font-family: var(--font-clash-display);
+  letter-spacing: -0.01em;
 }
 
 /* Base styles to toggle dark mode variables if needed, though Tailwind classes work nicely. */
@@ -58,6 +66,13 @@
     background-color: var(--background);
     color: var(--foreground);
     @apply font-sans;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-clash-display);
+    letter-spacing: -0.01em;
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Icon from "@/components/ui/Icon";
 
 function ymdOf(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -60,19 +61,19 @@ export default function MonthDatePicker({ value, onChange, placeholder = "dd/mm/
         className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border-light bg-white px-2 text-sm outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark"
       >
         <span className={value ? "text-grafite dark:text-white" : "text-gray-400"}>{value ? formatBr(value) : placeholder}</span>
-        <span className="material-icons-outlined text-[18px] text-gray-400">calendar_today</span>
+        <Icon name="calendar_today" size={18} className="text-gray-400" />
       </button>
       {open ? (
         <div className="absolute left-0 top-full z-30 mt-1 w-[260px] rounded-xl border border-border-light bg-surface-light p-3 shadow-lg dark:border-border-dark dark:bg-surface-dark">
           <div className="mb-2 flex items-center justify-between gap-1">
             <div className="flex items-center gap-1">
-              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_left</span></button>
-              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><span className="material-icons-outlined text-[16px]">chevron_left</span></button>
+              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
+              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
             </div>
             <p className="text-sm font-bold capitalize text-grafite dark:text-white">{`${month.toLocaleDateString("pt-BR", { month: "long" })}/${String(month.getFullYear()).slice(-2)}`}</p>
             <div className="flex items-center gap-1">
-              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><span className="material-icons-outlined text-[16px]">chevron_right</span></button>
-              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_right</span></button>
+              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
+              <button type="button" onClick={() => setMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
             </div>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-gray-400">

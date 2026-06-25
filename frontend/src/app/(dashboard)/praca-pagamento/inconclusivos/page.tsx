@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "@/components/ui/Icon";
 import { usePaymentPlaceInconclusivos } from "../../../../hooks/usePaymentPlaceCompany";
 import { useReopenPaymentPlaceEntry } from "../../../../hooks/usePaymentPlaceCompany";
 import MonthDatePicker from "../../../../components/payment-place/MonthDatePicker";
@@ -111,7 +112,7 @@ export default function InconclusivosPage() {
                       disabled={reopen.isPending}
                       className="inline-flex items-center gap-1 rounded-md border border-border-light px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     >
-                      <span className="material-icons-outlined text-[15px]">restore</span>
+                      <Icon name="restore" size={15} />
                       Restaurar
                     </button>
                   </td>

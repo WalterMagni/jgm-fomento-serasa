@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Icon from "@/components/ui/Icon";
 import { useStandardTerms } from '@/hooks/useStandardTerms';
 
 const CNPJS = [
@@ -44,7 +45,7 @@ function TermEditor({
     <div className="bg-white dark:bg-surface-dark rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col h-[600px]">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50 rounded-t-2xl">
         <div className="flex items-center gap-2">
-          <span className="material-icons-outlined text-gray-400">data_object</span>
+          <Icon name="data_object" className="text-gray-400" />
           <span className="font-medium text-gray-700 dark:text-gray-200">
             Conteúdo do Termo (Formato JSON esperado)
           </span>
@@ -68,7 +69,7 @@ function TermEditor({
         <div className="flex items-center gap-2">
           {isSaved && (
             <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded-full text-sm font-medium transition-all animate-fade-in">
-              <span className="material-icons-outlined text-sm">check_circle</span>
+              <Icon name="check_circle" className="text-sm" />
               Salvo com sucesso!
             </div>
           )}
@@ -81,12 +82,12 @@ function TermEditor({
         >
           {isUpdating ? (
             <>
-              <span className="material-icons-outlined animate-spin text-sm">sync</span>
+              <Icon name="sync" className="animate-spin text-sm" />
               Salvando...
             </>
           ) : (
             <>
-              <span className="material-icons-outlined text-sm">save</span>
+              <Icon name="save" className="text-sm" />
               Salvar Alterações
             </>
           )}
@@ -113,7 +114,7 @@ export default function StandardTermsPage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-3">
-          <span className="material-icons-outlined">error_outline</span>
+          <Icon name="error_outline" />
           <p>Erro ao carregar os termos padrão. Tente novamente mais tarde.</p>
         </div>
       </div>
@@ -127,7 +128,7 @@ export default function StandardTermsPage() {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <span className="material-icons-outlined text-primary">gavel</span>
+          <Icon name="gavel" className="text-primary" />
           Manutenção de Termos Padrão
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mt-2">
@@ -153,7 +154,7 @@ export default function StandardTermsPage() {
             >
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${selectedCnpj === cnpj ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
-                  <span className="material-icons-outlined text-sm">business</span>
+                  <Icon name="business" className="text-sm" />
                 </div>
                 <span className={`font-medium ${selectedCnpj === cnpj ? 'text-primary dark:text-primary-light' : 'text-gray-700 dark:text-gray-200'}`}>
                   {cnpj}

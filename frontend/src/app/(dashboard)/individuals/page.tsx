@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Icon from "@/components/ui/Icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEnrichPersonSerasa, usePersonProfiles } from "../../../hooks/usePersonProfile";
@@ -95,7 +96,7 @@ export default function IndividualsPage() {
             className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-sans font-bold text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             style={{ background: "#E4006F" }}
           >
-            <span className="material-icons-outlined text-base">{isConsultingPerson ? "hourglass_empty" : "person_search"}</span>
+            <Icon name={isConsultingPerson ? "hourglass_empty" : "person_search"} className="text-base" />
             {isConsultingPerson ? "Consultando..." : "Consultar PF"}
           </button>
         </div>
@@ -103,9 +104,7 @@ export default function IndividualsPage() {
 
       {/* Search */}
       <div className="relative mb-6">
-        <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none">
-          search
-        </span>
+        <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none" />
         <input
           type="text"
           placeholder="Buscar por CPF ou nome..."
@@ -119,18 +118,16 @@ export default function IndividualsPage() {
       <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <span className="material-icons-outlined text-4xl text-gray-300 dark:text-gray-600 animate-spin">
-              refresh
-            </span>
+            <Icon name="refresh" className="text-4xl text-gray-300 dark:text-gray-600 animate-spin" />
           </div>
         ) : isError ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <span className="material-icons-outlined text-4xl text-red-400">error_outline</span>
+            <Icon name="error_outline" className="text-4xl text-red-400" />
             <p className="text-sm text-gray-500 font-sans">Erro ao carregar dados. Tente novamente.</p>
           </div>
         ) : content.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <span className="material-icons-outlined text-5xl text-gray-300 dark:text-gray-600">person_search</span>
+            <Icon name="person_search" className="text-5xl text-gray-300 dark:text-gray-600" />
             <div className="text-center">
               <p className="font-sans font-semibold text-gray-500 dark:text-gray-400">
                 {debouncedSearch ? "Nenhum resultado encontrado" : "Nenhuma pessoa física consultada"}
@@ -184,12 +181,12 @@ export default function IndividualsPage() {
                     <td className="px-6 py-4 text-center">
                       {hasNeg ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
-                          <span className="material-icons-outlined text-[12px]">warning</span>
+                          <Icon name="warning" size={12} />
                           {negCount}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
-                          <span className="material-icons-outlined text-[12px]">check_circle</span>
+                          <Icon name="check_circle" size={12} />
                           Limpo
                         </span>
                       )}
@@ -203,7 +200,7 @@ export default function IndividualsPage() {
                         className="inline-flex items-center gap-1 text-sm font-sans font-medium text-primary hover:text-primary/80 transition-colors"
                       >
                         Ver
-                        <span className="material-icons-outlined text-base">chevron_right</span>
+                        <Icon name="chevron_right" className="text-base" />
                       </Link>
                     </td>
                   </tr>
@@ -225,14 +222,14 @@ export default function IndividualsPage() {
                 disabled={page === 0}
                 className="p-2 rounded-lg border border-border-light dark:border-border-dark text-gray-500 dark:text-gray-400 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
-                <span className="material-icons-outlined text-base">chevron_left</span>
+                <Icon name="chevron_left" className="text-base" />
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
                 className="p-2 rounded-lg border border-border-light dark:border-border-dark text-gray-500 dark:text-gray-400 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
-                <span className="material-icons-outlined text-base">chevron_right</span>
+                <Icon name="chevron_right" className="text-base" />
               </button>
             </div>
           </div>
