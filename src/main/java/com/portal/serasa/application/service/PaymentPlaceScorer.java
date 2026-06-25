@@ -30,12 +30,18 @@ public class PaymentPlaceScorer {
     private static final BigDecimal SAME_PLACE_KM = BigDecimal.valueOf(8);
 
     private final PaymentPlaceEntryJpaRepository entryRepository;
+    private final com.portal.serasa.infrastructure.persistence.repository.PaymentPlacePatternJpaRepository patternRepository;
 
     public void apply(PaymentPlaceEntryEntity e) {
         int sacado = 0;
         int cedente = 0;
         boolean nonGeoSignal = false;
         List<String> factors = new ArrayList<>();
+
+        // Limpa o snapshot do padrão (recalculado abaixo quando houver par).
+        e.setLearnedPatternDecision(null);
+        e.setLearnedPatternCount(null);
+        e.setLearnedPatternTotal(null);
 
         String reliability = e.getGeographicReliability();
         boolean lowReliability = "BAIXA".equals(reliability) || "INDETERMINADA".equals(reliability);
@@ -104,6 +110,52 @@ public class PaymentPlaceScorer {
                 cedente += 1;
                 nonGeoSignal = true;
                 factors.add("+1 cedente · cedente já classificado como cedente em %d título(s)".formatted(prev));
+            }
+        }
+
+        // Padrão aprendido pelo par cedente×sacado: decisões passadas entre as MESMAS duas
+        // empresas. Sinal forte e explicável — é o que faz o sistema "aprender" a cada importação.
+        String cedDoc = PaymentPlacePatternService.digits(e.getClientDocument());
+        String payDoc = PaymentPlacePatternService.digits(e.getPayerDocument());
+        if (cedDoc != null && payDoc != null) {
+            var pattern = patternRepository.findByClientDocumentAndPayerDocument(cedDoc, payDoc).orElse(null);
+            if (pattern != null && pattern.isLocked() && pattern.getLockedDecision() != null) {
+                int pts = 5;
+                String locked = pattern.getLockedDecision();
+                if ("CEDENTE".equals(locked)) {
+                    cedente += pts;
+                } else {
+                    sacado += pts;
+                }
+                nonGeoSignal = true;
+                e.setLearnedPatternDecision(locked);
+                e.setLearnedPatternCount(Math.max(pattern.getCedenteCount(), pattern.getSacadoCount()));
+                e.setLearnedPatternTotal(pattern.getTotalCount());
+                factors.add("+%d %s · 🔒 padrão travado pelo analista para este par".formatted(pts, locked.toLowerCase(Locale.ROOT)));
+            } else if (pattern != null && pattern.getTotalCount() >= 2) {
+                int dom = Math.max(pattern.getCedenteCount(), pattern.getSacadoCount());
+                String domDecision = pattern.getCedenteCount() >= pattern.getSacadoCount() ? "CEDENTE" : "SACADO";
+                double share = (double) dom / pattern.getTotalCount();
+                if (dom >= 2 && share >= 0.75) {
+                    int pts = 2;
+                    if (pattern.getTotalCount() >= 4) {
+                        pts++;
+                    }
+                    if (share >= 0.999) {
+                        pts++;
+                    }
+                    if ("CEDENTE".equals(domDecision)) {
+                        cedente += pts;
+                    } else {
+                        sacado += pts;
+                    }
+                    nonGeoSignal = true;
+                    e.setLearnedPatternDecision(domDecision);
+                    e.setLearnedPatternCount(dom);
+                    e.setLearnedPatternTotal(pattern.getTotalCount());
+                    factors.add("+%d %s · par já decidido %s em %d/%d títulos (padrão aprendido)"
+                            .formatted(pts, domDecision.toLowerCase(Locale.ROOT), domDecision, dom, pattern.getTotalCount()));
+                }
             }
         }
 

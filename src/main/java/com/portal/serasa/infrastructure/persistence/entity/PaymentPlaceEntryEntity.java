@@ -199,6 +199,16 @@ public class PaymentPlaceEntryEntity {
     @Column(name = "reopened_at")
     private LocalDateTime reopenedAt;
 
+    // Snapshot do padrão aprendido (par cedente×sacado) no momento do score.
+    @Column(name = "learned_pattern_decision", length = 30)
+    private String learnedPatternDecision;
+
+    @Column(name = "learned_pattern_count")
+    private Integer learnedPatternCount;
+
+    @Column(name = "learned_pattern_total")
+    private Integer learnedPatternTotal;
+
     @org.springframework.data.annotation.CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

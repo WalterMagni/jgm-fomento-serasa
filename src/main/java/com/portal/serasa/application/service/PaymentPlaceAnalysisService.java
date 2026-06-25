@@ -39,6 +39,7 @@ public class PaymentPlaceAnalysisService {
     private final PaymentPlaceInstitutionClassifier institutionClassifier;
     private final MunicipalityGeocoder geocoder;
     private final PaymentPlaceScorer scorer;
+    private final PaymentPlacePatternService patternService;
     private final PaymentPlaceAgencyEnricher agencyEnricher;
     private final PaymentPlaceSacadoEnricher sacadoEnricher;
     private final ClientProfileService clientProfileService;
@@ -214,7 +215,27 @@ public class PaymentPlaceAnalysisService {
         if ("CEDENTE".equals(normalizedDecision)) {
             scheduleSacadoProfile(saved.getPayerDocument());
         }
+        schedulePatternUpdate(saved.getClientDocument(), saved.getPayerDocument());
         return saved;
+    }
+
+    /**
+     * Após o commit da decisão, recompila o padrão aprendido do par cedente×sacado (a partir
+     * da fonte de verdade). Roda em background para não pesar a resposta; o resultado vale para
+     * as próximas importações desse par.
+     */
+    private void schedulePatternUpdate(String clientDocument, String payerDocument) {
+        if (PaymentPlacePatternService.digits(clientDocument) == null
+                || PaymentPlacePatternService.digits(payerDocument) == null) {
+            return;
+        }
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        patternService.recordPair(clientDocument, payerDocument);
+                    }
+                });
     }
 
     /**
@@ -260,7 +281,39 @@ public class PaymentPlaceAnalysisService {
             }
         });
 
-        return entryRepository.save(entry);
+        PaymentPlaceEntryEntity saved = entryRepository.save(entry);
+        // Reabrir tira a decisão → o padrão do par precisa cair também.
+        schedulePatternUpdate(saved.getClientDocument(), saved.getPayerDocument());
+        return saved;
+    }
+
+    /** Reabre vários lançamentos de uma vez (desfazer decisões em massa). */
+    @Transactional
+    public List<PaymentPlaceEntryEntity> bulkReopen(java.util.Collection<UUID> entryIds) {
+        if (entryIds == null || entryIds.isEmpty()) {
+            return List.of();
+        }
+        List<PaymentPlaceEntryEntity> entries = entryRepository.findAllById(entryIds);
+        java.util.Set<UUID> batchesToUnarchive = new java.util.HashSet<>();
+        for (PaymentPlaceEntryEntity entry : entries) {
+            entry.setAnalystDecision(null);
+            entry.setAnalysisStatus(ENTRY_STATUS_PENDING);
+            entry.setDecidedAt(null);
+            entry.setDecidedByUserId(null);
+            entry.setDecidedByName(null);
+            entry.setReopenedAt(LocalDateTime.now());
+            batchesToUnarchive.add(entry.getBatchId());
+            schedulePatternUpdate(entry.getClientDocument(), entry.getPayerDocument());
+        }
+        for (UUID batchId : batchesToUnarchive) {
+            batchRepository.findById(batchId).ifPresent(batch -> {
+                if (STATUS_ARCHIVED.equals(batch.getStatus())) {
+                    batch.setStatus(STATUS_IMPORTED);
+                    batchRepository.save(batch);
+                }
+            });
+        }
+        return entryRepository.saveAll(entries);
     }
 
     /** Registra quem decidiu e quando. */
@@ -445,10 +498,12 @@ public class PaymentPlaceAnalysisService {
             String normalizedDecision = normalizeDecision(decisionsByEntryId.get(entry.getId()));
             entry.setAnalystDecision(normalizedDecision);
             entry.setAnalysisStatus(ENTRY_STATUS_REVIEWED);
+            entry.setReopenedAt(null);
             stampDecision(entry, user);
             if ("CEDENTE".equals(normalizedDecision)) {
                 scheduleSacadoProfile(entry.getPayerDocument());
             }
+            schedulePatternUpdate(entry.getClientDocument(), entry.getPayerDocument());
         }
         return entryRepository.saveAll(entries);
     }

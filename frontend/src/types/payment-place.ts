@@ -81,6 +81,10 @@ export type PaymentPlaceEntry = {
   agencyAddressResolved?: string | null;
   agencyEnrichedAt?: string | null;
   reopenedAt?: string | null;
+  // Padrão aprendido (par cedente×sacado) que reforçou a sugestão automática.
+  learnedPatternDecision?: "SACADO" | "CEDENTE" | null;
+  learnedPatternCount?: number | null;
+  learnedPatternTotal?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   batchFileName?: string | null;
@@ -120,6 +124,36 @@ export type PaymentPlaceBatchIndicators = {
   disagreementPct: number;
   topRecurringBankAgencies: PaymentPlaceBankAgencyIndicator[];
   topDivergentBankAgencies: PaymentPlaceBankAgencyIndicator[];
+};
+
+export type PaymentPlacePattern = {
+  id: string;
+  clientDocument: string;
+  payerDocument: string;
+  clientName?: string | null;
+  payerName?: string | null;
+  cedenteCount: number;
+  sacadoCount: number;
+  inconclusivoCount: number;
+  totalCount: number;
+  dominantDecision?: "SACADO" | "CEDENTE" | null;
+  dominantCount: number;
+  consistencyPct?: number | null;
+  lastDecision?: string | null;
+  lastDecidedAt?: string | null;
+  locked: boolean;
+  lockedDecision?: "SACADO" | "CEDENTE" | null;
+  lockedByName?: string | null;
+};
+
+export type PaymentPlacePatternsPage = {
+  patterns: PaymentPlacePattern[];
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+  totalPatterns: number;
+  lockedPatterns: number;
 };
 
 export type CompanyBranch = {

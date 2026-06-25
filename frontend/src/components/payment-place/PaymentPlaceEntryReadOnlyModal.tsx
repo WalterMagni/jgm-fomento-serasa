@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { PaymentPlaceEntry } from "../../types/payment-place";
 import { EntryAttachmentsReadOnly } from "./EntryAttachments";
+import { usePartyNote } from "../../hooks/usePaymentPlace";
 
 const PaymentPlaceMap = dynamic(() => import("./PaymentPlaceMap"), { ssr: false });
 
@@ -32,6 +33,19 @@ function suggestionLabel(s?: string | null) {
   if (s === "PROVAVEL_CEDENTE") return "Provável cedente";
   if (s === "INCONCLUSIVO") return "Inconclusivo";
   return "Sem sugestão";
+}
+
+// Observação persistente da parte (cedente/sacado) — somente leitura na ficha da empresa.
+function PartyNoteRO({ partyType, document, color }: { partyType: "CEDENTE" | "SACADO"; document?: string | null; color: string }) {
+  const { data } = usePartyNote(partyType, document);
+  const note = data?.note?.trim();
+  if (!note) return null;
+  return (
+    <div className="mt-2 rounded-md border border-border-light bg-white/60 px-2.5 py-1.5 dark:border-border-dark dark:bg-white/[0.03]">
+      <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>Observação</p>
+      <p className="whitespace-pre-wrap text-sm text-grafite dark:text-white">{note}</p>
+    </div>
+  );
 }
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
@@ -118,6 +132,12 @@ export default function PaymentPlaceEntryReadOnlyModal({ entry, onClose }: { ent
                 <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
                   <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Pré-análise automática</p>
                   <p className="mt-1 text-sm font-bold text-grafite dark:text-white">{suggestionLabel(entry.automaticSuggestion)} · Sacado {entry.scoreSacado ?? 0} / Cedente {entry.scoreCedente ?? 0}</p>
+                  {entry.learnedPatternDecision && entry.learnedPatternTotal ? (
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30">
+                      <Icon name="psychology" size={14} />
+                      Padrão aprendido · {entry.learnedPatternDecision === "CEDENTE" ? "Cedente" : "Sacado"} {entry.learnedPatternCount}/{entry.learnedPatternTotal}
+                    </span>
+                  ) : null}
                   {entry.automaticEvidence ? (
                     <ul className="mt-2 space-y-1 border-t border-border-light pt-2 text-xs text-gray-600 dark:border-border-dark dark:text-gray-300">
                       {entry.automaticEvidence.split("\n").filter(Boolean).map((l, i) => <li key={i} className="flex gap-1.5"><span className="text-gray-300">•</span><span>{l}</span></li>)}
@@ -136,22 +156,24 @@ export default function PaymentPlaceEntryReadOnlyModal({ entry, onClose }: { ent
 
               <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
                 <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Partes do título</p>
-                <div className="mt-3 space-y-3 text-sm">
-                  <div>
+                <div className="mt-3 space-y-2.5 text-sm">
+                  <div className="rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#612035", background: "#6120350a" }}>
                     <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#612035" }}><span className="h-2.5 w-2.5 rounded-full" style={{ background: "#612035" }} />Cedente {entry.clientCode ? <span className="font-normal text-gray-400">· cód. {entry.clientCode}</span> : null}</p>
                     {entry.clientName ? <p className="mt-0.5 font-bold text-grafite dark:text-white">{entry.clientName}</p> : null}
                     {entry.clientDocument ? <p className="text-xs text-gray-500">{fmtCnpj(entry.clientDocument)}</p> : null}
                     <p className="text-grafite dark:text-white">{entry.clientAddress ?? clean(entry.clientCity)}</p>
+                    <PartyNoteRO partyType="CEDENTE" document={entry.clientDocument} color="#612035" />
                   </div>
-                  <div>
-                    <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D1732C" }}><span className="h-2.5 w-2.5 rounded-full" style={{ background: "#D1732C" }} />Agência</p>
-                    <p className="text-grafite dark:text-white">{entry.agencyAddressResolved ?? clean(entry.agencyCityPdf)}</p>
-                  </div>
-                  <div>
+                  <div className="rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#2956E0", background: "#2956E00a" }}>
                     <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#2956E0" }}><span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2956E0" }} />Sacado</p>
                     {entry.payerName ? <p className="mt-0.5 font-bold text-grafite dark:text-white">{entry.payerName}</p> : null}
                     {entry.payerDocument ? <p className="text-xs text-gray-500">{fmtCnpj(entry.payerDocument)}</p> : null}
                     <p className="text-grafite dark:text-white">{entry.payerAddress ?? clean(entry.payerCity)}</p>
+                    <PartyNoteRO partyType="SACADO" document={entry.payerDocument} color="#2956E0" />
+                  </div>
+                  <div className="rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#D1732C", background: "#D1732C0a" }}>
+                    <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D1732C" }}><span className="h-2.5 w-2.5 rounded-full" style={{ background: "#D1732C" }} />Agência</p>
+                    <p className="text-grafite dark:text-white">{entry.agencyAddressResolved ?? clean(entry.agencyCityPdf)}</p>
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchIndicatorsRespon
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceBatchResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceCompanySummaryResponse;
 import com.portal.serasa.api.rest.dto.response.PaymentPlaceEntryResponse;
+import com.portal.serasa.api.rest.dto.response.PaymentPlacePatternResponse;
 import com.portal.serasa.application.service.PaymentPlaceAnalysisService;
 import com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceBatchEntity;
 import com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryEntity;
@@ -40,7 +41,73 @@ public class PaymentPlaceAnalysisController {
 
     private final PaymentPlaceAnalysisService paymentPlaceAnalysisService;
     private final com.portal.serasa.application.service.CompanyBranchService companyBranchService;
+    private final com.portal.serasa.application.service.PaymentPlacePatternService patternService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    /** Tela "Padrões aprendidos": lista paginada dos pares cedente×sacado + resumo. */
+    @GetMapping("/padroes")
+    public ResponseEntity<java.util.Map<String, Object>> listPatterns(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var result = patternService.list(q, page, size);
+        var stats = patternService.stats();
+        return ResponseEntity.ok(java.util.Map.of(
+                "patterns", result.getContent().stream().map(this::toPatternResponse).toList(),
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalPages", result.getTotalPages(),
+                "totalElements", result.getTotalElements(),
+                "totalPatterns", stats.totalPatterns(),
+                "lockedPatterns", stats.lockedPatterns()));
+    }
+
+    /** Recompila todos os padrões a partir das decisões existentes (conserta dados desatualizados). */
+    @PostMapping("/padroes/recalcular")
+    public ResponseEntity<java.util.Map<String, Object>> recomputePatterns() {
+        int pairs = patternService.recomputeAll();
+        return ResponseEntity.ok(java.util.Map.of("recomputedPairs", pairs));
+    }
+
+    /** Trava/destrava um par (override forte do analista). Body: {locked, decision}. */
+    @PatchMapping("/padroes/{patternId}/travar")
+    public ResponseEntity<PaymentPlacePatternResponse> lockPattern(
+            @PathVariable UUID patternId,
+            @RequestBody java.util.Map<String, Object> body) {
+        boolean locked = Boolean.parseBoolean(String.valueOf(body.getOrDefault("locked", false)));
+        String decision = body.get("decision") == null ? null : body.get("decision").toString();
+        return ResponseEntity.ok(toPatternResponse(
+                patternService.setLock(patternId, locked, decision, getAuthenticatedUser())));
+    }
+
+    private PaymentPlacePatternResponse toPatternResponse(
+            com.portal.serasa.infrastructure.persistence.entity.PaymentPlacePatternEntity p) {
+        int dom = Math.max(p.getCedenteCount(), p.getSacadoCount());
+        String dominant = null;
+        if (p.getCedenteCount() != p.getSacadoCount()) {
+            dominant = p.getCedenteCount() > p.getSacadoCount() ? "CEDENTE" : "SACADO";
+        }
+        Integer consistency = p.getTotalCount() > 0 ? Math.round(dom * 100f / p.getTotalCount()) : null;
+        return PaymentPlacePatternResponse.builder()
+                .id(p.getId())
+                .clientDocument(p.getClientDocument())
+                .payerDocument(p.getPayerDocument())
+                .clientName(patternService.companyName(p.getClientDocument()))
+                .payerName(patternService.companyName(p.getPayerDocument()))
+                .cedenteCount(p.getCedenteCount())
+                .sacadoCount(p.getSacadoCount())
+                .inconclusivoCount(p.getInconclusivoCount())
+                .totalCount(p.getTotalCount())
+                .dominantDecision(dominant)
+                .dominantCount(dom)
+                .consistencyPct(consistency)
+                .lastDecision(p.getLastDecision())
+                .lastDecidedAt(p.getLastDecidedAt())
+                .locked(p.isLocked())
+                .lockedDecision(p.getLockedDecision())
+                .lockedByName(p.getLockedByName())
+                .build();
+    }
 
     @GetMapping("/filiais/{cnpj}")
     public ResponseEntity<List<com.portal.serasa.api.rest.dto.response.CompanyBranchResponse>> branches(
@@ -285,6 +352,24 @@ public class PaymentPlaceAnalysisController {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.reopenEntry(entryId)));
     }
 
+    /** Reabre vários lançamentos de uma vez (desfazer decisões em massa). Body: {entryIds: [...]}. */
+    @PatchMapping("/lancamentos/reaberturas")
+    public ResponseEntity<List<PaymentPlaceEntryResponse>> bulkReopen(
+            @RequestBody java.util.Map<String, Object> body) {
+        Object raw = body.get("entryIds");
+        java.util.List<UUID> ids = new java.util.ArrayList<>();
+        if (raw instanceof java.util.List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    ids.add(UUID.fromString(item.toString()));
+                }
+            }
+        }
+        return ResponseEntity.ok(paymentPlaceAnalysisService.bulkReopen(ids).stream()
+                .map(this::toEntryResponse)
+                .toList());
+    }
+
     // ---- Anexos do título ----
 
     @GetMapping("/lancamentos/{entryId}/anexos")
@@ -457,6 +542,9 @@ public class PaymentPlaceAnalysisController {
                 .agencyAddressResolved(entity.getAgencyAddressResolved())
                 .agencyEnrichedAt(entity.getAgencyEnrichedAt())
                 .reopenedAt(entity.getReopenedAt())
+                .learnedPatternDecision(entity.getLearnedPatternDecision())
+                .learnedPatternCount(entity.getLearnedPatternCount())
+                .learnedPatternTotal(entity.getLearnedPatternTotal())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

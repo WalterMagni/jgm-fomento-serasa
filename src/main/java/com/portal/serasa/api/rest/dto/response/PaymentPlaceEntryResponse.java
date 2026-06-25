@@ -72,6 +72,12 @@ public class PaymentPlaceEntryResponse {
     private String agencyAddressResolved;
     private LocalDateTime agencyEnrichedAt;
     private LocalDateTime reopenedAt;
+
+    // Padrão aprendido (par cedente×sacado) que reforçou a sugestão automática, se houver.
+    private String learnedPatternDecision;
+    private Integer learnedPatternCount;
+    private Integer learnedPatternTotal;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

@@ -9,6 +9,7 @@ import {
   CompanyNotInPortfolioError,
   useArchivePaymentPlaceBatch,
   useBulkDecidePaymentPlace,
+  useBulkReopenPaymentPlace,
   useCompanyBranches,
   useLinkCedenteCnpj,
   useDeletePaymentPlaceBatch,
@@ -23,6 +24,7 @@ import {
   useSavePartyNote,
 } from "../../../hooks/usePaymentPlace";
 import { useReopenPaymentPlaceEntry } from "../../../hooks/usePaymentPlaceCompany";
+import LearnedPatternAssistant from "../../../components/payment-place/LearnedPatternAssistant";
 import { AttachmentBadge, AttachmentViewerModal, EntryAttachmentsPanel } from "../../../components/payment-place/EntryAttachments";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
 import Icon from "../../../components/ui/Icon";
@@ -316,6 +318,7 @@ export default function PaymentPlacePage() {
   const indicatorsQuery = usePaymentPlaceIndicatorsAll(activeBatchIds);
   const decideMutation = useDecidePaymentPlaceEntry();
   const bulkDecideMutation = useBulkDecidePaymentPlace();
+  const bulkReopenMutation = useBulkReopenPaymentPlace();
   const enrichAgencyMutation = useEnrichAgencyBacen();
   const enrichPayerCnpjMutation = useEnrichPayerCnpj();
   const reopenMutation = useReopenPaymentPlaceEntry();
@@ -598,6 +601,12 @@ export default function PaymentPlacePage() {
     const decisions = Array.from(selectedIds).map((entryId) => ({ entryId, decision }));
     if (!decisions.length) return;
     bulkDecideMutation.mutate(decisions, { onSuccess: () => exitSelectMode() });
+  };
+  // Desfazer em massa: reabre só os selecionados que já têm decisão.
+  const decidedSelectedIds = Array.from(selectedIds).filter((id) => sortedEntries.find((e) => e.id === id)?.analystDecision);
+  const bulkReopenSelected = () => {
+    if (!decidedSelectedIds.length) return;
+    bulkReopenMutation.mutate(decidedSelectedIds, { onSuccess: () => exitSelectMode() });
   };
 
   // Esc fecha o modal de detalhes ou o menu de cópia.
@@ -972,6 +981,17 @@ export default function PaymentPlacePage() {
                       Limpar
                     </button>
                   ) : null}
+                  {decidedSelectedIds.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={bulkReopenSelected}
+                      disabled={bulkReopenMutation.isPending}
+                      title="Desfazer as decisões dos selecionados (volta para Pendentes)"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-50 dark:border-amber-500/30 dark:bg-surface-dark dark:text-amber-300 dark:hover:bg-amber-500/10"
+                    >
+                      <Icon name="undo" size={14} /> Reabrir ({decidedSelectedIds.length})
+                    </button>
+                  ) : null}
                   <span className="ml-auto flex items-center gap-2">
                     <span className="hidden text-xs font-medium text-gray-500 sm:inline">Definir selecionados como:</span>
                     <button
@@ -1110,6 +1130,15 @@ export default function PaymentPlacePage() {
                         {!selectMode ? (
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
+                          {entry.learnedPatternDecision && entry.learnedPatternTotal ? (
+                            <span
+                              title={`Padrão aprendido: ${entry.learnedPatternDecision === "CEDENTE" ? "Cedente" : "Sacado"} em ${entry.learnedPatternCount}/${entry.learnedPatternTotal} títulos deste par`}
+                              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
+                            >
+                              <Icon name="psychology" size={13} />
+                              {entry.learnedPatternCount}/{entry.learnedPatternTotal}
+                            </span>
+                          ) : null}
                           <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
                           <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
                           <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
@@ -1154,6 +1183,12 @@ export default function PaymentPlacePage() {
           </section>
         </main>
       </section>
+
+      <LearnedPatternAssistant
+        entries={sortedEntries}
+        isApplying={bulkDecideMutation.isPending}
+        onApply={(decisions) => bulkDecideMutation.mutate(decisions)}
+      />
 
       {showBatchModal ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 py-20 backdrop-blur-sm">

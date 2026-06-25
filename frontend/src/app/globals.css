@@ -145,3 +145,35 @@
     height: auto !important;
   }
 }
+
+/* Entrada do painel do Assistente de padrões (LearnedPatternAssistant). */
+@keyframes ppa-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Assistente de padrões — animações "IA pensando". */
+@keyframes ppa-aura {
+  to { transform: rotate(360deg); }
+}
+@keyframes ppa-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes ppa-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(1200%); opacity: 0; }
+}
+@keyframes ppa-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes ppa-think {
+  0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+@keyframes ppa-orbit {
+  from { transform: rotate(0deg) translateX(13px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(13px) rotate(-360deg); }
+}

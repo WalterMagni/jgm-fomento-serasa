@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry } from "../types/payment-place";
+import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry, PaymentPlacePattern, PaymentPlacePatternsPage } from "../types/payment-place";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -115,6 +115,84 @@ export function useSavePartyNote() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["partyNote", vars.partyType, vars.document] });
       toast.success("Observação salva");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+// Padrões aprendidos (par cedente×sacado) — tela /praca-pagamento/padroes.
+export function usePaymentPlacePatterns(params: { q?: string; page?: number; size?: number }) {
+  const { q = "", page = 0, size = 20 } = params;
+  return useQuery<PaymentPlacePatternsPage>({
+    queryKey: ["paymentPlacePatterns", q, page, size],
+    queryFn: async () => {
+      const qs = new URLSearchParams({ q, page: String(page), size: String(size) });
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/padroes?${qs}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error("Erro ao carregar padrões aprendidos");
+      return res.json();
+    },
+  });
+}
+
+export function useBulkReopenPaymentPlace() {
+  const queryClient = useQueryClient();
+  return useMutation<PaymentPlaceEntry[], Error, string[]>({
+    mutationFn: async (entryIds) => {
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/reaberturas`, {
+        method: "PATCH",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ entryIds }),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao reabrir decisões"));
+      return res.json();
+    },
+    onSuccess: (updated) => {
+      toast.success(`${updated.length} decisão(ões) reaberta(s)`);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useRecomputePatterns() {
+  const queryClient = useQueryClient();
+  return useMutation<{ recomputedPairs: number }, Error, void>({
+    mutationFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/padroes/recalcular`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao recalcular padrões"));
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
+      toast.success(`${data.recomputedPairs} pares recalculados`);
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useTogglePatternLock() {
+  const queryClient = useQueryClient();
+  return useMutation<PaymentPlacePattern, Error, { patternId: string; locked: boolean; decision?: "SACADO" | "CEDENTE" }>({
+    mutationFn: async ({ patternId, locked, decision }) => {
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/padroes/${patternId}/travar`, {
+        method: "PATCH",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ locked, decision }),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao travar padrão"));
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
+      toast.success(vars.locked ? "Padrão travado" : "Padrão destravado");
     },
     onError: (error) => toast.error(error.message),
   });

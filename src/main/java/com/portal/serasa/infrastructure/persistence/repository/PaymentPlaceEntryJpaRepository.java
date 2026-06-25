@@ -19,6 +19,31 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
 
     long countByClientCodeAndAnalystDecision(String clientCode, String analystDecision);
 
+    /**
+     * Decisões (decisão + data) dos lançamentos de um par cedente×sacado, mais recentes primeiro.
+     * Documentos normalizados no SQL (payer vem mascarado do PDF). O serviço conta em Java —
+     * evita projeção de interface sobre native query (que falha silenciosamente com FILTER/array_agg).
+     */
+    @Query(value = "SELECT e.analyst_decision, e.decided_at "
+            + "FROM payment_place_entries e "
+            + "WHERE e.analyst_decision IS NOT NULL "
+            + "AND regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') = :ced "
+            + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') = :pay "
+            + "ORDER BY e.decided_at DESC NULLS LAST",
+            nativeQuery = true)
+    java.util.List<Object[]> findPairDecisions(@Param("ced") String clientDocument, @Param("pay") String payerDocument);
+
+    /** Pares distintos (cedente×sacado, só dígitos) que têm ao menos uma decisão — para recompilar tudo. */
+    @Query(value = "SELECT DISTINCT "
+            + "regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') AS ced, "
+            + "regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') AS pay "
+            + "FROM payment_place_entries e "
+            + "WHERE e.analyst_decision IS NOT NULL "
+            + "AND regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') <> '' "
+            + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') <> ''",
+            nativeQuery = true)
+    java.util.List<Object[]> findDecidedPairs();
+
     List<PaymentPlaceEntryEntity> findByClientDocumentAndAnalystDecisionIsNotNullOrderByDecidedAtDesc(String clientDocument);
 
     /**
