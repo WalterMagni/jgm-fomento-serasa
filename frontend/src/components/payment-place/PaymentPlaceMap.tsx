@@ -8,9 +8,11 @@ function FitBounds({ points }: { points: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
     if (points.length === 1) {
-      map.setView(points[0], 8);
+      map.setView(points[0], 11);
     } else if (points.length > 1) {
-      map.fitBounds(points, { padding: [50, 50], maxZoom: 9 });
+      // Ajusta o enquadramento à distância real: pontos próximos aproximam (fecha),
+      // distantes afastam (abre). maxZoom alto permite fechar bem quando perto.
+      map.fitBounds(points, { padding: [40, 40], maxZoom: 13 });
     }
   }, [map, points]);
   return null;

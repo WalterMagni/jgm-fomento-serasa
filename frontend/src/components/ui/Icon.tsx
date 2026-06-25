@@ -4,13 +4,13 @@ import {
   Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpDown,
   BadgeCheck, BarChart3, Braces, Brain, Briefcase, Building2, Calendar, CalendarDays, Check, CheckCheck, CheckCircle2, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsLeft, ChevronsRight, ChevronsUpDown,
-  CircleAlert, ClipboardCheck, Clock, Copy, Download, Eye, ExternalLink, File, FileArchive,
+  CircleAlert, CircleX, ClipboardCheck, Clock, Copy, Database, Download, Eye, ExternalLink, File, FileArchive,
   FileText, FileUp, Filter, Folder, FolderOpen, FolderPlus, Footprints, Gavel, Globe, HelpCircle,
   History, Home, Hourglass, IdCard, Image as ImageIcon, Inbox, Info, Landmark, Layers, Link as LinkIcon, Mail, MessageSquarePlus, Network,
   ListChecks, LogOut, Map as MapIcon, Maximize2, Minus, Moon, MoreHorizontal, MoreVertical,
-  Paperclip, Pencil, PenLine, Phone, Plus, ReceiptText, Reply, RotateCcw, Save, ScrollText, Search,
-  Settings, Shield, ShieldAlert, ShieldCheck, Sparkles, Sun, Table, Tag, ThumbsUp, Trash2,
-  TrendingUp, Undo2, Unlink, Upload, UploadCloud, User, UserCheck, Users, UserSearch, X, ZoomIn,
+  Paperclip, Pencil, PenLine, Phone, Plus, Presentation, ReceiptText, Reply, RotateCcw, Save, ScrollText, Search,
+  Settings, Shield, ShieldAlert, ShieldCheck, Sparkles, StickyNote, Store, Sun, Table, Tag, ThumbsUp, Trash2,
+  TrendingUp, Undo2, Unlink, Upload, UploadCloud, User, UserCheck, Users, UserSearch, Wallet, X, ZoomIn,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +53,9 @@ const ICONS: Record<string, LucideIcon> = {
   account_balance: Landmark, account_tree: Network, add_comment: MessageSquarePlus, autorenew: RotateCcw,
   badge: IdCard, bar_chart: BarChart3, business_center: Briefcase, calendar_today: CalendarDays,
   folder_shared: FolderOpen, hourglass_top: Hourglass, mail: Mail, rule: ListChecks, verified_user: BadgeCheck,
+  public: Globe, account_balance_wallet: Wallet, trending_up: TrendingUp, store: Store,
+  cancel: CircleX, database: Database, domain_verification: BadgeCheck, notes: StickyNote, pending: Clock,
+  slideshow: Presentation,
 };
 
 type Props = {

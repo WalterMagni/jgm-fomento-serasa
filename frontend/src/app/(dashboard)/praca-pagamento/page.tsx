@@ -174,28 +174,72 @@ function SuggestionPill({ suggestion, confidence }: { suggestion?: string | null
   );
 }
 
-function DistanceChip({ label, value, highlight, onClick }: { label: string; value?: number | null; highlight?: boolean; onClick?: () => void }) {
+function DistanceChip({ label, value, highlight }: { label: string; value?: number | null; highlight?: boolean }) {
   const km = formatKm(value);
   if (!km) return null;
-  const base = `inline-flex flex-col whitespace-nowrap rounded-md px-2.5 py-1 leading-tight ${
-    highlight
-      ? "bg-primary/10 text-primary dark:bg-secondary/15 dark:text-secondary"
-      : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
-  }`;
-  const inner = (
-    <>
-      <span className="text-[11px] font-medium opacity-70">{label}</span>
-      <span className="text-sm font-bold">{km}</span>
-    </>
+  // Alusão a mapa: textura de linhas de contorno bem sutil no fundo.
+  const contour = {
+    backgroundImage:
+      "repeating-radial-gradient(circle at 30% 120%, currentColor 0 0.5px, transparent 0.5px 7px)",
+  } as const;
+  return (
+    <span
+      className={`relative inline-flex flex-col overflow-hidden whitespace-nowrap rounded-md border px-2 py-0.5 leading-tight ${
+        highlight
+          ? "border-primary/25 bg-primary/[0.07] text-primary dark:border-secondary/30 dark:bg-secondary/10 dark:text-secondary"
+          : "border-border-light bg-gradient-to-br from-sky-50/70 to-emerald-50/60 text-gray-600 dark:border-border-dark dark:from-white/[0.05] dark:to-white/[0.02] dark:text-gray-300"
+      }`}
+    >
+      <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.06]" style={contour} />
+      <span className="relative inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-tight opacity-70">
+        <Icon name="map" size={9} />
+        {label}
+      </span>
+      <span className="relative text-[13px] font-bold tabular-nums">{km}</span>
+    </span>
   );
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} title={`Ver mapa · ${label}`} className={`${base} text-left transition hover:ring-2 hover:ring-primary/40 dark:hover:ring-secondary/40`}>
-        {inner}
-      </button>
-    );
-  }
-  return <span className={base}>{inner}</span>;
+}
+
+function DecisionButton({
+  label, tone, active, suggested, disabled, onClick,
+}: {
+  label: string;
+  tone: "sacado" | "cedente" | "inconclusivo";
+  active?: boolean;
+  suggested?: boolean;
+  disabled?: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const tones = {
+    sacado: {
+      idle: "border-blue-200 bg-blue-50/70 text-blue-700 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
+      active: "border-blue-600 bg-blue-600 text-white shadow-sm",
+      ring: "ring-blue-300 dark:ring-blue-500/50",
+    },
+    cedente: {
+      idle: "border-primary/20 bg-primary/[0.05] text-primary hover:bg-primary/10 dark:border-secondary/30 dark:bg-secondary/10 dark:text-secondary",
+      active: "border-primary bg-primary text-white shadow-sm dark:border-secondary dark:bg-secondary",
+      ring: "ring-primary/30 dark:ring-secondary/50",
+    },
+    inconclusivo: {
+      idle: "border-amber-200 bg-amber-50/70 text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+      active: "border-amber-500 bg-amber-500 text-white shadow-sm",
+      ring: "ring-amber-300 dark:ring-amber-500/50",
+    },
+  } as const;
+  const t = tones[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-8 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+        active ? t.active : `${t.idle} ${suggested ? `ring-1 ${t.ring}` : ""}`
+      }`}
+    >
+      {label}
+    </button>
+  );
 }
 
 function DecisionPill({ decision }: { decision?: string | null }) {
@@ -254,7 +298,6 @@ export default function PaymentPlacePage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [copyMenu, setCopyMenu] = useState<{ x: number; y: number; entry: PaymentPlaceEntry } | null>(null);
   const [copyMenuVisible, setCopyMenuVisible] = useState(false);
-  const [mapEntry, setMapEntry] = useState<{ entry: PaymentPlaceEntry; pair: "ALL" | "CED_AG" | "SAC_AG" | "CED_SAC" } | null>(null);
   const [viewerEntry, setViewerEntry] = useState<PaymentPlaceEntry | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
@@ -557,20 +600,19 @@ export default function PaymentPlacePage() {
     bulkDecideMutation.mutate(decisions, { onSuccess: () => exitSelectMode() });
   };
 
-  // Esc fecha o modal de detalhes, o mapa ou o menu de cópia.
+  // Esc fecha o modal de detalhes ou o menu de cópia.
   useEffect(() => {
-    if (!expandedEntryId && !copyMenu && !mapEntry) return;
+    if (!expandedEntryId && !copyMenu) return;
     const handler = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") {
         if (copyMenu) closeCopyMenu();
-        else if (mapEntry) setMapEntry(null);
         else setExpandedEntryId(null);
         ev.preventDefault();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [expandedEntryId, copyMenu, mapEntry]);
+  }, [expandedEntryId, copyMenu]);
 
   // Aciona o fade-in no frame seguinte ao montar o menu de cópia.
   useEffect(() => {
@@ -1011,7 +1053,7 @@ export default function PaymentPlacePage() {
                           onPointerUp={clearLongPress}
                           onPointerLeave={clearLongPress}
                           onPointerCancel={clearLongPress}
-                          className="flex flex-col gap-2 lg:flex-row lg:items-center lg:cursor-context-menu"
+                          className="flex flex-col gap-2 lg:flex-row lg:items-center"
                         >
                         {/* Identificação */}
                         <div className="min-w-0 lg:w-[280px]">
@@ -1064,61 +1106,22 @@ export default function PaymentPlacePage() {
                           </div>
                         ) : null}
 
-                        {/* Sugestão + distâncias — cada distância abre o mapa do par */}
+                        {/* Sugestão + distâncias */}
                         {!selectMode ? (
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
-                          <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "CED_AG" }); }} />
-                          <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "SAC_AG" }); }} />
-                          <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight onClick={() => { setFocusedEntryId(entry.id); setMapEntry({ entry, pair: "CED_SAC" }); }} />
+                          <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
+                          <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
+                          <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
                         </div>
                         ) : null}
 
                         {/* Decisão + ações */}
                         {!selectMode ? (
-                        <div className="flex items-center justify-end gap-2 lg:w-[300px]">
-                          {entry.analystDecision ? <DecisionPill decision={entry.analystDecision} /> : null}
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); decide(entry, "SACADO"); }}
-                            disabled={decideMutation.isPending}
-                            className={`inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold transition-colors disabled:opacity-60 ${
-                              entry.analystDecision === "SACADO"
-                                ? "bg-blue-600 text-white"
-                                : suggested === "SACADO"
-                                  ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300 hover:bg-blue-200 dark:bg-blue-500/15 dark:text-blue-300"
-                                  : "border border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                            }`}
-                          >
-                            Sacado
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); decide(entry, "CEDENTE"); }}
-                            disabled={decideMutation.isPending}
-                            className={`inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold transition-colors disabled:opacity-60 ${
-                              entry.analystDecision === "CEDENTE"
-                                ? "bg-slate-700 text-white"
-                                : suggested === "CEDENTE"
-                                  ? "bg-slate-200 text-slate-700 ring-1 ring-slate-300 hover:bg-slate-300 dark:bg-slate-600/40 dark:text-slate-200"
-                                  : "border border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                            }`}
-                          >
-                            Cedente
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); decide(entry, "INCONCLUSIVO"); }}
-                            disabled={decideMutation.isPending}
-                            title="Marcar como inconclusivo (I)"
-                            className={`inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold transition-colors disabled:opacity-60 ${
-                              entry.analystDecision === "INCONCLUSIVO"
-                                ? "bg-amber-500 text-white"
-                                : "border border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                            }`}
-                          >
-                            Inconclusivo
-                          </button>
+                        <div className="flex items-center justify-end gap-1.5 lg:w-[300px]">
+                          <DecisionButton label="Sacado" active={entry.analystDecision === "SACADO"} suggested={suggested === "SACADO"} tone="sacado" disabled={decideMutation.isPending} onClick={(e) => { e.stopPropagation(); decide(entry, "SACADO"); }} />
+                          <DecisionButton label="Cedente" active={entry.analystDecision === "CEDENTE"} suggested={suggested === "CEDENTE"} tone="cedente" disabled={decideMutation.isPending} onClick={(e) => { e.stopPropagation(); decide(entry, "CEDENTE"); }} />
+                          <DecisionButton label="Inconclusivo" active={entry.analystDecision === "INCONCLUSIVO"} tone="inconclusivo" disabled={decideMutation.isPending} onClick={(e) => { e.stopPropagation(); decide(entry, "INCONCLUSIVO"); }} />
                           {entry.analystDecision ? (
                             <button
                               type="button"
@@ -1477,75 +1480,6 @@ export default function PaymentPlacePage() {
         <AttachmentViewerModal entryId={viewerEntry.id} title={viewerEntry.titleNumber ?? undefined} onClose={() => setViewerEntry(null)} />
       ) : null}
 
-      {mapEntry && typeof document !== "undefined" ? (() => {
-        const e = mapEntry.entry;
-        const CED = { label: "Cedente", city: e.clientCity, lat: e.clientLatitude, lng: e.clientLongitude, color: "#612035" };
-        const AG = { label: "Agência", city: e.agencyCityPdf, lat: e.agencyLatitude, lng: e.agencyLongitude, color: "#D1732C" };
-        const SAC = { label: "Sacado", city: e.payerCity, lat: e.payerLatitude, lng: e.payerLongitude, color: "#2956E0" };
-        const view = {
-          ALL: { points: [CED, AG, SAC], card: <><DistanceCard label="Cedente ↔ Agência" from={e.clientCity} to={e.agencyCityPdf} value={e.distanceClientAgencyKm} color="#D1732C" /><DistanceCard label="Sacado ↔ Agência" from={e.payerCity} to={e.agencyCityPdf} value={e.distanceAgencyPayerKm} color="#2956E0" /><DistanceCard label="Cedente ↔ Sacado" from={e.clientCity} to={e.payerCity} value={e.distanceClientPayerKm} color="#612035" /></> },
-          CED_AG: { points: [CED, AG], card: <DistanceCard label="Cedente ↔ Agência" from={e.clientCity} to={e.agencyCityPdf} value={e.distanceClientAgencyKm} color="#D1732C" /> },
-          SAC_AG: { points: [SAC, AG], card: <DistanceCard label="Sacado ↔ Agência" from={e.payerCity} to={e.agencyCityPdf} value={e.distanceAgencyPayerKm} color="#2956E0" /> },
-          CED_SAC: { points: [CED, SAC], card: <DistanceCard label="Cedente ↔ Sacado" from={e.clientCity} to={e.payerCity} value={e.distanceClientPayerKm} color="#612035" /> },
-        }[mapEntry.pair];
-        const setPair = (pair: typeof mapEntry.pair) => setMapEntry({ entry: e, pair });
-        return createPortal(
-        <div
-          className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-          onClick={() => setMapEntry(null)}
-        >
-          <div
-            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-2xl dark:border-border-dark dark:bg-surface-dark"
-            onClick={(ev) => ev.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-border-light p-4 dark:border-border-dark">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-grafite dark:text-white">{e.titleNumber}</p>
-                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                  Sacado: {clean(e.payerName)} · Cedente: {e.clientName ?? "—"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMapEntry(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
-                aria-label="Fechar"
-              >
-                <Icon name="close" size={20} />
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 border-b border-border-light px-4 py-2 dark:border-border-dark">
-              {([
-                ["ALL", "Todos"],
-                ["CED_AG", "Cedente ↔ Agência"],
-                ["SAC_AG", "Sacado ↔ Agência"],
-                ["CED_SAC", "Cedente ↔ Sacado"],
-              ] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setPair(key)}
-                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
-                    mapEntry.pair === key
-                      ? "bg-primary text-white dark:bg-secondary"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className={`grid grid-cols-1 gap-2 p-4 ${mapEntry.pair === "ALL" ? "sm:grid-cols-3" : ""}`}>
-              {view.card}
-            </div>
-            <div className="min-h-[340px] flex-1 overflow-hidden border-t border-border-light dark:border-border-dark">
-              <PaymentPlaceMap points={view.points} />
-            </div>
-          </div>
-        </div>,
-        document.body,
-        );
-      })() : null}
 
       {copyMenu && typeof document !== "undefined" ? createPortal(
         <div
