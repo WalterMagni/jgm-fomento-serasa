@@ -1902,7 +1902,8 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
         <div className="space-y-4">
         <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
           <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Partes do título</p>
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-2.5">
+            <div className="space-y-3 rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#612035", background: "#6120350a" }}>
             <div>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#612035" }}>
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#612035" }} />
@@ -1935,6 +1936,8 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
               )}
             </div>
             <PartyNoteField partyType="CEDENTE" document={entry.clientDocument} label="Observação do cedente" color="#612035" />
+            </div>
+            <div className="space-y-3 rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#2956E0", background: "#2956E00a" }}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#2956E0" }}>
@@ -1981,6 +1984,8 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
               </p>
             </div>
             <PartyNoteField partyType="SACADO" document={entry.payerDocument} label="Observação do sacado" color="#2956E0" />
+            </div>
+            <div className="rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#D1732C", background: "#D1732C0a" }}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D1732C" }}>
@@ -2000,6 +2005,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
               <p className="mt-0.5 text-sm text-grafite dark:text-white">
                 {entry.agencyAddressResolved ?? <span className="text-gray-400">Agência não localizada no cadastro Bacen para este banco/código</span>}
               </p>
+            </div>
             </div>
           </div>
         </div>
