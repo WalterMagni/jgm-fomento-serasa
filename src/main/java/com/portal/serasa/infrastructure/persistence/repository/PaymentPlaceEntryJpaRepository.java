@@ -33,6 +33,18 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
             nativeQuery = true)
     java.util.List<Object[]> findPairDecisions(@Param("ced") String clientDocument, @Param("pay") String payerDocument);
 
+    /**
+     * Lançamentos AINDA pendentes (sem decisão) de um par cedente×sacado (documentos só dígitos).
+     * Usado para re-scorar os irmãos assim que o padrão do par muda → a sugestão do cérebro
+     * aparece sozinha sem reimportar.
+     */
+    @Query(value = "SELECT * FROM payment_place_entries e "
+            + "WHERE e.analyst_decision IS NULL "
+            + "AND regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') = :ced "
+            + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') = :pay",
+            nativeQuery = true)
+    java.util.List<PaymentPlaceEntryEntity> findPendingByPair(@Param("ced") String clientDocument, @Param("pay") String payerDocument);
+
     /** Pares distintos (cedente×sacado, só dígitos) que têm ao menos uma decisão — para recompilar tudo. */
     @Query(value = "SELECT DISTINCT "
             + "regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') AS ced, "

@@ -81,6 +81,7 @@ export function useReopenPaymentPlaceEntry() {
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
     },
     onError: (error) => {
       toast.error(error.message);

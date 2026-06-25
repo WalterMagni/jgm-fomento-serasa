@@ -653,7 +653,10 @@ export function useBulkDecidePaymentPlace() {
           };
         });
         queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", bId] });
+        // Irmãos pendentes re-scorados no servidor → recarrega o lote pra acender o cérebro.
+        queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch", bId] });
       });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -688,6 +691,9 @@ export function useDecidePaymentPlaceEntry() {
         };
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
+      // Padrão recompilado + irmãos pendentes re-scorados no servidor → recarrega lote e padrões.
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch", updatedEntry.batchId] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
     },
     onError: (error) => {
       toast.error(error.message);

@@ -27,6 +27,7 @@ public class PaymentPlacePatternService {
     private final PaymentPlacePatternJpaRepository patternRepository;
     private final PaymentPlaceEntryJpaRepository entryRepository;
     private final com.portal.serasa.application.port.out.CompanyDetailRepository companyDetailRepository;
+    private final PaymentPlaceScorer scorer;
 
     /** Nome da empresa pelo documento (best-effort, para a tela de padrões). */
     @Transactional(readOnly = true)
@@ -100,6 +101,14 @@ public class PaymentPlacePatternService {
         pattern.setLastDecision(lastDecision);
         pattern.setLastDecidedAt(lastAt);
         patternRepository.save(pattern);
+
+        // Re-scora os lançamentos ainda pendentes do mesmo par: agora que o padrão mudou, a
+        // sugestão (e o snapshot que o cérebro lê) aparece sozinha, sem precisar reimportar.
+        var pending = entryRepository.findPendingByPair(ced, pay);
+        if (!pending.isEmpty()) {
+            pending.forEach(scorer::apply);
+            entryRepository.saveAll(pending);
+        }
     }
 
     private static java.time.LocalDateTime toDateTime(Object value) {

@@ -1057,7 +1057,9 @@ export default function PaymentPlacePage() {
                               ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
                               : entry.reopenedAt
                                 ? "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/10"
-                                : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
+                                : entry.learnedPatternDecision
+                                  ? "ring-1 ring-inset ring-emerald-200/50 shadow-[inset_0_0_26px_-8px_rgba(16,185,129,0.45)] hover:shadow-[inset_0_0_30px_-6px_rgba(16,185,129,0.55)] dark:ring-emerald-500/20 dark:shadow-[inset_0_0_28px_-8px_rgba(16,185,129,0.35)]"
+                                  : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
                         }`}
                       >
                         {selectMode ? (
@@ -1130,15 +1132,6 @@ export default function PaymentPlacePage() {
                         {!selectMode ? (
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
-                          {entry.learnedPatternDecision && entry.learnedPatternTotal ? (
-                            <span
-                              title={`Padrão aprendido: ${entry.learnedPatternDecision === "CEDENTE" ? "Cedente" : "Sacado"} em ${entry.learnedPatternCount}/${entry.learnedPatternTotal} títulos deste par`}
-                              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
-                            >
-                              <Icon name="psychology" size={13} />
-                              {entry.learnedPatternCount}/{entry.learnedPatternTotal}
-                            </span>
-                          ) : null}
                           <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
                           <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
                           <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
