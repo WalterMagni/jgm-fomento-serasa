@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -203,6 +204,57 @@ public class PaymentPlaceAnalysisController {
                 "size", result.getSize(),
                 "totalPages", result.getTotalPages(),
                 "totalElements", result.getTotalElements()));
+    }
+
+    @GetMapping("/historico")
+    public ResponseEntity<java.util.Map<String, Object>> searchHistory(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var result = paymentPlaceAnalysisService.searchHistory(q, from, to, page, size);
+        var batchIds = result.getContent().stream().map(e -> e.getBatchId()).distinct().toList();
+        var batchMap = paymentPlaceAnalysisService.batchesByIds(batchIds);
+        var entries = result.getContent().stream().map(entity -> {
+            var resp = toEntryResponse(entity);
+            var batch = batchMap.get(entity.getBatchId());
+            if (batch != null) {
+                resp.setBatchFileName(batch.getFileName());
+                resp.setBatchImportedAt(batch.getImportedAt());
+            }
+            return resp;
+        }).toList();
+        return ResponseEntity.ok(java.util.Map.of(
+                "entries", entries,
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalPages", result.getTotalPages(),
+                "totalElements", result.getTotalElements()));
+    }
+
+    @GetMapping("/observacao-parte")
+    public ResponseEntity<java.util.Map<String, Object>> getPartyNote(
+            @RequestParam String partyType,
+            @RequestParam String document) {
+        String note = paymentPlaceAnalysisService.getPartyNote(partyType.toUpperCase(), document);
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("note", note);
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/observacao-parte")
+    public ResponseEntity<java.util.Map<String, Object>> savePartyNote(
+            @RequestBody java.util.Map<String, Object> request) {
+        String partyType = String.valueOf(request.getOrDefault("partyType", "")).toUpperCase();
+        String document = request.get("document") == null ? null : request.get("document").toString();
+        String note = request.get("note") == null ? null : request.get("note").toString();
+        var saved = paymentPlaceAnalysisService.savePartyNote(partyType, document, note, getAuthenticatedUser());
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("note", saved.getNote());
+        body.put("updatedByName", saved.getUpdatedByName());
+        body.put("updatedAt", saved.getUpdatedAt());
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping("/lancamentos/{entryId}/cnpj-cedente")

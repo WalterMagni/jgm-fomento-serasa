@@ -44,7 +44,7 @@ export type PaymentPlaceEntry = {
   agencyCode?: string | null;
   occurrenceComplement?: string | null;
   analysisStatus: string;
-  analystDecision?: "SACADO" | "CEDENTE" | null;
+  analystDecision?: "SACADO" | "CEDENTE" | "INCONCLUSIVO" | null;
   analystNotes?: string | null;
   decidedByName?: string | null;
   decidedAt?: string | null;
@@ -83,6 +83,8 @@ export type PaymentPlaceEntry = {
   reopenedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  batchFileName?: string | null;
+  batchImportedAt?: string | null;
 };
 
 export type PaymentPlaceBatchDetail = {

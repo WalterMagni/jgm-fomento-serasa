@@ -49,6 +49,7 @@ public class PaymentPlaceAnalysisService {
     private final com.portal.serasa.application.port.out.CompanyDetailRepository companyDetailRepository;
     private final PaymentPlaceBatchJpaRepository batchRepository;
     private final PaymentPlaceEntryJpaRepository entryRepository;
+    private final com.portal.serasa.infrastructure.persistence.repository.PaymentPlacePartyNoteJpaRepository partyNoteRepository;
 
     @Transactional
     public PaymentPlaceImportResult importPdf(String fileName, InputStream inputStream, UserEntity currentUser)
@@ -503,6 +504,63 @@ public class PaymentPlaceAnalysisService {
         int safeSize = Math.max(1, Math.min(size, 50));
         return entryRepository.findInconclusivos(fromDt, toDt,
                 org.springframework.data.domain.PageRequest.of(Math.max(0, page), safeSize));
+    }
+
+    /**
+     * Histórico/biblioteca: busca lançamentos de todos os lotes pela data de importação
+     * e por texto livre. Filtros nulos/vazios = sem limite.
+     */
+    public org.springframework.data.domain.Page<PaymentPlaceEntryEntity> searchHistory(
+            String query, java.time.LocalDate from, java.time.LocalDate to, int page, int size) {
+        java.time.LocalDateTime fromDt = from == null ? java.time.LocalDateTime.of(1970, 1, 1, 0, 0) : from.atStartOfDay();
+        java.time.LocalDateTime toDt = to == null ? java.time.LocalDateTime.of(2999, 12, 31, 23, 59, 59) : to.atTime(23, 59, 59);
+        String q = query == null ? "" : query.trim();
+        String likeQ = "%" + q + "%";
+        int safeSize = Math.max(1, Math.min(size, 50));
+        return entryRepository.searchHistory(fromDt, toDt, q, likeQ,
+                org.springframework.data.domain.PageRequest.of(Math.max(0, page), safeSize));
+    }
+
+    /** Resolve nome do arquivo + data de importação dos lotes informados (para o histórico). */
+    public java.util.Map<UUID, PaymentPlaceBatchEntity> batchesByIds(java.util.Collection<UUID> ids) {
+        java.util.Map<UUID, PaymentPlaceBatchEntity> map = new java.util.HashMap<>();
+        for (PaymentPlaceBatchEntity b : batchRepository.findAllById(ids)) {
+            map.put(b.getId(), b);
+        }
+        return map;
+    }
+
+    private String normalizeDocument(String doc) {
+        return doc == null ? "" : doc.replaceAll("\\D", "");
+    }
+
+    /** Observação persistente de uma parte (CEDENTE|SACADO) pelo documento. */
+    public String getPartyNote(String partyType, String document) {
+        String doc = normalizeDocument(document);
+        if (doc.isBlank()) {
+            return null;
+        }
+        return partyNoteRepository.findByPartyTypeAndDocument(partyType, doc)
+                .map(com.portal.serasa.infrastructure.persistence.entity.PaymentPlacePartyNoteEntity::getNote)
+                .orElse(null);
+    }
+
+    /** Cria/atualiza a observação de uma parte — vale para todos os títulos do mesmo documento. */
+    @Transactional
+    public com.portal.serasa.infrastructure.persistence.entity.PaymentPlacePartyNoteEntity savePartyNote(
+            String partyType, String document, String note, UserEntity user) {
+        String doc = normalizeDocument(document);
+        if (doc.isBlank()) {
+            throw new IllegalArgumentException("Documento inválido para a observação");
+        }
+        var entity = partyNoteRepository.findByPartyTypeAndDocument(partyType, doc)
+                .orElseGet(() -> com.portal.serasa.infrastructure.persistence.entity.PaymentPlacePartyNoteEntity.builder()
+                        .partyType(partyType)
+                        .document(doc)
+                        .build());
+        entity.setNote(note == null || note.isBlank() ? null : note.trim());
+        entity.setUpdatedByName(user != null ? user.getName() : null);
+        return partyNoteRepository.save(entity);
     }
 
     /** Converte valor no formato brasileiro ("1.016,45") para BigDecimal; nulo/ inválido → zero. */

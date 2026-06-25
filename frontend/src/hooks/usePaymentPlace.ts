@@ -4,6 +4,43 @@ import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlace
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
+// Observação persistente de cedente/sacado (por documento) — vale para todos os títulos da parte.
+export function usePartyNote(partyType: "CEDENTE" | "SACADO", document?: string | null) {
+  const hasDoc = Boolean(document && document.replace(/\D/g, ""));
+  return useQuery<{ note: string | null }>({
+    queryKey: ["partyNote", partyType, document ?? ""],
+    enabled: hasDoc,
+    queryFn: async () => {
+      const qs = new URLSearchParams({ partyType, document: document ?? "" });
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/observacao-parte?${qs}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error("Falha ao carregar observação");
+      return res.json();
+    },
+  });
+}
+
+export function useSavePartyNote() {
+  const queryClient = useQueryClient();
+  return useMutation<{ note: string | null }, Error, { partyType: "CEDENTE" | "SACADO"; document: string; note: string }>({
+    mutationFn: async ({ partyType, document, note }) => {
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/observacao-parte`, {
+        method: "PUT",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ partyType, document, note }),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao salvar observação"));
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["partyNote", vars.partyType, vars.document] });
+      toast.success("Observação salva");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
 export function useCompanyBranches(cnpj?: string, enabled = false) {
   return useQuery<CompanyBranch[]>({
     queryKey: ["companyBranches", cnpj],

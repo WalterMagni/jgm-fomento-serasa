@@ -74,4 +74,8 @@ public class PaymentPlaceEntryResponse {
     private LocalDateTime reopenedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Preenchidos apenas no Histórico (origem do lançamento).
+    private String batchFileName;
+    private LocalDateTime batchImportedAt;
 }

@@ -80,9 +80,63 @@ export function useReopenPaymentPlaceEntry() {
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
     },
     onError: (error) => {
       toast.error(error.message);
     },
+  });
+}
+
+export type PaymentPlaceInconclusivePage = {
+  entries: PaymentPlaceEntry[];
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+};
+
+export function usePaymentPlaceInconclusivos(params: { from?: string; to?: string; page?: number; size?: number } = {}) {
+  const { from, to, page = 0, size = 20 } = params;
+  return useQuery<PaymentPlaceInconclusivePage>({
+    queryKey: ["paymentPlaceInconclusivos", from ?? "", to ?? "", page, size],
+    queryFn: async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("serasa_token") : null;
+      const qs = new URLSearchParams();
+      if (from) qs.set("from", from);
+      if (to) qs.set("to", to);
+      qs.set("page", String(page));
+      qs.set("size", String(size));
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/inconclusivos?${qs}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Falha ao carregar inconclusivos");
+      return res.json();
+    },
+    placeholderData: (prev) => prev,
+    refetchOnMount: "always",
+  });
+}
+
+// Histórico/biblioteca: busca lançamentos de todos os lotes por texto + data de importação.
+export function usePaymentPlaceHistory(params: { q?: string; from?: string; to?: string; page?: number; size?: number } = {}) {
+  const { q, from, to, page = 0, size = 20 } = params;
+  return useQuery<PaymentPlaceInconclusivePage>({
+    queryKey: ["paymentPlaceHistory", q ?? "", from ?? "", to ?? "", page, size],
+    queryFn: async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("serasa_token") : null;
+      const qs = new URLSearchParams();
+      if (q) qs.set("q", q);
+      if (from) qs.set("from", from);
+      if (to) qs.set("to", to);
+      qs.set("page", String(page));
+      qs.set("size", String(size));
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/historico?${qs}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Falha ao carregar histórico");
+      return res.json();
+    },
+    placeholderData: (prev) => prev,
   });
 }

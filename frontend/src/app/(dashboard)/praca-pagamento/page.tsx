@@ -19,6 +19,8 @@ import {
   usePaymentPlaceBatchDetails,
   usePaymentPlaceBatches,
   usePaymentPlaceIndicatorsAll,
+  usePartyNote,
+  useSavePartyNote,
 } from "../../../hooks/usePaymentPlace";
 import { useReopenPaymentPlaceEntry } from "../../../hooks/usePaymentPlaceCompany";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
@@ -1199,7 +1201,7 @@ export default function PaymentPlacePage() {
                   </button>
                 </div>
                 <p className="text-sm font-bold capitalize text-grafite dark:text-white">
-                  {calendarMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                  {`${calendarMonth.toLocaleDateString("pt-BR", { month: "long" })}/${String(calendarMonth.getFullYear()).slice(-2)}`}
                 </p>
                 <div className="flex items-center gap-1">
                   <button
@@ -1392,7 +1394,7 @@ export default function PaymentPlacePage() {
                       <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_left</span></button>
                       <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><span className="material-icons-outlined text-[16px]">chevron_left</span></button>
                     </div>
-                    <p className="text-sm font-bold capitalize text-grafite dark:text-white">{customMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+                    <p className="text-sm font-bold capitalize text-grafite dark:text-white">{`${customMonth.toLocaleDateString("pt-BR", { month: "long" })}/${String(customMonth.getFullYear()).slice(-2)}`}</p>
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><span className="material-icons-outlined text-[16px]">chevron_right</span></button>
                       <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_right</span></button>
@@ -1757,6 +1759,55 @@ function Field({ label, value }: { label: string; value?: string | number | null
   );
 }
 
+// Observação persistente da parte (cedente/sacado) — salva por documento, reaproveitada em todos os títulos.
+function PartyNoteField({ partyType, document, label, color }: { partyType: "CEDENTE" | "SACADO"; document?: string | null; label: string; color: string }) {
+  const hasDoc = Boolean(document && document.replace(/\D/g, ""));
+  const noteQuery = usePartyNote(partyType, hasDoc ? document : null);
+  const save = useSavePartyNote();
+  const loaded = noteQuery.data?.note ?? "";
+  const [edited, setEdited] = useState<string | null>(null);
+  const value = edited !== null ? edited : loaded;
+
+  const persist = () => {
+    if (!hasDoc || edited === null) return;
+    if (edited.trim() === loaded.trim()) {
+      setEdited(null);
+      return;
+    }
+    save.mutate(
+      { partyType, document: document as string, note: edited },
+      { onSuccess: () => setEdited(null) },
+    );
+  };
+
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color }}>
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
+        {label}
+      </p>
+      {hasDoc ? (
+        <>
+          <textarea
+            value={value}
+            onChange={(e) => setEdited(e.target.value)}
+            onBlur={persist}
+            disabled={noteQuery.isLoading || save.isPending}
+            rows={2}
+            placeholder="Observação que vale para todos os títulos desta parte..."
+            className="mt-1 w-full resize-y rounded-lg border border-border-light bg-white px-3 py-2 text-sm text-grafite outline-none transition focus:border-primary disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-white"
+          />
+          <p className="mt-0.5 text-[11px] text-gray-400">
+            {save.isPending ? "Salvando..." : "Salva automaticamente ao sair do campo · vale para todos os títulos desta parte."}
+          </p>
+        </>
+      ) : (
+        <p className="mt-1 text-xs text-gray-400">Disponível após o documento (CNPJ) ser vinculado.</p>
+      )}
+    </div>
+  );
+}
+
 function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
   const [cnpj, setCnpj] = useState("");
   const [confirmCnpj, setConfirmCnpj] = useState<string | null>(null);
@@ -1941,26 +1992,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                 </>
               )}
             </div>
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D1732C" }}>
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#D1732C" }} />
-                  Agência
-                </p>
-                <button
-                  type="button"
-                  onClick={onEnrichAgency}
-                  disabled={enriching}
-                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                >
-                  <span className="material-icons-outlined text-[14px]">{enriching ? "hourglass_empty" : "travel_explore"}</span>
-                  {entry.agencyAddressResolved ? "Atualizar (Bacen)" : "Buscar no Bacen"}
-                </button>
-              </div>
-              <p className="mt-0.5 text-sm text-grafite dark:text-white">
-                {entry.agencyAddressResolved ?? <span className="text-gray-400">Agência não localizada no cadastro Bacen para este banco/código</span>}
-              </p>
-            </div>
+            <PartyNoteField partyType="CEDENTE" document={entry.clientDocument} label="Observação do cedente" color="#612035" />
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#2956E0" }}>
@@ -2004,6 +2036,27 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                     <span className="ml-1 text-xs text-gray-400">(sem CNPJ na base — endereço por município)</span>
                   </>
                 )}
+              </p>
+            </div>
+            <PartyNoteField partyType="SACADO" document={entry.payerDocument} label="Observação do sacado" color="#2956E0" />
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D1732C" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#D1732C" }} />
+                  Agência
+                </p>
+                <button
+                  type="button"
+                  onClick={onEnrichAgency}
+                  disabled={enriching}
+                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                >
+                  <span className="material-icons-outlined text-[14px]">{enriching ? "hourglass_empty" : "travel_explore"}</span>
+                  {entry.agencyAddressResolved ? "Atualizar (Bacen)" : "Buscar no Bacen"}
+                </button>
+              </div>
+              <p className="mt-0.5 text-sm text-grafite dark:text-white">
+                {entry.agencyAddressResolved ?? <span className="text-gray-400">Agência não localizada no cadastro Bacen para este banco/código</span>}
               </p>
             </div>
           </div>
