@@ -51,13 +51,18 @@ public class PaymentPlaceAnalysisController {
     }
 
     @PostMapping(value = "/importar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<PaymentPlaceBatchDetailResponse> importPdf(@RequestParam("file") MultipartFile file)
+    public ResponseEntity<PaymentPlaceBatchDetailResponse> importPdf(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "referenceDate", required = false) String referenceDate)
             throws IOException {
         try (var inputStream = file.getInputStream()) {
             String fileName = file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()
                     ? file.getName()
                     : file.getOriginalFilename();
-            var result = paymentPlaceAnalysisService.importPdf(fileName, inputStream, getAuthenticatedUser());
+            java.time.LocalDate refDate = (referenceDate == null || referenceDate.isBlank())
+                    ? null
+                    : java.time.LocalDate.parse(referenceDate);
+            var result = paymentPlaceAnalysisService.importPdf(fileName, inputStream, getAuthenticatedUser(), refDate);
             return ResponseEntity.ok(PaymentPlaceBatchDetailResponse.builder()
                     .batch(toBatchResponse(result.getBatch()))
                     .entries(result.getEntries().stream().map(this::toEntryResponse).toList())
@@ -183,6 +188,21 @@ public class PaymentPlaceAnalysisController {
     @PostMapping("/lancamentos/{entryId}/cnpj-sacado")
     public ResponseEntity<PaymentPlaceEntryResponse> enrichPayerCnpj(@PathVariable UUID entryId) {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.enrichPayerCnpj(entryId)));
+    }
+
+    @GetMapping("/inconclusivos")
+    public ResponseEntity<java.util.Map<String, Object>> listInconclusivos(
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var result = paymentPlaceAnalysisService.listInconclusivos(from, to, page, size);
+        return ResponseEntity.ok(java.util.Map.of(
+                "entries", result.getContent().stream().map(this::toEntryResponse).toList(),
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalPages", result.getTotalPages(),
+                "totalElements", result.getTotalElements()));
     }
 
     @PostMapping("/lancamentos/{entryId}/cnpj-cedente")

@@ -251,6 +251,23 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <Link
+                  href="/praca-pagamento/inconclusivos"
+                  className={`flex items-center gap-3 px-3 py-2.5 mx-2 lg:ml-6 rounded-xl group transition-all duration-200 ${
+                    pathname === '/praca-pagamento/inconclusivos'
+                      ? 'bg-white/10 text-white shadow-sm'
+                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className={`material-icons-outlined text-[20px] transition-transform duration-200 ${pathname === '/praca-pagamento/inconclusivos' ? 'text-white scale-110' : 'text-white/60 group-hover:text-white group-hover:scale-110'}`}>
+                    rule
+                  </span>
+                  <span className={`font-sans text-sm ${pathname === '/praca-pagamento/inconclusivos' ? 'font-bold' : 'font-medium'} hidden lg:block`}>
+                    Inconclusivos
+                  </span>
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/individuals"
                   className={`flex items-center gap-3 px-3 py-3 mx-2 rounded-xl group transition-all duration-200 ${
                     pathname === '/individuals' || pathname.startsWith('/individuals/')
@@ -289,9 +306,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <QueryClientProvider client={queryClient}>
             {children}
           </QueryClientProvider>
-          <Toaster richColors position="top-right" />
         </main>
       </div>
+      {/* Fora do <main> (z-0 + overflow) para a notificação não ficar presa atrás do header. */}
+      <Toaster richColors position="top-right" offset={80} toastOptions={{ style: { zIndex: 9999 } }} />
     </div>
   );
 }

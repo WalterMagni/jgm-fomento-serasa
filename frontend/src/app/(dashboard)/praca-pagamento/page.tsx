@@ -222,7 +222,6 @@ function DecisionPill({ decision }: { decision?: string | null }) {
 export default function PaymentPlacePage() {
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [sectionFilter, setSectionFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [decisionFilter, setDecisionFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [reliabilityFilter, setReliabilityFilter] = useState("");
@@ -233,6 +232,14 @@ export default function PaymentPlacePage() {
   const [sortByConfidence, setSortByConfidence] = useState(true);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const [customImportOpen, setCustomImportOpen] = useState(false);
+  const [customMonth, setCustomMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [customDay, setCustomDay] = useState<string>(() => toYmd(new Date().toISOString()));
+  const [customFiles, setCustomFiles] = useState<File[]>([]);
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const [analysisTab, setAnalysisTab] = useState<"PENDENTES" | "DECIDIDOS" | "TODOS">("PENDENTES");
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -320,13 +327,12 @@ export default function PaymentPlacePage() {
         tabOk &&
         (!query || haystack.includes(query)) &&
         (!sectionFilter || entry.section === sectionFilter) &&
-        (!statusFilter || entry.analysisStatus === statusFilter) &&
         (!categoryFilter || entry.institutionCategory === categoryFilter) &&
         (!reliabilityFilter || entry.geographicReliability === reliabilityFilter) &&
         (!decisionFilter || (decisionFilter === "SEM_DECISAO" ? !entry.analystDecision : entry.analystDecision === decisionFilter))
       );
     });
-  }, [analysisTab, categoryFilter, decisionFilter, entries, reliabilityFilter, search, sectionFilter, statusFilter]);
+  }, [analysisTab, categoryFilter, decisionFilter, entries, reliabilityFilter, search, sectionFilter]);
 
   const counters = useMemo(() => {
     const reviewed = entries.filter((entry) => entry.analysisStatus === "ANALISE_CONCLUIDA").length;
@@ -352,6 +358,7 @@ export default function PaymentPlacePage() {
     // Importa sequencialmente: cada PDF gera seu próprio lote/card.
     let lastBatchId: string | null = null;
     let ok = 0;
+    let lastError = "";
     for (let i = 0; i < files.length; i++) {
       if (files.length > 1) {
         toast.loading(`Importando arquivo ${i + 1} de ${files.length}...`, { id: "payment-place-import" });
@@ -360,14 +367,51 @@ export default function PaymentPlacePage() {
         const data = await importMutation.mutateAsync(files[i]);
         lastBatchId = data.batch.id;
         ok++;
-      } catch {
-        // erro já notificado via toast no hook; segue para o próximo arquivo
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : "Falha ao importar";
       }
     }
     if (files.length > 1) {
-      toast.success(`${ok} de ${files.length} arquivos importados`, { id: "payment-place-import", duration: 5000 });
+      if (ok === 0) toast.error(`Falha ao importar: ${lastError}`, { id: "payment-place-import", duration: 6000 });
+      else toast.success(`${ok} de ${files.length} arquivos importados`, { id: "payment-place-import", duration: 5000 });
     }
     void lastBatchId; // todos os lotes ativos já aparecem juntos
+  };
+
+  // Importação personalizada: relatórios de dias anteriores, datados no dia escolhido.
+  const openCustomImport = () => {
+    const now = new Date();
+    setCustomMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setCustomDay(toYmd(now.toISOString()));
+    setCustomFiles([]);
+    setImportMenuOpen(false);
+    setCustomImportOpen(true);
+  };
+
+  const runCustomImport = async () => {
+    if (customFiles.length === 0 || !customDay) return;
+    let ok = 0;
+    let lastError = "";
+    for (let i = 0; i < customFiles.length; i++) {
+      toast.loading(`Importando ${i + 1} de ${customFiles.length}...`, { id: "payment-place-import" });
+      try {
+        await importMutation.mutateAsync({ file: customFiles[i], referenceDate: customDay });
+        ok++;
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : "Falha ao importar";
+      }
+    }
+    const dataLabel = new Date(`${customDay}T12:00:00`).toLocaleDateString("pt-BR");
+    if (ok === 0) {
+      toast.error(`Falha ao importar: ${lastError}`, { id: "payment-place-import", duration: 6000 });
+      return; // mantém o modal aberto para nova tentativa
+    }
+    toast.success(`${ok} de ${customFiles.length} importado(s) em ${dataLabel}`, {
+      id: "payment-place-import",
+      duration: 5000,
+    });
+    setCustomImportOpen(false);
+    setCustomFiles([]);
   };
 
   const deleteBatch = (batchId: string) => {
@@ -573,11 +617,40 @@ export default function PaymentPlacePage() {
             <span className="material-icons-outlined text-[20px]">inventory_2</span>
             Lotes
           </button>
-          <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90">
-            <span className="material-icons-outlined text-[20px]">upload_file</span>
-            Importar PDF
-            <input type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleFile} disabled={importMutation.isPending} />
-          </label>
+          <div className="relative inline-flex">
+            <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-l-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90">
+              <span className="material-icons-outlined text-[20px]">upload_file</span>
+              Importar PDF
+              <input type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleFile} disabled={importMutation.isPending} />
+            </label>
+            <button
+              type="button"
+              onClick={() => setImportMenuOpen((v) => !v)}
+              className="inline-flex h-11 w-9 items-center justify-center rounded-r-xl border-l border-white/25 bg-primary text-white shadow-sm transition-colors hover:bg-primary/90"
+              title="Mais opções de importação"
+              aria-label="Mais opções de importação"
+            >
+              <span className={`material-icons-outlined text-[20px] transition-transform ${importMenuOpen ? "rotate-180" : ""}`}>expand_more</span>
+            </button>
+            {importMenuOpen ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setImportMenuOpen(false)} />
+                <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-xl border border-border-light bg-surface-light p-1 shadow-lg dark:border-border-dark dark:bg-surface-dark">
+                  <button
+                    type="button"
+                    onClick={openCustomImport}
+                    className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
+                  >
+                    <span className="material-icons-outlined mt-0.5 text-[18px] text-primary dark:text-secondary">event</span>
+                    <span>
+                      <span className="block text-sm font-bold text-grafite dark:text-white">Importar relatórios anteriores</span>
+                      <span className="block text-[11px] text-gray-500 dark:text-gray-400">Escolha o arquivo e o dia do lote</span>
+                    </span>
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -640,7 +713,7 @@ export default function PaymentPlacePage() {
       <section className="space-y-4">
         <main className="min-w-0 space-y-4">
           <section className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_160px_170px_170px_160px_auto]">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_170px_170px_160px_auto]">
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Busca</span>
                 <input
@@ -660,18 +733,6 @@ export default function PaymentPlacePage() {
                   <option value="">Todas</option>
                   <option value="Auditoria Eletrônica">Auditoria Eletrônica</option>
                   <option value="Agências Não Localizadas">Agências Não Localizadas</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Status</span>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
-                >
-                  <option value="">Todos</option>
-                  <option value="ANALISE_PENDENTE">Pendente</option>
-                  <option value="ANALISE_CONCLUIDA">Concluído</option>
                 </select>
               </label>
               <label className="block">
@@ -722,7 +783,6 @@ export default function PaymentPlacePage() {
                 onClick={() => {
                   setSearch("");
                   setSectionFilter("");
-                  setStatusFilter("");
                   setCategoryFilter("");
                   setReliabilityFilter("");
                   setDecisionFilter("");
@@ -1275,6 +1335,132 @@ export default function PaymentPlacePage() {
                     })}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {customImportOpen ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 py-16 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark">
+            <div className="flex items-center justify-between gap-3 border-b border-border-light p-4 dark:border-border-dark">
+              <div>
+                <h2 className="text-sm font-bold text-grafite dark:text-white">Importar relatório anterior</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Escolha o arquivo e o dia do lote.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomImportOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                aria-label="Fechar"
+              >
+                <span className="material-icons-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-4 p-4">
+              {/* Arquivo */}
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Arquivo(s) PDF</p>
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-light px-3 py-4 text-sm text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-400 dark:hover:bg-white/5">
+                  <span className="material-icons-outlined text-[20px]">upload_file</span>
+                  {customFiles.length === 0 ? "Selecionar PDF" : `${customFiles.length} arquivo(s) selecionado(s)`}
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => setCustomFiles(Array.from(e.target.files ?? []))}
+                  />
+                </label>
+                {customFiles.length > 0 ? (
+                  <ul className="mt-2 space-y-1">
+                    {customFiles.map((f, i) => (
+                      <li key={i} className="truncate text-xs text-gray-500 dark:text-gray-400">• {f.name}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+
+              {/* Calendário de data do lote */}
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Dia do lote</p>
+                <div className="rounded-lg border border-border-light p-2 dark:border-border-dark">
+                  <div className="mb-2 flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_left</span></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><span className="material-icons-outlined text-[16px]">chevron_left</span></button>
+                    </div>
+                    <p className="text-sm font-bold capitalize text-grafite dark:text-white">{customMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><span className="material-icons-outlined text-[16px]">chevron_right</span></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><span className="material-icons-outlined text-[16px]">keyboard_double_arrow_right</span></button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-gray-400">
+                    {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <span key={i}>{d}</span>)}
+                  </div>
+                  {(() => {
+                    const year = customMonth.getFullYear();
+                    const month = customMonth.getMonth();
+                    const firstWeekday = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const todayYmd = toYmd(new Date().toISOString());
+                    const cells: (number | null)[] = [];
+                    for (let i = 0; i < firstWeekday; i++) cells.push(null);
+                    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+                    return (
+                      <div className="mt-1 grid grid-cols-7 gap-1">
+                        {cells.map((day, idx) => {
+                          if (day === null) return <div key={`b-${idx}`} />;
+                          const ymd = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                          const selected = ymd === customDay;
+                          const isFuture = ymd > todayYmd;
+                          return (
+                            <button
+                              key={ymd}
+                              type="button"
+                              disabled={isFuture}
+                              onClick={() => setCustomDay(ymd)}
+                              className={`flex h-8 items-center justify-center rounded-lg text-sm transition-colors ${
+                                selected
+                                  ? "bg-primary font-bold text-white dark:bg-secondary"
+                                  : isFuture
+                                    ? "cursor-not-allowed text-gray-300 dark:text-gray-600"
+                                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+                              } ${ymd === todayYmd && !selected ? "ring-1 ring-primary/50 dark:ring-secondary/50" : ""}`}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Lote será datado em <strong>{new Date(`${customDay}T12:00:00`).toLocaleDateString("pt-BR")}</strong>.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setCustomImportOpen(false)}
+                  className="inline-flex h-10 items-center rounded-lg border border-border-light px-4 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={runCustomImport}
+                  disabled={customFiles.length === 0 || importMutation.isPending}
+                  className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="material-icons-outlined text-[18px]">upload_file</span>
+                  Importar
+                </button>
               </div>
             </div>
           </div>

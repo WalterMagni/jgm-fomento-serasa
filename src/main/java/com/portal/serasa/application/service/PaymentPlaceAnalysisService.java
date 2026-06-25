@@ -53,7 +53,23 @@ public class PaymentPlaceAnalysisService {
     @Transactional
     public PaymentPlaceImportResult importPdf(String fileName, InputStream inputStream, UserEntity currentUser)
             throws IOException {
+        return importPdf(fileName, inputStream, currentUser, null);
+    }
+
+    /**
+     * Importa um relatório. Quando {@code referenceDate} é informado (importação de
+     * dias anteriores), o lote é datado nesse dia (mantendo o horário atual); caso
+     * contrário usa a data/hora de agora.
+     */
+    @Transactional
+    public PaymentPlaceImportResult importPdf(String fileName, InputStream inputStream, UserEntity currentUser,
+                                              java.time.LocalDate referenceDate)
+            throws IOException {
         List<PaymentPlacePdfParser.PaymentPlaceParsedEntry> parsedEntries = parser.parse(inputStream);
+
+        LocalDateTime importedAt = referenceDate != null
+                ? referenceDate.atTime(LocalDateTime.now().toLocalTime())
+                : LocalDateTime.now();
 
         long auditEntries = parsedEntries.stream()
                 .filter(entry -> PaymentPlacePdfParser.SECTION_AUDIT.equals(entry.getSection()))
@@ -67,7 +83,7 @@ public class PaymentPlaceAnalysisService {
                 .importedByUserId(currentUser != null ? currentUser.getId() : null)
                 .importedByName(currentUser != null ? currentUser.getName() : null)
                 .importedByEmail(currentUser != null ? currentUser.getEmail() : null)
-                .importedAt(LocalDateTime.now())
+                .importedAt(importedAt)
                 .status(STATUS_IMPORTED)
                 .totalEntries(parsedEntries.size())
                 .auditEntries((int) auditEntries)
@@ -479,6 +495,16 @@ public class PaymentPlaceAnalysisService {
                 pageItems, safePage, safeSize, totalPages, totalFiltered);
     }
 
+    /** Lista paginada dos lançamentos INCONCLUSIVO (todos os lotes), filtrada pela data da decisão. */
+    public org.springframework.data.domain.Page<PaymentPlaceEntryEntity> listInconclusivos(
+            java.time.LocalDate from, java.time.LocalDate to, int page, int size) {
+        java.time.LocalDateTime fromDt = from == null ? java.time.LocalDateTime.of(1970, 1, 1, 0, 0) : from.atStartOfDay();
+        java.time.LocalDateTime toDt = to == null ? java.time.LocalDateTime.of(2999, 12, 31, 23, 59, 59) : to.atTime(23, 59, 59);
+        int safeSize = Math.max(1, Math.min(size, 50));
+        return entryRepository.findInconclusivos(fromDt, toDt,
+                org.springframework.data.domain.PageRequest.of(Math.max(0, page), safeSize));
+    }
+
     /** Converte valor no formato brasileiro ("1.016,45") para BigDecimal; nulo/ inválido → zero. */
     private BigDecimal parseBrlValue(String value) {
         if (value == null || value.isBlank()) {
@@ -762,8 +788,8 @@ public class PaymentPlaceAnalysisService {
             throw new IllegalArgumentException("Decisão é obrigatória");
         }
         String normalized = decision.trim().toUpperCase();
-        if (!normalized.equals("SACADO") && !normalized.equals("CEDENTE")) {
-            throw new IllegalArgumentException("Decisão deve ser SACADO ou CEDENTE");
+        if (!normalized.equals("SACADO") && !normalized.equals("CEDENTE") && !normalized.equals("INCONCLUSIVO")) {
+            throw new IllegalArgumentException("Decisão deve ser SACADO, CEDENTE ou INCONCLUSIVO");
         }
         return normalized;
     }

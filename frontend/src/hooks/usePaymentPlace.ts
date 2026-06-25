@@ -24,6 +24,18 @@ export function useCompanyBranches(cnpj?: string, enabled = false) {
   });
 }
 
+// Extrai uma mensagem legível de uma resposta de erro (JSON {message|error} ou texto).
+async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  const text = await response.text().catch(() => "");
+  if (!text) return fallback;
+  try {
+    const json = JSON.parse(text);
+    return json.message || json.error || fallback;
+  } catch {
+    return text.length > 200 ? fallback : text;
+  }
+}
+
 function getAuthHeaders(contentType?: string) {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("serasa_token");
@@ -153,18 +165,20 @@ export function usePaymentPlaceIndicators(batchId?: string) {
 export function useImportPaymentPlacePdf() {
   const queryClient = useQueryClient();
 
-  return useMutation<PaymentPlaceBatchDetail, Error, File>({
-    mutationFn: async (file) => {
+  return useMutation<PaymentPlaceBatchDetail, Error, File | { file: File; referenceDate?: string }>({
+    mutationFn: async (input) => {
+      const file = input instanceof File ? input : input.file;
+      const referenceDate = input instanceof File ? undefined : input.referenceDate;
       const formData = new FormData();
       formData.append("file", file);
+      if (referenceDate) formData.append("referenceDate", referenceDate);
       const response = await fetch(`${API_BASE_URL}/praca-pagamento/importar`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: formData,
       });
       if (!response.ok) {
-        const text = await response.text().catch(() => "");
-        throw new Error(text || "Falha ao importar relatório bancário");
+        throw new Error(await extractErrorMessage(response, "Falha ao importar relatório bancário"));
       }
       return response.json();
     },
