@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePaymentPlaceHistory } from "../../../../hooks/usePaymentPlaceCompany";
+import { AttachmentBadge, AttachmentViewerModal } from "../../../../components/payment-place/EntryAttachments";
 import { PaymentPlaceEntry } from "../../../../types/payment-place";
 
 function formatCnpj(cnpj?: string | null) {
@@ -52,6 +53,7 @@ export default function HistoricoPage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [page, setPage] = useState(0);
+  const [viewerEntry, setViewerEntry] = useState<PaymentPlaceEntry | null>(null);
   const size = 20;
 
   // Debounce da busca por texto.
@@ -199,6 +201,7 @@ export default function HistoricoPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="truncate font-bold text-grafite dark:text-white">{e.titleNumber ?? "—"}</p>
+                        {e.attachmentCount ? <AttachmentBadge count={e.attachmentCount} onClick={() => setViewerEntry(e)} /> : null}
                         <DecisionBadge decision={e.analystDecision} />
                       </div>
                       <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
@@ -248,6 +251,10 @@ export default function HistoricoPage() {
           ) : null}
         </div>
       </div>
+
+      {viewerEntry ? (
+        <AttachmentViewerModal entryId={viewerEntry.id} title={viewerEntry.titleNumber ?? undefined} onClose={() => setViewerEntry(null)} />
+      ) : null}
     </div>
   );
 }

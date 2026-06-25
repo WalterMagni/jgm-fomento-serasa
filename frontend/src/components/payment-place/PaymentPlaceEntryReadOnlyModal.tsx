@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { PaymentPlaceEntry } from "../../types/payment-place";
+import { EntryAttachmentsReadOnly } from "./EntryAttachments";
 
 const PaymentPlaceMap = dynamic(() => import("./PaymentPlaceMap"), { ssr: false });
 
@@ -166,6 +167,11 @@ export default function PaymentPlaceEntryReadOnlyModal({ entry, onClose }: { ent
                   <Field label="Ocorrência" value={entry.occurrence} />
                 </div>
                 {entry.occurrenceComplement ? <div className="mt-3"><Field label="Complemento" value={entry.occurrenceComplement} /></div> : null}
+              </div>
+
+              <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Anexos do título</p>
+                <EntryAttachmentsReadOnly entryId={entry.id} />
               </div>
             </div>
 

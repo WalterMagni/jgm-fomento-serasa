@@ -78,4 +78,7 @@ public class PaymentPlaceEntryResponse {
     // Preenchidos apenas no Histórico (origem do lançamento).
     private String batchFileName;
     private LocalDateTime batchImportedAt;
+
+    // Quantidade de anexos do título (indicativo nas listas).
+    private Integer attachmentCount;
 }

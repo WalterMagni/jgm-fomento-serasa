@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useClientProfile } from "../../../../hooks/useClientProfile";
 import { usePaymentPlaceCompany, useReopenPaymentPlaceEntry } from "../../../../hooks/usePaymentPlaceCompany";
 import PaymentPlaceEntryReadOnlyModal from "../../../../components/payment-place/PaymentPlaceEntryReadOnlyModal";
+import { AttachmentBadge, AttachmentViewerModal } from "../../../../components/payment-place/EntryAttachments";
 import type { PaymentPlaceEntry } from "../../../../types/payment-place";
 import {
   riskLabel,
@@ -914,6 +915,7 @@ export default function ClientDashboardPage() {
   const [pracaPage, setPracaPage] = useState(0);
   const [pracaSize, setPracaSize] = useState(10);
   const [pracaSelected, setPracaSelected] = useState<PaymentPlaceEntry | null>(null);
+  const [pracaViewer, setPracaViewer] = useState<PaymentPlaceEntry | null>(null);
   const reopenEntryMutation = useReopenPaymentPlaceEntry();
   const { data: pracaSummary } = usePaymentPlaceCompany(cnpj, {
     from: pracaFrom || undefined,
@@ -2310,7 +2312,12 @@ export default function ClientDashboardPage() {
                   <tr><td colSpan={7} className="px-5 py-6 text-sm text-gray-500">Nenhum lançamento para os filtros.</td></tr>
                 ) : pracaSummary.entries.map((e) => (
                   <tr key={e.id} onClick={() => setPracaSelected(e)} className="cursor-pointer hover:bg-gray-50/70 dark:hover:bg-white/[0.03]">
-                    <td className="px-5 py-3 font-bold text-grafite dark:text-white">{e.titleNumber ?? "-"}</td>
+                    <td className="px-5 py-3 font-bold text-grafite dark:text-white">
+                      <span className="inline-flex items-center gap-2">
+                        {e.titleNumber ?? "-"}
+                        {e.attachmentCount ? <AttachmentBadge count={e.attachmentCount} onClick={() => setPracaViewer(e)} /> : null}
+                      </span>
+                    </td>
                     <td className="px-5 py-3 text-grafite dark:text-gray-200">{e.payerName ?? "-"}</td>
                     <td className="px-5 py-3 text-grafite dark:text-gray-200">{e.paidValue ?? "-"}</td>
                     <td className="px-5 py-3">
@@ -2369,6 +2376,9 @@ export default function ClientDashboardPage() {
 
       {pracaSelected ? (
         <PaymentPlaceEntryReadOnlyModal entry={pracaSelected} onClose={() => setPracaSelected(null)} />
+      ) : null}
+      {pracaViewer ? (
+        <AttachmentViewerModal entryId={pracaViewer.id} title={pracaViewer.titleNumber ?? undefined} onClose={() => setPracaViewer(null)} />
       ) : null}
 
       <div className="mt-10 rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/20 p-5">

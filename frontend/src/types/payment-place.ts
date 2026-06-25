@@ -85,6 +85,7 @@ export type PaymentPlaceEntry = {
   updatedAt?: string | null;
   batchFileName?: string | null;
   batchImportedAt?: string | null;
+  attachmentCount?: number | null;
 };
 
 export type PaymentPlaceBatchDetail = {

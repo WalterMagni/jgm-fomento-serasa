@@ -4,6 +4,8 @@ import { useState } from "react";
 import { usePaymentPlaceInconclusivos } from "../../../../hooks/usePaymentPlaceCompany";
 import { useReopenPaymentPlaceEntry } from "../../../../hooks/usePaymentPlaceCompany";
 import MonthDatePicker from "../../../../components/payment-place/MonthDatePicker";
+import { AttachmentBadge, AttachmentViewerModal } from "../../../../components/payment-place/EntryAttachments";
+import { PaymentPlaceEntry } from "../../../../types/payment-place";
 
 function formatCnpj(cnpj?: string | null) {
   if (!cnpj) return "—";
@@ -22,6 +24,7 @@ export default function InconclusivosPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(0);
+  const [viewerEntry, setViewerEntry] = useState<PaymentPlaceEntry | null>(null);
   const size = 20;
 
   const { data, isFetching } = usePaymentPlaceInconclusivos({ from: from || undefined, to: to || undefined, page, size });
@@ -85,7 +88,10 @@ export default function InconclusivosPage() {
               entries.map((e) => (
                 <tr key={e.id} className="border-b border-border-light last:border-0 dark:border-border-dark">
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-grafite dark:text-gray-200">{e.titleNumber ?? "—"}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-grafite dark:text-gray-200">{e.titleNumber ?? "—"}</p>
+                      {e.attachmentCount ? <AttachmentBadge count={e.attachmentCount} onClick={() => setViewerEntry(e)} /> : null}
+                    </div>
                     <p className="text-xs text-gray-400">{e.section}</p>
                   </td>
                   <td className="px-4 py-3">
@@ -129,6 +135,10 @@ export default function InconclusivosPage() {
             Próxima
           </button>
         </div>
+      ) : null}
+
+      {viewerEntry ? (
+        <AttachmentViewerModal entryId={viewerEntry.id} title={viewerEntry.titleNumber ?? undefined} onClose={() => setViewerEntry(null)} />
       ) : null}
     </div>
   );

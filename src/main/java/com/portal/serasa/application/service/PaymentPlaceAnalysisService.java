@@ -50,6 +50,9 @@ public class PaymentPlaceAnalysisService {
     private final PaymentPlaceBatchJpaRepository batchRepository;
     private final PaymentPlaceEntryJpaRepository entryRepository;
     private final com.portal.serasa.infrastructure.persistence.repository.PaymentPlacePartyNoteJpaRepository partyNoteRepository;
+    private final com.portal.serasa.infrastructure.persistence.repository.PaymentPlaceEntryAttachmentJpaRepository attachmentRepository;
+
+    private static final long MAX_ATTACHMENT_BYTES = 5L * 1024 * 1024;
 
     @Transactional
     public PaymentPlaceImportResult importPdf(String fileName, InputStream inputStream, UserEntity currentUser)
@@ -532,6 +535,64 @@ public class PaymentPlaceAnalysisService {
 
     private String normalizeDocument(String doc) {
         return doc == null ? "" : doc.replaceAll("\\D", "");
+    }
+
+    // ---- Anexos do título ----
+
+    public java.util.List<com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryAttachmentEntity> listAttachments(UUID entryId) {
+        return attachmentRepository.findByEntryIdOrderByCreatedAtAsc(entryId);
+    }
+
+    @Transactional
+    public java.util.List<com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryAttachmentEntity> addAttachments(
+            UUID entryId, java.util.List<org.springframework.web.multipart.MultipartFile> files, UserEntity user) throws java.io.IOException {
+        if (!entryRepository.existsById(entryId)) {
+            throw new EntityNotFoundException("Lançamento de praça de pagamento não encontrado");
+        }
+        if (files != null) {
+            for (var f : files) {
+                if (f != null && !f.isEmpty() && f.getSize() > MAX_ATTACHMENT_BYTES) {
+                    throw new IllegalArgumentException("Cada anexo deve ter no máximo 5 MB");
+                }
+            }
+            for (var f : files) {
+                if (f == null || f.isEmpty()) {
+                    continue;
+                }
+                attachmentRepository.save(com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryAttachmentEntity.builder()
+                        .entryId(entryId)
+                        .fileName(f.getOriginalFilename())
+                        .contentType(f.getContentType())
+                        .fileSize(f.getSize())
+                        .data(f.getBytes())
+                        .createdByName(user != null ? user.getName() : null)
+                        .createdAt(LocalDateTime.now())
+                        .build());
+            }
+        }
+        return attachmentRepository.findByEntryIdOrderByCreatedAtAsc(entryId);
+    }
+
+    public com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryAttachmentEntity getAttachment(UUID attachmentId) {
+        return attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Anexo não encontrado"));
+    }
+
+    @Transactional
+    public void deleteAttachment(UUID attachmentId) {
+        attachmentRepository.deleteById(attachmentId);
+    }
+
+    /** Quantidade de anexos por título (para o indicativo nas listas). */
+    public java.util.Map<UUID, Integer> attachmentCounts(java.util.Collection<UUID> entryIds) {
+        java.util.Map<UUID, Integer> map = new java.util.HashMap<>();
+        if (entryIds == null || entryIds.isEmpty()) {
+            return map;
+        }
+        for (var c : attachmentRepository.countByEntryIdIn(new java.util.ArrayList<>(entryIds))) {
+            map.put(c.getEntryId(), (int) c.getTotal());
+        }
+        return map;
     }
 
     /** Observação persistente de uma parte (CEDENTE|SACADO) pelo documento. */

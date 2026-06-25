@@ -4,6 +4,85 @@ import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlace
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
+export type PaymentPlaceAttachment = {
+  id: string;
+  fileName?: string | null;
+  contentType?: string | null;
+  fileSize?: number | null;
+  createdByName?: string | null;
+  createdAt?: string | null;
+};
+
+export function useEntryAttachments(entryId?: string | null, enabled = true) {
+  return useQuery<PaymentPlaceAttachment[]>({
+    queryKey: ["entryAttachments", entryId ?? ""],
+    enabled: Boolean(entryId) && enabled,
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/anexos`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error("Falha ao carregar anexos");
+      return res.json();
+    },
+  });
+}
+
+export function useUploadEntryAttachments() {
+  const queryClient = useQueryClient();
+  return useMutation<PaymentPlaceAttachment[], Error, { entryId: string; files: File[] }>({
+    mutationFn: async ({ entryId, files }) => {
+      const fd = new FormData();
+      files.forEach((f) => fd.append("files", f));
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/anexos`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: fd,
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao enviar anexo"));
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["entryAttachments", vars.entryId] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceHistory"] });
+      toast.success("Anexo(s) enviado(s)");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useDeleteEntryAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { entryId: string; attachmentId: string }>({
+    mutationFn: async ({ entryId, attachmentId }) => {
+      const res = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/anexos/${attachmentId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Falha ao apagar anexo");
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["entryAttachments", vars.entryId] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceHistory"] });
+      toast.success("Anexo removido");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+// Busca o anexo (com auth) e devolve um object URL para visualização/abertura.
+export async function fetchAttachmentObjectUrl(entryId: string, attachmentId: string): Promise<string> {
+  const res = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}/anexos/${attachmentId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Falha ao abrir anexo");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 // Observação persistente de cedente/sacado (por documento) — vale para todos os títulos da parte.
 export function usePartyNote(partyType: "CEDENTE" | "SACADO", document?: string | null) {
   const hasDoc = Boolean(document && document.replace(/\D/g, ""));
@@ -298,7 +377,8 @@ export function useEnrichAgencyBacen() {
         if (!current) return current;
         return {
           ...current,
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
         };
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
@@ -337,7 +417,8 @@ export function useEnrichPayerCnpj() {
         if (!current) return current;
         return {
           ...current,
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
         };
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
@@ -445,7 +526,8 @@ export function useAnalyzeWithAi() {
         if (!current) return current;
         return {
           ...current,
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
         };
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
@@ -486,7 +568,10 @@ export function useBulkDecidePaymentPlace() {
           const byId = new Map(list.map((e) => [e.id, e]));
           return {
             ...current,
-            entries: current.entries.map((entry) => byId.get(entry.id) ?? entry),
+            entries: current.entries.map((entry) => {
+              const u = byId.get(entry.id);
+              return u ? { ...u, attachmentCount: entry.attachmentCount ?? u.attachmentCount } : entry;
+            }),
           };
         });
         queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", bId] });
@@ -520,7 +605,8 @@ export function useDecidePaymentPlaceEntry() {
         if (!current) return current;
         return {
           ...current,
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
+          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
         };
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });

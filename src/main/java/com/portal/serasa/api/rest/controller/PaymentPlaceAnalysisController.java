@@ -88,7 +88,7 @@ public class PaymentPlaceAnalysisController {
                 .cedenteValue(s.cedenteValue())
                 .totalCount(s.sacadoCount() + s.cedenteCount())
                 .totalValue(s.sacadoValue().add(s.cedenteValue()))
-                .entries(s.entries().stream().map(this::toEntryResponse).toList())
+                .entries(toEntryResponsesWithAttachments(s.entries()))
                 .page(s.page())
                 .size(s.size())
                 .totalPages(s.totalPages())
@@ -108,8 +108,19 @@ public class PaymentPlaceAnalysisController {
         var result = paymentPlaceAnalysisService.getBatch(batchId);
         return ResponseEntity.ok(PaymentPlaceBatchDetailResponse.builder()
                 .batch(toBatchResponse(result.getBatch()))
-                .entries(result.getEntries().stream().map(this::toEntryResponse).toList())
+                .entries(toEntryResponsesWithAttachments(result.getEntries()))
                 .build());
+    }
+
+    /** Mapeia lançamentos para resposta preenchendo a contagem de anexos (indicativo nas listas). */
+    private List<PaymentPlaceEntryResponse> toEntryResponsesWithAttachments(List<PaymentPlaceEntryEntity> entities) {
+        var ids = entities.stream().map(PaymentPlaceEntryEntity::getId).toList();
+        var counts = paymentPlaceAnalysisService.attachmentCounts(ids);
+        return entities.stream().map(e -> {
+            var resp = toEntryResponse(e);
+            resp.setAttachmentCount(counts.getOrDefault(e.getId(), 0));
+            return resp;
+        }).toList();
     }
 
     @GetMapping("/lotes/{batchId}/indicadores")
@@ -199,7 +210,7 @@ public class PaymentPlaceAnalysisController {
             @RequestParam(defaultValue = "20") int size) {
         var result = paymentPlaceAnalysisService.listInconclusivos(from, to, page, size);
         return ResponseEntity.ok(java.util.Map.of(
-                "entries", result.getContent().stream().map(this::toEntryResponse).toList(),
+                "entries", toEntryResponsesWithAttachments(result.getContent()),
                 "page", result.getNumber(),
                 "size", result.getSize(),
                 "totalPages", result.getTotalPages(),
@@ -216,6 +227,8 @@ public class PaymentPlaceAnalysisController {
         var result = paymentPlaceAnalysisService.searchHistory(q, from, to, page, size);
         var batchIds = result.getContent().stream().map(e -> e.getBatchId()).distinct().toList();
         var batchMap = paymentPlaceAnalysisService.batchesByIds(batchIds);
+        var entryIds = result.getContent().stream().map(PaymentPlaceEntryEntity::getId).toList();
+        var attachmentCounts = paymentPlaceAnalysisService.attachmentCounts(entryIds);
         var entries = result.getContent().stream().map(entity -> {
             var resp = toEntryResponse(entity);
             var batch = batchMap.get(entity.getBatchId());
@@ -223,6 +236,7 @@ public class PaymentPlaceAnalysisController {
                 resp.setBatchFileName(batch.getFileName());
                 resp.setBatchImportedAt(batch.getImportedAt());
             }
+            resp.setAttachmentCount(attachmentCounts.getOrDefault(entity.getId(), 0));
             return resp;
         }).toList();
         return ResponseEntity.ok(java.util.Map.of(
@@ -269,6 +283,60 @@ public class PaymentPlaceAnalysisController {
     @DeleteMapping("/lancamentos/{entryId}/decisao")
     public ResponseEntity<PaymentPlaceEntryResponse> reopenEntry(@PathVariable UUID entryId) {
         return ResponseEntity.ok(toEntryResponse(paymentPlaceAnalysisService.reopenEntry(entryId)));
+    }
+
+    // ---- Anexos do título ----
+
+    @GetMapping("/lancamentos/{entryId}/anexos")
+    public ResponseEntity<List<java.util.Map<String, Object>>> listAttachments(@PathVariable UUID entryId) {
+        return ResponseEntity.ok(paymentPlaceAnalysisService.listAttachments(entryId).stream()
+                .map(this::toAttachmentMeta).toList());
+    }
+
+    @PostMapping(value = "/lancamentos/{entryId}/anexos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> addAttachments(
+            @PathVariable UUID entryId,
+            @RequestParam("files") List<MultipartFile> files) throws IOException {
+        try {
+            var saved = paymentPlaceAnalysisService.addAttachments(entryId, files, getAuthenticatedUser());
+            return ResponseEntity.ok(saved.stream().map(this::toAttachmentMeta).toList());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/lancamentos/{entryId}/anexos/{attachmentId}")
+    public ResponseEntity<byte[]> downloadAttachment(
+            @PathVariable UUID entryId,
+            @PathVariable UUID attachmentId) {
+        var att = paymentPlaceAnalysisService.getAttachment(attachmentId);
+        String fileName = att.getFileName() != null ? att.getFileName() : "anexo";
+        String contentType = att.getContentType() != null && !att.getContentType().isBlank()
+                ? att.getContentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header("Content-Disposition", "inline; filename=\"" + fileName.replace("\"", "") + "\"")
+                .body(att.getData());
+    }
+
+    @DeleteMapping("/lancamentos/{entryId}/anexos/{attachmentId}")
+    public ResponseEntity<?> deleteAttachment(
+            @PathVariable UUID entryId,
+            @PathVariable UUID attachmentId) {
+        paymentPlaceAnalysisService.deleteAttachment(attachmentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private java.util.Map<String, Object> toAttachmentMeta(com.portal.serasa.infrastructure.persistence.entity.PaymentPlaceEntryAttachmentEntity att) {
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("id", att.getId());
+        m.put("fileName", att.getFileName());
+        m.put("contentType", att.getContentType());
+        m.put("fileSize", att.getFileSize());
+        m.put("createdByName", att.getCreatedByName());
+        m.put("createdAt", att.getCreatedAt());
+        return m;
     }
 
     @PostMapping("/lancamentos/{entryId}/analise-ia")

@@ -23,6 +23,7 @@ import {
   useSavePartyNote,
 } from "../../../hooks/usePaymentPlace";
 import { useReopenPaymentPlaceEntry } from "../../../hooks/usePaymentPlaceCompany";
+import { AttachmentBadge, AttachmentViewerModal, EntryAttachmentsPanel } from "../../../components/payment-place/EntryAttachments";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
 
 const PaymentPlaceMap = dynamic(() => import("../../../components/payment-place/PaymentPlaceMap"), {
@@ -253,6 +254,7 @@ export default function PaymentPlacePage() {
   const [copyMenu, setCopyMenu] = useState<{ x: number; y: number; entry: PaymentPlaceEntry } | null>(null);
   const [copyMenuVisible, setCopyMenuVisible] = useState(false);
   const [mapEntry, setMapEntry] = useState<{ entry: PaymentPlaceEntry; pair: "ALL" | "CED_AG" | "SAC_AG" | "CED_SAC" } | null>(null);
+  const [viewerEntry, setViewerEntry] = useState<PaymentPlaceEntry | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -1014,6 +1016,7 @@ export default function PaymentPlacePage() {
                         <div className="min-w-0 lg:w-[280px]">
                           <div className="flex items-center gap-2">
                             <p className="truncate font-bold text-grafite dark:text-white">{entry.titleNumber}</p>
+                            {entry.attachmentCount ? <AttachmentBadge count={entry.attachmentCount} onClick={() => setViewerEntry(entry)} /> : null}
                             {entry.reopenedAt ? (
                               <span className="inline-flex items-center gap-0.5 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                                 <span className="material-icons-outlined text-[12px]">undo</span>reaberto
@@ -1467,6 +1470,10 @@ export default function PaymentPlacePage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {viewerEntry ? (
+        <AttachmentViewerModal entryId={viewerEntry.id} title={viewerEntry.titleNumber ?? undefined} onClose={() => setViewerEntry(null)} />
       ) : null}
 
       {mapEntry && typeof document !== "undefined" ? (() => {
@@ -2160,6 +2167,12 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           />
         </div>
       </div>
+      </div>
+
+      <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Anexos do título</p>
+        <p className="mt-0.5 mb-3 text-[11px] text-gray-400">Comprovante de pagamento, endereço, etc. Arraste, cole ou clique.</p>
+        <EntryAttachmentsPanel entryId={entry.id} />
       </div>
     </div>
   );
