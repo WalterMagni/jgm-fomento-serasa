@@ -29,6 +29,9 @@ public class PaymentPlaceScorer {
 
     private static final BigDecimal SAME_PLACE_KM = BigDecimal.valueOf(8);
 
+    /** Mínimo de decisões no mesmo contexto (cedente×sacado×banco×agência) para virar "padrão". */
+    public static final int MIN_PATTERN_DECISIONS = 4;
+
     private final PaymentPlaceEntryJpaRepository entryRepository;
     private final com.portal.serasa.infrastructure.persistence.repository.PaymentPlacePatternJpaRepository patternRepository;
 
@@ -113,12 +116,17 @@ public class PaymentPlaceScorer {
             }
         }
 
-        // Padrão aprendido pelo par cedente×sacado: decisões passadas entre as MESMAS duas
-        // empresas. Sinal forte e explicável — é o que faz o sistema "aprender" a cada importação.
+        // Padrão aprendido pelo contexto cedente×sacado×banco×agência: decisões passadas no MESMO
+        // contexto. Banco/agência diferentes NÃO herdam o consolidado (foge do padrão estabelecido).
+        // Sinal forte e explicável — é o que faz o sistema "aprender" a cada importação.
         String cedDoc = PaymentPlacePatternService.digits(e.getClientDocument());
         String payDoc = PaymentPlacePatternService.digits(e.getPayerDocument());
         if (cedDoc != null && payDoc != null) {
-            var pattern = patternRepository.findByClientDocumentAndPayerDocument(cedDoc, payDoc).orElse(null);
+            String bank = PaymentPlacePatternService.normCode(e.getBankCode());
+            String agency = PaymentPlacePatternService.normCode(e.getAgencyCode());
+            var pattern = patternRepository
+                    .findByClientDocumentAndPayerDocumentAndBankCodeAndAgencyCode(cedDoc, payDoc, bank, agency)
+                    .orElse(null);
             if (pattern != null && pattern.isLocked() && pattern.getLockedDecision() != null) {
                 int pts = 5;
                 String locked = pattern.getLockedDecision();
@@ -132,15 +140,14 @@ public class PaymentPlaceScorer {
                 e.setLearnedPatternCount(Math.max(pattern.getCedenteCount(), pattern.getSacadoCount()));
                 e.setLearnedPatternTotal(pattern.getTotalCount());
                 factors.add("+%d %s · 🔒 padrão travado pelo analista para este par".formatted(pts, locked.toLowerCase(Locale.ROOT)));
-            } else if (pattern != null && pattern.getTotalCount() >= 2) {
+            } else if (pattern != null && pattern.getTotalCount() >= MIN_PATTERN_DECISIONS) {
+                // Só consideramos "padrão" a partir da Nª decisão do mesmo contexto (1/1, 2/2 ainda
+                // não são padrão — pouca evidência). Abaixo disso o padrão segue acumulando, sem pontuar.
                 int dom = Math.max(pattern.getCedenteCount(), pattern.getSacadoCount());
                 String domDecision = pattern.getCedenteCount() >= pattern.getSacadoCount() ? "CEDENTE" : "SACADO";
                 double share = (double) dom / pattern.getTotalCount();
-                if (dom >= 2 && share >= 0.75) {
-                    int pts = 2;
-                    if (pattern.getTotalCount() >= 4) {
-                        pts++;
-                    }
+                if (share >= 0.75) {
+                    int pts = 3;
                     if (share >= 0.999) {
                         pts++;
                     }

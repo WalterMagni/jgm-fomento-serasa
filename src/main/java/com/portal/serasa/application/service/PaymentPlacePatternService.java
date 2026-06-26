@@ -15,10 +15,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Memória de padrões por par cedente × sacado. Cada decisão do analista recompila as
- * contagens do par (a partir da fonte de verdade — os lançamentos decididos), e o
- * {@link PaymentPlaceScorer} usa o padrão para reforçar a sugestão nas importações
- * seguintes. Documentos são normalizados para só dígitos antes de gravar/consultar.
+ * Memória de padrões por contexto cedente × sacado × banco × agência. Cada decisão do analista
+ * recompila as contagens do contexto (a partir da fonte de verdade — os lançamentos decididos), e o
+ * {@link PaymentPlaceScorer} usa o padrão para reforçar a sugestão nas importações seguintes.
+ * Banco/agência diferentes formam padrão diferente (não herdam o consolidado). Documentos
+ * normalizados para só dígitos; banco/agência normalizados (trim, ausente → "").
  */
 @Service
 @RequiredArgsConstructor
@@ -51,24 +52,36 @@ public class PaymentPlacePatternService {
     }
 
     /**
-     * Recompila o padrão do par a partir das decisões existentes. Idempotente — pode ser
-     * chamado após decidir, decidir em massa ou reabrir um título. Só age quando o par tem
-     * cedente E sacado identificados.
+     * Código de banco/agência canônico para a chave do padrão: trim; nulo/vazio → "" (bucket
+     * próprio "sem agência"). NÃO remove zeros à esquerda (a agência 0123 ≠ 123).
+     */
+    static String normCode(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    /**
+     * Recompila o padrão do contexto (cedente×sacado×banco×agência) a partir das decisões
+     * existentes. Idempotente — pode ser chamado após decidir, decidir em massa ou reabrir um
+     * título. Só age quando o contexto tem cedente E sacado identificados.
      */
     @Transactional
-    public void recordPair(String rawClientDocument, String rawPayerDocument) {
+    public void recordContext(String rawClientDocument, String rawPayerDocument,
+                              String rawBankCode, String rawAgencyCode) {
         String ced = digits(rawClientDocument);
         String pay = digits(rawPayerDocument);
         if (ced == null || pay == null) {
             return;
         }
-        var rows = entryRepository.findPairDecisions(ced, pay);
+        String bank = normCode(rawBankCode);
+        String agency = normCode(rawAgencyCode);
+        var rows = entryRepository.findContextDecisions(ced, pay, bank, agency);
 
         int cedente = 0;
         int sacado = 0;
         int inconclusivo = 0;
         String lastDecision = null;
         java.time.LocalDateTime lastAt = null;
+        String bankName = null;
         for (Object[] row : rows) {
             String decision = row[0] == null ? null : row[0].toString();
             java.time.LocalDateTime decidedAt = toDateTime(row[1]);
@@ -84,16 +97,23 @@ public class PaymentPlacePatternService {
                 lastDecision = decision;
                 lastAt = decidedAt;
             }
+            if (bankName == null && row[2] != null) {
+                bankName = row[2].toString();
+            }
         }
         int total = cedente + sacado + inconclusivo;
 
+        final String bankNameFinal = bankName;
         PaymentPlacePatternEntity pattern = patternRepository
-                .findByClientDocumentAndPayerDocument(ced, pay)
+                .findByClientDocumentAndPayerDocumentAndBankCodeAndAgencyCode(ced, pay, bank, agency)
                 .orElseGet(() -> PaymentPlacePatternEntity.builder()
                         .clientDocument(ced)
                         .payerDocument(pay)
+                        .bankCode(bank)
+                        .agencyCode(agency)
                         .build());
 
+        pattern.setBankName(bankNameFinal);
         pattern.setCedenteCount(cedente);
         pattern.setSacadoCount(sacado);
         pattern.setInconclusivoCount(inconclusivo);
@@ -102,9 +122,9 @@ public class PaymentPlacePatternService {
         pattern.setLastDecidedAt(lastAt);
         patternRepository.save(pattern);
 
-        // Re-scora os lançamentos ainda pendentes do mesmo par: agora que o padrão mudou, a
+        // Re-scora os lançamentos pendentes do MESMO contexto: agora que o padrão mudou, a
         // sugestão (e o snapshot que o cérebro lê) aparece sozinha, sem precisar reimportar.
-        var pending = entryRepository.findPendingByPair(ced, pay);
+        var pending = entryRepository.findPendingByContext(ced, pay, bank, agency);
         if (!pending.isEmpty()) {
             pending.forEach(scorer::apply);
             entryRepository.saveAll(pending);
@@ -121,26 +141,30 @@ public class PaymentPlacePatternService {
         return null;
     }
 
-    /** Recompila TODOS os pares a partir das decisões existentes (conserta dados desatualizados). */
+    /** Recompila TODOS os contextos a partir das decisões existentes (conserta dados desatualizados). */
     @Transactional
     public int recomputeAll() {
-        var pairs = entryRepository.findDecidedPairs();
-        for (Object[] pair : pairs) {
-            String ced = pair[0] == null ? null : pair[0].toString();
-            String pay = pair[1] == null ? null : pair[1].toString();
-            recordPair(ced, pay);
+        var contexts = entryRepository.findDecidedContexts();
+        for (Object[] ctx : contexts) {
+            String ced = ctx[0] == null ? null : ctx[0].toString();
+            String pay = ctx[1] == null ? null : ctx[1].toString();
+            String bank = ctx[2] == null ? null : ctx[2].toString();
+            String agency = ctx[3] == null ? null : ctx[3].toString();
+            recordContext(ced, pay, bank, agency);
         }
-        return pairs.size();
+        return contexts.size();
     }
 
     @Transactional(readOnly = true)
-    public Optional<PaymentPlacePatternEntity> lookup(String rawClientDocument, String rawPayerDocument) {
+    public Optional<PaymentPlacePatternEntity> lookup(String rawClientDocument, String rawPayerDocument,
+                                                      String rawBankCode, String rawAgencyCode) {
         String ced = digits(rawClientDocument);
         String pay = digits(rawPayerDocument);
         if (ced == null || pay == null) {
             return Optional.empty();
         }
-        return patternRepository.findByClientDocumentAndPayerDocument(ced, pay);
+        return patternRepository.findByClientDocumentAndPayerDocumentAndBankCodeAndAgencyCode(
+                ced, pay, normCode(rawBankCode), normCode(rawAgencyCode));
     }
 
     @Transactional(readOnly = true)

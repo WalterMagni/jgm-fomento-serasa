@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Padrão aprendido (par cedente×sacado) para a tela "Padrões aprendidos". */
+/** Padrão aprendido (cedente×sacado×banco×agência) para a tela "Padrões aprendidos". */
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,6 +20,9 @@ public class PaymentPlacePatternResponse {
     private String payerDocument;
     private String clientName;
     private String payerName;
+    private String bankCode;
+    private String agencyCode;
+    private String bankName;
     private int cedenteCount;
     private int sacadoCount;
     private int inconclusivoCount;

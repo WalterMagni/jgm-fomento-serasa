@@ -12,7 +12,8 @@ import java.util.UUID;
 
 public interface PaymentPlacePatternJpaRepository extends JpaRepository<PaymentPlacePatternEntity, UUID> {
 
-    Optional<PaymentPlacePatternEntity> findByClientDocumentAndPayerDocument(String clientDocument, String payerDocument);
+    Optional<PaymentPlacePatternEntity> findByClientDocumentAndPayerDocumentAndBankCodeAndAgencyCode(
+            String clientDocument, String payerDocument, String bankCode, String agencyCode);
 
     long countByLockedTrue();
 

@@ -132,6 +132,9 @@ export type PaymentPlacePattern = {
   payerDocument: string;
   clientName?: string | null;
   payerName?: string | null;
+  bankCode?: string | null;
+  agencyCode?: string | null;
+  bankName?: string | null;
   cedenteCount: number;
   sacadoCount: number;
   inconclusivoCount: number;

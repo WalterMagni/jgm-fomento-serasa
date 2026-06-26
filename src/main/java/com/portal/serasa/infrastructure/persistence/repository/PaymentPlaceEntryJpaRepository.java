@@ -24,14 +24,19 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
      * Documentos normalizados no SQL (payer vem mascarado do PDF). O serviço conta em Java —
      * evita projeção de interface sobre native query (que falha silenciosamente com FILTER/array_agg).
      */
-    @Query(value = "SELECT e.analyst_decision, e.decided_at "
+    @Query(value = "SELECT e.analyst_decision, e.decided_at, e.bank_name "
             + "FROM payment_place_entries e "
             + "WHERE e.analyst_decision IS NOT NULL "
             + "AND regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') = :ced "
             + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') = :pay "
+            + "AND COALESCE(e.bank_code, '') = :bank "
+            + "AND COALESCE(e.agency_code, '') = :agency "
             + "ORDER BY e.decided_at DESC NULLS LAST",
             nativeQuery = true)
-    java.util.List<Object[]> findPairDecisions(@Param("ced") String clientDocument, @Param("pay") String payerDocument);
+    java.util.List<Object[]> findContextDecisions(@Param("ced") String clientDocument,
+                                                  @Param("pay") String payerDocument,
+                                                  @Param("bank") String bankCode,
+                                                  @Param("agency") String agencyCode);
 
     /**
      * Lançamentos AINDA pendentes (sem decisão) de um par cedente×sacado (documentos só dígitos).
@@ -41,20 +46,27 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
     @Query(value = "SELECT * FROM payment_place_entries e "
             + "WHERE e.analyst_decision IS NULL "
             + "AND regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') = :ced "
-            + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') = :pay",
+            + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') = :pay "
+            + "AND COALESCE(e.bank_code, '') = :bank "
+            + "AND COALESCE(e.agency_code, '') = :agency",
             nativeQuery = true)
-    java.util.List<PaymentPlaceEntryEntity> findPendingByPair(@Param("ced") String clientDocument, @Param("pay") String payerDocument);
+    java.util.List<PaymentPlaceEntryEntity> findPendingByContext(@Param("ced") String clientDocument,
+                                                                 @Param("pay") String payerDocument,
+                                                                 @Param("bank") String bankCode,
+                                                                 @Param("agency") String agencyCode);
 
-    /** Pares distintos (cedente×sacado, só dígitos) que têm ao menos uma decisão — para recompilar tudo. */
+    /** Contextos distintos (cedente×sacado×banco×agência) com ao menos uma decisão — para recompilar tudo. */
     @Query(value = "SELECT DISTINCT "
             + "regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') AS ced, "
-            + "regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') AS pay "
+            + "regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') AS pay, "
+            + "COALESCE(e.bank_code, '') AS bank, "
+            + "COALESCE(e.agency_code, '') AS agency "
             + "FROM payment_place_entries e "
             + "WHERE e.analyst_decision IS NOT NULL "
             + "AND regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') <> '' "
             + "AND regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') <> ''",
             nativeQuery = true)
-    java.util.List<Object[]> findDecidedPairs();
+    java.util.List<Object[]> findDecidedContexts();
 
     List<PaymentPlaceEntryEntity> findByClientDocumentAndAnalystDecisionIsNotNullOrderByDecidedAtDesc(String clientDocument);
 

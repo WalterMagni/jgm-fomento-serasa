@@ -5,6 +5,9 @@ import Icon from "@/components/ui/Icon";
 import { usePaymentPlacePatterns, useTogglePatternLock, useRecomputePatterns } from "../../../../hooks/usePaymentPlace";
 import { PaymentPlacePattern } from "../../../../types/payment-place";
 
+// Só vira "padrão" a partir da Nª decisão do mesmo contexto (espelha PaymentPlaceScorer.MIN_PATTERN_DECISIONS).
+const MIN_PATTERN = 4;
+
 function formatCnpj(cnpj?: string | null) {
   if (!cnpj) return "—";
   const d = cnpj.replace(/\D/g, "");
@@ -101,6 +104,7 @@ export default function PadroesPage() {
             <tr className="border-b border-border-light text-left text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:border-border-dark">
               <th className="px-4 py-3">Cedente</th>
               <th className="px-4 py-3">Sacado</th>
+              <th className="px-4 py-3">Banco / Agência</th>
               <th className="px-4 py-3 text-center">Padrão</th>
               <th className="px-4 py-3 text-center">Consistência</th>
               <th className="px-4 py-3 text-center">Decisões</th>
@@ -179,22 +183,38 @@ function PatternRow({
         <p className="font-semibold text-grafite dark:text-white">{p.payerName ?? "—"}</p>
         <p className="text-xs text-gray-400">{formatCnpj(p.payerDocument)}</p>
       </td>
+      <td className="px-4 py-3">
+        <p className="font-semibold text-grafite dark:text-white">{p.bankName ?? p.bankCode ?? "—"}</p>
+        <p className="text-xs text-gray-400">
+          {p.bankCode ? `banco ${p.bankCode}` : "sem banco"}{p.agencyCode ? ` · ag ${p.agencyCode}` : ""}
+        </p>
+      </td>
       <td className="px-4 py-3 text-center">
         {p.locked ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30">
             <Icon name="lock" size={13} /> {decisionLabel(p.lockedDecision)}
           </span>
-        ) : (
+        ) : p.totalCount >= MIN_PATTERN ? (
           <DecisionBadge decision={p.dominantDecision} />
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-500 dark:bg-white/10 dark:text-gray-300">
+            <Icon name="hourglass_empty" size={13} /> Aprendendo
+          </span>
         )}
       </td>
       <td className="px-4 py-3 text-center">
-        {p.consistencyPct != null ? (
-          <span className="text-sm font-bold text-grafite dark:text-white">{p.consistencyPct}%</span>
+        {p.totalCount >= MIN_PATTERN ? (
+          <>
+            {p.consistencyPct != null ? (
+              <span className="text-sm font-bold text-grafite dark:text-white">{p.consistencyPct}%</span>
+            ) : (
+              <span className="text-xs text-gray-400">—</span>
+            )}
+            <p className="text-[11px] text-gray-400">{p.dominantCount}/{p.totalCount}</p>
+          </>
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <p className="text-[11px] text-gray-400">{p.totalCount}/{MIN_PATTERN} p/ consolidar</p>
         )}
-        <p className="text-[11px] text-gray-400">{p.dominantCount}/{p.totalCount}</p>
       </td>
       <td className="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
         <span title="Cedente">C {p.cedenteCount}</span> · <span title="Sacado">S {p.sacadoCount}</span>
@@ -214,9 +234,9 @@ function PatternRow({
           </button>
         ) : (
           <button
-            disabled={busy || !p.dominantDecision}
-            title={p.dominantDecision ? `Travar este par como ${decisionLabel(p.dominantDecision)}` : "Sem decisão dominante para travar"}
-            onClick={() => p.dominantDecision && onToggle({ patternId: p.id, locked: true, decision: p.dominantDecision })}
+            disabled={busy || !p.dominantDecision || p.totalCount < MIN_PATTERN}
+            title={p.totalCount < MIN_PATTERN ? `Ainda aprendendo (${p.totalCount}/${MIN_PATTERN}) — sem padrão para travar` : p.dominantDecision ? `Travar este contexto como ${decisionLabel(p.dominantDecision)}` : "Sem decisão dominante para travar"}
+            onClick={() => p.dominantDecision && p.totalCount >= MIN_PATTERN && onToggle({ patternId: p.id, locked: true, decision: p.dominantDecision })}
             className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-40 dark:border-amber-500/30 dark:text-amber-300"
           >
             <Icon name="lock" size={13} /> Travar

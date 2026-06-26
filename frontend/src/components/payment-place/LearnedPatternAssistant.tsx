@@ -15,7 +15,7 @@ function formatCnpj(cnpj?: string | null) {
 
 /**
  * Assistente flutuante de padrões aprendidos. Varre os lançamentos visíveis, separa os que
- * batem com um padrão (par cedente×sacado já decidido antes) e ainda estão pendentes, e
+ * batem com um padrão (contexto cedente×sacado×banco×agência já decidido antes) e ainda estão pendentes, e
  * oferece aplicar a decisão sugerida em todos de uma vez. Tem uma fase de "pensando" para
  * dar a sensação de uma IA processando — a decisão continua sendo do analista (pode reabrir).
  */
@@ -82,7 +82,12 @@ export default function LearnedPatternAssistant({
                   <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 animate-[ppa-orbit_3.2s_linear_infinite_reverse] rounded-full bg-white/80" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold leading-tight">Assistente de padrões</p>
+                  <p className="flex items-center gap-1.5 text-sm font-bold leading-tight">
+                    Assistente de Análise
+                    <span className="rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-200 ring-1 ring-emerald-300/40">
+                      Beta
+                    </span>
+                  </p>
                   <p className="text-[11px] text-white/70">
                     {thinking ? (
                       <span className="inline-flex items-center gap-1">
@@ -119,7 +124,7 @@ export default function LearnedPatternAssistant({
                     Nenhum lançamento pendente com padrão aprendido nesta lista.
                   </p>
                   <p className="mt-1 text-xs text-gray-400">
-                    Decida títulos entre as mesmas empresas e eu passo a reconhecê-los.
+                    Decida títulos entre as mesmas empresas (mesmo banco/agência) e eu passo a reconhecê-los.
                   </p>
                 </div>
               ) : (
@@ -204,8 +209,8 @@ export default function LearnedPatternAssistant({
       {/* Botão flutuante */}
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label="Assistente de padrões aprendidos"
-        title="Assistente de padrões aprendidos"
+        aria-label="Assistente de Análise"
+        title="Assistente de Análise"
         className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#612035] to-[#7d2a45] text-white shadow-xl shadow-[#612035]/30 transition-transform hover:scale-105 active:scale-95"
       >
         {count > 0 ? <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/40" /> : null}

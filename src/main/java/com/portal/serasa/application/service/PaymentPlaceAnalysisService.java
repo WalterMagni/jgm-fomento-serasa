@@ -215,16 +215,20 @@ public class PaymentPlaceAnalysisService {
         if ("CEDENTE".equals(normalizedDecision)) {
             scheduleSacadoProfile(saved.getPayerDocument());
         }
-        schedulePatternUpdate(saved.getClientDocument(), saved.getPayerDocument());
+        schedulePatternUpdate(saved);
         return saved;
     }
 
     /**
-     * Após o commit da decisão, recompila o padrão aprendido do par cedente×sacado (a partir
-     * da fonte de verdade). Roda em background para não pesar a resposta; o resultado vale para
-     * as próximas importações desse par.
+     * Após o commit da decisão, recompila o padrão aprendido do contexto cedente×sacado×banco×agência
+     * (a partir da fonte de verdade). Roda em background para não pesar a resposta; o resultado vale
+     * para as próximas importações desse mesmo contexto.
      */
-    private void schedulePatternUpdate(String clientDocument, String payerDocument) {
+    private void schedulePatternUpdate(PaymentPlaceEntryEntity entry) {
+        final String clientDocument = entry.getClientDocument();
+        final String payerDocument = entry.getPayerDocument();
+        final String bankCode = entry.getBankCode();
+        final String agencyCode = entry.getAgencyCode();
         if (PaymentPlacePatternService.digits(clientDocument) == null
                 || PaymentPlacePatternService.digits(payerDocument) == null) {
             return;
@@ -233,7 +237,7 @@ public class PaymentPlaceAnalysisService {
                 new org.springframework.transaction.support.TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        patternService.recordPair(clientDocument, payerDocument);
+                        patternService.recordContext(clientDocument, payerDocument, bankCode, agencyCode);
                     }
                 });
     }
@@ -283,7 +287,7 @@ public class PaymentPlaceAnalysisService {
 
         PaymentPlaceEntryEntity saved = entryRepository.save(entry);
         // Reabrir tira a decisão → o padrão do par precisa cair também.
-        schedulePatternUpdate(saved.getClientDocument(), saved.getPayerDocument());
+        schedulePatternUpdate(saved);
         return saved;
     }
 
@@ -303,7 +307,7 @@ public class PaymentPlaceAnalysisService {
             entry.setDecidedByName(null);
             entry.setReopenedAt(LocalDateTime.now());
             batchesToUnarchive.add(entry.getBatchId());
-            schedulePatternUpdate(entry.getClientDocument(), entry.getPayerDocument());
+            schedulePatternUpdate(entry);
         }
         for (UUID batchId : batchesToUnarchive) {
             batchRepository.findById(batchId).ifPresent(batch -> {
@@ -503,7 +507,7 @@ public class PaymentPlaceAnalysisService {
             if ("CEDENTE".equals(normalizedDecision)) {
                 scheduleSacadoProfile(entry.getPayerDocument());
             }
-            schedulePatternUpdate(entry.getClientDocument(), entry.getPayerDocument());
+            schedulePatternUpdate(entry);
         }
         return entryRepository.saveAll(entries);
     }

@@ -15,10 +15,11 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Padrão aprendido por par cedente × sacado. Agrega as decisões do analista entre
- * esses dois documentos; o {@link com.portal.serasa.application.service.PaymentPlaceScorer}
- * usa a contagem para reforçar a sugestão nas importações seguintes. Documentos são
- * guardados só com dígitos (payer costuma vir mascarado do PDF).
+ * Padrão aprendido por contexto cedente × sacado × banco × agência. Agrega as decisões do
+ * analista nesse contexto; o {@link com.portal.serasa.application.service.PaymentPlaceScorer}
+ * usa a contagem para reforçar a sugestão nas importações seguintes. Banco/agência diferentes
+ * formam padrão diferente (não herdam o consolidado). Documentos guardados só com dígitos
+ * (payer costuma vir mascarado do PDF); banco/agência ausentes → "" (bucket próprio).
  */
 @Entity
 @Table(name = "payment_place_patterns")
@@ -38,6 +39,17 @@ public class PaymentPlacePatternEntity {
 
     @Column(name = "payer_document", nullable = false, length = 20)
     private String payerDocument;
+
+    /** Banco/agência do retorno bancário fazem parte da chave do padrão (contexto). Ausente → "". */
+    @Column(name = "bank_code", nullable = false, length = 20)
+    private String bankCode;
+
+    @Column(name = "agency_code", nullable = false, length = 20)
+    private String agencyCode;
+
+    /** Nome do banco denormalizado (best-effort), só para exibição na tela de padrões. */
+    @Column(name = "bank_name")
+    private String bankName;
 
     @Column(name = "cedente_count", nullable = false)
     private int cedenteCount;
