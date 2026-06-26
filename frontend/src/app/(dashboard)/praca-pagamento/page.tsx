@@ -23,8 +23,9 @@ import {
   usePartyNote,
   useSavePartyNote,
 } from "../../../hooks/usePaymentPlace";
-import { useReopenPaymentPlaceEntry } from "../../../hooks/usePaymentPlaceCompany";
+import { useReopenPaymentPlaceEntry, usePaymentPlaceHistory } from "../../../hooks/usePaymentPlaceCompany";
 import LearnedPatternAssistant from "../../../components/payment-place/LearnedPatternAssistant";
+import PaymentPlaceEntryReadOnlyModal from "../../../components/payment-place/PaymentPlaceEntryReadOnlyModal";
 import { AttachmentBadge, AttachmentViewerModal, EntryAttachmentsPanel } from "../../../components/payment-place/EntryAttachments";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
 import Icon from "../../../components/ui/Icon";
@@ -276,6 +277,8 @@ export default function PaymentPlacePage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [reliabilityFilter, setReliabilityFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [historyViewerEntry, setHistoryViewerEntry] = useState<PaymentPlaceEntry | null>(null);
   const [notesByEntry, setNotesByEntry] = useState<Record<string, string>>({});
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null);
@@ -384,6 +387,19 @@ export default function PaymentPlacePage() {
       );
     });
   }, [analysisTab, categoryFilter, decisionFilter, entries, reliabilityFilter, search, sectionFilter]);
+
+  // Busca também no histórico (todos os lotes). Debounce p/ não consultar a cada tecla.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+  const historyEnabled = debouncedSearch.length >= 3;
+  const historyQuery = usePaymentPlaceHistory({ q: debouncedSearch, page: 0, size: 20, enabled: historyEnabled });
+  const historyResults = useMemo(() => {
+    if (!historyEnabled || !historyQuery.data) return [];
+    const activeIds = new Set(entries.map((e) => e.id));
+    return historyQuery.data.entries.filter((e) => !activeIds.has(e.id));
+  }, [historyEnabled, historyQuery.data, entries]);
 
   const counters = useMemo(() => {
     const reviewed = entries.filter((entry) => entry.analysisStatus === "ANALISE_CONCLUIDA").length;
@@ -1174,8 +1190,71 @@ export default function PaymentPlacePage() {
               </div>
             )}
           </section>
+
+          {historyEnabled ? (
+            <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <div className="flex items-center gap-2 border-b border-border-light px-4 py-3 dark:border-border-dark">
+                <Icon name="history" size={18} className="text-gray-400" />
+                <h2 className="text-sm font-bold text-grafite dark:text-white">No histórico (outros lotes)</h2>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500 dark:bg-white/10 dark:text-gray-300">
+                  {historyQuery.isFetching ? "…" : historyResults.length}
+                </span>
+                <span className="ml-auto text-xs text-gray-400">Busca por &quot;{debouncedSearch}&quot;</span>
+              </div>
+              {historyQuery.isFetching && historyResults.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">Buscando no histórico…</div>
+              ) : historyResults.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">Nenhum título no histórico para esta busca.</div>
+              ) : (
+                <div className="divide-y divide-border-light dark:divide-border-dark">
+                  {historyResults.map((e) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      onClick={() => setHistoryViewerEntry(e)}
+                      className="flex w-full flex-col gap-1 px-4 py-2.5 text-left transition-colors hover:bg-gray-50/70 lg:flex-row lg:items-center lg:gap-3 dark:hover:bg-white/[0.03]"
+                    >
+                      <div className="min-w-0 lg:w-[260px]">
+                        <p className="truncate text-sm font-bold text-grafite dark:text-white">{e.externalId}{e.titleNumber ? ` · ${e.titleNumber}` : ""}</p>
+                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                          <span className="text-[#2956E0] dark:text-[#7da0f0]">Sac:</span> {e.payerName ?? "—"}
+                        </p>
+                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                          <span className="text-[#612035] dark:text-[#d98aa3]">Ced:</span> {e.clientName ?? "—"}
+                        </p>
+                      </div>
+                      <div className="min-w-0 flex-1 text-xs text-gray-500 dark:text-gray-400">
+                        <p className="truncate">{e.bankName ?? e.bacenInstitutionName ?? "—"} · Ag. {e.bankAgency ?? "—"}</p>
+                        <p className="truncate">{e.batchFileName ?? "—"}{e.batchImportedAt ? ` · ${new Date(e.batchImportedAt).toLocaleDateString("pt-BR")}` : ""}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {e.analystDecision ? (
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                            style={{
+                              color: e.analystDecision === "CEDENTE" ? "#612035" : e.analystDecision === "SACADO" ? "#2956E0" : "#b45309",
+                              background: e.analystDecision === "CEDENTE" ? "#6120351a" : e.analystDecision === "SACADO" ? "#2956E01a" : "#f59e0b1a",
+                            }}
+                          >
+                            {e.analystDecision === "CEDENTE" ? "Cedente" : e.analystDecision === "SACADO" ? "Sacado" : "Inconclusivo"}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-500 dark:bg-white/10 dark:text-gray-300">Pendente</span>
+                        )}
+                        <Icon name="open_in_full" size={16} className="text-gray-400" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
         </main>
       </section>
+
+      {historyViewerEntry ? (
+        <PaymentPlaceEntryReadOnlyModal entry={historyViewerEntry} onClose={() => setHistoryViewerEntry(null)} />
+      ) : null}
 
       <LearnedPatternAssistant
         entries={sortedEntries}
@@ -1859,34 +1938,23 @@ function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
 }
 
 function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enrichingPayerCnpj }: { entry: PaymentPlaceEntry; onEnrichAgency: () => void; enriching: boolean; onEnrichPayerCnpj: () => void; enrichingPayerCnpj: boolean }) {
-  // Filiais do sacado (camada opcional, verde).
-  const [showBranches, setShowBranches] = useState(false);
-  const branchesQuery = useCompanyBranches(entry.payerDocument ?? undefined, showBranches);
-  const branchPoints = (branchesQuery.data ?? [])
-    .filter((b) => typeof b.latitude === "number" && typeof b.longitude === "number")
-    .map((b) => ({
-      label: b.matriz ? "Matriz (sacado)" : "Filial (sacado)",
-      city: b.municipio,
-      lat: b.latitude,
-      lng: b.longitude,
-      color: "#1F9D55",
-    }));
-
-  // Filiais do cedente: busca SÓ no clique (custo de BigQuery). Cacheadas por raiz.
+  // Filiais do cedente: carregadas automático ao abrir o título (Postgres Receita local, cache 30d).
   // Clicar numa filial recalcula as distâncias do cedente.
-  const [showCedenteBranches, setShowCedenteBranches] = useState(false);
   const [selectedCedenteBranch, setSelectedCedenteBranch] = useState<string | null>(null);
-  const cedenteBranchesQuery = useCompanyBranches(entry.clientDocument ?? undefined, showCedenteBranches);
+  const cedenteBranchesQuery = useCompanyBranches(entry.clientDocument ?? undefined, true);
   const cedenteBranches = (cedenteBranchesQuery.data ?? []).filter(
     (b) => typeof b.latitude === "number" && typeof b.longitude === "number",
   );
-  const cedenteBranchMarkers = cedenteBranches.map((b) => ({
-    id: b.cnpj,
-    label: b.matriz ? "Matriz (cedente)" : "Filial (cedente)",
-    city: b.municipio,
-    lat: b.latitude as number,
-    lng: b.longitude as number,
-  }));
+  // A matriz já é o pin do Cedente — só plota filiais de verdade (mf=2) como violeta.
+  const cedenteBranchMarkers = cedenteBranches
+    .filter((b) => !b.matriz)
+    .map((b) => ({
+      id: b.cnpj,
+      label: "Filial (cedente)",
+      city: b.municipio,
+      lat: b.latitude as number,
+      lng: b.longitude as number,
+    }));
   const selBranch = cedenteBranches.find((b) => b.cnpj === selectedCedenteBranch) ?? null;
 
   const agencyHasCoords = typeof entry.agencyLatitude === "number" && typeof entry.agencyLongitude === "number";
@@ -1904,7 +1972,6 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
     { label: "Cedente", city: entry.clientCity, lat: entry.clientLatitude, lng: entry.clientLongitude, color: "#612035" },
     { label: "Agência", city: entry.agencyCityPdf, lat: entry.agencyLatitude, lng: entry.agencyLongitude, color: "#D1732C" },
     { label: "Sacado", city: entry.payerCity, lat: entry.payerLatitude, lng: entry.payerLongitude, color: "#2956E0" },
-    ...(showBranches ? branchPoints : []),
   ];
 
   return (
@@ -2081,55 +2148,19 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#612035" }} />Cedente</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#D1732C" }} />Agência</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#2956E0" }} />Sacado</span>
-          {showCedenteBranches && cedenteBranchMarkers.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#7C3AED" }} />Filiais do cedente</span>
-          ) : null}
-          {showBranches ? (
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#1F9D55" }} />Filiais do sacado</span>
+          {cedenteBranchMarkers.length > 0 ? (
+            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full" style={{ background: "#7C3AED" }} />Filiais do cedente ({cedenteBranchMarkers.length})</span>
           ) : null}
           <div className="ml-auto flex items-center gap-2">
-            {!showCedenteBranches ? (
-              <button
-                type="button"
-                onClick={() => setShowCedenteBranches(true)}
-                disabled={!entry.clientDocument}
-                title={entry.clientDocument ? undefined : "Cedente sem CNPJ vinculado"}
-                className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-              >
-                Filiais do cedente
-              </button>
-            ) : cedenteBranchesQuery.isFetching ? (
+            {cedenteBranchesQuery.isFetching ? (
               <span className="text-[11px] text-gray-400">Carregando filiais do cedente…</span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => { setShowCedenteBranches(false); setSelectedCedenteBranch(null); }}
-                className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-              >
-                Ocultar filiais do cedente ({cedenteBranchMarkers.length})
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowBranches((v) => !v)}
-              disabled={!entry.payerDocument}
-              className="rounded-md border border-border-light px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-            >
-              {branchesQuery.isFetching
-                ? "Carregando filiais…"
-                : showBranches
-                  ? `Ocultar filiais${branchPoints.length ? ` (${branchPoints.length})` : ""}`
-                  : "Mostrar filiais do sacado"}
-            </button>
+            ) : null}
           </div>
         </div>
-        {showBranches && branchesQuery.isError ? (
-          <p className="text-[11px] text-red-500">{(branchesQuery.error as Error)?.message ?? "Erro ao carregar filiais"}</p>
-        ) : null}
         <div className="min-h-[300px] flex-1 overflow-hidden rounded-xl border border-border-light shadow-sm dark:border-border-dark">
           <PaymentPlaceMap
             points={points}
-            branches={showCedenteBranches ? cedenteBranchMarkers : []}
+            branches={cedenteBranchMarkers}
             selectedBranchId={selectedCedenteBranch}
             onBranchClick={(id) => setSelectedCedenteBranch((cur) => (cur === id ? null : id))}
             branchColor="#7C3AED"

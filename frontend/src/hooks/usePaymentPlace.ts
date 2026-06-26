@@ -208,7 +208,7 @@ export function useCompanyBranches(cnpj?: string, enabled = false) {
         headers: getAuthHeaders("application/json"),
       });
       if (response.status === 503) {
-        throw new Error("Consulta de filiais indisponível (BigQuery não configurado)");
+        throw new Error("Consulta de filiais indisponível (banco da Receita não configurado)");
       }
       if (!response.ok) {
         throw new Error("Erro ao carregar filiais");

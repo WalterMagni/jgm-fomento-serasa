@@ -170,7 +170,7 @@ public class ClientProfileService {
             backfillSerasaFromHeadOffice(documentNumber, headOfficeDocumentNumber);
         }
 
-        // 3. Costura para a Fase Receita: enumerar TODAS as filiais da raiz (BigQuery). No-op por ora.
+        // 3. Costura para a Fase Receita: enumerar TODAS as filiais da raiz (Postgres CNPJ). No-op por ora.
         ensureAllBranchesFromReceita(headOfficeDocumentNumber);
     }
 
@@ -204,7 +204,7 @@ public class ClientProfileService {
 
     /**
      * Fase Receita (adiada): aqui entrará a enumeração de TODAS as filiais da raiz via base Receita
-     * (BigQuery Base dos Dados, br_me_cnpj.estabelecimentos), criando company_detail de cada uma a
+     * (Postgres CNPJ local do cnpj-data-pipeline, tabela estabelecimentos), criando company_detail de cada uma a
      * partir do endereço da Receita + cache group_synced_at na matriz. Hoje é no-op: o grupo se
      * popula só com as filiais que aparecem nos lotes (viram sacado).
      */

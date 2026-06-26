@@ -71,12 +71,19 @@ gemini:
     key: ${GEMINI_API_KEY:${GOOGLE_GENERATIVE_AI_API_KEY:}}
   model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
 
-bigquery:
-  enabled: ${BIGQUERY_ENABLED:false}
-  project-id: ${BIGQUERY_PROJECT_ID:}
-  credentials-path: ${GOOGLE_APPLICATION_CREDENTIALS:}
+# Cópia local do cadastro da Receita (cnpj-data-pipeline) num Postgres dedicado,
+# usada para listar filiais (estabelecimentos) por raiz de CNPJ. Banco separado
+# do principal — pool próprio read-only no CompanyBranchClient.
+cnpj:
+  datasource:
+    enabled: ${CNPJ_DB_ENABLED:false}
+    url: ${CNPJ_DB_URL:}
+    username: ${CNPJ_DB_USER:}
+    password: ${CNPJ_DB_PASSWORD:}
   branches:
-    cache-ttl-days: ${BIGQUERY_BRANCHES_TTL_DAYS:30}
+    cache-ttl-days: ${CNPJ_BRANCHES_TTL_DAYS:30}
+    # Teto de linhas por raiz — blindagem contra raiz inválida varrendo a tabela.
+    max-rows: ${CNPJ_BRANCHES_MAX_ROWS:2000}
 
 email:
   cedente:

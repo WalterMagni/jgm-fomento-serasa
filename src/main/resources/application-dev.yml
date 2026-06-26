@@ -7,5 +7,14 @@ spring:
       hibernate:
         format_sql: true
 
+# Dev: banco da Receita (cnpj-data-pipeline) rodando local via Docker na porta host 5435.
+# Habilita as filiais sem precisar exportar env. Em prod vem do .env + rede external.
+cnpj:
+  datasource:
+    enabled: ${CNPJ_DB_ENABLED:true}
+    url: ${CNPJ_DB_URL:jdbc:postgresql://localhost:5435/cnpj}
+    username: ${CNPJ_DB_USER:postgres}
+    password: ${CNPJ_DB_PASSWORD:postgres}
+
 # A chave do Gemini vem de ${GEMINI_API_KEY} (definida em application.yml e no .env).
 # NUNCA commitar chave em texto puro aqui.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -90,6 +90,23 @@ export default function PaymentPlaceMap({ points, branches, selectedBranchId, on
     return Array.from(map.values());
   }, [valid]);
 
+  // Filial que cai na mesma cidade de um ponto principal (ex.: cedente) fica escondida
+  // embaixo do pin dele. Desencosta um pouco (ângulo áureo) só pra ficar visível/clicável;
+  // liga por uma linha tracejada pra deixar claro que é co-localizada.
+  const branchDisplay = useMemo(() => {
+    const groupKeys = new Set(groups.map((g) => `${g.center[0].toFixed(4)},${g.center[1].toFixed(4)}`));
+    let coincident = 0;
+    return validBranches.map((b) => {
+      const key = `${b.lat.toFixed(4)},${b.lng.toFixed(4)}`;
+      if (groupKeys.has(key)) {
+        const angle = coincident++ * 2.39996323; // golden angle (radianos)
+        const r = 0.08; // ~9 km
+        return { ...b, dLat: b.lat + r * Math.cos(angle), dLng: b.lng + r * Math.sin(angle), displaced: true };
+      }
+      return { ...b, dLat: b.lat, dLng: b.lng, displaced: false };
+    });
+  }, [validBranches, groups]);
+
   if (valid.length === 0) {
     return (
       <div className="flex h-full min-h-[260px] items-center justify-center rounded-lg border border-dashed border-border-light bg-gray-50 text-xs text-gray-500 dark:border-border-dark dark:bg-white/5">
@@ -110,32 +127,8 @@ export default function PaymentPlaceMap({ points, branches, selectedBranchId, on
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds points={[...groups.map((g) => g.center), ...validBranches.map((b) => [b.lat, b.lng] as [number, number])]} />
+      <FitBounds points={[...groups.map((g) => g.center), ...branchDisplay.map((b) => [b.dLat, b.dLng] as [number, number])]} />
       <ScrollZoomOnClick />
-      {validBranches.map((b) => {
-        const selected = b.id === selectedBranchId;
-        return (
-          <CircleMarker
-            key={`branch-${b.id}`}
-            center={[b.lat, b.lng]}
-            radius={selected ? 9 : 6}
-            pathOptions={{
-              color: selected ? "#111" : "#fff",
-              weight: selected ? 3 : 1.5,
-              fillColor: branchColor,
-              fillOpacity: selected ? 1 : 0.85,
-            }}
-            eventHandlers={{ click: () => onBranchClick?.(b.id) }}
-          >
-            <Tooltip direction="top" offset={[0, -8]} opacity={1}>
-              <span className="text-xs font-bold" style={{ color: branchColor }}>● </span>
-              <span className="text-xs font-bold">{b.label}</span>
-              {b.city ? <span className="text-[11px]"> · {b.city}</span> : null}
-              <span className="block text-[10px] text-gray-500">clique para recalcular</span>
-            </Tooltip>
-          </CircleMarker>
-        );
-      })}
       {groups.length >= 2 ? (
         <Polyline
           positions={groups.map((g) => g.center)}
@@ -165,6 +158,38 @@ export default function PaymentPlaceMap({ points, branches, selectedBranchId, on
           </CircleMarker>
         )),
       )}
+      {/* Filiais por último → ficam por cima dos pins principais (não somem ao carregar). */}
+      {branchDisplay.map((b) => {
+        const selected = b.id === selectedBranchId;
+        return (
+          <Fragment key={`branch-${b.id}`}>
+            {b.displaced ? (
+              <Polyline
+                positions={[[b.lat, b.lng], [b.dLat, b.dLng]]}
+                pathOptions={{ color: branchColor, weight: 1.5, dashArray: "3 4", opacity: 0.7 }}
+              />
+            ) : null}
+            <CircleMarker
+              center={[b.dLat, b.dLng]}
+              radius={selected ? 9 : 6}
+              pathOptions={{
+                color: selected ? "#111" : "#fff",
+                weight: selected ? 3 : 1.5,
+                fillColor: branchColor,
+                fillOpacity: selected ? 1 : 0.85,
+              }}
+              eventHandlers={{ click: () => onBranchClick?.(b.id) }}
+            >
+              <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+                <span className="text-xs font-bold" style={{ color: branchColor }}>● </span>
+                <span className="text-xs font-bold">{b.label}</span>
+                {b.city ? <span className="text-[11px]"> · {b.city}</span> : null}
+                <span className="block text-[10px] text-gray-500">clique para recalcular</span>
+              </Tooltip>
+            </CircleMarker>
+          </Fragment>
+        );
+      })}
     </MapContainer>
   );
 }

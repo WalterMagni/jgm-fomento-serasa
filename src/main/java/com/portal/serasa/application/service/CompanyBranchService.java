@@ -3,7 +3,7 @@ package com.portal.serasa.application.service;
 import com.portal.serasa.api.rest.dto.response.CompanyBranchResponse;
 import com.portal.serasa.application.port.out.CompanyDetailRepository;
 import com.portal.serasa.domain.model.CompanyDetail;
-import com.portal.serasa.infrastructure.integration.bigquery.CompanyBranchClient;
+import com.portal.serasa.infrastructure.integration.cnpj.CompanyBranchClient;
 import com.portal.serasa.infrastructure.persistence.entity.CompanyBranchEntity;
 import com.portal.serasa.infrastructure.persistence.repository.CompanyBranchJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 /**
  * Resolve as filiais (estabelecimentos da raiz do CNPJ) com cache em Postgres.
- * Busca no BigQuery só quando o cache está vazio ou vencido (TTL); geocodifica
+ * Busca na cópia local da Receita só quando o cache está vazio ou vencido (TTL); geocodifica
  * cada estabelecimento pelo centroide do município, usando a coordenada precisa
  * de company_details quando existir.
  */
@@ -36,7 +36,7 @@ public class CompanyBranchService {
     private final CompanyDetailRepository companyDetailRepository;
     private final MunicipalityGeocoder geocoder;
 
-    @Value("${bigquery.branches.cache-ttl-days:30}")
+    @Value("${cnpj.branches.cache-ttl-days:30}")
     private int cacheTtlDays;
 
     public boolean isAvailable() {
@@ -53,7 +53,7 @@ public class CompanyBranchService {
             return toResponses(branchRepository.findByCnpjRaiz(raiz));
         }
         if (!branchClient.isAvailable()) {
-            throw new IllegalStateException("Consulta de filiais indisponível (BigQuery desabilitado)");
+            throw new IllegalStateException("Consulta de filiais indisponível (cnpj.datasource.enabled=false)");
         }
         List<CompanyBranchClient.BranchRow> rows = branchClient.fetchBranches(raiz);
         List<CompanyBranchEntity> entities = geocodeAndBuild(raiz, rows);

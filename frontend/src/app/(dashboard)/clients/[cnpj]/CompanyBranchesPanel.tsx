@@ -27,9 +27,9 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
-  const [enabled, setEnabled] = useState(false);
 
-  const { data, isFetching, isError, error } = useCompanyBranches(cnpj, enabled);
+  // Carrega automático ao abrir a empresa (Postgres Receita local, sem custo; cache 30d).
+  const { data, isFetching, isError, error } = useCompanyBranches(cnpj, true);
 
   const createProfile = useMutation({
     mutationFn: async (branchCnpj: string) => {
@@ -65,16 +65,7 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
       </div>
 
       <div className="p-5">
-        {!enabled ? (
-          <button
-            type="button"
-            onClick={() => setEnabled(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            <Icon name="travel_explore" size={18} />
-            Buscar filiais
-          </button>
-        ) : isFetching ? (
+        {isFetching ? (
           <p className="text-sm text-gray-500">Buscando filiais…</p>
         ) : isError ? (
           <p className="text-sm text-gray-500">{(error as Error)?.message ?? "Erro ao buscar filiais"}</p>
