@@ -48,12 +48,13 @@ services:
       EMAIL_CEDENTE_ENABLED: ${EMAIL_CEDENTE_ENABLED:-true}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
       APP_USER_MANAGEMENT_ALLOWED_EMAILS: ${APP_USER_MANAGEMENT_ALLOWED_EMAILS:-}
-      # Filiais via cópia local da Receita (cnpj-data-pipeline). Postgres SEPARADO.
-      # Desabilitado por padrão. Aponte CNPJ_DB_URL para o banco da Receita.
+      # Filiais via cópia local da Receita (cnpj-data-pipeline). Postgres SEPARADO,
+      # alcançado pela rede external cnpj-net (container cnpj-pipeline-postgres:5432).
+      # Defaults já apontam pro container; em prod basta CNPJ_DB_ENABLED=true no .env.
       CNPJ_DB_ENABLED: ${CNPJ_DB_ENABLED:-false}
-      CNPJ_DB_URL: ${CNPJ_DB_URL:-}
-      CNPJ_DB_USER: ${CNPJ_DB_USER:-}
-      CNPJ_DB_PASSWORD: ${CNPJ_DB_PASSWORD:-}
+      CNPJ_DB_URL: ${CNPJ_DB_URL:-jdbc:postgresql://cnpj-pipeline-postgres:5432/cnpj}
+      CNPJ_DB_USER: ${CNPJ_DB_USER:-postgres}
+      CNPJ_DB_PASSWORD: ${CNPJ_DB_PASSWORD:-postgres}
       CNPJ_BRANCHES_TTL_DAYS: ${CNPJ_BRANCHES_TTL_DAYS:-30}
       CNPJ_BRANCHES_MAX_ROWS: ${CNPJ_BRANCHES_MAX_ROWS:-2000}
     depends_on:
@@ -67,6 +68,7 @@ services:
       - "${DOCUMENTS_BASE_HOST_PATH:-/mnt/jgm/FM/Cadastro e Comercial/CLIENTES}:/mnt/clientes"
     networks:
       - serasa-net
+      - cnpj-net
 
   frontend:
     build:
@@ -89,3 +91,8 @@ networks:
   serasa-net:
     name: portal-serasa-net
     driver: bridge
+  # Rede do compose do cnpj-data-pipeline (banco da Receita). Já existe no servidor —
+  # referenciada como external para o backend alcançar cnpj-pipeline-postgres por nome.
+  cnpj-net:
+    external: true
+    name: cnpj-data-pipeline_default
