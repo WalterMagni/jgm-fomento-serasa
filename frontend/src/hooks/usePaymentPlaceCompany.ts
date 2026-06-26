@@ -120,9 +120,10 @@ export function usePaymentPlaceInconclusivos(params: { from?: string; to?: strin
 }
 
 // Histórico/biblioteca: busca lançamentos de todos os lotes por texto + data de importação.
-export function usePaymentPlaceHistory(params: { q?: string; from?: string; to?: string; page?: number; size?: number } = {}) {
-  const { q, from, to, page = 0, size = 20 } = params;
+export function usePaymentPlaceHistory(params: { q?: string; from?: string; to?: string; page?: number; size?: number; enabled?: boolean } = {}) {
+  const { q, from, to, page = 0, size = 20, enabled = true } = params;
   return useQuery<PaymentPlaceInconclusivePage>({
+    enabled,
     queryKey: ["paymentPlaceHistory", q ?? "", from ?? "", to ?? "", page, size],
     queryFn: async () => {
       const token = typeof window !== "undefined" ? localStorage.getItem("serasa_token") : null;

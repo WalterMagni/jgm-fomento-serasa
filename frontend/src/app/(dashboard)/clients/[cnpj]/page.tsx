@@ -1631,7 +1631,7 @@ export default function ClientDashboardPage() {
                 { label: "REFIN",           count: neg?.refin?.summary?.count ?? 0,               balance: neg?.refin?.summary?.balance ?? 0 },
                 { label: "Protestos",       count: neg?.notary?.summary?.count ?? 0,              balance: neg?.notary?.summary?.balance ?? 0 },
                 { label: "Cheques",         count: neg?.check?.summary?.count ?? 0,               balance: neg?.check?.summary?.balance ?? 0 },
-                { label: "Cobranças",       count: neg?.collectionRecords?.summary?.count ?? 0,   balance: neg?.collectionRecords?.summary?.balance ?? 0 },
+                { label: "Dívida Vencida",  count: neg?.collectionRecords?.summary?.count ?? 0,   balance: neg?.collectionRecords?.summary?.balance ?? 0 },
                 { label: "Ações Judiciais", count: inq?.judgementFilings?.summary?.count ?? 0,    balance: inq?.judgementFilings?.summary?.balance ?? 0 },
                 { label: "Falências",       count: inq?.bankrupts?.summary?.count ?? 0,           balance: inq?.bankrupts?.summary?.balance ?? 0 },
               ].filter(r => r.count > 0);
@@ -1993,7 +1993,7 @@ export default function ClientDashboardPage() {
               <NegativeCard label="PEFIN"     count={neg?.pefin?.summary?.count ?? 0}             balance={neg?.pefin?.summary?.balance ?? 0}             fmt={fmt} hasDetail={pefinRecords.length > 0}   isOpen={isOpen("pefin")}   onToggle={() => toggle("pefin")} />
               <NegativeCard label="REFIN"     count={neg?.refin?.summary?.count ?? 0}             balance={neg?.refin?.summary?.balance ?? 0}             fmt={fmt} hasDetail={refinRecords.length > 0}   isOpen={isOpen("refin")}   onToggle={() => toggle("refin")} />
               <NegativeCard label="Cheques"   count={neg?.check?.summary?.count ?? 0}             balance={neg?.check?.summary?.balance ?? 0}             fmt={fmt} hasDetail={checkRecords.length > 0}   isOpen={isOpen("check")}   onToggle={() => toggle("check")} />
-              <NegativeCard label="Cobranças" count={neg?.collectionRecords?.summary?.count ?? 0} balance={neg?.collectionRecords?.summary?.balance ?? 0} fmt={fmt} hasDetail={collectRecords.length > 0} isOpen={isOpen("collect")} onToggle={() => toggle("collect")} />
+              <NegativeCard label="Dívida Vencida" count={neg?.collectionRecords?.summary?.count ?? 0} balance={neg?.collectionRecords?.summary?.balance ?? 0} fmt={fmt} hasDetail={collectRecords.length > 0} isOpen={isOpen("collect")} onToggle={() => toggle("collect")} />
             </div>
 
             {/* Detail panels */}
