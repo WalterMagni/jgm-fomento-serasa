@@ -1066,7 +1066,7 @@ export default function PaymentPlacePage() {
                         id={`pp-row-${entry.id}`}
                         onClick={() => (selectMode ? toggleSelect(entry.id) : setFocusedEntryId(entry.id))}
                         onDoubleClick={() => { if (selectMode) return; setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
-                        className={`flex flex-col gap-2 px-4 transition-colors lg:flex-row lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
+                        className={`flex flex-col gap-2 px-4 transition-colors lg:flex-row lg:flex-wrap lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
                           selected
                             ? "bg-primary/10 ring-1 ring-inset ring-primary/50 dark:bg-secondary/15 dark:ring-secondary/50"
                             : focused && !selectMode
@@ -1146,7 +1146,7 @@ export default function PaymentPlacePage() {
 
                         {/* Sugestão + distâncias */}
                         {!selectMode ? (
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                        <div className="flex min-w-[260px] flex-1 basis-[260px] flex-wrap items-center gap-1.5">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
                           <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
                           <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
