@@ -89,6 +89,16 @@ function clean(value?: string | number | null) {
   return String(value);
 }
 
+/**
+ * Complemento da ocorrência sem o código do banco: "001-PAGO FORA DA PRAÇA DO
+ * SACADO" → "PAGO FORA DA PRAÇA DO SACADO". O código completo segue no detalhe.
+ */
+function occurrenceLabel(value?: string | null) {
+  if (!value) return null;
+  const texto = value.replace(/^\s*\d+\s*[-–—]\s*/, "").trim();
+  return texto || value.trim();
+}
+
 // Chave de dia local (YYYY-MM-DD) a partir de uma data ISO.
 function toYmd(value?: string | null) {
   if (!value) return "";
@@ -670,9 +680,9 @@ export default function PaymentPlacePage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <div
-            className={`inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold ${
+            className={`inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-4 text-sm font-bold ${
               todayBatch
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
                 : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
@@ -684,13 +694,13 @@ export default function PaymentPlacePage() {
           <button
             type="button"
             onClick={openBatchModal}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border-light bg-white px-4 text-sm font-bold text-grafite shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-white/5"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border-light bg-white px-4 text-sm font-bold text-grafite shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-white/5"
           >
             <Icon name="inventory_2" size={20} />
             Lotes
           </button>
-          <div className="relative inline-flex">
-            <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-l-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90">
+          <div className="relative inline-flex shrink-0">
+            <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-l-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90">
               <Icon name="upload_file" size={20} />
               Importar PDF
               <input type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleFile} disabled={importMutation.isPending} />
@@ -698,7 +708,7 @@ export default function PaymentPlacePage() {
             <button
               type="button"
               onClick={() => setImportMenuOpen((v) => !v)}
-              className="inline-flex h-11 w-9 items-center justify-center rounded-r-xl border-l border-white/25 bg-primary text-white shadow-sm transition-colors hover:bg-primary/90"
+              className="inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-xl border-l border-white/25 bg-primary text-white shadow-sm transition-colors hover:bg-primary/90"
               title="Mais opções de importação"
               aria-label="Mais opções de importação"
             >
@@ -1066,7 +1076,7 @@ export default function PaymentPlacePage() {
                         id={`pp-row-${entry.id}`}
                         onClick={() => (selectMode ? toggleSelect(entry.id) : setFocusedEntryId(entry.id))}
                         onDoubleClick={() => { if (selectMode) return; setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
-                        className={`flex flex-col gap-2 px-4 transition-colors lg:flex-row lg:flex-wrap lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
+                        className={`flex touch-manipulation flex-col gap-2 px-4 transition-colors lg:flex-row lg:flex-wrap lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
                           selected
                             ? "bg-primary/10 ring-1 ring-inset ring-primary/50 dark:bg-secondary/15 dark:ring-secondary/50"
                             : focused && !selectMode
@@ -1094,9 +1104,21 @@ export default function PaymentPlacePage() {
                           className="flex flex-col gap-2 lg:flex-row lg:items-center"
                         >
                         {/* Identificação */}
-                        <div className="min-w-0 lg:w-[280px]">
+                        {/* Bloco de identificação inteiro abre o detalhe num clique/toque —
+                            alvo grande (o texto do título sozinho era ~76x24px). O resto da
+                            linha continua só focando: fluxo de teclado do desktop intacto. */}
+                        <div
+                          className="group/id min-w-0 cursor-pointer lg:w-[280px]"
+                          title="Ver detalhes do título"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectMode) { toggleSelect(entry.id); return; }
+                            setFocusedEntryId(entry.id);
+                            setExpandedEntryId(entry.id);
+                          }}
+                        >
                           <div className="flex items-center gap-2">
-                            <p className="truncate font-bold text-grafite dark:text-white">{entry.titleNumber}</p>
+                            <p className="truncate font-bold text-grafite underline-offset-2 group-hover/id:underline dark:text-white">{entry.titleNumber}</p>
                             {entry.attachmentCount ? <AttachmentBadge count={entry.attachmentCount} onClick={() => setViewerEntry(entry)} /> : null}
                             {entry.reopenedAt ? (
                               <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Análise reaberta">
@@ -1129,6 +1151,12 @@ export default function PaymentPlacePage() {
                               <p className="truncate">
                                 <span className="font-bold text-gray-600 dark:text-gray-300">Vencimento:</span> {clean(entry.dueDate)}
                               </p>
+                              {occurrenceLabel(entry.occurrenceComplement) ? (
+                                <p className="truncate" title={clean(entry.occurrenceComplement)}>
+                                  <span className="font-bold text-gray-600 dark:text-gray-300">Ocorrência:</span>{" "}
+                                  {occurrenceLabel(entry.occurrenceComplement)}
+                                </p>
+                              ) : null}
                               <p className="truncate">
                                 <span className="font-bold text-gray-600 dark:text-gray-300">Valor pago:</span>{" "}
                                 {formatCurrencyBr(entry.paidValue) ?? clean(entry.paidValue)}
@@ -1139,14 +1167,15 @@ export default function PaymentPlacePage() {
                         </div>
 
                         {selectMode ? (
-                          <div className="flex min-w-0 flex-1 items-center justify-end">
+                          <div className="flex min-w-0 items-center justify-end lg:flex-1">
                             <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
                           </div>
                         ) : null}
 
-                        {/* Sugestão + distâncias */}
+                        {/* Sugestão + distâncias. basis/flex-1 só em lg: abaixo disso a linha
+                            é flex-col e o flex-basis viraria ALTURA (card vazio no retrato). */}
                         {!selectMode ? (
-                        <div className="flex min-w-[260px] flex-1 basis-[260px] flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5 lg:min-w-[260px] lg:flex-1 lg:basis-[260px]">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
                           <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
                           <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
@@ -1167,7 +1196,7 @@ export default function PaymentPlacePage() {
                               disabled={reopenMutation.isPending}
                               title="Reabrir análise (volta para Pendentes e sai da empresa)"
                               aria-label="Reabrir análise"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                              className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
                             >
                               <Icon name="undo" size={16} />
                             </button>
@@ -1175,7 +1204,7 @@ export default function PaymentPlacePage() {
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                            className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                             title="Ver detalhes"
                             aria-label="Ver detalhes"
                           >
@@ -1298,7 +1327,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Ano anterior"
                     aria-label="Ano anterior"
                   >
@@ -1307,7 +1336,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Mês anterior"
                     aria-label="Mês anterior"
                   >
@@ -1321,7 +1350,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Próximo mês"
                     aria-label="Próximo mês"
                   >
@@ -1330,7 +1359,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Próximo ano"
                     aria-label="Próximo ano"
                   >
