@@ -7,7 +7,8 @@ import {
   CircleAlert, CircleX, ClipboardCheck, Clock, Copy, Database, Download, Eye, ExternalLink, File, FileArchive,
   FileText, FileUp, Filter, Folder, FolderOpen, FolderPlus, Footprints, Gavel, Globe, HelpCircle,
   History, Home, Hourglass, IdCard, Image as ImageIcon, Inbox, Info, Landmark, Layers, Link as LinkIcon, Mail, MessageSquarePlus, Network,
-  ListChecks, LogOut, Map as MapIcon, Maximize2, Minus, Moon, MoreHorizontal, MoreVertical,
+  ListChecks, Lock, LogOut, Map as MapIcon, Maximize2, Menu, Minus, Moon, MoreHorizontal, MoreVertical,
+  SearchX,
   Paperclip, Pencil, PenLine, Phone, Plus, Presentation, ReceiptText, Reply, RotateCcw, Save, ScrollText, Search,
   Settings, Shield, ShieldAlert, ShieldCheck, Sparkles, StickyNote, Store, Sun, Table, Tag, ThumbsUp, Trash2,
   TrendingUp, Undo2, Unlink, Upload, UploadCloud, User, UserCheck, Users, UserSearch, Wallet, X, ZoomIn,
@@ -19,6 +20,7 @@ const ICONS: Record<string, LucideIcon> = {
   // navegação / setas
   close: X, clear: X, chevron_right: ChevronRight, chevron_left: ChevronLeft, expand_more: ChevronDown,
   expand_less: ChevronUp, keyboard_double_arrow_right: ChevronsRight, keyboard_double_arrow_left: ChevronsLeft,
+  menu: Menu, search_off: SearchX, lock: Lock,
   unfold_more: ChevronsUpDown, unfold_less: ChevronsDownUp, arrow_back: ArrowLeft, arrow_forward: ArrowRight,
   arrow_upward: ArrowUp, arrow_downward: ArrowDown, more_vert: MoreVertical, more_horiz: MoreHorizontal,
   // ações

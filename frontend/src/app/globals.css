@@ -31,8 +31,8 @@
   /* Repaginação: corpo Hanken Grotesk, títulos Clash Display. Serif preservado p/ relatórios. */
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-source-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-heading: "Clash Display", var(--font-hanken), ui-sans-serif, sans-serif;
-  --font-clash-display: "Clash Display", var(--font-hanken), ui-sans-serif, sans-serif;
+  --font-heading: var(--font-clash), var(--font-hanken), ui-sans-serif, sans-serif;
+  --font-clash-display: var(--font-clash), var(--font-hanken), ui-sans-serif, sans-serif;
 
   --radius-default: 8px;
 }
