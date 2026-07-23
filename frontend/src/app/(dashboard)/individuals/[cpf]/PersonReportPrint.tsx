@@ -213,7 +213,7 @@ export function PersonReportPrint({ profile }: { profile: PersonAnalysisData }) 
           <SummaryCell label="REFIN" value={`${negatives.refin?.summary?.count ?? 0} ocorrência(s)`} />
           <SummaryCell label="Cheques" value={`${negatives.check?.summary?.count ?? 0} ocorrência(s)`} />
           <SummaryCell label="Protestos" value={`${negatives.notary?.summary?.count ?? 0} ocorrência(s)`} />
-          <SummaryCell label="Cobranças" value={`${negatives.collectionRecords?.summary?.count ?? 0} ocorrência(s)`} />
+          <SummaryCell label="Dívidas Vencidas" value={`${negatives.collectionRecords?.summary?.count ?? 0} ocorrência(s)`} />
           <SummaryCell label="Docs Roubados" value={`${facts.stolenDocuments?.summary?.count ?? 0} ocorrência(s)`} />
           <SummaryCell label="Ações Judiciais" value={`${facts.judgementFilings?.summary?.count ?? 0} ocorrência(s)`} />
           <SummaryCell label="Falências" value={`${facts.bankrupts?.summary?.count ?? 0} ocorrência(s)`} />
@@ -247,7 +247,7 @@ export function PersonReportPrint({ profile }: { profile: PersonAnalysisData }) 
       />
 
       <TableSection<PFCollectionRecord>
-        title="Cobranças"
+        title="Dívidas Vencidas"
         records={negatives.collectionRecords?.collectionRecordsResponse ?? []}
         columns={[
           { label: "Ocorrência", render: (r) => formatDate(r.occurrenceDate) },

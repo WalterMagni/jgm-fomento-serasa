@@ -382,7 +382,7 @@ function DataProgressBar({ hasCnpja, hasSerasa }: { hasCnpja: boolean; hasSerasa
                   ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700"
               }`}>
-                <span className="material-symbols-outlined text-xl">{step.icon}</span>
+                <Icon name={step.icon} size={20} />
                 {step.done && (
                   <span className="absolute -bottom-1 -right-1 bg-green-500 border-2 border-surface-light dark:border-surface-dark w-4 h-4 rounded-full flex items-center justify-center">
                     <Icon name="check" size={10} className="text-white" />
@@ -460,7 +460,7 @@ function NegativeCard({
           : isOpen
             ? "bg-red-100 dark:bg-red-900/20 border-red-500 dark:border-red-500 ring-2 ring-red-300 dark:ring-red-700"
             : "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800"
-      } ${hasDetail ? "cursor-pointer select-none" : ""}`}
+      } ${hasDetail ? "cursor-pointer" : ""}`}
       onClick={hasDetail ? onToggle : undefined}
     >
       <div className="flex items-center justify-between mb-2">
@@ -1631,7 +1631,7 @@ export default function ClientDashboardPage() {
                 { label: "REFIN",           count: neg?.refin?.summary?.count ?? 0,               balance: neg?.refin?.summary?.balance ?? 0 },
                 { label: "Protestos",       count: neg?.notary?.summary?.count ?? 0,              balance: neg?.notary?.summary?.balance ?? 0 },
                 { label: "Cheques",         count: neg?.check?.summary?.count ?? 0,               balance: neg?.check?.summary?.balance ?? 0 },
-                { label: "Dívida Vencida",  count: neg?.collectionRecords?.summary?.count ?? 0,   balance: neg?.collectionRecords?.summary?.balance ?? 0 },
+                { label: "Dívidas Vencidas",  count: neg?.collectionRecords?.summary?.count ?? 0,   balance: neg?.collectionRecords?.summary?.balance ?? 0 },
                 { label: "Ações Judiciais", count: inq?.judgementFilings?.summary?.count ?? 0,    balance: inq?.judgementFilings?.summary?.balance ?? 0 },
                 { label: "Falências",       count: inq?.bankrupts?.summary?.count ?? 0,           balance: inq?.bankrupts?.summary?.balance ?? 0 },
               ].filter(r => r.count > 0);
@@ -1993,7 +1993,7 @@ export default function ClientDashboardPage() {
               <NegativeCard label="PEFIN"     count={neg?.pefin?.summary?.count ?? 0}             balance={neg?.pefin?.summary?.balance ?? 0}             fmt={fmt} hasDetail={pefinRecords.length > 0}   isOpen={isOpen("pefin")}   onToggle={() => toggle("pefin")} />
               <NegativeCard label="REFIN"     count={neg?.refin?.summary?.count ?? 0}             balance={neg?.refin?.summary?.balance ?? 0}             fmt={fmt} hasDetail={refinRecords.length > 0}   isOpen={isOpen("refin")}   onToggle={() => toggle("refin")} />
               <NegativeCard label="Cheques"   count={neg?.check?.summary?.count ?? 0}             balance={neg?.check?.summary?.balance ?? 0}             fmt={fmt} hasDetail={checkRecords.length > 0}   isOpen={isOpen("check")}   onToggle={() => toggle("check")} />
-              <NegativeCard label="Dívida Vencida" count={neg?.collectionRecords?.summary?.count ?? 0} balance={neg?.collectionRecords?.summary?.balance ?? 0} fmt={fmt} hasDetail={collectRecords.length > 0} isOpen={isOpen("collect")} onToggle={() => toggle("collect")} />
+              <NegativeCard label="Dívidas Vencidas" count={neg?.collectionRecords?.summary?.count ?? 0} balance={neg?.collectionRecords?.summary?.balance ?? 0} fmt={fmt} hasDetail={collectRecords.length > 0} isOpen={isOpen("collect")} onToggle={() => toggle("collect")} />
             </div>
 
             {/* Detail panels */}
@@ -2008,7 +2008,7 @@ export default function ClientDashboardPage() {
               </NegDetailTable>
             )}
             {isOpen("collect") && collectRecords.length > 0 && (
-              <NegDetailTable title="Cobranças" shownCount={collectRecords.length} totalCount={neg?.collectionRecords?.summary?.count}>
+              <NegDetailTable title="Dívidas Vencidas" shownCount={collectRecords.length} totalCount={neg?.collectionRecords?.summary?.count}>
                 <CollectionDetailTable records={collectRecords} fmt={fmt} />
               </NegDetailTable>
             )}
@@ -2027,18 +2027,22 @@ export default function ClientDashboardPage() {
                   : isOpen("concentre")
                     ? "bg-red-100 dark:bg-red-900/20 border-red-500 dark:border-red-500 ring-2 ring-red-300 dark:ring-red-700"
                     : "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800"
-                } ${notaryCount > 0 ? "cursor-pointer select-none" : ""}`}
-                onClick={notaryCount > 0 ? () => toggle("concentre") : undefined}
+                }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-wide">Concentre — Protestos em Cartório</p>
-                  {notaryCount > 0 && (
-                    <Icon name={isOpen("concentre") ? "expand_less" : "expand_more"} className="text-base text-gray-400 dark:text-gray-500" />
-                  )}
+                <div
+                  className={notaryCount > 0 ? "cursor-pointer select-none" : ""}
+                  onClick={notaryCount > 0 ? () => toggle("concentre") : undefined}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-wide">Concentre — Protestos em Cartório</p>
+                    {notaryCount > 0 && (
+                      <Icon name={isOpen("concentre") ? "expand_less" : "expand_more"} className="text-base text-gray-400 dark:text-gray-500" />
+                    )}
+                  </div>
+                  <p className={`text-sm font-serif ${notaryCount === 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                    {concentreText}
+                  </p>
                 </div>
-                <p className={`text-sm font-serif ${notaryCount === 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
-                  {concentreText}
-                </p>
                 {isOpen("concentre") && notaryRecords.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-700 overflow-x-auto">
                     <NotaryDetailTable records={notaryRecords} fmt={fmt} />
@@ -2095,7 +2099,7 @@ export default function ClientDashboardPage() {
                           isClean ? "bg-green-50 dark:bg-green-900/10" :
                           open    ? "bg-red-100 dark:bg-red-900/20 ring-1 ring-red-300 dark:ring-red-700" :
                                     "bg-red-50 dark:bg-red-900/10"
-                        } ${hasDetail ? "cursor-pointer select-none" : ""}`}
+                        } ${hasDetail ? "cursor-pointer" : ""}`}
                         onClick={hasDetail ? () => setOpenNegCards(p => ({ ...p, [id]: !p[id] })) : undefined}
                       >
                         <dt className="text-sm font-sans text-grafite dark:text-gray-200">{label}</dt>

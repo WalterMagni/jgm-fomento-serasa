@@ -962,7 +962,7 @@ export default function PersonDetailPage() {
             onToggle={() => toggleSection("notary")}
           />
           <NegativeCard
-            title="Cobranças"
+            title="Dívidas Vencidas"
             icon="request_quote"
             section={neg.collectionRecords}
             hasDetail={collectionRecords.length > 0}
@@ -992,7 +992,7 @@ export default function PersonDetailPage() {
           </NegDetailTable>
         )}
         {openSections.collection && collectionRecords.length > 0 && (
-          <NegDetailTable title="Cobranças" shownCount={collectionRecords.length} totalCount={neg.collectionRecords?.summary?.count}>
+          <NegDetailTable title="Dívidas Vencidas" shownCount={collectionRecords.length} totalCount={neg.collectionRecords?.summary?.count}>
             <CollectionDetailTable records={collectionRecords} />
           </NegDetailTable>
         )}
