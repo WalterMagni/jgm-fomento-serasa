@@ -284,6 +284,7 @@ export default function PaymentPlacePage() {
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [sectionFilter, setSectionFilter] = useState("");
   const [decisionFilter, setDecisionFilter] = useState("");
+  const [importDateFilter, setImportDateFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [reliabilityFilter, setReliabilityFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -357,6 +358,17 @@ export default function PaymentPlacePage() {
     return m;
   }, [allBatches]);
 
+  // Dia de importação de cada lote ativo, p/ filtrar lançamentos por data.
+  const importDayByBatch = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const b of batches) m.set(b.id, toYmd(b.importedAt));
+    return m;
+  }, [batches]);
+  const importDateOptions = useMemo(
+    () => Array.from(new Set(batches.map((b) => toYmd(b.importedAt)))).filter(Boolean).sort((a, b) => (a < b ? 1 : -1)),
+    [batches],
+  );
+
   const filteredEntries = useMemo(() => {
     const query = normalize(search);
     return entries.filter((entry) => {
@@ -393,10 +405,11 @@ export default function PaymentPlacePage() {
         (!sectionFilter || entry.section === sectionFilter) &&
         (!categoryFilter || entry.institutionCategory === categoryFilter) &&
         (!reliabilityFilter || entry.geographicReliability === reliabilityFilter) &&
-        (!decisionFilter || (decisionFilter === "SEM_DECISAO" ? !entry.analystDecision : entry.analystDecision === decisionFilter))
+        (!decisionFilter || (decisionFilter === "SEM_DECISAO" ? !entry.analystDecision : entry.analystDecision === decisionFilter)) &&
+        (!importDateFilter || importDayByBatch.get(entry.batchId) === importDateFilter)
       );
     });
-  }, [analysisTab, categoryFilter, decisionFilter, entries, reliabilityFilter, search, sectionFilter]);
+  }, [analysisTab, categoryFilter, decisionFilter, entries, importDateFilter, importDayByBatch, reliabilityFilter, search, sectionFilter]);
 
   // Busca também no histórico (todos os lotes). Debounce p/ não consultar a cada tecla.
   useEffect(() => {
@@ -795,7 +808,7 @@ export default function PaymentPlacePage() {
       <section className="space-y-4">
         <main className="min-w-0 space-y-4">
           <section className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_170px_170px_160px_auto]">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_170px_170px_160px_170px_auto]">
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Busca</span>
                 <input
@@ -860,6 +873,21 @@ export default function PaymentPlacePage() {
                   <option value="INCONCLUSIVO">Inconclusivo</option>
                 </select>
               </label>
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Data importação</span>
+                <select
+                  value={importDateFilter}
+                  onChange={(event) => setImportDateFilter(event.target.value)}
+                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                >
+                  <option value="">Todas</option>
+                  {importDateOptions.map((day) => (
+                    <option key={day} value={day}>
+                      {new Date(`${day}T12:00:00`).toLocaleDateString("pt-BR")}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 onClick={() => {
@@ -868,6 +896,7 @@ export default function PaymentPlacePage() {
                   setCategoryFilter("");
                   setReliabilityFilter("");
                   setDecisionFilter("");
+                  setImportDateFilter("");
                 }}
                 className="mt-5 h-10 rounded-lg border border-border-light px-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >

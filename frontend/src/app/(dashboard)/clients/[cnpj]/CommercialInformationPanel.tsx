@@ -203,7 +203,7 @@ function summarizeRisk(record: CommercialRecord) {
 }
 
 function summarizeOverdue(record: CommercialRecord) {
-  const date = formatDate(record.vencidosValor);
+  const date = formatDate(record.vencidosData);
   const value = formatMoney(record.vencidosValorMonetario);
   if (date === "—" && value === "—") return "—";
   if (date === "—") return value;
@@ -219,6 +219,20 @@ function RiskHeader() {
         ?
         <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-52 -translate-x-1/2 rounded-lg bg-grafite px-3 py-2 text-left text-[11px] font-medium normal-case tracking-normal text-white shadow-xl group-hover:block dark:bg-gray-900">
           Valores exibidos na ordem: risco duplicata / risco cheque / risco comissária.
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function OverdueHeader() {
+  return (
+    <span className="inline-flex items-center gap-1">
+      Vencidos
+      <span className="group relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-300 text-[10px] font-bold text-gray-400 dark:border-gray-600">
+        ?
+        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-lg bg-grafite px-3 py-2 text-left text-[11px] font-medium normal-case tracking-normal text-white shadow-xl group-hover:block dark:bg-gray-900">
+          Data + valor do que está vencido. Não confundir com "Vencimento próx. duplicata" (data de referência da duplicata, sem relação com vencido).
         </span>
       </span>
     </span>
@@ -245,9 +259,9 @@ function downloadCommercialXls(records: CommercialRecord[]) {
     "Risco duplicata",
     "Risco cheque",
     "Risco comissaria",
-    "Vencidos data",
-    "Vencidos valor",
-    "Último Vencimento da Duplicata",
+    "Data do vencido",
+    "Valor vencido",
+    "Vencimento proxima duplicata",
     "VOP",
     "L1 pontual",
     "L2 atraso",
@@ -402,11 +416,12 @@ function ExpandedCommercialRecord({
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-4">
         <DetailItem label="Cliente desde" value={formatDate(record.clienteDesde)} />
+        <DetailItem label="Vencimento próx. duplicata" value={formatDate(record.vencidosValor)} />
         <DetailItem label="Risco duplicata" value={formatMoney(record.riscoDuplicata)} />
         <DetailItem label="Risco cheque" value={formatMoney(record.riscoCheque)} />
         <DetailItem label="Risco comissaria" value={formatMoney(record.riscoComissaria)} />
-        <DetailItem label="Vencidos data" value={formatDate(record.vencidosData)} />
-        <DetailItem label="Vencidos valor" value={formatMoney(record.vencidosValorMonetario)} />
+        <DetailItem label="Data do vencido" value={formatDate(record.vencidosData)} />
+        <DetailItem label="Valor vencido" value={formatMoney(record.vencidosValorMonetario)} />
         <DetailItem label="L2 atraso" value={formatPercent(record.atraso)} />
         <DetailItem label="L3 cartorio" value={formatPercent(record.cartorio)} />
         <DetailItem label="L4 recompra" value={formatPercent(record.recompra)} />
@@ -481,15 +496,15 @@ function CommercialInformationModal({
               <Field label="Última operação" name="ultimaOperacaoData" value={draft.ultimaOperacaoData} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
               <Field label="Valor da operação" name="ultimaOperacaoValor" value={draft.ultimaOperacaoValor} onChange={onChange} placeholder="250.000,00" inputMode="numeric" />
               <Field label="Limite" name="limite" value={draft.limite} onChange={onChange} placeholder="250.000,00" inputMode="numeric" />
+              <Field label="Vencimento próx. duplicata" name="vencidosValor" value={draft.vencidosValor} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
             </FormSection>
 
             <FormSection title="Riscos e Vencidos">
               <Field label="Risco duplicata" name="riscoDuplicata" value={draft.riscoDuplicata} onChange={onChange} placeholder="25.000,00" inputMode="numeric" />
               <Field label="Risco cheque" name="riscoCheque" value={draft.riscoCheque} onChange={onChange} placeholder="25.000,00" inputMode="numeric" />
               <Field label="Risco comissária" name="riscoComissaria" value={draft.riscoComissaria} onChange={onChange} placeholder="25.000,00" inputMode="numeric" />
-              <Field label="Vencidos data" name="vencidosData" value={draft.vencidosData} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
-              <Field label="Vencidos valor" name="vencidosValorMonetario" value={draft.vencidosValorMonetario} onChange={onChange} placeholder="687.053,00" inputMode="numeric" />
-              <Field label="Último Vencimento da Duplicata" name="vencidosValor" value={draft.vencidosValor} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
+              <Field label="Data do vencido" name="vencidosData" value={draft.vencidosData} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
+              <Field label="Valor vencido" name="vencidosValorMonetario" value={draft.vencidosValorMonetario} onChange={onChange} placeholder="687.053,00" inputMode="numeric" />
             </FormSection>
 
             <FormSection title="Performance">
@@ -744,7 +759,10 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
                 <th className="px-4 py-3 text-xs font-sans font-bold uppercase tracking-wide text-gray-400">
                   <RiskHeader />
                 </th>
-                {["Vencidos", "VOP", "Pontual"].map((header) => (
+                <th className="px-4 py-3 text-xs font-sans font-bold uppercase tracking-wide text-gray-400">
+                  <OverdueHeader />
+                </th>
+                {["VOP", "Pontual"].map((header) => (
                   <th key={header} className="px-4 py-3 text-xs font-sans font-bold uppercase tracking-wide text-gray-400">
                     {header}
                   </th>
