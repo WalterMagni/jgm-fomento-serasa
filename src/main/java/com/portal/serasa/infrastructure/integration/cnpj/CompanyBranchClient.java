@@ -72,53 +72,90 @@ public class CompanyBranchClient {
 
     @PostConstruct
     void init() {
-        if (!enabled || url == null || url.isBlank()) {
-            log.info("Consulta de filiais desabilitada (cnpj.datasource.enabled=false ou url vazia)");
-            return;
-        }
-        HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl(url);
-        ds.setUsername(username);
-        ds.setPassword(password);
-        ds.setDriverClassName("org.postgresql.Driver");
-        ds.setReadOnly(true);
-        ds.setMaximumPoolSize(3);
-        ds.setPoolName("cnpj-receita-pool");
-        this.dataSource = ds;
-        JdbcTemplate template = new JdbcTemplate(ds);
-        template.setMaxRows(maxRows);
-        this.jdbcTemplate = template;
-        log.info("Consulta de filiais habilitada (Postgres CNPJ Receita: {})", url);
+        initializeIfNeeded();
     }
 
     @PreDestroy
     void shutdown() {
-        if (dataSource != null) {
-            dataSource.close();
-        }
+        resetDataSource();
     }
 
-    public boolean isAvailable() {
+    public synchronized boolean isAvailable() {
+        initializeIfNeeded();
         return jdbcTemplate != null;
     }
 
     public List<BranchRow> fetchBranches(String cnpjRaiz) {
-        if (jdbcTemplate == null) {
-            throw new IllegalStateException("Consulta de filiais indisponível (cnpj.datasource.enabled=false)");
+        if (!isAvailable()) {
+            throw new IllegalStateException("Consulta de filiais indisponivel no momento");
         }
-        List<BranchRow> rows = jdbcTemplate.query(QUERY, (rs, i) -> new BranchRow(
-                rs.getString("cnpj"),
-                matrizFilial(rs.getObject("matriz_filial")),
-                rs.getString("nome_fantasia"),
-                rs.getString("uf"),
-                rs.getString("id_municipio"),
-                rs.getString("nome_municipio"),
-                joinLogradouro(rs.getString("tipo_logradouro"), rs.getString("logradouro")),
-                rs.getString("numero"),
-                rs.getString("bairro"),
-                rs.getString("cep")), cnpjRaiz);
-        log.info("Filiais (Receita) raiz={} retornou {} estabelecimentos ativos", cnpjRaiz, rows.size());
-        return rows;
+        try {
+            List<BranchRow> rows = jdbcTemplate.query(QUERY, (rs, i) -> new BranchRow(
+                    rs.getString("cnpj"),
+                    matrizFilial(rs.getObject("matriz_filial")),
+                    rs.getString("nome_fantasia"),
+                    rs.getString("uf"),
+                    rs.getString("id_municipio"),
+                    rs.getString("nome_municipio"),
+                    joinLogradouro(rs.getString("tipo_logradouro"), rs.getString("logradouro")),
+                    rs.getString("numero"),
+                    rs.getString("bairro"),
+                    rs.getString("cep")), cnpjRaiz);
+            log.info("Filiais (Receita) raiz={} retornou {} estabelecimentos ativos", cnpjRaiz, rows.size());
+            return rows;
+        } catch (RuntimeException ex) {
+            resetDataSource();
+            throw new IllegalStateException("Consulta de filiais indisponivel no momento", ex);
+        }
+    }
+
+    private synchronized void initializeIfNeeded() {
+        if (jdbcTemplate != null) {
+            return;
+        }
+        if (!enabled || url == null || url.isBlank()) {
+            log.info("Consulta de filiais desabilitada (cnpj.datasource.enabled=false ou url vazia)");
+            return;
+        }
+        HikariDataSource ds = null;
+        try {
+            ds = new HikariDataSource();
+            ds.setJdbcUrl(url);
+            ds.setUsername(username);
+            ds.setPassword(password);
+            ds.setDriverClassName("org.postgresql.Driver");
+            ds.setReadOnly(true);
+            ds.setMaximumPoolSize(3);
+            ds.setPoolName("cnpj-receita-pool");
+            ds.setInitializationFailTimeout(-1);
+            ds.setConnectionTimeout(3000);
+
+            JdbcTemplate template = new JdbcTemplate(ds);
+            template.setMaxRows(maxRows);
+
+            // Valida a conectividade sem derrubar o boot; se falhar, o endpoint responde 503.
+            ds.getConnection().close();
+
+            this.dataSource = ds;
+            this.jdbcTemplate = template;
+            log.info("Consulta de filiais habilitada (Postgres CNPJ Receita: {})", url);
+        } catch (Exception ex) {
+            if (ds != null) {
+                ds.close();
+            }
+            this.dataSource = null;
+            this.jdbcTemplate = null;
+            log.warn("Consulta de filiais indisponivel no boot/acesso (Postgres CNPJ Receita: {}): {}",
+                    url, ex.getMessage());
+        }
+    }
+
+    private synchronized void resetDataSource() {
+        jdbcTemplate = null;
+        if (dataSource != null) {
+            dataSource.close();
+            dataSource = null;
+        }
     }
 
     /** identificador_matriz_filial vem como INTEGER (1=matriz, 2=filial) → "1"/"2". */
