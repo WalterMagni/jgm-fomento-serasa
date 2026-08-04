@@ -133,3 +133,5 @@ A aplicação ficará disponível em `http://localhost:8080`.
 Copie `.env.example` para `.env` e configure as variáveis. O arquivo `.env` não é versionado.
 
 **Serasa:** O token é renovado automaticamente (dura 60 min). Para `POST /company/enrich/serasa/{cnpj}`, o cliente deve existir previamente (criar via `POST /clients` ou importar CSV).
+
+**Docker / WSL:** se o backend falhar no boot com `Flyway` + `SQL State: 28P01` (`password authentication failed for user "serasa"`), o problema costuma ser o volume do Postgres ter sido criado com outra senha. Atualizar o `.env` sozinho nao altera a senha dentro de um volume ja inicializado. Nesse caso, recrie o volume (`docker compose down -v` e depois `docker compose up -d --build`) ou ajuste a senha do usuario dentro do banco existente para casar com `POSTGRES_PASSWORD`.

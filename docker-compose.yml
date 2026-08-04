@@ -27,7 +27,9 @@ services:
       - "8081:8080"   # 8081 no host para não conflitar com outra app
     environment:
       SPRING_PROFILES_ACTIVE: "prod"
-      DB_HOST: postgres
+      # Nome explicito do container do banco principal para evitar colisao
+      # com o service "postgres" do cnpj-data-pipeline na rede externa.
+      DB_HOST: portal-serasa-db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-portal_serasa}
       DB_USER: ${POSTGRES_USER:-serasa}
