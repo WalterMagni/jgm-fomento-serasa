@@ -232,7 +232,7 @@ function OverdueHeader() {
       <span className="group relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-300 text-[10px] font-bold text-gray-400 dark:border-gray-600">
         ?
         <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-lg bg-grafite px-3 py-2 text-left text-[11px] font-medium normal-case tracking-normal text-white shadow-xl group-hover:block dark:bg-gray-900">
-          Data + valor do que está vencido. Não confundir com "Vencimento próx. duplicata" (data de referência da duplicata, sem relação com vencido).
+          Data + valor do que está vencido. Não confundir com "Vencimento da última duplicata" (data de referência da duplicata, sem relação com vencido).
         </span>
       </span>
     </span>
@@ -261,7 +261,7 @@ function downloadCommercialXls(records: CommercialRecord[]) {
     "Risco comissaria",
     "Data do vencido",
     "Valor vencido",
-    "Vencimento proxima duplicata",
+    "Vencimento da ultima duplicata",
     "VOP",
     "L1 pontual",
     "L2 atraso",
@@ -416,7 +416,7 @@ function ExpandedCommercialRecord({
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-4">
         <DetailItem label="Cliente desde" value={formatDate(record.clienteDesde)} />
-        <DetailItem label="Vencimento próx. duplicata" value={formatDate(record.vencidosValor)} />
+        <DetailItem label="Vencimento da última duplicata" value={formatDate(record.vencidosValor)} />
         <DetailItem label="Risco duplicata" value={formatMoney(record.riscoDuplicata)} />
         <DetailItem label="Risco cheque" value={formatMoney(record.riscoCheque)} />
         <DetailItem label="Risco comissaria" value={formatMoney(record.riscoComissaria)} />
@@ -496,7 +496,7 @@ function CommercialInformationModal({
               <Field label="Última operação" name="ultimaOperacaoData" value={draft.ultimaOperacaoData} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
               <Field label="Valor da operação" name="ultimaOperacaoValor" value={draft.ultimaOperacaoValor} onChange={onChange} placeholder="250.000,00" inputMode="numeric" />
               <Field label="Limite" name="limite" value={draft.limite} onChange={onChange} placeholder="250.000,00" inputMode="numeric" />
-              <Field label="Vencimento próx. duplicata" name="vencidosValor" value={draft.vencidosValor} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
+              <Field label="Vencimento da última duplicata" name="vencidosValor" value={draft.vencidosValor} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
             </FormSection>
 
             <FormSection title="Riscos e Vencidos">
