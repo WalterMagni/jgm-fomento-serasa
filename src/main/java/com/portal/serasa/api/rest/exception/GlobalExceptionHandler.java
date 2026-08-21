@@ -77,25 +77,55 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
 
+    /**
+     * Falha conhecida de provedor externo. A mensagem já vem pronta em português do client
+     * (ver CnpjApiClientImpl); o corpo bruto do provedor nunca é repassado para a tela.
+     */
+    @ExceptionHandler(com.portal.serasa.domain.exception.ExternalApiException.class)
+    public ResponseEntity<ErrorResponse> handleExternalApi(
+            com.portal.serasa.domain.exception.ExternalApiException ex,
+            HttpServletRequest request) {
+        log.warn("Falha na API {} (status upstream {}): {}",
+                ex.getProvider(), ex.getUpstreamStatus(), ex.getMessage());
+
+        // Indisponibilidade do provedor é 503 (o cliente pode tentar outra fonte);
+        // erro do dado consultado (4xx) é repassado como veio.
+        int responseStatus = ex.isUpstreamOutage()
+                ? HttpStatus.SERVICE_UNAVAILABLE.value()
+                : ex.getUpstreamStatus();
+
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(responseStatus)
+                .error(ex.getProvider() + " indisponível")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(responseStatus).body(response);
+    }
+
     @ExceptionHandler(RestClientResponseException.class)
     public ResponseEntity<ErrorResponse> handleRestClientError(
             RestClientResponseException ex,
             HttpServletRequest request) {
         int status = ex.getStatusCode().value();
-        String body = ex.getResponseBodyAsString();
-        String message = (body != null && !body.isBlank()) ? body : ex.getMessage();
-        if (message != null && message.length() > 300) {
-            message = message.substring(0, 300) + "...";
-        }
-        log.warn("Erro na API CNPJ Já ({}): {}", status, message);
+        // O corpo do provedor vai só para o log — na tela mostramos texto nosso.
+        log.warn("Erro em API externa ({}): {}", status, ex.getResponseBodyAsString());
 
         int responseStatus = status >= 400 && status < 600 ? status : HttpStatus.BAD_GATEWAY.value();
-        String error = status == 401 ? "Chave API inválida" : status == 404 ? "CNPJ não encontrado" : "Erro na API CNPJ Já";
+        String message = switch (status) {
+            case 401, 403 -> "Credencial da consulta externa inválida ou sem permissão. Avise o suporte.";
+            case 404 -> "Registro não encontrado na consulta externa.";
+            case 429 -> "Limite de consultas do provedor atingido. Tente novamente em alguns minutos.";
+            default -> status >= 500
+                    ? "O serviço externo está indisponível no momento. Tente novamente mais tarde."
+                    : "Falha na consulta externa (erro " + status + ").";
+        };
 
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(java.time.Instant.now())
                 .status(responseStatus)
-                .error(error)
+                .error("Erro em serviço externo")
                 .message(message)
                 .path(request.getRequestURI())
                 .build();
@@ -171,11 +201,23 @@ public class GlobalExceptionHandler {
                 .timestamp(java.time.Instant.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error("Internal Server Error")
-                .message(detail != null && !detail.isBlank() ? detail : "Ocorreu um erro interno. Tente novamente mais tarde.")
+                .message(isPresentable(detail) ? detail : "Ocorreu um erro interno. Tente novamente mais tarde.")
                 .path(request.getRequestURI())
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    /**
+     * Só mostramos o detalhe técnico na tela quando ele é legível. Corpo de provedor externo
+     * (JSON com traceId), stacktrace e textos longos ficam apenas no log.
+     */
+    private boolean isPresentable(String detail) {
+        if (detail == null || detail.isBlank() || detail.length() > 200) {
+            return false;
+        }
+        String trimmed = detail.trim();
+        return !trimmed.startsWith("{") && !trimmed.startsWith("[") && !trimmed.contains("Exception");
     }
 
     private ErrorResponse.FieldError toFieldError(FieldError fieldError) {
