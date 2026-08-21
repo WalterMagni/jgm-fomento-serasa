@@ -53,7 +53,10 @@ Thumbs.db
 # Node / frontend
 node_modules/
 .next/
-out/
+# com barra inicial: so o out/ de build do Next, nunca pacotes java chamados "out"
+# (ex.: application/port/out, da arquitetura hexagonal)
+/out/
+/frontend/out/
 npm-debug.log*
 yarn-error.log*
 
