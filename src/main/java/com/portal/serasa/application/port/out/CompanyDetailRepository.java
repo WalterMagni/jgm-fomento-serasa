@@ -18,6 +18,9 @@ public interface CompanyDetailRepository {
 
     Page<CompanyDetail> findAll(Pageable pageable);
 
+    /** Busca empresas já cadastradas por trecho do nome/fantasia ou por CNPJ. */
+    List<CompanyDetail> searchByNameOrDocument(String term, int limit);
+
     long countRegisteredEnrichedClients();
 
     void deleteByDocumentNumber(String documentNumber);

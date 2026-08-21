@@ -50,6 +50,20 @@ public class CompanyDetailRepositoryAdapter implements CompanyDetailRepository {
     }
 
     @Override
+    public List<CompanyDetail> searchByNameOrDocument(String term, int limit) {
+        if (term == null || term.isBlank()) {
+            return List.of();
+        }
+        String normalized = term.trim().toLowerCase();
+        String digits = normalized.replaceAll("\\D", "");
+        // sem dígitos no termo, um marcador que nunca casa evita o like '%%' pegar a base inteira
+        String documentTerm = digits.isEmpty() ? "###sem-digitos###" : digits;
+        return jpaRepository.searchByNameOrDocument(normalized, documentTerm, limit).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Page<CompanyDetail> findAll(Pageable pageable) {
         return jpaRepository.findAll(pageable).map(mapper::toDomain);
     }

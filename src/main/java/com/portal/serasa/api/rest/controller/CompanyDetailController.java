@@ -5,6 +5,8 @@ import com.portal.serasa.api.rest.dto.request.CompanyCommercialInformationReques
 import com.portal.serasa.api.rest.dto.request.CompanyDocumentFileOperationRequest;
 import com.portal.serasa.api.rest.dto.request.CompanyDocumentRootRequest;
 import com.portal.serasa.api.rest.dto.request.CompanyNoteRequest;
+import com.portal.serasa.api.rest.dto.request.CompanyPartnerNoteRequest;
+import com.portal.serasa.api.rest.dto.request.CompanyPartnerRequest;
 import com.portal.serasa.api.rest.dto.request.CompanyDetailUpdateRequest;
 import com.portal.serasa.api.rest.dto.response.AiAnalysisResponse;
 import com.portal.serasa.api.rest.dto.response.ClientProfileResponse;
@@ -93,6 +95,7 @@ public class CompanyDetailController {
     private final PdfReportService pdfReportService;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final com.portal.serasa.application.service.CompanyPartnerService companyPartnerService;
 
     /** Enriquece dados da empresa consultando a API CNPJ Já. */
     @PostMapping("/enrich/cnpja/{cnpj}")
@@ -367,6 +370,50 @@ public class CompanyDetailController {
         String normalized = cnpj.replaceAll("\\D", "");
         companyCommercialInformationService.delete(normalized, recordId, currentUser);
         return ResponseEntity.ok(java.util.Map.of("message", "Informação comercial removida com sucesso"));
+    }
+
+    // ---------- Empresas parceiras (vínculo manual entre CNPJs do mesmo grupo) ----------
+
+    @GetMapping("/{cnpj}/parceiras")
+    public ResponseEntity<?> listPartners(
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj) {
+        return ResponseEntity.ok(companyPartnerService.listPartners(cnpj));
+    }
+
+    /** Busca empresas já cadastradas para escolher como parceira do CNPJ informado. */
+    @GetMapping("/{cnpj}/parceiras/busca")
+    public ResponseEntity<?> searchPartnerCandidates(
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
+            @RequestParam(name = "q", required = false) String q) {
+        return ResponseEntity.ok(companyPartnerService.searchCandidates(cnpj, q));
+    }
+
+    @PostMapping("/{cnpj}/parceiras")
+    public ResponseEntity<?> addPartner(
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
+            @Valid @RequestBody CompanyPartnerRequest request) {
+        UserEntity currentUser = getAuthenticatedUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
+        }
+        return ResponseEntity.ok(companyPartnerService.addPartner(
+                cnpj, request.getPartnerCnpj(), request.getNote(), currentUser.getName()));
+    }
+
+    @PatchMapping("/{cnpj}/parceiras/{partnerCnpj}")
+    public ResponseEntity<?> updatePartnerNote(
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String partnerCnpj,
+            @Valid @RequestBody CompanyPartnerNoteRequest request) {
+        return ResponseEntity.ok(companyPartnerService.updateNote(cnpj, partnerCnpj, request.getNote()));
+    }
+
+    @DeleteMapping("/{cnpj}/parceiras/{partnerCnpj}")
+    public ResponseEntity<?> removePartner(
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
+            @PathVariable @NotBlank @Size(min = 14, max = 18) String partnerCnpj) {
+        companyPartnerService.removePartner(cnpj, partnerCnpj);
+        return ResponseEntity.ok(java.util.Map.of("message", "Vínculo de parceria removido"));
     }
 
     @GetMapping("/{cnpj}/documents")
