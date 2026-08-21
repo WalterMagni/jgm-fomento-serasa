@@ -202,6 +202,22 @@ export default function GestaoCarteiraPage() {
     return result;
   }, [companies, nameSortDir]);
 
+  const PROVIDER_LABEL: Record<'cnpja' | 'serasa', string> = { cnpja: 'CNPJ Já', serasa: 'Serasa' };
+
+  /**
+   * Deixa legível o erro que veio do backend. Corpo bruto de provedor externo
+   * (ex.: {"code":500,"message":"unexpected error","traceId":"..."}) nunca vai para a tela.
+   */
+  const describeEnrichError = (status: number, body: Record<string, unknown>, provider: 'cnpja' | 'serasa') => {
+    const raw = typeof body?.message === 'string' ? body.message.trim() : '';
+    const isRawProviderBody = raw.startsWith('{') || raw.startsWith('[') || raw.length > 200;
+    if (raw && !isRawProviderBody) return raw;
+    if (status === 503 || status >= 500) return `${PROVIDER_LABEL[provider]} está fora do ar no momento.`;
+    if (status === 404) return `CNPJ não encontrado na base do ${PROVIDER_LABEL[provider]}.`;
+    if (status === 429) return `Limite de consultas do ${PROVIDER_LABEL[provider]} atingido. Tente em alguns minutos.`;
+    return `Falha ao buscar dados no ${PROVIDER_LABEL[provider]} (erro ${status}).`;
+  };
+
   const handleEnrich = async (provider: 'cnpja' | 'serasa') => {
     if (!newCnpj.replace(/\D/g, '')) {
       setModalError("Por favor, informe um CNPJ válido.");
@@ -224,20 +240,20 @@ export default function GestaoCarteiraPage() {
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody?.message || errBody?.error || `Falha ao buscar dados no ${provider.toUpperCase()} (HTTP ${res.status})`);
+        throw new Error(describeEnrichError(res.status, errBody, provider));
       }
-      
+
       // Busca pelo CNPJ recém-adicionado para mostrar o resultado imediatamente
       setPage(0);
       setSearchQuery(cleanCnpj);
       await queryClient.invalidateQueries({ queryKey: ['companyList'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
-      toast.success(`Dados do ${provider.toUpperCase()} adicionados com sucesso!`);
+      toast.success(`Dados do ${PROVIDER_LABEL[provider]} adicionados com sucesso!`);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setModalError(err.message || 'Erro inesperado.');
       } else {
-        setModalError('Erro inesperado.');
+        setModalError('Não foi possível concluir a consulta. Verifique sua conexão e tente novamente.');
       }
     } finally {
       if (provider === 'cnpja') setIsFetchingCnpja(false);
@@ -483,6 +499,10 @@ export default function GestaoCarteiraPage() {
                 filteredCompanies.map((profile) => {
                    const company = profile.companyDetail;
                    const analysis = profile.creditAnalysis;
+                   // Matriz/filial: usa o head do CNPJ Já; sem enriquecimento, cai na regra da
+                   // Receita (ordem do estabelecimento "0001" = matriz).
+                   const profileDoc = (company?.documentNumber || profile.client?.documentNumber || '').replace(/\D/g, '');
+                   const isHead = company?.head ?? (profileDoc.length === 14 ? profileDoc.slice(8, 12) === '0001' : null);
                    
                    return (
                    <tr key={company?.id || profile.client?.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -493,6 +513,23 @@ export default function GestaoCarteiraPage() {
                             {company?.companyName || profile.client?.name || 'Razão Social não informada'}
                           </Link>
                           <NadaConstaIndicator analysis={analysis} />
+                          {isHead === null ? null : isHead ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary"
+                              title="Estabelecimento matriz (CNPJ terminado em 0001)"
+                            >
+                              <Icon name="business" size={12} />
+                              matriz
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-700 dark:bg-sky-500/10 dark:text-sky-300"
+                              title="Estabelecimento filial"
+                            >
+                              <Icon name="store" size={12} />
+                              filial
+                            </span>
+                          )}
                           {!profile.client?.clientCode && profile.client?.origin !== "SACADO_PRACA" ? (
                             <span
                               className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
@@ -575,8 +612,11 @@ export default function GestaoCarteiraPage() {
             </div>
             <div className="p-6">
               {modalError && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm border border-red-100 dark:border-red-900/30">
-                  {modalError}
+                <div className="mb-4 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400">
+                  <div className="flex items-start gap-2">
+                    <Icon name="error_outline" size={18} className="mt-[1px] shrink-0" />
+                    <span>{modalError}</span>
+                  </div>
                 </div>
               )}
               <div className="mb-5">

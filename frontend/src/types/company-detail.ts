@@ -459,6 +459,8 @@ export interface CompanyDetail {
   documentNumber: string;
   companyName: string;
   alias?: string;
+  /** true = matriz, false = filial (vem do CNPJ Já; ausente se não enriquecido) */
+  head?: boolean | null;
   city: string;
   state: string;
   statusId: string;
