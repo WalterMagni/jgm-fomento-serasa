@@ -68,6 +68,12 @@ public class PaymentPlaceEntryResponse {
     private String clientAddress;
     private String clientName;
     private String clientDocument;
+
+    /** Cedente e sacado compartilham sócio — indício de duplicata simulada. */
+    private boolean relatedParties;
+
+    /** Nomes dos sócios em comum, separados por vírgula. */
+    private String relatedPartiesDetail;
     private String payerAddress;
     private String agencyAddressResolved;
     private LocalDateTime agencyEnrichedAt;

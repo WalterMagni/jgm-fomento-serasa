@@ -187,6 +187,22 @@ function SuggestionPill({ suggestion, confidence }: { suggestion?: string | null
   );
 }
 
+/**
+ * Cedente e sacado do mesmo título com sócio em comum. Não é sugestão de praça — é alerta de
+ * possível duplicata simulada, por isso vermelho e sempre visível, sem depender de expandir.
+ */
+function RelatedPartiesChip({ detail }: { detail?: string | null }) {
+  return (
+    <span
+      title={detail ? `Sócios em comum: ${detail}` : "Cedente e sacado compartilham sócio"}
+      className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-50 px-2 py-1 text-[10px] font-bold uppercase text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-400"
+    >
+      <Icon name="warning" className="text-xs" />
+      Sócio em comum
+    </span>
+  );
+}
+
 function DistanceChip({ label, value, highlight }: { label: string; value?: number | null; highlight?: boolean }) {
   const km = formatKm(value);
   if (!km) return null;
@@ -1206,6 +1222,7 @@ export default function PaymentPlacePage() {
                         {!selectMode ? (
                         <div className="flex flex-wrap items-center gap-1.5 lg:min-w-[260px] lg:flex-1 lg:basis-[260px]">
                           <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
+                          {entry.relatedParties ? <RelatedPartiesChip detail={entry.relatedPartiesDetail} /> : null}
                           <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
                           <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
                           <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
@@ -1702,6 +1719,7 @@ export default function PaymentPlacePage() {
                 <div className="flex items-center gap-2">
                   <h2 className="truncate text-base font-bold text-grafite dark:text-white">{expandedEntry.titleNumber}</h2>
                   <SuggestionPill suggestion={expandedEntry.automaticSuggestion} confidence={expandedEntry.automaticConfidence} />
+                  {expandedEntry.relatedParties ? <RelatedPartiesChip detail={expandedEntry.relatedPartiesDetail} /> : null}
                   {expandedEntry.analystDecision ? <DecisionPill decision={expandedEntry.analystDecision} /> : null}
                 </div>
                 <p className="truncate text-xs text-gray-500">{clean(expandedEntry.payerName)} · {clean(expandedEntry.payerDocument)}</p>
@@ -1790,6 +1808,29 @@ export default function PaymentPlacePage() {
                   className="mt-1 w-full rounded-lg border border-border-light bg-white px-3 py-2 text-xs text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
                 />
               </div>
+              {/* Alerta de fraude: precisa ser lido antes de qualquer decisão, não ficar num card lateral. */}
+              {expandedEntry.relatedParties ? (
+                <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-500/40 dark:bg-red-500/10">
+                  <div className="flex items-start gap-2">
+                    <Icon name="warning" className="mt-0.5 text-base text-red-600 dark:text-red-400" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-red-700 dark:text-red-400">
+                        Cedente e sacado compartilham sócio
+                      </p>
+                      {expandedEntry.relatedPartiesDetail ? (
+                        <p className="mt-0.5 text-[11px] text-red-700/90 dark:text-red-300/90">
+                          {expandedEntry.relatedPartiesDetail}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-[11px] text-gray-600 dark:text-gray-400">
+                        Vínculo societário entre as partes do título. Verificar se a operação é
+                        legítima antes de decidir — não altera a sugestão de praça.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               <EntryDetail
                 entry={expandedEntry}
                 onEnrichAgency={() => enrichAgencyMutation.mutate(expandedEntry.id)}

@@ -187,6 +187,18 @@ public class PaymentPlaceEntryEntity {
     @Column(name = "client_document", length = 14)
     private String clientDocument;
 
+    /** Cedente e sacado compartilham sócio — indício de duplicata simulada. Ver V54. */
+    @Column(name = "related_parties", nullable = false)
+    @Builder.Default
+    private boolean relatedParties = false;
+
+    /** Nomes dos sócios em comum, separados por vírgula. */
+    @Column(name = "related_parties_detail", columnDefinition = "text")
+    private String relatedPartiesDetail;
+
+    @Column(name = "related_parties_checked_at")
+    private LocalDateTime relatedPartiesCheckedAt;
+
     @Column(name = "payer_address", columnDefinition = "text")
     private String payerAddress;
 

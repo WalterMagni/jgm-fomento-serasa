@@ -41,6 +41,7 @@ public class PaymentPlaceAnalysisController {
 
     private final PaymentPlaceAnalysisService paymentPlaceAnalysisService;
     private final com.portal.serasa.application.service.CompanyBranchService companyBranchService;
+    private final com.portal.serasa.application.service.PaymentPlaceRelatedPartiesChecker relatedPartiesChecker;
     private final com.portal.serasa.application.service.PaymentPlacePatternService patternService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
@@ -110,6 +111,16 @@ public class PaymentPlaceAnalysisController {
                 .lockedDecision(p.getLockedDecision())
                 .lockedByName(p.getLockedByName())
                 .build();
+    }
+
+    /**
+     * Reavalia partes ligadas (cedente e sacado com sócio em comum) de um lote já importado.
+     * Assíncrono: lotes anteriores à checagem automática precisam disto uma vez.
+     */
+    @PostMapping("/lotes/{batchId}/partes-ligadas")
+    public ResponseEntity<Void> recheckRelatedParties(@PathVariable UUID batchId) {
+        relatedPartiesChecker.checkBatch(batchId);
+        return ResponseEntity.accepted().build();
     }
 
     @GetMapping("/filiais/{cnpj}")
@@ -488,6 +499,8 @@ public class PaymentPlaceAnalysisController {
 
     private PaymentPlaceEntryResponse toEntryResponse(PaymentPlaceEntryEntity entity) {
         return PaymentPlaceEntryResponse.builder()
+                .relatedParties(entity.isRelatedParties())
+                .relatedPartiesDetail(entity.getRelatedPartiesDetail())
                 .id(entity.getId())
                 .batchId(entity.getBatchId())
                 .section(entity.getSection())

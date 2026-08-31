@@ -77,6 +77,10 @@ export type PaymentPlaceEntry = {
   clientAddress?: string | null;
   clientName?: string | null;
   clientDocument?: string | null;
+  /** Cedente e sacado compartilham sócio — indício de duplicata simulada. */
+  relatedParties?: boolean;
+  /** Nomes dos sócios em comum, separados por vírgula. */
+  relatedPartiesDetail?: string | null;
   payerAddress?: string | null;
   agencyAddressResolved?: string | null;
   agencyEnrichedAt?: string | null;

@@ -41,6 +41,7 @@ public class PaymentPlaceAnalysisService {
     private final PaymentPlaceScorer scorer;
     private final PaymentPlacePatternService patternService;
     private final PaymentPlaceAgencyEnricher agencyEnricher;
+    private final PaymentPlaceRelatedPartiesChecker relatedPartiesChecker;
     private final PaymentPlaceSacadoEnricher sacadoEnricher;
     private final ClientProfileService clientProfileService;
     private final ClientService clientService;
@@ -109,6 +110,8 @@ public class PaymentPlaceAnalysisService {
                     @Override
                     public void afterCommit() {
                         agencyEnricher.enrichBatch(batchId);
+                        // Independente do enriquecimento de agência: usa a base da Receita, não o Bacen.
+                        relatedPartiesChecker.checkBatch(batchId);
                     }
                 });
 
