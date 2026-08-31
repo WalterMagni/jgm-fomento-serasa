@@ -371,6 +371,19 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Mesmo agrupamento por tópico do formulário (Operação / Riscos e Vencidos / Performance), pro resumo ficar fácil de conferir contra o que foi preenchido. */
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h4 className="mb-2 flex items-center gap-2 text-xs font-sans font-bold uppercase tracking-wide text-gray-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        {title}
+      </h4>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-4">{children}</div>
+    </div>
+  );
+}
+
 function ExpandedCommercialRecord({
   record,
   onEdit,
@@ -414,17 +427,33 @@ function ExpandedCommercialRecord({
           <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Somente leitura</span>
         )}
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-4">
-        <DetailItem label="Cliente desde" value={formatDate(record.clienteDesde)} />
-        <DetailItem label="Vencimento da última duplicata" value={formatDate(record.vencidosValor)} />
-        <DetailItem label="Risco duplicata" value={formatMoney(record.riscoDuplicata)} />
-        <DetailItem label="Risco cheque" value={formatMoney(record.riscoCheque)} />
-        <DetailItem label="Risco comissaria" value={formatMoney(record.riscoComissaria)} />
-        <DetailItem label="Data do vencido" value={formatDate(record.vencidosData)} />
-        <DetailItem label="Valor vencido" value={formatMoney(record.vencidosValorMonetario)} />
-        <DetailItem label="L2 atraso" value={formatPercent(record.atraso)} />
-        <DetailItem label="L3 cartorio" value={formatPercent(record.cartorio)} />
-        <DetailItem label="L4 recompra" value={formatPercent(record.recompra)} />
+      <div className="space-y-4">
+        <DetailSection title="Operação">
+          <DetailItem label="Data" value={formatDate(record.data)} />
+          <DetailItem label="Tipo" value={record.tipo || "—"} />
+          <DetailItem label="Parceiro" value={record.parceiro || "—"} />
+          <DetailItem label="Cliente desde" value={formatDate(record.clienteDesde)} />
+          <DetailItem label="Última operação" value={formatDate(record.ultimaOperacaoData)} />
+          <DetailItem label="Valor da operação" value={formatMoney(record.ultimaOperacaoValor)} />
+          <DetailItem label="Limite" value={formatMoney(record.limite)} />
+          <DetailItem label="Vencimento da última duplicata" value={formatDate(record.vencidosValor)} />
+        </DetailSection>
+
+        <DetailSection title="Riscos e Vencidos">
+          <DetailItem label="Risco duplicata" value={formatMoney(record.riscoDuplicata)} />
+          <DetailItem label="Risco cheque" value={formatMoney(record.riscoCheque)} />
+          <DetailItem label="Risco comissária" value={formatMoney(record.riscoComissaria)} />
+          <DetailItem label="Data do vencido" value={formatDate(record.vencidosData)} />
+          <DetailItem label="Valor vencido" value={formatMoney(record.vencidosValorMonetario)} />
+        </DetailSection>
+
+        <DetailSection title="Performance">
+          <DetailItem label="VOP" value={formatMoney(record.vop)} />
+          <DetailItem label="L1 pontual (%)" value={formatPercent(record.pontual)} />
+          <DetailItem label="L2 atraso (%)" value={formatPercent(record.atraso)} />
+          <DetailItem label="L3 cartório (%)" value={formatPercent(record.cartorio)} />
+          <DetailItem label="L4 recompra (%)" value={formatPercent(record.recompra)} />
+        </DetailSection>
       </div>
       <div className="mt-3 rounded-lg border border-border-light bg-white px-3 py-2 dark:border-border-dark dark:bg-gray-950">
         <p className="text-[10px] font-sans font-bold uppercase tracking-wide text-gray-400">Observacao</p>

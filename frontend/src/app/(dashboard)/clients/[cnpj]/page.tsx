@@ -1678,81 +1678,6 @@ export default function ClientDashboardPage() {
         </div>
       </div>
 
-      <CompanyBranchesPanel cnpj={cleanCnpj} />
-
-      <CompanyPartnersPanel cnpj={cleanCnpj} />
-
-      {/* ── Serasa: chamada ou pendências ────────────────────────────────── */}
-      {(!hasSerasaData || totalPendingFromAnalysis(ca) > 0) && (
-        <div className="mb-6">
-          {!hasSerasaData ? (
-          <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 shadow-sm border border-border-light dark:border-border-dark flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-              <Icon name="security_update_warning" className="text-3xl" />
-            </div>
-            <h3 className="text-xl font-bold font-sans text-grafite dark:text-white mb-2">Relatório Serasa não consultado</h3>
-            <p className="text-gray-500 mb-6 text-sm max-w-xs">Clique em &ldquo;Consultar Serasa&rdquo; para obter o relatório RELATORIO_AVANCADO_PJ_ANALITICO.</p>
-            <button
-              onClick={() => refreshSerasa()}
-              disabled={isRefreshingSerasa}
-              style={{ backgroundColor: SERASA_COLOR }}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-sans font-bold shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(228,0,111,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
-            >
-              <Icon name="security" className={`${isRefreshingSerasa ? "animate-spin" : ""}`} />
-              {isRefreshingSerasa ? "Consultando..." : "Consultar Serasa Agora"}
-            </button>
-          </div>
-        ) : (
-          <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-red-200 dark:border-red-900/60 print:border-gray-400 print:shadow-none">
-            {(() => {
-              const rows = [
-                { label: "PEFIN",           count: neg?.pefin?.summary?.count ?? 0,               balance: neg?.pefin?.summary?.balance ?? 0 },
-                { label: "REFIN",           count: neg?.refin?.summary?.count ?? 0,               balance: neg?.refin?.summary?.balance ?? 0 },
-                { label: "Protestos",       count: neg?.notary?.summary?.count ?? 0,              balance: neg?.notary?.summary?.balance ?? 0 },
-                { label: "Cheques",         count: neg?.check?.summary?.count ?? 0,               balance: neg?.check?.summary?.balance ?? 0 },
-                { label: "Dívidas Vencidas",  count: neg?.collectionRecords?.summary?.count ?? 0,   balance: neg?.collectionRecords?.summary?.balance ?? 0 },
-                { label: "Ações Judiciais", count: inq?.judgementFilings?.summary?.count ?? 0,    balance: inq?.judgementFilings?.summary?.balance ?? 0 },
-                { label: "Falências",       count: inq?.bankrupts?.summary?.count ?? 0,           balance: inq?.bankrupts?.summary?.balance ?? 0 },
-              ].filter(r => r.count > 0);
-
-              return (
-                <div className="bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-red-200 dark:border-red-800">
-                    <p className="text-xs font-sans font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
-                      <Icon name="warning_amber" className="text-sm" />
-                      {totalPendingFromAnalysis(ca)} pendência(s) · {fmt(totalDebtFromAnalysis(ca))}
-                    </p>
-                  </div>
-                  <div className="divide-y divide-red-100 dark:divide-red-900/30">
-                    {rows.map(r => (
-                      <div key={r.label} className="flex items-center justify-between px-3 py-1.5">
-                        <span className="text-xs font-sans font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{r.label}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-sans text-red-600 dark:text-red-400">{r.count}×</span>
-                          <span className="text-xs font-sans font-bold text-red-700 dark:text-red-300">{fmt(r.balance)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        )}
-        </div>
-      )}
-
-      {/* ── IA — Análise de Crédito com Gemini ───────────────────────────── */}
-      <AiAnalysisCard
-        cnpj={cnpj}
-        hasSerasaData={hasSerasaData}
-        initialData={(() => {
-          if (!ca?.aiAnalysis) return null;
-          try { return JSON.parse(ca.aiAnalysis); } catch { return null; }
-        })()}
-        aiAnalysisDate={ca?.aiAnalysisDate ?? null}
-      />
-
       {/* ── QSA — Quadro Societário (minimizável; Administradores à esquerda, Sócios à direita) ── */}
       {(hasAdmins || hasSocios) && (
         <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-border-light dark:border-border-dark print:border-gray-400 print:shadow-none mb-6">
@@ -1954,6 +1879,81 @@ export default function ClientDashboardPage() {
           )}
         </div>
       )}
+
+      <CompanyPartnersPanel cnpj={cleanCnpj} />
+
+      <CompanyBranchesPanel cnpj={cleanCnpj} />
+
+      {/* ── Serasa: chamada ou pendências ────────────────────────────────── */}
+      {(!hasSerasaData || totalPendingFromAnalysis(ca) > 0) && (
+        <div className="mb-6">
+          {!hasSerasaData ? (
+          <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 shadow-sm border border-border-light dark:border-border-dark flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
+              <Icon name="security_update_warning" className="text-3xl" />
+            </div>
+            <h3 className="text-xl font-bold font-sans text-grafite dark:text-white mb-2">Relatório Serasa não consultado</h3>
+            <p className="text-gray-500 mb-6 text-sm max-w-xs">Clique em &ldquo;Consultar Serasa&rdquo; para obter o relatório RELATORIO_AVANCADO_PJ_ANALITICO.</p>
+            <button
+              onClick={() => refreshSerasa()}
+              disabled={isRefreshingSerasa}
+              style={{ backgroundColor: SERASA_COLOR }}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-sans font-bold shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(228,0,111,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
+            >
+              <Icon name="security" className={`${isRefreshingSerasa ? "animate-spin" : ""}`} />
+              {isRefreshingSerasa ? "Consultando..." : "Consultar Serasa Agora"}
+            </button>
+          </div>
+        ) : (
+          <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-red-200 dark:border-red-900/60 print:border-gray-400 print:shadow-none">
+            {(() => {
+              const rows = [
+                { label: "PEFIN",           count: neg?.pefin?.summary?.count ?? 0,               balance: neg?.pefin?.summary?.balance ?? 0 },
+                { label: "REFIN",           count: neg?.refin?.summary?.count ?? 0,               balance: neg?.refin?.summary?.balance ?? 0 },
+                { label: "Protestos",       count: neg?.notary?.summary?.count ?? 0,              balance: neg?.notary?.summary?.balance ?? 0 },
+                { label: "Cheques",         count: neg?.check?.summary?.count ?? 0,               balance: neg?.check?.summary?.balance ?? 0 },
+                { label: "Dívidas Vencidas",  count: neg?.collectionRecords?.summary?.count ?? 0,   balance: neg?.collectionRecords?.summary?.balance ?? 0 },
+                { label: "Ações Judiciais", count: inq?.judgementFilings?.summary?.count ?? 0,    balance: inq?.judgementFilings?.summary?.balance ?? 0 },
+                { label: "Falências",       count: inq?.bankrupts?.summary?.count ?? 0,           balance: inq?.bankrupts?.summary?.balance ?? 0 },
+              ].filter(r => r.count > 0);
+
+              return (
+                <div className="bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-red-200 dark:border-red-800">
+                    <p className="text-xs font-sans font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                      <Icon name="warning_amber" className="text-sm" />
+                      {totalPendingFromAnalysis(ca)} pendência(s) · {fmt(totalDebtFromAnalysis(ca))}
+                    </p>
+                  </div>
+                  <div className="divide-y divide-red-100 dark:divide-red-900/30">
+                    {rows.map(r => (
+                      <div key={r.label} className="flex items-center justify-between px-3 py-1.5">
+                        <span className="text-xs font-sans font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{r.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-sans text-red-600 dark:text-red-400">{r.count}×</span>
+                          <span className="text-xs font-sans font-bold text-red-700 dark:text-red-300">{fmt(r.balance)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+        </div>
+      )}
+
+      {/* ── IA — Análise de Crédito com Gemini ───────────────────────────── */}
+      <AiAnalysisCard
+        cnpj={cnpj}
+        hasSerasaData={hasSerasaData}
+        initialData={(() => {
+          if (!ca?.aiAnalysis) return null;
+          try { return JSON.parse(ca.aiAnalysis); } catch { return null; }
+        })()}
+        aiAnalysisDate={ca?.aiAnalysisDate ?? null}
+      />
 
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       <PartnerDetailModal
