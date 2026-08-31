@@ -84,8 +84,8 @@ public class CreditAnalysisEntity {
     private JsonNode paymentHistory;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "company_participations_report", columnDefinition = "jsonb")
-    private JsonNode companyParticipationsReport;
+    @Column(name = "check_filings_historical", columnDefinition = "jsonb")
+    private JsonNode checkFilingsHistorical;
 
     @Column(name = "original_payload", columnDefinition = "text")
     private String originalPayload;

@@ -28,9 +28,16 @@ if [ "${CNPJ_DB_ENABLED:-false}" = "true" ]; then
     echo "→ Subindo o banco da Receita (cnpj-data-pipeline)..."
     docker compose -f "$CNPJ_PIPELINE_DIR/docker-compose.yml" up -d
   else
-    echo "AVISO: CNPJ_DB_ENABLED=true mas CNPJ_PIPELINE_DIR não aponta para um diretório."
-    echo "       Defina CNPJ_PIPELINE_DIR no .env com o caminho do cnpj-data-pipeline,"
-    echo "       ou suba aquele compose à mão. Sem ele, filiais e quadro societário ficam 503."
+    # Sem o diretório da pipeline configurado, garante ao menos que o container do banco
+    # (que pode ter ficado parado — reinício do host, conflito de porta, etc.) volte a subir.
+    # Equivalente ao `docker start cnpj-pipeline-postgres` manual.
+    CONTAINER="${CNPJ_DB_CONTAINER:-${CNPJ_DB_HOST:-cnpj-pipeline-postgres}}"
+    echo "→ Garantindo que o container do banco da Receita (${CONTAINER}) está rodando..."
+    if ! docker start "$CONTAINER" 2>/dev/null; then
+      echo "AVISO: não consegui iniciar o container '${CONTAINER}' (não existe nesta máquina ou nome diferente)."
+      echo "       Ajuste CNPJ_DB_CONTAINER no .env, ou defina CNPJ_PIPELINE_DIR pra subir o compose completo."
+      echo "       Sem ele, filiais e quadro societário ficam 503."
+    fi
   fi
 fi
 

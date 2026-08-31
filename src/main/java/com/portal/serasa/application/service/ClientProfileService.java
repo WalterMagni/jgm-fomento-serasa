@@ -373,7 +373,7 @@ public class ClientProfileService {
                 .partnerDetails(source.getPartnerDetails())
                 .creditRatingDetails(source.getCreditRatingDetails())
                 .paymentHistory(source.getPaymentHistory())
-                .companyParticipationsReport(source.getCompanyParticipationsReport())
+                .checkFilingsHistorical(source.getCheckFilingsHistorical())
                 .originalPayload(source.getOriginalPayload())
                 .visaoCedente(source.getVisaoCedente())
                 .consultaEm(source.getConsultaEm())

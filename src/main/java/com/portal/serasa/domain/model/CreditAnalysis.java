@@ -29,7 +29,7 @@ public class CreditAnalysis {
     private JsonNode partnerDetails;
     private JsonNode creditRatingDetails;
     private JsonNode paymentHistory;
-    private JsonNode companyParticipationsReport;
+    private JsonNode checkFilingsHistorical;
     private String originalPayload;
     /** PENDENTE | SIM | NAO — detectado pela presença de dados no nó assignor da Serasa */
     private String visaoCedente;

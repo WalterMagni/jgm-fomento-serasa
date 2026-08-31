@@ -87,10 +87,27 @@ export interface NegativeSection {
   bankruptsResponse?: BankruptRecord[];
 }
 
-// ── Check Filings Historical (companyParticipationsReport no backend) ─────────
+// ── Check Filings Historical: histórico de cheques (sustados/extraviados/CCF) por conta ──────
+
+export interface CheckFilingRecord {
+  bankNumber?: number;
+  bankName?: string;
+  agencyNumber?: number;
+  accountNumberCheck?: number;
+  initialCheckNumber?: number;
+  finalCheckNumber?: number;
+  holderNameAccount?: string;
+  checkAmount?: number;
+  agencySquareCode?: string;
+  agencyZipCode?: number;
+  briefDescriptionReason?: string;
+  dateTimeInclusion?: string;
+  messageDescription?: string;
+  quantityCheck?: number;
+}
 
 export interface CheckFilingsHistorical {
-  checkFilingsHistoricalResponse?: unknown;
+  checkFilingsHistoricalResponse?: CheckFilingRecord[];
 }
 
 export interface NegativeSummary {
@@ -394,8 +411,8 @@ export interface CreditAnalysisData {
   creditRatingDetails?: IdentificationReport;
   /** Histórico de pagamentos comerciais avançado */
   paymentHistory?: AdvancedCommercialPaymentHistory;
-  /** Histórico de emissões de cheques */
-  companyParticipationsReport?: CheckFilingsHistorical;
+  /** Histórico de cheques (sustados/extraviados/CCF) por conta */
+  checkFilingsHistorical?: CheckFilingsHistorical;
   /** PENDENTE | SIM | NAO — se a empresa opera como cedente em factoring/fomento */
   visaoCedente?: 'PENDENTE' | 'SIM' | 'NAO';
   consultaEm: string;

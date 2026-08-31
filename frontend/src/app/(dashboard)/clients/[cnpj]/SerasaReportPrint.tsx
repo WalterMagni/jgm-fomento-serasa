@@ -14,6 +14,7 @@ import type {
   PefinRecord,
   CollectionRecord,
   CheckRecord,
+  CheckFilingRecord,
   RelationshipSuppliersPeriods,
 } from "../../../../types/company-detail";
 
@@ -178,7 +179,7 @@ export function SerasaReportPrint({
   const neg  = ca?.negativeSummary;
   const inq  = ca?.inquiryHistory;
   const ph   = ca?.paymentHistory;
-  const part: unknown[] = []; // participações societárias não disponíveis no novo relatório
+  const checkFilings: CheckFilingRecord[] = ca?.checkFilingsHistorical?.checkFilingsHistoricalResponse ?? [];
 
   const cnpj        = ca?.cnpj || companyDetail?.documentNumber || "";
   const companyName = cr?.companyName || companyDetail?.companyName || "—";
@@ -463,36 +464,47 @@ export function SerasaReportPrint({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* PARTICIPAÇÕES SOCIETÁRIAS DOS SÓCIOS                               */}
+      {/* HISTÓRICO DE CHEQUES (SUSTADOS/EXTRAVIADOS)                         */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {part.length > 0 && (
+      {checkFilings.length > 0 && (
         <>
           <SectionDivider />
-          <SectionHeader title="PARTICIPAÇÕES SOCIETÁRIAS DOS SÓCIOS" />
+          <SectionHeader title="HISTÓRICO DE CHEQUES (SUSTADOS/EXTRAVIADOS)" />
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8.5pt" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #000", background: "#f0f0f0" }}>
-                <th style={{ textAlign: "left",   padding: "2px 6px", width: "18%" }}>CNPJ</th>
-                <th style={{ textAlign: "left",   padding: "2px 6px" }}>EMPRESA PARTICIPADA</th>
-                <th style={{ textAlign: "center", padding: "2px 6px", width: "14%" }}>SITUAÇÃO</th>
-                <th style={{ textAlign: "center", padding: "2px 6px", width: "14%" }}>MUNICÍPIO/UF</th>
-                <th style={{ textAlign: "right",  padding: "2px 6px", width: "10%" }}>% CAPITAL</th>
+                <th style={{ textAlign: "left",  padding: "2px 6px", width: "10%" }}>INCLUSÃO</th>
+                <th style={{ textAlign: "left",  padding: "2px 6px" }}>BANCO / AGÊNCIA</th>
+                <th style={{ textAlign: "left",  padding: "2px 6px", width: "10%" }}>CONTA</th>
+                <th style={{ textAlign: "left",  padding: "2px 6px", width: "12%" }}>CHEQUE(S)</th>
+                <th style={{ textAlign: "right", padding: "2px 6px", width: "8%" }}>QTDE</th>
+                <th style={{ textAlign: "right", padding: "2px 6px", width: "14%" }}>VALOR</th>
+                <th style={{ textAlign: "left",  padding: "2px 6px", width: "16%" }}>MOTIVO</th>
               </tr>
             </thead>
             <tbody>
-              {(part as Record<string, unknown>[]).map((p, i: number) => (
+              {checkFilings.map((r, i) => (
                 <tr key={i} style={{ borderBottom: "1px dotted #bbb" }}>
-                  <td style={{ padding: "2px 6px" }}>
-                    {p.participatedDocumentId ? fmtCNPJ(p.participatedDocumentId as string) : "—"}
+                  <td style={{ padding: "2px 6px" }}>{fmtDate(r.dateTimeInclusion?.slice(0, 10))}</td>
+                  <td style={{ padding: "2px 6px", fontWeight: "bold" }}>
+                    {r.bankName ?? "—"}{r.agencyNumber ? ` — ag. ${r.agencyNumber}` : ""}
                   </td>
-                  <td style={{ padding: "2px 6px", fontWeight: "bold" }}>{(p.participatedName as string) ?? "—"}</td>
-                  <td style={{ padding: "2px 6px", textAlign: "center" }}>{(p.statusCompany as string) ?? "—"}</td>
-                  <td style={{ padding: "2px 6px", textAlign: "center" }}>—</td>
-                  <td style={{ padding: "2px 6px", textAlign: "right" }}>—</td>
+                  <td style={{ padding: "2px 6px" }}>{r.accountNumberCheck ?? "—"}</td>
+                  <td style={{ padding: "2px 6px" }}>
+                    {r.initialCheckNumber == null ? "—"
+                      : r.initialCheckNumber === r.finalCheckNumber ? r.initialCheckNumber
+                      : `${r.initialCheckNumber}–${r.finalCheckNumber}`}
+                  </td>
+                  <td style={{ padding: "2px 6px", textAlign: "right" }}>{r.quantityCheck ?? "—"}</td>
+                  <td style={{ padding: "2px 6px", textAlign: "right", fontWeight: "bold" }}>{fmtCurrency(r.checkAmount)}</td>
+                  <td style={{ padding: "2px 6px" }}>{r.briefDescriptionReason ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <div style={{ fontSize: "7.5pt", marginBottom: "3px" }}>
+            REGISTROS EXIBIDOS = {checkFilings.length} &nbsp;&nbsp; VALOR TOTAL = {fmtCurrency(checkFilings.reduce((sum, r) => sum + (r.checkAmount ?? 0), 0))}
+          </div>
         </>
       )}
 

@@ -32,7 +32,7 @@ public class SerasaCreditRatingMapper {
      * - partnerDetails   ← optionalFeatures.QSAReport
      * - creditRatingDetails ← reports[0].identificationReport
      * - paymentHistory   ← reports[0].advancedCommercialPaymentHistory
-     * - companyParticipationsReport ← reports[0].checkFilingsHistorical
+     * - checkFilingsHistorical ← reports[0].checkFilingsHistorical
      */
     public CreditAnalysis toDomain(UUID clientId, String cnpjSolicitado, String rawJson) {
         try {
@@ -74,7 +74,7 @@ public class SerasaCreditRatingMapper {
             JsonNode creditRatingJson = toJsonNode(report.identificationReport());
             // paymentHistory ← advancedCommercialPaymentHistory
             JsonNode paymentHistoryJson = toJsonNode(report.advancedCommercialPaymentHistory());
-            // companyParticipationsReport ← checkFilingsHistorical
+            // checkFilingsHistorical ← checkFilingsHistorical
             JsonNode checkFilingsJson = toJsonNode(report.checkFilingsHistorical());
 
             // Detecta Visão Cedente: empresa que opera como cedente em operações de factoring/fomento.
@@ -96,7 +96,7 @@ public class SerasaCreditRatingMapper {
                     .partnerDetails(partnerJson)
                     .creditRatingDetails(creditRatingJson)
                     .paymentHistory(paymentHistoryJson)
-                    .companyParticipationsReport(checkFilingsJson)
+                    .checkFilingsHistorical(checkFilingsJson)
                     .originalPayload(rawJson)
                     .visaoCedente(visaoCedente)
                     .consultaEm(LocalDateTime.now(BRAZIL_TIMEZONE))

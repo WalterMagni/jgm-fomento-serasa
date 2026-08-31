@@ -33,6 +33,7 @@ import {
 } from "../../../../types/company-detail";
 import { SerasaReportPrint } from "./SerasaReportPrint";
 import { PaymentHistoryPanel } from "./PaymentHistoryPanel";
+import { CheckFilingsPanel } from "./CheckFilingsPanel";
 import { AiAnalysisCard } from "./AiAnalysisCard";
 import { CompanyNotesPanel } from "./CompanyNotesPanel";
 import { CommercialInformationPanel } from "./CommercialInformationPanel";
@@ -2314,6 +2315,9 @@ export default function ClientDashboardPage() {
       {ca?.paymentHistory && (
         <PaymentHistoryPanel ph={ca.paymentHistory} />
       )}
+
+      {/* ── Histórico de Cheques ─────────────────────────────────────────── */}
+      <CheckFilingsPanel data={ca?.checkFilingsHistorical} />
 
       <CommercialInformationPanel cnpj={cleanCnpj} />
 

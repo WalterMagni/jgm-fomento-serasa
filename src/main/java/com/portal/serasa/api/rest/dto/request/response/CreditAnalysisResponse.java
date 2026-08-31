@@ -29,7 +29,7 @@ public class CreditAnalysisResponse {
     private JsonNode partnerDetails;
     private JsonNode creditRatingDetails;
     private JsonNode paymentHistory;
-    private JsonNode companyParticipationsReport;
+    private JsonNode checkFilingsHistorical;
     private String visaoCedente;
     private LocalDateTime consultaEm;
     private String status;
