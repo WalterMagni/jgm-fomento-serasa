@@ -1,11 +1,8 @@
 package com.portal.serasa.infrastructure.integration.cnpj;
 
-import com.zaxxer.hikari.HikariDataSource;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -17,10 +14,8 @@ import java.util.List;
  * num Postgres dedicado.
  *
  * <p>Substitui a antiga consulta ao BigQuery (Base dos Dados), que ficou cara.
- * O banco da Receita roda separado do banco da aplicação, então este client é
- * dono do próprio pool Hikari (read-only), criado em {@link #init()} só quando
- * {@code cnpj.datasource.enabled=true}. Sem isso o app sobe normal e a consulta
- * de filiais fica indisponível (503), igual ao tratamento do Gemini.</p>
+ * A conexão com o banco da Receita é do {@link ReceitaDataSourceProvider}, compartilhada
+ * com os demais consumidores; se estiver indisponível, a consulta de filiais responde 503.</p>
  *
  * <p>A PK é {@code (cnpj_basico, cnpj_ordem, cnpj_dv)} — uma linha por
  * estabelecimento, sem snapshots históricos, então não há dedup. O CNPJ de 14
@@ -31,6 +26,7 @@ import java.util.List;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class CompanyBranchClient {
 
     private static final String QUERY = """
@@ -51,38 +47,14 @@ public class CompanyBranchClient {
               AND e.situacao_cadastral IN ('02', '2')
             """;
 
-    @Value("${cnpj.datasource.enabled:false}")
-    private boolean enabled;
-
-    @Value("${cnpj.datasource.url:}")
-    private String url;
-
-    @Value("${cnpj.datasource.username:}")
-    private String username;
-
-    @Value("${cnpj.datasource.password:}")
-    private String password;
+    private final ReceitaDataSourceProvider receita;
 
     /** Teto de linhas por raiz — blindagem contra raiz inválida que varra a tabela. */
     @Value("${cnpj.branches.max-rows:2000}")
     private int maxRows;
 
-    private HikariDataSource dataSource;
-    private JdbcTemplate jdbcTemplate;
-
-    @PostConstruct
-    void init() {
-        initializeIfNeeded();
-    }
-
-    @PreDestroy
-    void shutdown() {
-        resetDataSource();
-    }
-
-    public synchronized boolean isAvailable() {
-        initializeIfNeeded();
-        return jdbcTemplate != null;
+    public boolean isAvailable() {
+        return receita.isAvailable();
     }
 
     public List<BranchRow> fetchBranches(String cnpjRaiz) {
@@ -90,7 +62,7 @@ public class CompanyBranchClient {
             throw new IllegalStateException("Consulta de filiais indisponivel no momento");
         }
         try {
-            List<BranchRow> rows = jdbcTemplate.query(QUERY, (rs, i) -> new BranchRow(
+            List<BranchRow> rows = receita.template(maxRows).query(QUERY, (rs, i) -> new BranchRow(
                     rs.getString("cnpj"),
                     matrizFilial(rs.getObject("matriz_filial")),
                     rs.getString("nome_fantasia"),
@@ -104,57 +76,8 @@ public class CompanyBranchClient {
             log.info("Filiais (Receita) raiz={} retornou {} estabelecimentos ativos", cnpjRaiz, rows.size());
             return rows;
         } catch (RuntimeException ex) {
-            resetDataSource();
+            receita.reset();
             throw new IllegalStateException("Consulta de filiais indisponivel no momento", ex);
-        }
-    }
-
-    private synchronized void initializeIfNeeded() {
-        if (jdbcTemplate != null) {
-            return;
-        }
-        if (!enabled || url == null || url.isBlank()) {
-            log.info("Consulta de filiais desabilitada (cnpj.datasource.enabled=false ou url vazia)");
-            return;
-        }
-        HikariDataSource ds = null;
-        try {
-            ds = new HikariDataSource();
-            ds.setJdbcUrl(url);
-            ds.setUsername(username);
-            ds.setPassword(password);
-            ds.setDriverClassName("org.postgresql.Driver");
-            ds.setReadOnly(true);
-            ds.setMaximumPoolSize(3);
-            ds.setPoolName("cnpj-receita-pool");
-            ds.setInitializationFailTimeout(-1);
-            ds.setConnectionTimeout(3000);
-
-            JdbcTemplate template = new JdbcTemplate(ds);
-            template.setMaxRows(maxRows);
-
-            // Valida a conectividade sem derrubar o boot; se falhar, o endpoint responde 503.
-            ds.getConnection().close();
-
-            this.dataSource = ds;
-            this.jdbcTemplate = template;
-            log.info("Consulta de filiais habilitada (Postgres CNPJ Receita: {})", url);
-        } catch (Exception ex) {
-            if (ds != null) {
-                ds.close();
-            }
-            this.dataSource = null;
-            this.jdbcTemplate = null;
-            log.warn("Consulta de filiais indisponivel no boot/acesso (Postgres CNPJ Receita: {}): {}",
-                    url, ex.getMessage());
-        }
-    }
-
-    private synchronized void resetDataSource() {
-        jdbcTemplate = null;
-        if (dataSource != null) {
-            dataSource.close();
-            dataSource = null;
         }
     }
 

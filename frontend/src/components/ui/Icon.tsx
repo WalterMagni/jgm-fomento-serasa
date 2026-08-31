@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsLeft, ChevronsRight, ChevronsUpDown,
   CircleAlert, CircleX, ClipboardCheck, Clock, Copy, Database, Download, Eye, ExternalLink, File, FileArchive,
   FileText, FileUp, Filter, Folder, FolderOpen, FolderPlus, Footprints, Gavel, Globe, HelpCircle,
-  History, Home, Hourglass, IdCard, Image as ImageIcon, Inbox, Info, Landmark, Layers, Link as LinkIcon, Mail, MessageSquarePlus, Network,
+  Handshake, History, Home, Hourglass, IdCard, Image as ImageIcon, Inbox, Info, Landmark, Layers, Lightbulb, Link as LinkIcon, Mail, MessageSquarePlus, Network,
   ListChecks, Lock, LogOut, Map as MapIcon, Maximize2, Menu, Minus, Moon, MoreHorizontal, MoreVertical,
   SearchX,
   Paperclip, Pencil, PenLine, Phone, Plus, Presentation, ReceiptText, Reply, RotateCcw, Save, ScrollText, Search,
@@ -38,6 +38,7 @@ const ICONS: Record<string, LucideIcon> = {
   thumb_up: ThumbsUp, security_update_warning: ShieldAlert, security: ShieldCheck, shield: Shield,
   // entidades / dados
   business: Building2, domain: Building2, add_business: Building2, person: User, people: Users,
+  groups: Users, handshake: Handshake, lightbulb: Lightbulb,
   person_search: UserSearch, attach_file: Paperclip, folder: Folder, folder_open: FolderOpen,
   create_new_folder: FolderPlus, inventory_2: Archive, unarchive: ArchiveRestore, history: History,
   history_edu: ScrollText, receipt_long: ReceiptText, description: FileText, article: FileText,

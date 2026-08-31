@@ -39,6 +39,7 @@ import { CommercialInformationPanel } from "./CommercialInformationPanel";
 import { CompanyDocumentsPanel } from "./CompanyDocumentsPanel";
 import { CompanyBranchesPanel } from "./CompanyBranchesPanel";
 import { CompanyPartnersPanel } from "./CompanyPartnersPanel";
+import { useEconomicGroup, type RelatedCompany } from "./useEconomicGroup";
 import { useEnrichPersonSerasa } from "../../../../hooks/usePersonProfile";
 import type { PersonAnalysisSummary } from "../../../../types/person-analysis";
 
@@ -107,6 +108,22 @@ function navigateToIndividualProfile(target: string) {
   if (typeof window === "undefined") return;
   window.location.assign(`/individuals/${target}`);
 }
+function navigateToCompanyProfile(cnpj: string) {
+  if (typeof window === "undefined") return;
+  window.location.assign(`/clients/${cnpj.replace(/\D/g, "")}`);
+}
+/** Quantas outras empresas a pessoa tem, segundo o cruzamento por sócio da base da Receita. */
+function OtherCompaniesChip({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      title="Outras empresas em que esta pessoa figura, no cadastro público da Receita"
+      className="flex-shrink-0 self-center rounded-full bg-secondary/15 px-2 py-0.5 text-[10px] font-sans font-bold text-secondary"
+    >
+      +{count} {count === 1 ? "empresa" : "empresas"}
+    </span>
+  );
+}
 function buildContextQuery(fromPath: string, fromLabel?: string) {
   const params = new URLSearchParams({ from: fromPath });
   if (fromLabel) params.set("fromLabel", fromLabel);
@@ -149,13 +166,15 @@ async function extractErrorMessage(res: Response, fallback: string) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function PartnerDetailModal({ partner, director, onClose, pfSummary, companyCnpj, companyLabel }: {
+function PartnerDetailModal({ partner, director, onClose, pfSummary, companyCnpj, companyLabel, otherCompanies }: {
   partner?: QSAPartner | null;
   director?: QSADirector | null;
   onClose: () => void;
   pfSummary?: PersonAnalysisSummary;
   companyCnpj?: string;
   companyLabel?: string;
+  /** Empresas em que esta pessoa também figura, segundo o cadastro público da Receita. */
+  otherCompanies?: RelatedCompany[];
 }) {
   const pathname = usePathname();
   const item = partner ?? director;
@@ -233,6 +252,62 @@ function PartnerDetailModal({ partner, director, onClose, pfSummary, companyCnpj
             </div>
           ))}
         </div>
+
+        {/* Outras empresas da pessoa — cruzamento por sócio em comum na base da Receita */}
+        {otherCompanies && otherCompanies.length > 0 && (
+          <div className="px-6 pb-6 pt-0 border-t border-border-light dark:border-border-dark">
+            <p className="text-[11px] font-sans font-bold text-gray-400 uppercase tracking-wide mb-3 mt-4">
+              Outras empresas ({otherCompanies.length})
+            </p>
+            <div className="space-y-2">
+              {otherCompanies.map((c) => (
+                <div
+                  key={c.cnpjRaiz}
+                  className={`rounded-xl border p-3 ${
+                    c.irregular
+                      ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10"
+                      : "border-border-light bg-background-light dark:border-border-dark dark:bg-background-dark"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-sans font-bold text-grafite dark:text-gray-200">
+                        {c.companyName ?? `Raiz ${c.cnpjRaiz}`}
+                      </p>
+                      <p className="mt-0.5 font-serif text-[11px] text-gray-500">
+                        {c.receitaCnpj ? formatCNPJ(c.receitaCnpj) : c.cnpjRaiz}
+                      </p>
+                    </div>
+                    {c.companyStatusLabel && (
+                      <span
+                        className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-sans font-bold ${
+                          c.irregular
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                        }`}
+                      >
+                        {c.companyStatusLabel}
+                      </span>
+                    )}
+                  </div>
+                  {c.inSystem && c.cnpj && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigateToCompanyProfile(c.cnpj as string);
+                      }}
+                      className="mt-2 inline-flex items-center gap-1 text-[11px] font-sans font-bold text-primary transition-colors hover:text-primary/80"
+                    >
+                      <Icon name="open_in_new" className="text-xs" />
+                      Ver perfil no portal
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Consulta PF — somente sócios com CPF */}
         {isCpf && (
@@ -925,6 +1000,7 @@ export default function ClientDashboardPage() {
     size: pracaSize,
   });
 
+  const { companiesOf } = useEconomicGroup(cleanCnpj);
   const [selectedPartner, setSelectedPartner] = useState<QSAPartner | null>(null);
   const [selectedDirector, setSelectedDirector] = useState<QSADirector | null>(null);
   const [openNegCards, setOpenNegCards] = useState<Record<string, boolean>>({});
@@ -1721,6 +1797,7 @@ export default function ClientDashboardPage() {
                         <p className="text-xs font-serif text-gray-500">{d.role} · {d.status}</p>
                         {d.sinceDate && <p className="text-[10px] text-gray-400">Desde: {formatDate(d.sinceDate)}</p>}
                       </div>
+                      <OtherCompaniesChip count={companiesOf(d.documentId).length} />
                       <Icon name="chevron_right" className="text-sm text-gray-300 group-hover:text-secondary transition-colors self-center flex-shrink-0" />
                     </button>
                   )) : visibleMemberAdmins.map((m: CompanyMember, i: number) => {
@@ -1819,6 +1896,7 @@ export default function ClientDashboardPage() {
                               </p>
                             )}
                           </div>
+                          <OtherCompaniesChip count={companiesOf(p.documentId).length} />
                           <Icon name="chevron_right" className="text-sm text-gray-300 group-hover:text-primary transition-colors self-center flex-shrink-0" />
                         </div>
                         {isCpf && pfSummary && (
@@ -1880,6 +1958,7 @@ export default function ClientDashboardPage() {
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       <PartnerDetailModal
         partner={selectedPartner}
+        otherCompanies={companiesOf(selectedPartner?.documentId)}
         onClose={() => setSelectedPartner(null)}
         pfSummary={(() => {
           const cpf = (selectedPartner?.documentId ?? "").replace(/\D/g, "");
@@ -1890,6 +1969,7 @@ export default function ClientDashboardPage() {
       />
       <PartnerDetailModal
         director={selectedDirector}
+        otherCompanies={companiesOf(selectedDirector?.documentId)}
         onClose={() => setSelectedDirector(null)}
         pfSummary={(() => {
           const cpf = (selectedDirector?.documentId ?? "").replace(/\D/g, "");

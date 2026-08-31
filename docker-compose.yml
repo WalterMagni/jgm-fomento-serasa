@@ -72,6 +72,53 @@ services:
       - serasa-net
       - cnpj-net
 
+  # Aplica os índices que o portal precisa na cópia local da Receita.
+  # É one-shot: sobe, roda e sai. Idempotente (CREATE INDEX IF NOT EXISTS), então roda a cada
+  # `up` de propósito — é o que devolve o índice depois de uma recarga do cnpj-data-pipeline,
+  # que pode recriar as tabelas e levar os índices junto sem quebrar nada, só deixando lento.
+  #
+  # O banco da Receita NÃO é declarado aqui: ele pertence ao compose do cnpj-data-pipeline
+  # (container, volume e initial.sql são de lá). Declarar aqui faria um `docker compose down`
+  # deste projeto poder derrubar ou apagar o banco do outro.
+  cnpj-indexes:
+    image: postgres:16-alpine
+    container_name: portal-serasa-cnpj-indexes
+    restart: "no"
+    environment:
+      PGPASSWORD: ${CNPJ_DB_PASSWORD:-postgres}
+      CNPJ_DB_HOST: ${CNPJ_DB_HOST:-cnpj-pipeline-postgres}
+      CNPJ_DB_USER: ${CNPJ_DB_USER:-postgres}
+      CNPJ_DB_ENABLED: ${CNPJ_DB_ENABLED:-false}
+    volumes:
+      - ./scripts/receita-indices.sql:/scripts/receita-indices.sql:ro
+    networks:
+      - cnpj-net
+    # Sai com 0 mesmo sem conseguir aplicar: a base da Receita é fonte auxiliar e não pode
+    # impedir a subida do portal. O backend avisa em WARN no boot se o índice faltar.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ "$$CNPJ_DB_ENABLED" != "true" ]; then
+          echo "[cnpj-indexes] CNPJ_DB_ENABLED != true — nada a fazer."
+          exit 0
+        fi
+        i=0
+        while [ $$i -lt 30 ]; do
+          if pg_isready -h "$$CNPJ_DB_HOST" -U "$$CNPJ_DB_USER" -d cnpj >/dev/null 2>&1; then
+            echo "[cnpj-indexes] Base da Receita pronta; aplicando indices..."
+            psql -h "$$CNPJ_DB_HOST" -U "$$CNPJ_DB_USER" -d cnpj -v ON_ERROR_STOP=1 \
+                 -f /scripts/receita-indices.sql && echo "[cnpj-indexes] OK." && exit 0
+            echo "[cnpj-indexes] AVISO: falha ao aplicar os indices (veja o erro acima)."
+            exit 0
+          fi
+          i=$$((i + 1))
+          sleep 2
+        done
+        echo "[cnpj-indexes] AVISO: $$CNPJ_DB_HOST nao respondeu em 60s; indices NAO aplicados."
+        echo "[cnpj-indexes] Suba o cnpj-data-pipeline e rode: docker compose up -d cnpj-indexes"
+        exit 0
+
   frontend:
     build:
       context: ./frontend

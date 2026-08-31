@@ -13,17 +13,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
  * Vínculos manuais de empresas parceiras (mesmo grupo, CNPJs distintos).
- * O par é guardado uma única vez em ordem canônica, então o vínculo aparece
- * automaticamente nos dois perfis.
+ * Cada vínculo é guardado uma única vez em ordem canônica (uma linha por par),
+ * mas a listagem enxerga o grupo inteiro por transitividade: se A-B e B-C estão
+ * ligados, A também vê C como parceira (fecho transitivo via BFS no grafo de pares).
  */
 @Slf4j
 @Service
@@ -38,20 +42,85 @@ public class CompanyPartnerService {
     @Transactional(readOnly = true)
     public List<CompanyPartnerResponse> listPartners(String cnpj) {
         String normalized = normalize(cnpj);
-        List<CompanyPartnerEntity> pairs = partnerRepository.findAllByCnpj(normalized);
-        if (pairs.isEmpty()) {
+
+        Set<String> visited = new HashSet<>();
+        visited.add(normalized);
+        Set<String> frontier = new HashSet<>(visited);
+        List<CompanyPartnerEntity> componentEdges = new ArrayList<>();
+        Set<UUID> seenEdgeIds = new HashSet<>();
+
+        while (!frontier.isEmpty()) {
+            List<CompanyPartnerEntity> edges = partnerRepository.findAllByCnpjIn(frontier);
+            Set<String> nextFrontier = new HashSet<>();
+            for (CompanyPartnerEntity edge : edges) {
+                if (seenEdgeIds.add(edge.getId())) {
+                    componentEdges.add(edge);
+                }
+                if (visited.add(edge.getCnpjA())) {
+                    nextFrontier.add(edge.getCnpjA());
+                }
+                if (visited.add(edge.getCnpjB())) {
+                    nextFrontier.add(edge.getCnpjB());
+                }
+            }
+            frontier = nextFrontier;
+        }
+
+        Set<String> members = new HashSet<>(visited);
+        members.remove(normalized);
+        if (members.isEmpty()) {
             return List.of();
         }
-        List<String> otherCnpjs = pairs.stream().map(p -> otherSide(p, normalized)).toList();
-        Map<String, CompanyDetail> details = companyDetailRepository.findByDocumentNumberIn(otherCnpjs).stream()
+
+        Map<String, CompanyDetail> details = companyDetailRepository.findByDocumentNumberIn(List.copyOf(members)).stream()
                 .collect(Collectors.toMap(CompanyDetail::getDocumentNumber, Function.identity(), (a, b) -> a));
 
-        return pairs.stream()
-                .map(pair -> toResponse(pair, otherSide(pair, normalized), details))
+        return members.stream()
+                .map(member -> toGroupResponse(member, normalized, componentEdges, details))
                 .sorted(Comparator.comparing(
                         r -> r.getCompanyName() == null ? "" : r.getCompanyName(),
                         String.CASE_INSENSITIVE_ORDER))
                 .toList();
+    }
+
+    /** Monta a resposta de um membro do grupo cruzando todas as arestas do componente conectado. */
+    private CompanyPartnerResponse toGroupResponse(String member, String origin,
+                                                    List<CompanyPartnerEntity> componentEdges,
+                                                    Map<String, CompanyDetail> details) {
+        CompanyPartnerEntity directEdge = null;
+        boolean hasNotes = false;
+        for (CompanyPartnerEntity edge : componentEdges) {
+            boolean touchesMember = member.equals(edge.getCnpjA()) || member.equals(edge.getCnpjB());
+            if (!touchesMember) {
+                continue;
+            }
+            if (edge.getNote() != null && !edge.getNote().isBlank()) {
+                hasNotes = true;
+            }
+            boolean touchesOrigin = origin.equals(edge.getCnpjA()) || origin.equals(edge.getCnpjB());
+            if (touchesOrigin) {
+                directEdge = edge;
+            }
+        }
+
+        CompanyDetail detail = details.get(member);
+        CompanyPartnerResponse.CompanyPartnerResponseBuilder builder = CompanyPartnerResponse.builder()
+                .cnpj(member)
+                .companyName(detail == null ? null : detail.getCompanyName())
+                .alias(detail == null ? null : detail.getAlias())
+                .address(detail == null ? null : address(detail))
+                .city(detail == null ? null : detail.getCity())
+                .state(detail == null ? null : detail.getState())
+                .hasNotes(hasNotes)
+                .direct(directEdge != null);
+
+        if (directEdge != null) {
+            builder.id(directEdge.getId())
+                    .note(directEdge.getNote())
+                    .authorName(directEdge.getAuthorName())
+                    .createdAt(directEdge.getCreatedAt());
+        }
+        return builder.build();
     }
 
     @Transactional
@@ -157,6 +226,8 @@ public class CompanyPartnerService {
                 .note(pair.getNote())
                 .authorName(pair.getAuthorName())
                 .createdAt(pair.getCreatedAt())
+                .direct(true)
+                .hasNotes(pair.getNote() != null && !pair.getNote().isBlank())
                 .build();
     }
 

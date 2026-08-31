@@ -5,12 +5,13 @@ import Icon from "@/components/ui/Icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useEconomicGroup } from "./useEconomicGroup";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 const PREVIEW_LIMIT = 5;
 
 type CompanyPartner = {
-  id: string;
+  id: string | null;
   cnpj: string;
   companyName: string | null;
   alias: string | null;
@@ -20,6 +21,10 @@ type CompanyPartner = {
   note: string | null;
   authorName: string | null;
   createdAt: string | null;
+  /** Vínculo direto com a empresa consultada. Falso quando faz parte do grupo por transitividade. */
+  direct: boolean;
+  /** Algum vínculo do grupo que toca esse CNPJ tem observação — mesmo que não seja o direto. */
+  hasNotes: boolean;
 };
 
 type CompanySearchItem = {
@@ -45,6 +50,17 @@ function formatCnpj(cnpj: string) {
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12, 14)}`;
 }
 
+/**
+ * Situações cadastrais terminais da Receita: 01 = nula, 08 = baixada. Nesses casos o CNPJ não
+ * existe mais, então consultar o CNPJ Já para criar o perfil seria gasto sem retorno.
+ * Suspensa (03) e inapta (04) continuam liberadas — a empresa existe e pode regularizar.
+ */
+const TERMINAL_STATUSES = new Set(["01", "1", "08", "8"]);
+
+function canRegisterCompany(status: string | null) {
+  return !status || !TERMINAL_STATUSES.has(status.trim());
+}
+
 async function readError(res: Response, fallback: string) {
   const text = await res.text().catch(() => "");
   if (!text) return fallback;
@@ -65,6 +81,11 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
   const [debouncedTerm, setDebouncedTerm] = useState("");
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
   const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
+  /** Dispensa só na sessão: não há endpoint para persistir "ignorar sugestão" ainda. */
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  const { related } = useEconomicGroup(cnpj);
+  const [showOutOfPortal, setShowOutOfPortal] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedTerm(term.trim()), 300);
@@ -95,6 +116,7 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
   });
 
   const invalidate = (partnerCnpj?: string) => {
+    queryClient.invalidateQueries({ queryKey: ["companyEconomicGroup", cnpj] });
     queryClient.invalidateQueries({ queryKey: ["companyPartners", cnpj] });
     queryClient.invalidateQueries({ queryKey: ["companyPartnerSearch", cnpj] });
     // O vínculo é bidirecional: o perfil da outra empresa também muda.
@@ -114,6 +136,31 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
     onSuccess: (partnerCnpj) => {
       toast.success("Empresa vinculada como parceira");
       invalidate(partnerCnpj);
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  /**
+   * Cria o perfil da empresa via CNPJ Já. Sem isso ela não pode virar parceira — o vínculo exige
+   * perfil existente. Depois de criada ela sai da gaveta "fora do portal" e sobe para as
+   * sugestões, já com o botão de vincular.
+   */
+  const createProfile = useMutation({
+    mutationFn: async (targetCnpj: string) => {
+      // origin=GRUPO_SOCIETARIO: a empresa não é cedente, então não deve entrar na carteira
+      // cobrando código 4R (mesma regra do sacado da praça de pagamento).
+      const res = await fetch(
+        `${API_BASE_URL}/company/enrich/cnpja/${targetCnpj.replace(/\D/g, "")}?origin=GRUPO_SOCIETARIO`,
+        { method: "POST", headers: getAuthHeaders() },
+      );
+      if (!res.ok) throw new Error(await readError(res, "Falha ao cadastrar empresa"));
+      return targetCnpj;
+    },
+    onSuccess: (targetCnpj) => {
+      toast.success("Empresa cadastrada — agora pode ser vinculada como parceira");
+      queryClient.invalidateQueries({ queryKey: ["companyEconomicGroup", cnpj] });
+      queryClient.invalidateQueries({ queryKey: ["companyPartnerSearch", cnpj] });
+      queryClient.invalidateQueries({ queryKey: ["companyDetail", targetCnpj.replace(/\D/g, "")] });
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -152,6 +199,16 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
   });
 
   const partners = useMemo(() => partnersQuery.data ?? [], [partnersQuery.data]);
+
+  // Sugestão só vale para quem ainda não é parceira: o resto já está na lista de cima.
+  const pending = useMemo(
+    () => related.filter((r) => !r.alreadyLinked && !dismissed.includes(r.cnpjRaiz)),
+    [related, dismissed],
+  );
+  // Só é sugestão de verdade se der para agir: vincular exige perfil no portal. As demais ficam
+  // recolhidas — são contexto, não tarefa.
+  const suggestions = useMemo(() => pending.filter((r) => r.inSystem), [pending]);
+  const outOfPortal = useMemo(() => pending.filter((r) => !r.inSystem), [pending]);
   const shown = expanded ? partners : partners.slice(0, PREVIEW_LIMIT);
   const results = searchQuery.data ?? [];
 
@@ -164,6 +221,11 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
         <div className="ml-auto flex items-center gap-3">
           {partners.length > 0 ? (
             <span className="text-xs text-gray-400">{partners.length} vinculadas</span>
+          ) : null}
+          {suggestions.length > 0 ? (
+            <span className="rounded bg-secondary/10 px-2 py-1 text-[10px] font-bold uppercase text-secondary">
+              {suggestions.length} {suggestions.length === 1 ? "sugestão" : "sugestões"}
+            </span>
           ) : null}
           <button
             type="button"
@@ -242,6 +304,191 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
         </div>
       ) : null}
 
+      {pending.length > 0 ? (
+        <div className="border-b border-border-light bg-secondary/5 dark:border-border-dark">
+          <button
+            type="button"
+            onClick={() => setSuggestionsOpen((v) => !v)}
+            className="flex w-full items-center gap-2 px-5 py-3 text-left"
+          >
+            <Icon name="lightbulb" className="text-base text-secondary" />
+            <span className="text-xs font-bold uppercase tracking-wide text-secondary">
+              {suggestions.length > 0
+                ? `Sugestões por sócio em comum (${suggestions.length})`
+                : "Sócio em comum"}
+            </span>
+            <span className="text-[11px] text-gray-400">· detectado no cadastro público da Receita</span>
+            <Icon
+              name={suggestionsOpen ? "expand_less" : "expand_more"}
+              className="ml-auto text-base text-gray-400"
+            />
+          </button>
+
+          {suggestionsOpen ? (
+            <div className="space-y-2 px-5 pb-5">
+              {suggestions.map((r) => (
+                <div
+                  key={r.cnpjRaiz}
+                  className={`rounded-lg border bg-white p-3 dark:bg-surface-dark ${
+                    r.irregular
+                      ? "border-red-300 dark:border-red-500/40"
+                      : "border-border-light dark:border-border-dark"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-grafite dark:text-gray-200">
+                          {r.companyName ?? `Raiz ${r.cnpjRaiz}`}
+                        </span>
+                        {r.companyStatusLabel ? (
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                              r.irregular
+                                ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+                                : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                            }`}
+                          >
+                            {r.companyStatusLabel}
+                          </span>
+                        ) : null}
+                        {r.inSystem ? (
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
+                            No portal
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        <span className="font-mono">
+                          {r.cnpj ? formatCnpj(r.cnpj) : r.receitaCnpj ? formatCnpj(r.receitaCnpj) : r.cnpjRaiz}
+                        </span>
+                        {" · "}
+                        {r.sharedShareholders.length}{" "}
+                        {r.sharedShareholders.length === 1 ? "sócio em comum" : "sócios em comum"}
+                        {": "}
+                        {r.sharedShareholders.map((p) => p.name).join(", ")}
+                      </p>
+                    </div>
+
+                    {/* Toda sugestão aqui tem perfil no portal; as demais ficam na gaveta abaixo. */}
+                    {r.cnpj ? (
+                      <button
+                        type="button"
+                        onClick={() => addPartner.mutate(r.cnpj as string)}
+                        disabled={addPartner.isPending}
+                        className="rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                      >
+                        {addPartner.isPending && addPartner.variables === r.cnpj ? "Vinculando…" : "Vincular"}
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => setDismissed((d) => [...d, r.cnpjRaiz])}
+                      title="Dispensar sugestão"
+                      className="rounded-md border border-border-light p-1 text-gray-500 transition hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
+                    >
+                      <Icon name="close" className="text-base" />
+                    </button>
+                  </div>
+
+                  {r.irregular ? (
+                    <p className="mt-2 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      Situação cadastral {r.companyStatusLabel?.toLowerCase()} com sócio em comum — verificar
+                      sucessão de empresa.
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+
+              {suggestions.length === 0 && outOfPortal.length > 0 ? (
+                <p className="text-xs text-gray-500">
+                  Nenhuma empresa do grupo tem perfil no portal — nada a vincular por enquanto.
+                </p>
+              ) : null}
+
+              {outOfPortal.length > 0 ? (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowOutOfPortal((v) => !v)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 transition hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    <Icon name={showOutOfPortal ? "expand_less" : "expand_more"} className="text-sm" />
+                    {showOutOfPortal
+                      ? "Ocultar empresas fora do portal"
+                      : `${outOfPortal.length} ${
+                          outOfPortal.length === 1 ? "empresa fora do portal" : "empresas fora do portal"
+                        }`}
+                  </button>
+
+                  {showOutOfPortal ? (
+                    <div className="mt-2 space-y-1.5">
+                      {outOfPortal.map((r) => (
+                        <div
+                          key={r.cnpjRaiz}
+                          className="rounded-md border border-dashed border-border-light px-3 py-2 dark:border-border-dark"
+                        >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-xs text-gray-500">
+                            {r.companyName ?? `Raiz ${r.cnpjRaiz}`}
+                          </span>
+                          {r.companyStatusLabel ? (
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                                r.irregular
+                                  ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+                                  : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                              }`}
+                            >
+                              {r.companyStatusLabel}
+                            </span>
+                          ) : null}
+                          <span className="ml-auto font-mono text-[11px] text-gray-400">
+                            {r.receitaCnpj ? formatCnpj(r.receitaCnpj) : r.cnpjRaiz}
+                          </span>
+                          {r.receitaCnpj && canRegisterCompany(r.companyStatus) ? (
+                            <button
+                              type="button"
+                              onClick={() => createProfile.mutate(r.receitaCnpj as string)}
+                              disabled={createProfile.isPending}
+                              title="Cria o perfil da empresa consultando o CNPJ Já"
+                              className="rounded-md border border-border-light px-2 py-0.5 text-[11px] font-semibold text-grafite transition hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-white/5"
+                            >
+                              {createProfile.isPending && createProfile.variables === r.receitaCnpj
+                                ? "Cadastrando…"
+                                : "Cadastrar"}
+                            </button>
+                          ) : (
+                            <span
+                              title="CNPJ encerrado na Receita — cadastrar consumiria consulta sem retorno"
+                              className="text-[10px] text-gray-400"
+                            >
+                              não cadastrável
+                            </span>
+                          )}
+                        </div>
+
+                          {/* Quem liga esta empresa à consultada — é o que justifica a sugestão. */}
+                          {r.sharedShareholders.length > 0 ? (
+                            <p className="mt-1 text-[11px] text-gray-400">
+                              <span className="font-semibold">
+                                {r.sharedShareholders.length === 1 ? "Sócio" : "Sócios"} em comum:
+                              </span>{" "}
+                              {r.sharedShareholders.map((p) => p.name).join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="p-5">
         {partnersQuery.isLoading ? (
           <p className="text-sm text-gray-500">Carregando parceiras…</p>
@@ -264,6 +511,19 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
                       <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
                         Parceira
                       </span>
+                      {!p.direct ? (
+                        <span
+                          title="Ligada por transitividade — não tem vínculo direto com esta empresa, mas é do mesmo grupo"
+                          className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                        >
+                          Vínculo indireto
+                        </span>
+                      ) : null}
+                      {p.hasNotes ? (
+                        <span title="Tem observação registrada">
+                          <Icon name="notes" className="text-sm text-secondary" />
+                        </span>
+                      ) : null}
                       {p.companyName || p.alias ? (
                         <span className="truncate text-xs text-gray-500">· {p.companyName ?? p.alias}</span>
                       ) : null}
@@ -279,33 +539,37 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
                   >
                     Ver perfil
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingNote(editingNote === p.cnpj ? null : p.cnpj);
-                      setNoteDraft((d) => ({ ...d, [p.cnpj]: p.note ?? "" }));
-                    }}
-                    title="Observação do vínculo"
-                    className="rounded-md border border-border-light p-1 text-gray-500 transition hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
-                  >
-                    <Icon name="edit_note" className="text-base" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm(`Remover o vínculo de parceria com ${formatCnpj(p.cnpj)}?`)) {
-                        removePartner.mutate(p.cnpj);
-                      }
-                    }}
-                    disabled={removePartner.isPending}
-                    title="Remover vínculo"
-                    className="rounded-md border border-border-light p-1 text-gray-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-border-dark dark:hover:bg-red-500/10"
-                  >
-                    <Icon name="link_off" className="text-base" />
-                  </button>
+                  {p.direct ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingNote(editingNote === p.cnpj ? null : p.cnpj);
+                        setNoteDraft((d) => ({ ...d, [p.cnpj]: p.note ?? "" }));
+                      }}
+                      title="Observação do vínculo"
+                      className="rounded-md border border-border-light p-1 text-gray-500 transition hover:bg-gray-50 dark:border-border-dark dark:hover:bg-white/5"
+                    >
+                      <Icon name="edit_note" className="text-base" />
+                    </button>
+                  ) : null}
+                  {p.direct ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Remover o vínculo de parceria com ${formatCnpj(p.cnpj)}?`)) {
+                          removePartner.mutate(p.cnpj);
+                        }
+                      }}
+                      disabled={removePartner.isPending}
+                      title="Remover vínculo"
+                      className="rounded-md border border-border-light p-1 text-gray-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-border-dark dark:hover:bg-red-500/10"
+                    >
+                      <Icon name="link_off" className="text-base" />
+                    </button>
+                  ) : null}
                 </div>
 
-                {editingNote === p.cnpj ? (
+                {p.direct && editingNote === p.cnpj ? (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <input
                       value={noteDraft[p.cnpj] ?? ""}

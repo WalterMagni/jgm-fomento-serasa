@@ -84,6 +84,10 @@ cnpj:
     cache-ttl-days: ${CNPJ_BRANCHES_TTL_DAYS:30}
     # Teto de linhas por raiz — blindagem contra raiz inválida varrendo a tabela.
     max-rows: ${CNPJ_BRANCHES_MAX_ROWS:2000}
+  shareholders:
+    cache-ttl-days: ${CNPJ_SHAREHOLDERS_TTL_DAYS:30}
+    # Sócio de holding grande pode figurar em milhares de empresas; corta a cauda.
+    max-rows: ${CNPJ_SHAREHOLDERS_MAX_ROWS:500}
 
 email:
   cedente:

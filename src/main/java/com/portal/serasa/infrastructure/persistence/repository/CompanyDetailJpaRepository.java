@@ -18,6 +18,13 @@ public interface CompanyDetailJpaRepository extends JpaRepository<CompanyDetailE
 
     List<CompanyDetailEntity> findByDocumentNumberIn(Collection<String> documentNumbers);
 
+    /**
+     * CNPJs cadastrados cuja raiz esteja na lista. Usado pelo quadro societário, que trabalha
+     * em raiz de 8 dígitos enquanto o cadastro guarda o CNPJ completo.
+     */
+    @Query("select c.documentNumber from CompanyDetailEntity c where substring(c.documentNumber, 1, 8) in :roots")
+    List<String> findDocumentNumbersByRootIn(@Param("roots") Collection<String> roots);
+
     @Query(value = """
         select count(distinct cd.document_number)
         from company_details cd

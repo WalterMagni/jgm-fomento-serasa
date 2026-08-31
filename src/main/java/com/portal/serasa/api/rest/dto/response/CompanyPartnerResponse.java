@@ -25,4 +25,8 @@ public class CompanyPartnerResponse {
     private String note;
     private String authorName;
     private LocalDateTime createdAt;
+    /** Vínculo direto com o CNPJ consultado (edge existe). Falso quando é membro do grupo alcançado por transitividade. */
+    private boolean direct;
+    /** Algum vínculo do grupo que toca este CNPJ tem observação registrada — mesmo que não seja o direto com a origem. */
+    private boolean hasNotes;
 }

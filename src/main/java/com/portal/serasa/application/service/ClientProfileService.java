@@ -47,6 +47,7 @@ public class ClientProfileService {
     private final SerasaCreditRatingClient serasaCreditRatingClient;
     private final SerasaCreditRatingMapper serasaCreditRatingMapper;
     private final ApiUsageLogService apiUsageLogService;
+    private final CompanyShareholderService companyShareholderService;
     private final EmailService emailService;
 
     @Value("${billing.serasa.cost-per-query:0.00}")
@@ -215,12 +216,28 @@ public class ClientProfileService {
     /** Origem de cliente criado a partir de um sacado da Praça de Pagamento (não exige código 4R). */
     public static final String ORIGIN_SACADO_PRACA = "SACADO_PRACA";
 
+    /** Origem de cliente criado a partir do grupo societário (não exige código 4R). */
+    public static final String ORIGIN_GRUPO_SOCIETARIO = "GRUPO_SOCIETARIO";
+
     /**
      * Marca o cliente como originado de sacado (não exige código 4R). Só marca quando ainda não tem
      * origem definida E não tem código 4R: um cliente de carteira/cedente tem código (ou origem) e
      * fica protegido, nunca é rebaixado a sacado mesmo que apareça como sacado de um título.
      */
     public void markSacadoOrigin(String cnpj) {
+        markOriginIfUnclaimed(cnpj, ORIGIN_SACADO_PRACA);
+    }
+
+    /**
+     * Marca o cliente como criado a partir do grupo societário (empresa ligada por sócio em comum).
+     * Mesma regra do sacado: não é cedente, então não exige código 4R e não deve aparecer na
+     * carteira cobrando cadastro incompleto.
+     */
+    public void markGrupoSocietarioOrigin(String cnpj) {
+        markOriginIfUnclaimed(cnpj, ORIGIN_GRUPO_SOCIETARIO);
+    }
+
+    private void markOriginIfUnclaimed(String cnpj, String origin) {
         String documentNumber = normalizeCnpj(cnpj);
         if (documentNumber == null) {
             return;
@@ -229,7 +246,7 @@ public class ClientProfileService {
             boolean semOrigem = client.getOrigin() == null || client.getOrigin().isBlank();
             boolean semCodigo = client.getClientCode() == null || client.getClientCode().isBlank();
             if (semOrigem && semCodigo) {
-                client.setOrigin(ORIGIN_SACADO_PRACA);
+                client.setOrigin(origin);
                 clientRepository.save(client);
             }
         });
@@ -237,7 +254,27 @@ public class ClientProfileService {
 
     private CreditAnalysis saveSerasaAnalysis(Client client, String documentNumber, String rawJson) {
         CreditAnalysis analysis = serasaCreditRatingMapper.toDomain(client.getId(), documentNumber, rawJson);
-        return creditAnalysisRepository.save(analysis);
+        CreditAnalysis saved = creditAnalysisRepository.save(analysis);
+        importShareholdersFromQsa(documentNumber, saved);
+        return saved;
+    }
+
+    /**
+     * Guarda o CPF completo dos sócios que vieram no QSA. É o dado que a base gratuita da
+     * Receita não tem (lá o CPF é mascarado) e que serviços de consulta processual exigem.
+     *
+     * <p>Falha aqui nunca derruba o enriquecimento: a consulta Serasa é paga e já foi cobrada
+     * quando chegamos neste ponto.</p>
+     */
+    private void importShareholdersFromQsa(String documentNumber, CreditAnalysis analysis) {
+        if (analysis == null || analysis.getPartnerDetails() == null) {
+            return;
+        }
+        try {
+            companyShareholderService.importSerasaQsa(documentNumber, analysis.getPartnerDetails());
+        } catch (Exception e) {
+            log.warn("Falha ao importar QSA para quadro societario CNPJ={}: {}", documentNumber, e.getMessage());
+        }
     }
 
     private CompanyDetail resolveCompanyDetailForSerasa(String documentNumber) {

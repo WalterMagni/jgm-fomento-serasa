@@ -20,10 +20,30 @@ for VAR in POSTGRES_PASSWORD JWT_SECRET NEXT_PUBLIC_API_URL; do
   fi
 done
 
+# A cópia local do cadastro da Receita (filiais, quadro societário, alerta de partes ligadas)
+# vive num compose separado — o cnpj-data-pipeline. Sobe primeiro para que a rede externa
+# exista e o serviço cnpj-indexes consiga aplicar os índices logo em seguida.
+if [ "${CNPJ_DB_ENABLED:-false}" = "true" ]; then
+  if [ -d "${CNPJ_PIPELINE_DIR:-}" ]; then
+    echo "→ Subindo o banco da Receita (cnpj-data-pipeline)..."
+    docker compose -f "$CNPJ_PIPELINE_DIR/docker-compose.yml" up -d
+  else
+    echo "AVISO: CNPJ_DB_ENABLED=true mas CNPJ_PIPELINE_DIR não aponta para um diretório."
+    echo "       Defina CNPJ_PIPELINE_DIR no .env com o caminho do cnpj-data-pipeline,"
+    echo "       ou suba aquele compose à mão. Sem ele, filiais e quadro societário ficam 503."
+  fi
+fi
+
 echo "→ Build e subida dos containers..."
 docker compose pull postgres 2>/dev/null || true
 docker compose build --no-cache
 docker compose up -d
+
+# One-shot: sai sozinho depois de aplicar. Mostrado à parte porque `compose ps` só lista
+# os que continuam de pé.
+echo ""
+echo "→ Índices da base da Receita:"
+docker compose logs --no-log-prefix cnpj-indexes 2>/dev/null | tail -5 || true
 
 echo ""
 echo "✓ Containers rodando:"

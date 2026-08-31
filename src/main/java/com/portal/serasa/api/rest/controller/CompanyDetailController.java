@@ -97,12 +97,22 @@ public class CompanyDetailController {
     private final UserRepository userRepository;
     private final com.portal.serasa.application.service.CompanyPartnerService companyPartnerService;
 
-    /** Enriquece dados da empresa consultando a API CNPJ Já. */
+    /**
+     * Enriquece dados da empresa consultando a API CNPJ Já.
+     *
+     * <p>{@code origin} marca de onde veio o cadastro. Sem ele o cliente nasce sem origem, o que
+     * a carteira lê como cedente pendente de código 4R. Empresa criada a partir do grupo
+     * societário não é cedente, então passa {@code origin=GRUPO_SOCIETARIO}.</p>
+     */
     @PostMapping("/enrich/cnpja/{cnpj}")
     public ResponseEntity<CompanyDetailResponse> enrichByCnpja(
-            @PathVariable @NotBlank @Size(min = 14, max = 18) @Pattern(regexp = "^[0-9.\\-/]+$", message = "CNPJ deve conter apenas dígitos ou formatação") String cnpj) {
+            @PathVariable @NotBlank @Size(min = 14, max = 18) @Pattern(regexp = "^[0-9.\\-/]+$", message = "CNPJ deve conter apenas dígitos ou formatação") String cnpj,
+            @RequestParam(name = "origin", required = false) String origin) {
         String normalized = cnpj.replaceAll("\\D", "");
         CompanyDetail detail = clientProfileService.enrichByCnpja(normalized);
+        if (ClientProfileService.ORIGIN_GRUPO_SOCIETARIO.equals(origin)) {
+            clientProfileService.markGrupoSocietarioOrigin(normalized);
+        }
         return ResponseEntity.ok(toResponse(detail));
     }
 
