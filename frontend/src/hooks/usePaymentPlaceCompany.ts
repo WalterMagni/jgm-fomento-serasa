@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { PaymentPlaceEntry } from "../types/payment-place";
+import { ACTIVE_ENTRIES_KEY } from "./usePaymentPlace";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -78,7 +79,8 @@ export function useReopenPaymentPlaceEntry() {
       toast.success("Análise removida — lançamento devolvido à Praça de Pagamento");
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceCompany"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceEntry"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });

@@ -94,3 +94,9 @@ email:
     from: ${EMAIL_FROM:jgmempresarial@jgmempresarial.com}
     to: ${EMAIL_COMERCIAL:comercial@jgmfomento.com}
     enabled: ${EMAIL_CEDENTE_ENABLED:true}
+
+server:
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 2KB

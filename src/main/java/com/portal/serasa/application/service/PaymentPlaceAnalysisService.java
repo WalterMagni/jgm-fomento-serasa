@@ -138,11 +138,30 @@ public class PaymentPlaceAnalysisService {
     }
 
     @Transactional(readOnly = true)
+    public List<PaymentPlaceEntryEntity> listActiveEntries() {
+        return entryRepository.findAllFromActiveBatches(STATUS_ARCHIVED);
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentPlaceEntryEntity getEntry(UUID entryId) {
+        return entryRepository.findById(entryId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento de praça de pagamento não encontrado"));
+    }
+
+    @Transactional(readOnly = true)
     public PaymentPlaceBatchIndicators getBatchIndicators(UUID batchId) {
         PaymentPlaceBatchEntity batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new EntityNotFoundException("Lote de praça de pagamento não encontrado"));
-        List<PaymentPlaceEntryEntity> entries = entryRepository.findByBatchIdOrderByCreatedAtAsc(batchId);
+        return computeIndicators(batch, entryRepository.findByBatchIdOrderByCreatedAtAsc(batchId));
+    }
 
+    /** Indicadores somando todos os lotes não arquivados (batch = null na resposta). */
+    @Transactional(readOnly = true)
+    public PaymentPlaceBatchIndicators getActiveIndicators() {
+        return computeIndicators(null, entryRepository.findAllFromActiveBatches(STATUS_ARCHIVED));
+    }
+
+    private PaymentPlaceBatchIndicators computeIndicators(PaymentPlaceBatchEntity batch, List<PaymentPlaceEntryEntity> entries) {
         int totalEntries = entries.size();
         int locatedAgencyCount = (int) entries.stream()
                 .filter(this::hasResolvedAgencyLocation)

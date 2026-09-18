@@ -193,6 +193,34 @@ public class PaymentPlaceAnalysisController {
                 .build());
     }
 
+    /**
+     * Lançamentos de todos os lotes não arquivados numa chamada só, sem os textos longos que só o
+     * detalhe usa (o modal busca {@code GET /lancamentos/{id}}).
+     */
+    @GetMapping("/lancamentos/ativos")
+    public ResponseEntity<List<PaymentPlaceEntryResponse>> listActiveEntries() {
+        var responses = toEntryResponsesWithAttachments(paymentPlaceAnalysisService.listActiveEntries());
+        responses.forEach(PaymentPlaceAnalysisController::stripDetailOnlyFields);
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/lancamentos/{entryId}")
+    public ResponseEntity<PaymentPlaceEntryResponse> getEntry(@PathVariable UUID entryId) {
+        return ResponseEntity.ok(toEntryResponsesWithAttachments(List.of(paymentPlaceAnalysisService.getEntry(entryId))).get(0));
+    }
+
+    private static void stripDetailOnlyFields(PaymentPlaceEntryResponse r) {
+        r.setAutomaticEvidence(null);
+        r.setGeographicReliabilityReason(null);
+        r.setAiAnalysis(null);
+        r.setClientAddress(null);
+        r.setPayerAddress(null);
+        r.setBacenAgencyAddress(null);
+        r.setAgencyAddressResolved(null);
+        r.setBacenAgencyZipCode(null);
+        r.setBacenAgencyName(null);
+    }
+
     /** Mapeia lançamentos para resposta preenchendo a contagem de anexos (indicativo nas listas). */
     private List<PaymentPlaceEntryResponse> toEntryResponsesWithAttachments(List<PaymentPlaceEntryEntity> entities) {
         var ids = entities.stream().map(PaymentPlaceEntryEntity::getId).toList();
@@ -206,10 +234,18 @@ public class PaymentPlaceAnalysisController {
 
     @GetMapping("/lotes/{batchId}/indicadores")
     public ResponseEntity<PaymentPlaceBatchIndicatorsResponse> getBatchIndicators(@PathVariable UUID batchId) {
-        var result = paymentPlaceAnalysisService.getBatchIndicators(batchId);
-        return ResponseEntity.ok(PaymentPlaceBatchIndicatorsResponse.builder()
-                .batchId(result.batch().getId())
-                .fileName(result.batch().getFileName())
+        return ResponseEntity.ok(toIndicatorsResponse(paymentPlaceAnalysisService.getBatchIndicators(batchId)));
+    }
+
+    @GetMapping("/indicadores")
+    public ResponseEntity<PaymentPlaceBatchIndicatorsResponse> getActiveIndicators() {
+        return ResponseEntity.ok(toIndicatorsResponse(paymentPlaceAnalysisService.getActiveIndicators()));
+    }
+
+    private PaymentPlaceBatchIndicatorsResponse toIndicatorsResponse(PaymentPlaceAnalysisService.PaymentPlaceBatchIndicators result) {
+        return PaymentPlaceBatchIndicatorsResponse.builder()
+                .batchId(result.batch() == null ? null : result.batch().getId())
+                .fileName(result.batch() == null ? null : result.batch().getFileName())
                 .totalEntries(result.totalEntries())
                 .locatedAgencyCount(result.locatedAgencyCount())
                 .locatedAgencyPct(result.locatedAgencyPct())
@@ -246,7 +282,7 @@ public class PaymentPlaceAnalysisController {
                                 .disagreementPct(item.disagreementPct())
                                 .build())
                         .toList())
-                .build());
+                .build();
     }
 
     @PatchMapping("/lotes/{batchId}/arquivar")

@@ -18,9 +18,10 @@ import {
   useEnrichAgencyBacen,
   useEnrichPayerCnpj,
   useImportPaymentPlacePdf,
-  usePaymentPlaceBatchDetails,
+  usePaymentPlaceActiveEntries,
+  usePaymentPlaceActiveIndicators,
+  usePaymentPlaceEntry,
   usePaymentPlaceBatches,
-  usePaymentPlaceIndicatorsAll,
   usePartyNote,
   useSavePartyNote,
 } from "../../../hooks/usePaymentPlace";
@@ -344,9 +345,8 @@ export default function PaymentPlacePage() {
   const batches = useMemo(() => allBatches.filter((item) => item.status !== "ARQUIVADO"), [allBatches]);
   const todayBatch = useMemo(() => batches.find((item) => isToday(item.importedAt)), [batches]);
   // Todos os lotes ativos são exibidos juntos (sem seleção). Mescla os lançamentos.
-  const activeBatchIds = useMemo(() => batches.map((b) => b.id), [batches]);
-  const batchDetails = usePaymentPlaceBatchDetails(activeBatchIds);
-  const indicatorsQuery = usePaymentPlaceIndicatorsAll(activeBatchIds);
+  const entriesQuery = usePaymentPlaceActiveEntries();
+  const indicatorsQuery = usePaymentPlaceActiveIndicators();
   const decideMutation = useDecidePaymentPlaceEntry();
   const bulkDecideMutation = useBulkDecidePaymentPlace();
   const bulkReopenMutation = useBulkReopenPaymentPlace();
@@ -354,7 +354,7 @@ export default function PaymentPlacePage() {
   const enrichPayerCnpjMutation = useEnrichPayerCnpj();
   const reopenMutation = useReopenPaymentPlaceEntry();
   const fileNameByBatch = useMemo(() => new Map(batches.map((b) => [b.id, b.fileName])), [batches]);
-  const entries = useMemo(() => batchDetails.details.flatMap((d) => d.entries), [batchDetails.details]);
+  const entries = entriesQuery.data ?? NO_ENTRIES;
   const batchMeta = useMemo(
     () => ({
       auditEntries: batches.reduce((acc, b) => acc + (b.auditEntries ?? 0), 0),
@@ -642,7 +642,20 @@ export default function PaymentPlacePage() {
   );
 
   const progressPct = entries.length ? Math.round((counters.reviewed / entries.length) * 100) : 0;
-  const expandedEntry = useMemo(() => entries.find((e) => e.id === expandedEntryId) ?? null, [entries, expandedEntryId]);
+  // A lista vem enxuta; o modal completa com o lançamento inteiro. Campo presente na lista (atualizado
+  // por mutação) vence o do detalhe, que pode estar desatualizado.
+  const expandedDetailQuery = usePaymentPlaceEntry(expandedEntryId);
+  const expandedEntry = useMemo(() => {
+    const base = entries.find((e) => e.id === expandedEntryId);
+    if (!base) return null;
+    const full = expandedDetailQuery.data;
+    if (!full || full.id !== base.id) return base;
+    const merged: PaymentPlaceEntry = { ...full, ...base };
+    for (const key of DETAIL_ONLY_FIELDS) {
+      if (base[key] == null) (merged as Record<string, unknown>)[key] = full[key];
+    }
+    return merged;
+  }, [entries, expandedEntryId, expandedDetailQuery.data]);
 
   const acceptHighConfidence = () => {
     const decisions = highConfidenceUndecided.map((e) => ({
@@ -1163,7 +1176,7 @@ export default function PaymentPlacePage() {
                 <Icon name="unfold_more" size={18} />
                 Lista minimizada — {counters.pending} pendentes. Clique para expandir.
               </button>
-            ) : batchDetails.isLoading ? (
+            ) : entriesQuery.isLoading ? (
               <div className="p-6 text-sm text-gray-500">Carregando lançamentos...</div>
             ) : batches.length === 0 ? (
               <div className="p-6 text-sm text-gray-500">Importe um lote para iniciar a análise.</div>
@@ -2225,6 +2238,21 @@ function Metric({ label, value, tone }: { label: string; value: number; tone?: "
     </div>
   );
 }
+
+const NO_ENTRIES: PaymentPlaceEntry[] = [];
+
+// Omitidos em GET /lancamentos/ativos; só o detalhe (GET /lancamentos/{id}) traz.
+const DETAIL_ONLY_FIELDS = [
+  "automaticEvidence",
+  "geographicReliabilityReason",
+  "aiAnalysis",
+  "clientAddress",
+  "payerAddress",
+  "bacenAgencyAddress",
+  "agencyAddressResolved",
+  "bacenAgencyZipCode",
+  "bacenAgencyName",
+] as const satisfies readonly (keyof PaymentPlaceEntry)[];
 
 // A página tem um <main> próprio; quem rola é o <main> do layout, então procura pelo overflow real.
 function getScrollParent(el: HTMLElement): HTMLElement | null {

@@ -15,6 +15,12 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
 
     List<PaymentPlaceEntryEntity> findByBatchIdOrderByCreatedAtAsc(UUID batchId);
 
+    @Query(value = "SELECT e.* FROM payment_place_entries e "
+            + "JOIN payment_place_batches b ON b.id = e.batch_id "
+            + "WHERE b.status <> :archivedStatus "
+            + "ORDER BY b.imported_at DESC, e.created_at ASC", nativeQuery = true)
+    List<PaymentPlaceEntryEntity> findAllFromActiveBatches(@Param("archivedStatus") String archivedStatus);
+
     long countByPayerDocumentAndAnalystDecision(String payerDocument, String analystDecision);
 
     long countByClientCodeAndAnalystDecision(String clientCode, String analystDecision);

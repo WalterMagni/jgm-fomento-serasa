@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CompanyBranch, PaymentPlaceBatch, PaymentPlaceBatchDetail, PaymentPlaceBatchIndicators, PaymentPlaceEntry, PaymentPlacePattern, PaymentPlacePatternsPage } from "../types/payment-place";
 
@@ -43,7 +43,7 @@ export function useUploadEntryAttachments() {
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["entryAttachments", vars.entryId] });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceHistory"] });
       toast.success("Anexo(s) enviado(s)");
@@ -64,7 +64,7 @@ export function useDeleteEntryAttachment() {
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["entryAttachments", vars.entryId] });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceInconclusivos"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceHistory"] });
       toast.success("Anexo removido");
@@ -150,7 +150,7 @@ export function useBulkReopenPaymentPlace() {
     },
     onSuccess: (updated) => {
       toast.success(`${updated.length} decisão(ões) reaberta(s)`);
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
@@ -270,79 +270,73 @@ export function usePaymentPlaceBatch(batchId?: string) {
   });
 }
 
-// Busca os detalhes de vários lotes em paralelo e mescla os lançamentos.
-export function usePaymentPlaceBatchDetails(batchIds: string[]) {
-  // combine é memoizado pelo TanStack: `details` só troca de referência quando algum lote muda,
-  // senão todo useMemo derivado (5k+ lançamentos) recalcularia a cada render da página.
-  return useQueries({
-    queries: batchIds.map((id) => ({
-      queryKey: ["paymentPlaceBatch", id],
-      enabled: Boolean(id),
-      queryFn: async () => {
-        const response = await fetch(`${API_BASE_URL}/praca-pagamento/lotes/${id}`, {
-          headers: getAuthHeaders("application/json"),
-        });
-        if (!response.ok) {
-          throw new Error("Erro ao carregar lançamentos do lote");
-        }
-        return response.json() as Promise<PaymentPlaceBatchDetail>;
-      },
-    })),
-    combine: combineBatchDetails,
-  });
-}
+export const ACTIVE_ENTRIES_KEY = ["paymentPlaceActiveEntries"] as const;
 
-function combineBatchDetails(results: { data?: PaymentPlaceBatchDetail; isLoading: boolean; isFetching: boolean }[]) {
-  return {
-    details: results.map((r) => r.data).filter(Boolean) as PaymentPlaceBatchDetail[],
-    isLoading: results.some((r) => r.isLoading),
-    isFetching: results.some((r) => r.isFetching),
-  };
-}
-
-// Indicadores agregados de todos os lotes ativos (soma contagens, recalcula %).
-export function usePaymentPlaceIndicatorsAll(batchIds: string[]) {
-  const results = useQueries({
-    queries: batchIds.map((id) => ({
-      queryKey: ["paymentPlaceIndicators", id],
-      enabled: Boolean(id),
-      queryFn: async () => {
-        const response = await fetch(`${API_BASE_URL}/praca-pagamento/lotes/${id}/indicadores`, {
-          headers: getAuthHeaders("application/json"),
-        });
-        if (!response.ok) {
-          throw new Error("Erro ao carregar indicadores da praça de pagamento");
-        }
-        return response.json() as Promise<PaymentPlaceBatchIndicators>;
-      },
-    })),
-  });
-  const list = results.map((r) => r.data).filter(Boolean) as PaymentPlaceBatchIndicators[];
-  const isLoading = results.some((r) => r.isLoading);
-  if (list.length === 0) return { data: null as null | Omit<PaymentPlaceBatchIndicators, "batchId" | "fileName" | "topRecurringBankAgencies" | "topDivergentBankAgencies">, isLoading };
-  const sum = (f: keyof PaymentPlaceBatchIndicators) => list.reduce((acc, i) => acc + (Number(i[f]) || 0), 0);
-  const pct = (n: number, d: number) => (d ? (n / d) * 100 : 0);
-  const totalEntries = sum("totalEntries");
-  const locatedAgencyCount = sum("locatedAgencyCount");
-  const lowReliabilityCount = sum("lowReliabilityCount");
-  const comparableDecisionCount = sum("comparableDecisionCount");
-  const agreementCount = sum("agreementCount");
-  const disagreementCount = sum("disagreementCount");
-  return {
-    data: {
-      totalEntries,
-      locatedAgencyCount,
-      locatedAgencyPct: pct(locatedAgencyCount, totalEntries),
-      lowReliabilityCount,
-      lowReliabilityPct: pct(lowReliabilityCount, totalEntries),
-      comparableDecisionCount,
-      agreementCount,
-      agreementPct: pct(agreementCount, comparableDecisionCount),
-      disagreementCount,
-      disagreementPct: pct(disagreementCount, comparableDecisionCount),
+// Todos os lançamentos dos lotes não arquivados numa chamada só (versão enxuta, sem textos do detalhe).
+export function usePaymentPlaceActiveEntries() {
+  return useQuery<PaymentPlaceEntry[]>({
+    queryKey: ACTIVE_ENTRIES_KEY,
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/ativos`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!response.ok) {
+        throw new Error("Erro ao carregar lançamentos");
+      }
+      return response.json();
     },
-    isLoading,
-  };
+  });
+}
+
+// Lançamento completo (evidências, endereços, análise IA) para o modal de detalhe.
+export function usePaymentPlaceEntry(entryId?: string | null) {
+  return useQuery<PaymentPlaceEntry>({
+    queryKey: ["paymentPlaceEntry", entryId],
+    enabled: Boolean(entryId),
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/lancamentos/${entryId}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!response.ok) {
+        throw new Error("Erro ao carregar lançamento");
+      }
+      return response.json();
+    },
+  });
+}
+
+// Indicadores somados de todos os lotes ativos, calculados no servidor.
+export function usePaymentPlaceActiveIndicators() {
+  return useQuery<PaymentPlaceBatchIndicators>({
+    queryKey: ["paymentPlaceIndicators", "ativos"],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/praca-pagamento/indicadores`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!response.ok) {
+        throw new Error("Erro ao carregar indicadores da praça de pagamento");
+      }
+      return response.json();
+    },
+  });
+}
+
+// Aplica lançamentos devolvidos por mutações na lista ativa e no cache do detalhe.
+function patchActiveEntries(queryClient: QueryClient, updated: PaymentPlaceEntry[]) {
+  if (updated.length === 0) return;
+  const byId = new Map(updated.map((e) => [e.id, e]));
+  queryClient.setQueryData<PaymentPlaceEntry[]>(ACTIVE_ENTRIES_KEY, (current) =>
+    current?.map((entry) => {
+      const u = byId.get(entry.id);
+      // O endpoint de mutação não devolve attachmentCount.
+      return u ? { ...u, attachmentCount: entry.attachmentCount ?? u.attachmentCount } : entry;
+    }),
+  );
+  updated.forEach((u) =>
+    queryClient.setQueryData<PaymentPlaceEntry>(["paymentPlaceEntry", u.id], (current) =>
+      current ? { ...u, attachmentCount: current.attachmentCount ?? u.attachmentCount } : current,
+    ),
+  );
 }
 
 export function usePaymentPlaceIndicators(batchId?: string) {
@@ -390,13 +384,13 @@ export function useImportPaymentPlacePdf() {
         duration: 5000,
       });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
-      queryClient.setQueryData(["paymentPlaceBatch", data.batch.id], data);
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", data.batch.id] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
       // Endereço da agência (Bacen) é resolvido em background — refetch para exibir.
       [3000, 8000, 15000].forEach((delay) =>
         setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch", data.batch.id] });
-          queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", data.batch.id] });
+          queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
+          queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
         }, delay),
       );
     },
@@ -420,11 +414,11 @@ export function useDeletePaymentPlaceBatch() {
         throw new Error(text || "Falha ao apagar lote");
       }
     },
-    onSuccess: (_, batchId) => {
+    onSuccess: () => {
       toast.success("Lote apagado");
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
-      queryClient.removeQueries({ queryKey: ["paymentPlaceBatch", batchId] });
-      queryClient.removeQueries({ queryKey: ["paymentPlaceIndicators", batchId] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -456,15 +450,8 @@ export function useEnrichAgencyBacen() {
         found ? "Endereço da agência atualizado" : "Agência não localizada no cadastro Bacen",
         { id: "bacen-agency" },
       );
-      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
+      patchActiveEntries(queryClient, [updatedEntry]);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
     },
     onError: (error) => {
       toast.error(error.message, { id: "bacen-agency" });
@@ -496,15 +483,8 @@ export function useEnrichPayerCnpj() {
         found ? "Endereço do sacado atualizado e distâncias recalculadas" : "CNPJ do sacado consultado",
         { id: "cnpj-sacado" },
       );
-      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
+      patchActiveEntries(queryClient, [updatedEntry]);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
     },
     onError: (error) => {
       toast.error(error.message, { id: "cnpj-sacado" });
@@ -544,7 +524,7 @@ export function useLinkCedenteCnpj() {
     onSuccess: () => {
       toast.success("Cedente vinculado — todos os títulos do código foram atualizados");
       // Vários lançamentos do mesmo código mudaram → revalida listagens inteiras.
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch"] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceCompany"] });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
@@ -571,6 +551,7 @@ export function useArchivePaymentPlaceBatch() {
     onSuccess: (_data, { archived }) => {
       toast.success(archived ? "Lote arquivado" : "Lote restaurado");
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatches"] });
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
     },
     onError: (error) => {
@@ -605,15 +586,8 @@ export function useAnalyzeWithAi() {
     },
     onSuccess: (updatedEntry) => {
       toast.success("Análise da IA concluída", { id: "ai-analysis" });
-      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
+      patchActiveEntries(queryClient, [updatedEntry]);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
     },
     onError: (error) => {
       toast.error(error.message, { id: "ai-analysis" });
@@ -639,28 +613,10 @@ export function useBulkDecidePaymentPlace() {
     },
     onSuccess: (updated) => {
       toast.success(`${updated.length} decisões aplicadas`);
-      const byBatch = new Map<string, PaymentPlaceEntry[]>();
-      updated.forEach((e) => {
-        const arr = byBatch.get(e.batchId) ?? [];
-        arr.push(e);
-        byBatch.set(e.batchId, arr);
-      });
-      byBatch.forEach((list, bId) => {
-        queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", bId], (current) => {
-          if (!current) return current;
-          const byId = new Map(list.map((e) => [e.id, e]));
-          return {
-            ...current,
-            entries: current.entries.map((entry) => {
-              const u = byId.get(entry.id);
-              return u ? { ...u, attachmentCount: entry.attachmentCount ?? u.attachmentCount } : entry;
-            }),
-          };
-        });
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", bId] });
-        // Irmãos pendentes re-scorados no servidor → recarrega o lote pra acender o cérebro.
-        queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch", bId] });
-      });
+      patchActiveEntries(queryClient, updated);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
+      // Irmãos pendentes re-scorados no servidor → recarrega a lista pra acender o cérebro.
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
     },
     onError: (error) => {
@@ -687,17 +643,10 @@ export function useDecidePaymentPlaceEntry() {
     },
     onSuccess: (updatedEntry) => {
       toast.success("Decisão salva");
-      queryClient.setQueryData<PaymentPlaceBatchDetail>(["paymentPlaceBatch", updatedEntry.batchId], (current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          // Preserva attachmentCount (o endpoint de mutação não devolve esse campo).
-          entries: current.entries.map((entry) => (entry.id === updatedEntry.id ? { ...updatedEntry, attachmentCount: entry.attachmentCount ?? updatedEntry.attachmentCount } : entry)),
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators", updatedEntry.batchId] });
-      // Padrão recompilado + irmãos pendentes re-scorados no servidor → recarrega lote e padrões.
-      queryClient.invalidateQueries({ queryKey: ["paymentPlaceBatch", updatedEntry.batchId] });
+      patchActiveEntries(queryClient, [updatedEntry]);
+      queryClient.invalidateQueries({ queryKey: ["paymentPlaceIndicators"] });
+      // Padrão recompilado + irmãos pendentes re-scorados no servidor → recarrega lista e padrões.
+      queryClient.invalidateQueries({ queryKey: ACTIVE_ENTRIES_KEY });
       queryClient.invalidateQueries({ queryKey: ["paymentPlacePatterns"] });
     },
     onError: (error) => {
