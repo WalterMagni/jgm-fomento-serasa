@@ -272,7 +272,9 @@ export function usePaymentPlaceBatch(batchId?: string) {
 
 // Busca os detalhes de vários lotes em paralelo e mescla os lançamentos.
 export function usePaymentPlaceBatchDetails(batchIds: string[]) {
-  const results = useQueries({
+  // combine é memoizado pelo TanStack: `details` só troca de referência quando algum lote muda,
+  // senão todo useMemo derivado (5k+ lançamentos) recalcularia a cada render da página.
+  return useQueries({
     queries: batchIds.map((id) => ({
       queryKey: ["paymentPlaceBatch", id],
       enabled: Boolean(id),
@@ -286,10 +288,13 @@ export function usePaymentPlaceBatchDetails(batchIds: string[]) {
         return response.json() as Promise<PaymentPlaceBatchDetail>;
       },
     })),
+    combine: combineBatchDetails,
   });
-  const details = results.map((r) => r.data).filter(Boolean) as PaymentPlaceBatchDetail[];
+}
+
+function combineBatchDetails(results: { data?: PaymentPlaceBatchDetail; isLoading: boolean; isFetching: boolean }[]) {
   return {
-    details,
+    details: results.map((r) => r.data).filter(Boolean) as PaymentPlaceBatchDetail[],
     isLoading: results.some((r) => r.isLoading),
     isFetching: results.some((r) => r.isFetching),
   };

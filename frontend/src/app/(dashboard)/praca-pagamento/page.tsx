@@ -1,6 +1,7 @@
 "use client";
 
-import { ChangeEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -385,11 +386,13 @@ export default function PaymentPlacePage() {
     [batches],
   );
 
-  const filteredEntries = useMemo(() => {
-    const query = normalize(search);
-    return entries.filter((entry) => {
-      const haystack = normalize(
-        [
+  const searchIndex = useMemo(() => {
+    const index = new Map<string, string>();
+    for (const entry of entries) {
+      index.set(
+        entry.id,
+        normalize(
+          [
           entry.externalId,
           entry.clientCode,
           entry.titleNumber,
@@ -408,10 +411,19 @@ export default function PaymentPlacePage() {
           entry.geographicReliability,
           entry.automaticSuggestion,
           entry.occurrenceComplement,
-        ]
-          .filter(Boolean)
-          .join(" "),
+          ]
+            .filter(Boolean)
+            .join(" "),
+        ),
       );
+    }
+    return index;
+  }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    const query = normalize(debouncedSearch);
+    return entries.filter((entry) => {
+      const haystack = searchIndex.get(entry.id) ?? "";
       const tabOk =
         analysisTab === "TODOS" ||
         (analysisTab === "PENDENTES" ? !entry.analystDecision : Boolean(entry.analystDecision));
@@ -425,7 +437,7 @@ export default function PaymentPlacePage() {
         (!importDateFilter || importDayByBatch.get(entry.batchId) === importDateFilter)
       );
     });
-  }, [analysisTab, categoryFilter, decisionFilter, entries, importDateFilter, importDayByBatch, reliabilityFilter, search, sectionFilter]);
+  }, [analysisTab, categoryFilter, debouncedSearch, decisionFilter, entries, importDateFilter, importDayByBatch, reliabilityFilter, searchIndex, sectionFilter]);
 
   // Busca também no histórico (todos os lotes). Debounce p/ não consultar a cada tecla.
   useEffect(() => {
@@ -441,11 +453,14 @@ export default function PaymentPlacePage() {
   }, [historyEnabled, historyQuery.data, entries]);
 
   const counters = useMemo(() => {
-    const reviewed = entries.filter((entry) => entry.analysisStatus === "ANALISE_CONCLUIDA").length;
-    const payer = entries.filter((entry) => entry.analystDecision === "SACADO").length;
-    const assignor = entries.filter((entry) => entry.analystDecision === "CEDENTE").length;
-    const lowReliability = entries.filter((entry) => entry.geographicReliability === "BAIXA").length;
-    const digitalOrCooperative = entries.filter((entry) => entry.institutionCategory === "DIGITAL" || entry.institutionCategory === "COOPERATIVA").length;
+    let reviewed = 0, payer = 0, assignor = 0, lowReliability = 0, digitalOrCooperative = 0;
+    for (const entry of entries) {
+      if (entry.analysisStatus === "ANALISE_CONCLUIDA") reviewed++;
+      if (entry.analystDecision === "SACADO") payer++;
+      else if (entry.analystDecision === "CEDENTE") assignor++;
+      if (entry.geographicReliability === "BAIXA") lowReliability++;
+      if (entry.institutionCategory === "DIGITAL" || entry.institutionCategory === "COOPERATIVA") digitalOrCooperative++;
+    }
     return {
       reviewed,
       pending: Math.max(entries.length - reviewed, 0),
@@ -658,7 +673,10 @@ export default function PaymentPlacePage() {
     bulkDecideMutation.mutate(decisions, { onSuccess: () => exitSelectMode() });
   };
   // Desfazer em massa: reabre só os selecionados que já têm decisão.
-  const decidedSelectedIds = Array.from(selectedIds).filter((id) => sortedEntries.find((e) => e.id === id)?.analystDecision);
+  const decidedSelectedIds = useMemo(() => {
+    if (selectedIds.size === 0) return [];
+    return sortedEntries.filter((e) => selectedIds.has(e.id) && e.analystDecision).map((e) => e.id);
+  }, [selectedIds, sortedEntries]);
   const bulkReopenSelected = () => {
     if (!decidedSelectedIds.length) return;
     bulkReopenMutation.mutate(decidedSelectedIds, { onSuccess: () => exitSelectMode() });
@@ -686,10 +704,52 @@ export default function PaymentPlacePage() {
   }, [copyMenu]);
 
 
+  // Handlers lidos via ref: `rowActions` nunca muda de identidade, então o memo do EntryRow segura.
+  const rowHandlersRef = useRef({ toggleSelect, decide, reopen, handleRowPointerDown, handleRowPointerMove, clearLongPress });
+  rowHandlersRef.current = { toggleSelect, decide, reopen, handleRowPointerDown, handleRowPointerMove, clearLongPress };
+  const rowActions = useMemo<EntryRowActions>(
+    () => ({
+      toggleSelect: (id) => rowHandlersRef.current.toggleSelect(id),
+      focus: (id) => setFocusedEntryId(id),
+      expand: (id) => setExpandedEntryId(id),
+      openCopyMenu: (x, y, entry) => setCopyMenu({ x, y, entry }),
+      pointerDown: (entry, ev) => rowHandlersRef.current.handleRowPointerDown(entry, ev),
+      pointerMove: (ev) => rowHandlersRef.current.handleRowPointerMove(ev),
+      clearLongPress: () => rowHandlersRef.current.clearLongPress(),
+      viewAttachments: (entry) => setViewerEntry(entry),
+      decide: (entry, decision) => rowHandlersRef.current.decide(entry, decision),
+      reopen: (entry) => rowHandlersRef.current.reopen(entry),
+    }),
+    [],
+  );
+
+  // Lista virtualizada: só as linhas visíveis vão pro DOM. O scroll é do <main> do layout.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [listScrollMargin, setListScrollMargin] = useState(0);
+  // Sem deps de propósito: o que fica acima da lista (indicadores, toolbar) muda de altura; o guard evita loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const scroller = list ? getScrollParent(list) : null;
+    if (!list || !scroller) return;
+    const margin = list.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    if (Math.abs(margin - listScrollMargin) > 1) setListScrollMargin(margin);
+  });
+  const rowVirtualizer = useVirtualizer({
+    count: sortedEntries.length,
+    getScrollElement: () => (listRef.current ? getScrollParent(listRef.current) : null),
+    estimateSize: () => 104,
+    overscan: 6,
+    scrollMargin: listScrollMargin,
+    getItemKey: (index) => sortedEntries[index].id,
+  });
+
   // Rola o lançamento focado para dentro da área visível.
   useEffect(() => {
     if (!focusedEntryId || expandedEntryId) return;
-    document.getElementById(`pp-row-${focusedEntryId}`)?.scrollIntoView({ block: "nearest" });
+    const index = sortedEntries.findIndex((e) => e.id === focusedEntryId);
+    if (index >= 0) rowVirtualizer.scrollToIndex(index, { align: "auto" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedEntryId, expandedEntryId]);
 
   return (
@@ -1110,156 +1170,27 @@ export default function PaymentPlacePage() {
             ) : sortedEntries.length === 0 ? (
               <div className="p-6 text-sm text-gray-500">Nenhum lançamento encontrado para os filtros atuais.</div>
             ) : (
-              <div className="divide-y divide-border-light dark:divide-border-dark">
-                {sortedEntries.map((entry) => {
-                  const focused = entry.id === focusedEntryId;
-                  const selected = selectedIds.has(entry.id);
-                  const suggested = entry.automaticSuggestion === "PROVAVEL_SACADO" ? "SACADO" : entry.automaticSuggestion === "PROVAVEL_CEDENTE" ? "CEDENTE" : null;
+              <div ref={listRef} className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
+                {rowVirtualizer.getVirtualItems().map((item) => {
+                  const entry = sortedEntries[item.index];
                   return (
-                    <Fragment key={entry.id}>
-                      <div
-                        id={`pp-row-${entry.id}`}
-                        onClick={() => (selectMode ? toggleSelect(entry.id) : setFocusedEntryId(entry.id))}
-                        onDoubleClick={() => { if (selectMode) return; setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
-                        className={`flex touch-manipulation flex-col gap-2 px-4 transition-colors lg:flex-row lg:flex-wrap lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
-                          selected
-                            ? "bg-primary/10 ring-1 ring-inset ring-primary/50 dark:bg-secondary/15 dark:ring-secondary/50"
-                            : focused && !selectMode
-                              ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
-                              : entry.reopenedAt
-                                ? "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/10"
-                                : entry.learnedPatternDecision
-                                  ? "ring-1 ring-inset ring-emerald-200/50 shadow-[inset_0_0_26px_-8px_rgba(16,185,129,0.45)] hover:shadow-[inset_0_0_30px_-6px_rgba(16,185,129,0.55)] dark:ring-emerald-500/20 dark:shadow-[inset_0_0_28px_-8px_rgba(16,185,129,0.35)]"
-                                  : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
-                        }`}
-                      >
-                        {selectMode ? (
-                          <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ${selected ? "border-primary bg-primary text-white dark:border-secondary dark:bg-secondary" : "border-gray-300 dark:border-gray-600"}`}>
-                            {selected ? <Icon name="check" size={16} /> : null}
-                          </span>
-                        ) : null}
-                        {/* Área de dados — long-press / clique-direito copia */}
-                        <div
-                          onContextMenu={(e) => { e.preventDefault(); setCopyMenu({ x: e.clientX, y: e.clientY, entry }); }}
-                          onPointerDown={(e) => handleRowPointerDown(entry, e)}
-                          onPointerMove={handleRowPointerMove}
-                          onPointerUp={clearLongPress}
-                          onPointerLeave={clearLongPress}
-                          onPointerCancel={clearLongPress}
-                          className="flex flex-col gap-2 lg:flex-row lg:items-center"
-                        >
-                        {/* Identificação */}
-                        {/* Bloco de identificação inteiro abre o detalhe num clique/toque —
-                            alvo grande (o texto do título sozinho era ~76x24px). O resto da
-                            linha continua só focando: fluxo de teclado do desktop intacto. */}
-                        <div
-                          className="group/id min-w-0 cursor-pointer lg:w-[280px]"
-                          title="Ver detalhes do título"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectMode) { toggleSelect(entry.id); return; }
-                            setFocusedEntryId(entry.id);
-                            setExpandedEntryId(entry.id);
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <p className="truncate font-bold text-grafite underline-offset-2 group-hover/id:underline dark:text-white">{entry.titleNumber}</p>
-                            {entry.attachmentCount ? <AttachmentBadge count={entry.attachmentCount} onClick={() => setViewerEntry(entry)} /> : null}
-                            {entry.reopenedAt ? (
-                              <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Análise reaberta">
-                                <Icon name="undo" size={11} />reaberto
-                              </span>
-                            ) : null}
-                            {entry.section === "Agências Não Localizadas" ? (
-                              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">não loc.</span>
-                            ) : null}
-                          </div>
-                          <p className="truncate text-xs text-gray-500">
-                            <span className="font-bold text-blue-600/70 dark:text-blue-300/70">Sacado:</span> {clean(entry.payerName)}
-                          </p>
-                          <p className="truncate text-xs text-gray-500">
-                            <span className="font-bold text-primary/70 dark:text-secondary/70">Cedente:</span>{" "}
-                            {entry.clientName ?? <span className="text-gray-400">cód. {clean(entry.clientCode)} (sem cadastro)</span>}
-                          </p>
-                        </div>
-
-                        <div className="min-w-0 lg:w-[360px]">
-                          <div className="space-y-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                            <div className="min-w-0">
-                              <p className="truncate" title={clean(entry.bankName ?? entry.bacenInstitutionName)}>
-                                <span className="font-bold text-gray-600 dark:text-gray-300">Instituição:</span>{" "}
-                                {clean(entry.bankName ?? entry.bacenInstitutionName)}
-                              </p>
-                              <p className="truncate">
-                                <span className="font-bold text-gray-600 dark:text-gray-300">Banco/Agência:</span> {clean(entry.bankAgency)}
-                              </p>
-                              <p className="truncate">
-                                <span className="font-bold text-gray-600 dark:text-gray-300">Vencimento:</span> {clean(entry.dueDate)}
-                              </p>
-                              {occurrenceLabel(entry.occurrenceComplement) ? (
-                                <p className="truncate" title={clean(entry.occurrenceComplement)}>
-                                  <span className="font-bold text-gray-600 dark:text-gray-300">Ocorrência:</span>{" "}
-                                  {occurrenceLabel(entry.occurrenceComplement)}
-                                </p>
-                              ) : null}
-                              <p className="truncate">
-                                <span className="font-bold text-gray-600 dark:text-gray-300">Valor pago:</span>{" "}
-                                {formatCurrencyBr(entry.paidValue) ?? clean(entry.paidValue)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        </div>
-
-                        {selectMode ? (
-                          <div className="flex min-w-0 items-center justify-end lg:flex-1">
-                            <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
-                          </div>
-                        ) : null}
-
-                        {/* Sugestão + distâncias. basis/flex-1 só em lg: abaixo disso a linha
-                            é flex-col e o flex-basis viraria ALTURA (card vazio no retrato). */}
-                        {!selectMode ? (
-                        <div className="flex flex-wrap items-center gap-1.5 lg:min-w-[260px] lg:flex-1 lg:basis-[260px]">
-                          <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
-                          {entry.relatedParties ? <RelatedPartiesChip detail={entry.relatedPartiesDetail} /> : null}
-                          <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
-                          <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
-                          <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
-                        </div>
-                        ) : null}
-
-                        {/* Decisão + ações */}
-                        {!selectMode ? (
-                        <div className="flex items-center justify-end gap-1.5 lg:w-[300px]">
-                          <DecisionButton label="Sacado" active={entry.analystDecision === "SACADO"} suggested={suggested === "SACADO"} tone="sacado" disabled={decideMutation.isPending} onClick={(e) => { e.stopPropagation(); decide(entry, "SACADO"); }} />
-                          <DecisionButton label="Cedente" active={entry.analystDecision === "CEDENTE"} suggested={suggested === "CEDENTE"} tone="cedente" disabled={decideMutation.isPending} onClick={(e) => { e.stopPropagation(); decide(entry, "CEDENTE"); }} />
-                          <DecisionButton label="Inconclusivo" active={entry.analystDecision === "INCONCLUSIVO"} tone="inconclusivo" disabled={decideMutation.isPending} onClick={(e) => { e.stopPropagation(); decide(entry, "INCONCLUSIVO"); }} />
-                          {entry.analystDecision ? (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); reopen(entry); }}
-                              disabled={reopenMutation.isPending}
-                              title="Reabrir análise (volta para Pendentes e sai da empresa)"
-                              aria-label="Reabrir análise"
-                              className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
-                            >
-                              <Icon name="undo" size={16} />
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setFocusedEntryId(entry.id); setExpandedEntryId(entry.id); }}
-                            className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
-                            title="Ver detalhes"
-                            aria-label="Ver detalhes"
-                          >
-                            <Icon name="open_in_full" size={18} />
-                          </button>
-                        </div>
-                        ) : null}
-                      </div>
-                    </Fragment>
+                    <div
+                      key={item.key}
+                      data-index={item.index}
+                      ref={rowVirtualizer.measureElement}
+                      className={`absolute left-0 top-0 w-full ${item.index < sortedEntries.length - 1 ? "border-b border-border-light dark:border-border-dark" : ""}`}
+                      style={{ transform: `translateY(${item.start - rowVirtualizer.options.scrollMargin}px)` }}
+                    >
+                      <EntryRow
+                        entry={entry}
+                        focused={entry.id === focusedEntryId}
+                        selected={selectedIds.has(entry.id)}
+                        selectMode={selectMode}
+                        decidePending={decideMutation.isPending}
+                        reopenPending={reopenMutation.isPending}
+                        actions={rowActions}
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -2294,3 +2225,188 @@ function Metric({ label, value, tone }: { label: string; value: number; tone?: "
     </div>
   );
 }
+
+// A página tem um <main> próprio; quem rola é o <main> do layout, então procura pelo overflow real.
+function getScrollParent(el: HTMLElement): HTMLElement | null {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(node).overflowY)) return node;
+  }
+  return null;
+}
+
+type EntryRowActions = {
+  toggleSelect: (id: string) => void;
+  focus: (id: string) => void;
+  expand: (id: string) => void;
+  openCopyMenu: (x: number, y: number, entry: PaymentPlaceEntry) => void;
+  pointerDown: (entry: PaymentPlaceEntry, ev: React.PointerEvent) => void;
+  pointerMove: (ev: React.PointerEvent) => void;
+  clearLongPress: () => void;
+  viewAttachments: (entry: PaymentPlaceEntry) => void;
+  decide: (entry: PaymentPlaceEntry, decision: "SACADO" | "CEDENTE" | "INCONCLUSIVO") => void;
+  reopen: (entry: PaymentPlaceEntry) => void;
+};
+
+const EntryRow = memo(function EntryRow({
+  entry,
+  focused,
+  selected,
+  selectMode,
+  decidePending,
+  reopenPending,
+  actions,
+}: {
+  entry: PaymentPlaceEntry;
+  focused: boolean;
+  selected: boolean;
+  selectMode: boolean;
+  decidePending: boolean;
+  reopenPending: boolean;
+  actions: EntryRowActions;
+}) {
+  const suggested = entry.automaticSuggestion === "PROVAVEL_SACADO" ? "SACADO" : entry.automaticSuggestion === "PROVAVEL_CEDENTE" ? "CEDENTE" : null;
+  return (
+      <div
+        id={`pp-row-${entry.id}`}
+        onClick={() => (selectMode ? actions.toggleSelect(entry.id) : actions.focus(entry.id))}
+        onDoubleClick={() => { if (selectMode) return; actions.focus(entry.id); actions.expand(entry.id); }}
+        className={`flex touch-manipulation flex-col gap-2 px-4 transition-colors lg:flex-row lg:flex-wrap lg:items-center ${selectMode ? "cursor-pointer py-1.5" : "py-2.5"} ${
+          selected
+            ? "bg-primary/10 ring-1 ring-inset ring-primary/50 dark:bg-secondary/15 dark:ring-secondary/50"
+            : focused && !selectMode
+              ? "bg-primary/5 ring-1 ring-inset ring-primary/40 dark:bg-secondary/10 dark:ring-secondary/40"
+              : entry.reopenedAt
+                ? "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/10"
+                : entry.learnedPatternDecision
+                  ? "ring-1 ring-inset ring-emerald-200/50 shadow-[inset_0_0_26px_-8px_rgba(16,185,129,0.45)] hover:shadow-[inset_0_0_30px_-6px_rgba(16,185,129,0.55)] dark:ring-emerald-500/20 dark:shadow-[inset_0_0_28px_-8px_rgba(16,185,129,0.35)]"
+                  : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
+        }`}
+      >
+        {selectMode ? (
+          <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ${selected ? "border-primary bg-primary text-white dark:border-secondary dark:bg-secondary" : "border-gray-300 dark:border-gray-600"}`}>
+            {selected ? <Icon name="check" size={16} /> : null}
+          </span>
+        ) : null}
+        {/* Área de dados — long-press / clique-direito copia */}
+        <div
+          onContextMenu={(e) => { e.preventDefault(); actions.openCopyMenu(e.clientX, e.clientY, entry); }}
+          onPointerDown={(e) => actions.pointerDown(entry, e)}
+          onPointerMove={actions.pointerMove}
+          onPointerUp={actions.clearLongPress}
+          onPointerLeave={actions.clearLongPress}
+          onPointerCancel={actions.clearLongPress}
+          className="flex flex-col gap-2 lg:flex-row lg:items-center"
+        >
+        {/* Identificação */}
+        {/* Bloco de identificação inteiro abre o detalhe num clique/toque —
+            alvo grande (o texto do título sozinho era ~76x24px). O resto da
+            linha continua só focando: fluxo de teclado do desktop intacto. */}
+        <div
+          className="group/id min-w-0 cursor-pointer lg:w-[280px]"
+          title="Ver detalhes do título"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (selectMode) { actions.toggleSelect(entry.id); return; }
+            actions.focus(entry.id);
+            actions.expand(entry.id);
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <p className="truncate font-bold text-grafite underline-offset-2 group-hover/id:underline dark:text-white">{entry.titleNumber}</p>
+            {entry.attachmentCount ? <AttachmentBadge count={entry.attachmentCount} onClick={() => actions.viewAttachments(entry)} /> : null}
+            {entry.reopenedAt ? (
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Análise reaberta">
+                <Icon name="undo" size={11} />reaberto
+              </span>
+            ) : null}
+            {entry.section === "Agências Não Localizadas" ? (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">não loc.</span>
+            ) : null}
+          </div>
+          <p className="truncate text-xs text-gray-500">
+            <span className="font-bold text-blue-600/70 dark:text-blue-300/70">Sacado:</span> {clean(entry.payerName)}
+          </p>
+          <p className="truncate text-xs text-gray-500">
+            <span className="font-bold text-primary/70 dark:text-secondary/70">Cedente:</span>{" "}
+            {entry.clientName ?? <span className="text-gray-400">cód. {clean(entry.clientCode)} (sem cadastro)</span>}
+          </p>
+        </div>
+
+        <div className="min-w-0 lg:w-[360px]">
+          <div className="space-y-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+            <div className="min-w-0">
+              <p className="truncate" title={clean(entry.bankName ?? entry.bacenInstitutionName)}>
+                <span className="font-bold text-gray-600 dark:text-gray-300">Instituição:</span>{" "}
+                {clean(entry.bankName ?? entry.bacenInstitutionName)}
+              </p>
+              <p className="truncate">
+                <span className="font-bold text-gray-600 dark:text-gray-300">Banco/Agência:</span> {clean(entry.bankAgency)}
+              </p>
+              <p className="truncate">
+                <span className="font-bold text-gray-600 dark:text-gray-300">Vencimento:</span> {clean(entry.dueDate)}
+              </p>
+              {occurrenceLabel(entry.occurrenceComplement) ? (
+                <p className="truncate" title={clean(entry.occurrenceComplement)}>
+                  <span className="font-bold text-gray-600 dark:text-gray-300">Ocorrência:</span>{" "}
+                  {occurrenceLabel(entry.occurrenceComplement)}
+                </p>
+              ) : null}
+              <p className="truncate">
+                <span className="font-bold text-gray-600 dark:text-gray-300">Valor pago:</span>{" "}
+                {formatCurrencyBr(entry.paidValue) ?? clean(entry.paidValue)}
+              </p>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        {selectMode ? (
+          <div className="flex min-w-0 items-center justify-end lg:flex-1">
+            <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
+          </div>
+        ) : null}
+
+        {/* Sugestão + distâncias. basis/flex-1 só em lg: abaixo disso a linha
+            é flex-col e o flex-basis viraria ALTURA (card vazio no retrato). */}
+        {!selectMode ? (
+        <div className="flex flex-wrap items-center gap-1.5 lg:min-w-[260px] lg:flex-1 lg:basis-[260px]">
+          <SuggestionPill suggestion={entry.automaticSuggestion} confidence={entry.automaticConfidence} />
+          {entry.relatedParties ? <RelatedPartiesChip detail={entry.relatedPartiesDetail} /> : null}
+          <DistanceChip label="Cedente ↔ Agência" value={entry.distanceClientAgencyKm} />
+          <DistanceChip label="Sacado ↔ Agência" value={entry.distanceAgencyPayerKm} />
+          <DistanceChip label="Cedente ↔ Sacado" value={entry.distanceClientPayerKm} highlight />
+        </div>
+        ) : null}
+
+        {/* Decisão + ações */}
+        {!selectMode ? (
+        <div className="flex items-center justify-end gap-1.5 lg:w-[300px]">
+          <DecisionButton label="Sacado" active={entry.analystDecision === "SACADO"} suggested={suggested === "SACADO"} tone="sacado" disabled={decidePending} onClick={(e) => { e.stopPropagation(); actions.decide(entry, "SACADO"); }} />
+          <DecisionButton label="Cedente" active={entry.analystDecision === "CEDENTE"} suggested={suggested === "CEDENTE"} tone="cedente" disabled={decidePending} onClick={(e) => { e.stopPropagation(); actions.decide(entry, "CEDENTE"); }} />
+          <DecisionButton label="Inconclusivo" active={entry.analystDecision === "INCONCLUSIVO"} tone="inconclusivo" disabled={decidePending} onClick={(e) => { e.stopPropagation(); actions.decide(entry, "INCONCLUSIVO"); }} />
+          {entry.analystDecision ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); actions.reopen(entry); }}
+              disabled={reopenPending}
+              title="Reabrir análise (volta para Pendentes e sai da empresa)"
+              aria-label="Reabrir análise"
+              className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
+            >
+              <Icon name="undo" size={16} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); actions.focus(entry.id); actions.expand(entry.id); }}
+            className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+            title="Ver detalhes"
+            aria-label="Ver detalhes"
+          >
+            <Icon name="open_in_full" size={18} />
+          </button>
+        </div>
+        ) : null}
+      </div>
+  );
+});
