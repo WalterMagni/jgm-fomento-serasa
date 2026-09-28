@@ -2319,7 +2319,7 @@ export default function ClientDashboardPage() {
       {/* ── Histórico de Cheques ─────────────────────────────────────────── */}
       <CheckFilingsPanel data={ca?.checkFilingsHistorical} />
 
-      <CommercialInformationPanel cnpj={cleanCnpj} />
+      <CommercialInformationPanel cnpj={cleanCnpj} companyName={companyLabel} />
 
       <CompanyNotesPanel cnpj={cleanCnpj} />
 

@@ -247,59 +247,104 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-function downloadCommercialXls(records: CommercialRecord[]) {
-  const headers = [
-    "Data",
-    "Tipo",
-    "Parceiro",
-    "Cliente desde",
-    "Ultima operacao",
-    "Valor da operacao",
-    "Limite",
-    "Risco duplicata",
-    "Risco cheque",
-    "Risco comissaria",
-    "Data do vencido",
-    "Valor vencido",
-    "Vencimento da ultima duplicata",
-    "VOP",
-    "L1 pontual",
-    "L2 atraso",
-    "L3 cartorio",
-    "L4 recompra",
-    "Observacao",
-  ];
+/** Ficha vertical: uma coluna por registro (a mais recente entra à direita), pro time printar a planilha. */
+function blankMoney(value: string) {
+  const formatted = formatMoney(value);
+  return formatted === "—" ? "" : formatted;
+}
 
-  const rows = records.map((record) => [
-    formatDate(record.data),
-    record.tipo || "—",
-    record.parceiro || "—",
-    formatDate(record.clienteDesde),
-    formatDate(record.ultimaOperacaoData),
-    formatMoney(record.ultimaOperacaoValor),
-    formatMoney(record.limite),
-    formatMoney(record.riscoDuplicata),
-    formatMoney(record.riscoCheque),
-    formatMoney(record.riscoComissaria),
-    formatDate(record.vencidosData),
-    formatMoney(record.vencidosValorMonetario),
-    formatDate(record.vencidosValor),
-    formatMoney(record.vop),
-    formatPercent(record.pontual),
-    formatPercent(record.atraso),
-    formatPercent(record.cartorio),
-    formatPercent(record.recompra),
-    record.observacao || "—",
-  ]);
+function blankDate(value: string) {
+  const formatted = formatDate(value);
+  return formatted === "—" ? "" : formatted;
+}
+
+function blankPercent(value: string) {
+  const formatted = formatPercent(value);
+  return formatted === "—" ? "" : formatted;
+}
+
+function sortRecordsForSheet(records: CommercialRecord[]) {
+  const toTime = (record: CommercialRecord) => {
+    const match = formatDate(record.data).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return 0;
+    return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])).getTime();
+  };
+  return [...records].sort((a, b) => toTime(a) - toTime(b));
+}
+
+type SheetRow = { kind: "section"; label: string } | { kind: "field"; label: string; values: string[] };
+
+function buildSheetRows(records: CommercialRecord[]): SheetRow[] {
+  const field = (label: string, pick: (record: CommercialRecord) => string): SheetRow => ({
+    kind: "field",
+    label,
+    values: records.map(pick),
+  });
+
+  return [
+    field("Data", (record) => blankDate(record.data)),
+    field("Tipo", (record) => record.tipo || ""),
+    field("Cliente desde", (record) => blankDate(record.clienteDesde)),
+    field("Ultima Operação", (record) => blankDate(record.ultimaOperacaoData)),
+    field("Limite", (record) => blankMoney(record.limite)),
+    { kind: "section", label: "Riscos" },
+    field("Risco Dupl", (record) => blankMoney(record.riscoDuplicata)),
+    field("Vencimento da última duplicata", (record) => blankDate(record.vencidosValor)),
+    field("Risco Comissária", (record) => blankMoney(record.riscoComissaria)),
+    // Ainda não existe campo de vencimento para comissária/cheque no cadastro: linha vai vazia pra ficha bater com o modelo do time.
+    field("Vencimento da última Comissária", () => ""),
+    field("Risco Cheque", (record) => blankMoney(record.riscoCheque)),
+    field("Vencimento do última Cheque", () => ""),
+    field("Valor vencido", (record) => blankMoney(record.vencidosValorMonetario)),
+    field("Data do vencido", (record) => blankDate(record.vencidosData)),
+    { kind: "section", label: "Performance" },
+    field("VOP", (record) => blankMoney(record.vop)),
+    field("L1 (Pontual)", (record) => blankPercent(record.pontual)),
+    field("L2 (Atraso)", (record) => blankPercent(record.atraso)),
+    field("L3 (Cartório)", (record) => blankPercent(record.cartorio)),
+    field("L4 (Recompra)", (record) => blankPercent(record.recompra)),
+    field("Observação", (record) => record.observacao || ""),
+  ];
+}
+
+const SHEET_TITLE_STYLE = "background-color:#1F3864;color:#FFFFFF;font-weight:bold;text-align:center;";
+const SHEET_SECTION_STYLE = "background-color:#BDD7EE;color:#1F3864;font-weight:bold;";
+const SHEET_LABEL_STYLE = "background-color:#DDEBF7;color:#1F3864;font-weight:bold;";
+const SHEET_HEADER_STYLE = "background-color:#FFFFFF;color:#1F3864;font-weight:bold;text-align:center;";
+const SHEET_VALUE_STYLE = "text-align:center;";
+
+function downloadCommercialXls(records: CommercialRecord[], companyName?: string) {
+  const ordered = sortRecordsForSheet(records);
+  const columns = ordered.length;
+  const totalColumns = columns + 1;
+  const rows = buildSheetRows(ordered);
+
+  const titleRow = `<tr><td colspan="${totalColumns}" style="${SHEET_TITLE_STYLE}">${escapeHtml(companyName || "Razão Social Cedente")}</td></tr>`;
+
+  const headerRow = `<tr><td style="${SHEET_LABEL_STYLE}"></td>${ordered
+    .map((record) => `<td style="${SHEET_HEADER_STYLE}">${escapeHtml(record.parceiro || "Nome do Parceiro")}</td>`)
+    .join("")}</tr>`;
+
+  const bodyRows = rows
+    .map((row) => {
+      if (row.kind === "section") {
+        return `<tr><td colspan="${totalColumns}" style="${SHEET_SECTION_STYLE}">${escapeHtml(row.label)}</td></tr>`;
+      }
+      return `<tr><td style="${SHEET_LABEL_STYLE}">${escapeHtml(row.label)}</td>${row.values
+        .map((value) => `<td style="${SHEET_VALUE_STYLE}">${escapeHtml(value)}</td>`)
+        .join("")}</tr>`;
+    })
+    .join("");
 
   const table = `
     <html>
       <head><meta charset="UTF-8" /></head>
       <body>
-        <table border="1">
-          <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+        <table border="1" cellspacing="0">
           <tbody>
-            ${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}
+            ${titleRow}
+            ${headerRow}
+            ${bodyRows}
           </tbody>
         </table>
       </body>
@@ -580,7 +625,7 @@ function CommercialInformationModal({
   );
 }
 
-export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
+export function CommercialInformationPanel({ cnpj, companyName }: { cnpj: string; companyName?: string }) {
   const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : "";
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
@@ -769,7 +814,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
             <span className="px-1 text-xs text-gray-300 dark:text-gray-600">|</span>
             <button
               type="button"
-              onClick={() => downloadCommercialXls(records)}
+              onClick={() => downloadCommercialXls(records, companyName)}
               className="text-xs text-gray-400 underline underline-offset-2 transition-colors hover:text-primary dark:hover:text-primary-light"
             >
               exportar XLS

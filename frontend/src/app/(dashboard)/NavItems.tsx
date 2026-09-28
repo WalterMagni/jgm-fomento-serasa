@@ -31,6 +31,12 @@ export const NAV_ITEMS: NavItem[] = [
     isActive: p => p === "/commercial-information",
   },
   {
+    href: "/prospeccao",
+    icon: "conveyor_belt",
+    label: "Esteira de Prospecção",
+    isActive: p => p.startsWith("/prospeccao"),
+  },
+  {
     href: "/reports/visao-cedente",
     icon: "swap_horiz",
     label: "Visão Cedente",

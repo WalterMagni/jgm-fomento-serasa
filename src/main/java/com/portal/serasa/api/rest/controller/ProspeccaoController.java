@@ -129,6 +129,25 @@ public class ProspeccaoController {
                 .build());
     }
 
+    /**
+     * Mapa de estágio para destinos válidos.
+     *
+     * <p>Existe para o kanban validar o arraste sem reimplementar a máquina de estados: duas
+     * cópias da regra divergiriam, e o usuário descobriria a divergência soltando o card e
+     * tomando 409.</p>
+     */
+    @GetMapping("/estagios")
+    public ResponseEntity<Map<String, List<String>>> estagios() {
+        Map<String, List<String>> destinos = new LinkedHashMap<>();
+        for (EstagioProspeccao estagio : EstagioProspeccao.values()) {
+            destinos.put(estagio.name(), estagio.destinos().stream()
+                    .map(EstagioProspeccao::name)
+                    .sorted()
+                    .toList());
+        }
+        return ResponseEntity.ok(destinos);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProspeccaoDetalheResponse> detalhe(@PathVariable UUID id) {
         ProspeccaoEntity card = prospeccaoService.buscar(id);
