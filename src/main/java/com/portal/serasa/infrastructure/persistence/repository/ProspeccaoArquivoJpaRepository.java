@@ -15,6 +15,9 @@ public interface ProspeccaoArquivoJpaRepository
     List<ProspeccaoArquivoEntity> findByDocumentoIdAndRemovidoEmIsNullOrderByVersaoDesc(
             UUID documentoId);
 
+    List<ProspeccaoArquivoEntity> findByProspeccaoIdInAndRemovidoEmIsNull(
+            java.util.Collection<UUID> prospeccaoIds);
+
     /** Maior versão já usada para o item, inclusive versões removidas logicamente. */
     long countByDocumentoId(UUID documentoId);
 }

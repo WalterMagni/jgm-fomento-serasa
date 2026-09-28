@@ -14,5 +14,8 @@ public interface ProspeccaoDocumentoJpaRepository
 
     List<ProspeccaoDocumentoEntity> findByProspeccaoId(UUID prospeccaoId);
 
+    /** Checklist de vários cards numa consulta — o kanban lista dezenas de cards por vez. */
+    List<ProspeccaoDocumentoEntity> findByProspeccaoIdIn(java.util.Collection<UUID> prospeccaoIds);
+
     void deleteByProspeccaoId(UUID prospeccaoId);
 }

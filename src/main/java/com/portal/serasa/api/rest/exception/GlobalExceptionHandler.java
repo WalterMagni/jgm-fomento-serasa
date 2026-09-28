@@ -161,6 +161,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
+    @ExceptionHandler(com.portal.serasa.domain.exception.AcessoNegadoException.class)
+    public ResponseEntity<ErrorResponse> handleAcessoNegado(
+            com.portal.serasa.domain.exception.AcessoNegadoException ex,
+            HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(com.portal.serasa.domain.exception.TransicaoInvalidaException.class)
     public ResponseEntity<ErrorResponse> handleTransicaoInvalida(
             com.portal.serasa.domain.exception.TransicaoInvalidaException ex,

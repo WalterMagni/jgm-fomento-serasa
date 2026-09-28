@@ -168,6 +168,12 @@ public class ProspeccaoArquivoService {
                 TipoEventoProspeccao.ARQUIVO_REMOVIDO, null, null, null, arquivo.getNomeOriginal(), autor);
     }
 
+    /** Metadado do arquivo ativo, para montar o cabeçalho do download. */
+    @Transactional(readOnly = true)
+    public ProspeccaoArquivoEntity buscar(UUID arquivoId) {
+        return buscarAtivo(arquivoId);
+    }
+
     @Transactional(readOnly = true)
     public List<ProspeccaoArquivoEntity> listar(UUID prospeccaoId) {
         return arquivoRepository.findByProspeccaoIdAndRemovidoEmIsNullOrderByEnviadoEmDesc(prospeccaoId);

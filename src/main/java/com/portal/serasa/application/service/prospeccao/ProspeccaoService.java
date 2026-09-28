@@ -325,6 +325,17 @@ public class ProspeccaoService {
         return prospeccaoRepository.findByClosedAtIsNullOrderByEstagioDesdeAsc();
     }
 
+    /**
+     * Todo o histórico de um CNPJ, incluindo cards fechados.
+     *
+     * <p>Importa porque a empresa pode ter sido reprovada, voltado e sido aprovada depois — ver
+     * a planilha. A tela do card precisa mostrar que houve passagem anterior.</p>
+     */
+    @Transactional(readOnly = true)
+    public List<ProspeccaoEntity> listarPorCnpj(String cnpj) {
+        return prospeccaoRepository.findByCnpjOrderByCreatedAtDesc(normalizarCnpj(cnpj));
+    }
+
     @Transactional(readOnly = true)
     public List<ProspeccaoEventoEntity> timeline(UUID id) {
         return eventoRepository.findByProspeccaoIdOrderByCriadoEmDesc(id);
