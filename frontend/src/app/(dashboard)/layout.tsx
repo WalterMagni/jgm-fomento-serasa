@@ -169,6 +169,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     : 'Portal';
 
   return (
+    // O provider envolve a shell inteira, não só o conteúdo: a lista de navegação também
+    // consulta a API, para o contador da esteira aparecer no menu.
+    <QueryClientProvider client={queryClient}>
     <div className="flex flex-col min-h-screen">
       {/* Top Navbar using Glassmorphism */}
       <nav className="bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50 h-16 flex items-center px-6 fixed w-full z-30 top-0 transition-colors duration-300 print:hidden shadow-[0_4px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)]">
@@ -304,13 +307,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Main Content */}
         <main className="flex-1 min-w-0 overflow-y-auto bg-background-light dark:bg-background-dark p-6 lg:p-8 transition-colors duration-300 relative z-0">
-          <QueryClientProvider client={queryClient}>
-            {children}
-          </QueryClientProvider>
+          {children}
         </main>
       </div>
       {/* Fora do <main> (z-0 + overflow) para a notificação não ficar presa atrás do header. */}
       <Toaster richColors position="top-right" offset={80} toastOptions={{ style: { zIndex: 9999 } }} />
     </div>
+    </QueryClientProvider>
   );
 }
