@@ -1,7 +1,5 @@
 # Esteira de prospecção — perguntas para o time
 
-Para conversar com uma analista de crédito (Andressa ou Nicole) e um comercial.
-Tempo estimado: 20 a 30 minutos.
 
 Contexto para abrir a conversa: o controle que hoje vive na planilha
 `CONTROLE DE EMPRESAS` vai virar uma tela do portal. As etapas e o checklist já
