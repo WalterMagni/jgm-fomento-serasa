@@ -49,6 +49,7 @@ public class ClientProfileService {
     private final ApiUsageLogService apiUsageLogService;
     private final CompanyShareholderService companyShareholderService;
     private final EmailService emailService;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoEntradaAutomatica prospeccaoEntradaAutomatica;
 
     @Value("${billing.serasa.cost-per-query:0.00}")
     private BigDecimal serasaCostPerQuery;
@@ -84,6 +85,10 @@ public class ClientProfileService {
         if ("SIM".equals(saved.getVisaoCedente()) && resolveCurrentUserEmailNotificacao()) {
             emailService.notificarCedenteAsync(saved);
         }
+
+        // Visão cedente SIM também abre card na esteira de prospecção, em TRIAGEM. O sinal é
+        // calculado, não é veredito: quem aprova ou reprova continua sendo a analista.
+        prospeccaoEntradaAutomatica.aoSalvarAnalise(saved);
 
         replicateSerasaAnalysisToRegisteredGroup(documentNumber, saved);
 

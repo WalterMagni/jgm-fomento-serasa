@@ -17,6 +17,7 @@ import com.portal.serasa.api.rest.mapper.ProspeccaoDtoMapper;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoArquivoService;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoAutorizacao;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoDocumentoService;
+import com.portal.serasa.application.service.prospeccao.ProspeccaoEntradaAutomatica;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoService;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
@@ -78,6 +79,7 @@ public class ProspeccaoController {
     private final ProspeccaoDocumentoService documentoService;
     private final ProspeccaoArquivoService arquivoService;
     private final ProspeccaoAutorizacao autorizacao;
+    private final ProspeccaoEntradaAutomatica entradaAutomatica;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final UserRepository userRepository;
@@ -284,6 +286,19 @@ public class ProspeccaoController {
 
         arquivoService.remover(arquivoId, autor);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Puxa para a esteira as análises com visão cedente SIM que já existiam antes desta tela.
+     *
+     * <p>É botão, não job de deploy: a analista decide se quer a fila cheia de histórico no
+     * primeiro dia. Reexecutar é seguro, quem já tem card é ignorado.</p>
+     */
+    @PostMapping("/backfill-visao-cedente")
+    public ResponseEntity<Map<String, Object>> backfillVisaoCedente() {
+        UserEntity autor = usuarioAutenticado();
+        autorizacao.exigirDecisor(autor);
+        return ResponseEntity.ok(Map.of("cardsCriados", entradaAutomatica.backfill()));
     }
 
     // -------------------------------------------------- catálogo (só admin)
