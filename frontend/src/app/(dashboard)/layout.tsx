@@ -7,7 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useState, useEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
-import { NAV_ITEMS, SETTINGS_ITEM, NavLink } from "./NavItems";
+import { SETTINGS_ITEM, NavLink } from "./NavItems";
+import NavList from "./NavList";
 
 /** Decodifica o JWT e diz se já expirou (ou é inválido). */
 function isTokenExpired(token: string | null): boolean {
@@ -252,11 +253,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
           <div className="flex-1 overflow-y-auto py-6">
             <ul className="space-y-1 px-3">
-              {NAV_ITEMS.map(item => (
-                <li key={item.href}>
-                  <NavLink item={item} pathname={pathname} showLabel="lg" />
-                </li>
-              ))}
+              <NavList pathname={pathname} showLabel="lg" />
               <li className="pt-4 mt-4 border-t border-white/10 relative">
                 <span className="px-5 text-xs font-sans font-bold text-white/50 uppercase tracking-widest hidden lg:block mb-3">Configurações</span>
                 <NavLink item={SETTINGS_ITEM} pathname={pathname} showLabel="lg" />
@@ -285,11 +282,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </div>
               <nav className="flex-1 overflow-y-auto py-4">
                 <ul className="space-y-1 px-3">
-                  {NAV_ITEMS.map(item => (
-                    <li key={item.href}>
-                      <NavLink item={item} pathname={pathname} showLabel="always" onNavigate={() => setMenuOpen(false)} />
-                    </li>
-                  ))}
+                  <NavList pathname={pathname} showLabel="always" onNavigate={() => setMenuOpen(false)} />
                   <li className="mt-4 border-t border-white/10 pt-4">
                     <span className="mb-3 block px-5 text-xs font-sans font-bold uppercase tracking-widest text-white/50">Configurações</span>
                     <NavLink item={SETTINGS_ITEM} pathname={pathname} showLabel="always" onNavigate={() => setMenuOpen(false)} />

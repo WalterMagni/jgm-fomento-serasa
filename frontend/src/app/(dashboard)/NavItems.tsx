@@ -15,6 +15,11 @@ export type NavItem = {
   sub?: boolean;
   /** Marca o item como ativo a partir do pathname. */
   isActive: (pathname: string) => boolean;
+  /**
+   * Contador vermelho ao lado do rótulo, para o que exige ação hoje.
+   * Só a esteira usa: é a única tela com prazo correndo contra o usuário.
+   */
+  badge?: number;
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -135,6 +140,16 @@ export function NavLink({
       >
         {item.label}
       </span>
+      {item.badge != null && item.badge > 0 && (
+        <span
+          // Na sidebar recolhida o rótulo desaparece, mas o contador fica: é o único aviso
+          // de que existe card atrasado esperando.
+          className="ml-auto shrink-0 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white"
+          title={`${item.badge} card(s) precisando de atenção`}
+        >
+          {item.badge > 99 ? "99+" : item.badge}
+        </span>
+      )}
     </Link>
   );
 }

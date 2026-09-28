@@ -126,6 +126,9 @@ public class ProspeccaoController {
                 .slaEstourado(abertos.stream().filter(ProspeccaoResponse::slaEstourado).count())
                 .slaEmAtencao(abertos.stream().filter(ProspeccaoResponse::slaEmAtencao).count())
                 .silencioProlongado(abertos.stream().filter(ProspeccaoResponse::silencioProlongado).count())
+                .precisamAtencao(abertos.stream()
+                        .filter(card -> card.slaEstourado() || card.silencioProlongado())
+                        .count())
                 .build());
     }
 

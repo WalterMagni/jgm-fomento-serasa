@@ -127,6 +127,8 @@ export type ProspeccaoResumo = {
   slaEstourado: number;
   slaEmAtencao: number;
   silencioProlongado: number;
+  /** Sem dupla contagem: atraso e silêncio costumam cair no mesmo card. */
+  precisamAtencao: number;
 };
 
 export type DocumentoTipo = {

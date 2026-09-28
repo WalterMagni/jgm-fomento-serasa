@@ -11,5 +11,10 @@ public record ProspeccaoResumoResponse(
         long total,
         long slaEstourado,
         long slaEmAtencao,
-        long silencioProlongado) {
+        long silencioProlongado,
+        /**
+         * Cards que exigem ação hoje, sem dupla contagem: atraso de prazo e silêncio do cliente
+         * costumam cair no mesmo card, e somar os dois inflaria o badge do menu.
+         */
+        long precisamAtencao) {
 }

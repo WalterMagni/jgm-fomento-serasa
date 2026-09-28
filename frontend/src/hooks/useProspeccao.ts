@@ -72,6 +72,9 @@ export function useProspeccaoResumo() {
       return res.json();
     },
     staleTime: 30 * 1000,
+    // O badge do menu vive deste resumo. Sem recarga periódica, um card que estourou o prazo
+    // durante a sessão só apareceria no próximo F5.
+    refetchInterval: 60 * 1000,
   });
 }
 
