@@ -50,6 +50,11 @@ public class ProspeccaoDocumentoEntity {
     @Builder.Default
     private Boolean informativoSnapshot = false;
 
+    /** Obrigatório que pode ser liberado com justificativa. Ver V60. */
+    @Column(name = "admite_excecao_snapshot", nullable = false)
+    @Builder.Default
+    private Boolean admiteExcecaoSnapshot = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 8)
     private EscopoDocumento escopo;

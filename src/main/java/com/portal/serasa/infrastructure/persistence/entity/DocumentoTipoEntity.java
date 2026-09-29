@@ -54,6 +54,17 @@ public class DocumentoTipoEntity {
     private Boolean informativo = false;
 
     /**
+     * Obrigatório, mas liberável mediante justificativa.
+     *
+     * <p>Endividamento e curva ABC o cliente pode legitimamente não ter; a autorização SCR ele
+     * pode não aceitar assinar. Nesses casos o time libera com motivo registrado, em vez de
+     * simplesmente ignorar a exigência.</p>
+     */
+    @Column(name = "admite_excecao", nullable = false)
+    @Builder.Default
+    private Boolean admiteExcecao = false;
+
+    /**
      * UF em que o item existe. A certidão simplificada é retirada na JUCESP, ou seja, só São
      * Paulo; fora dela o item nasce NAO_APLICAVEL.
      */

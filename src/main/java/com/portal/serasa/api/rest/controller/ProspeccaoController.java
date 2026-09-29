@@ -415,6 +415,7 @@ public class ProspeccaoController {
                 .escopo(request.escopo())
                 .obrigatorio(request.obrigatorio())
                 .informativo(request.informativo())
+                .admiteExcecao(request.admiteExcecao())
                 .somenteUf(request.somenteUf())
                 .ativo(request.ativo())
                 .ordem(request.ordem())
@@ -442,6 +443,7 @@ public class ProspeccaoController {
         tipo.setEscopo(request.escopo());
         tipo.setObrigatorio(request.obrigatorio());
         tipo.setInformativo(request.informativo());
+        tipo.setAdmiteExcecao(request.admiteExcecao());
         tipo.setSomenteUf(request.somenteUf());
         tipo.setAtivo(request.ativo());
         tipo.setOrdem(request.ordem());

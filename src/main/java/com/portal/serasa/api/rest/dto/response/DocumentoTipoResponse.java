@@ -13,6 +13,7 @@ public record DocumentoTipoResponse(
         EscopoDocumento escopo,
         boolean obrigatorio,
         boolean informativo,
+        boolean admiteExcecao,
         String somenteUf,
         boolean ativo,
         int ordem) {

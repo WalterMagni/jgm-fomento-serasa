@@ -192,6 +192,23 @@ class ProspeccaoServiceTest {
     }
 
     @Test
+    @DisplayName("item de exceção liberado com justificativa não trava o fechamento")
+    void shouldAllowClosingWithJustifiedException() {
+        // Endividamento e curva ABC o cliente pode legitimamente não ter; a autorização SCR ele pode
+        // não aceitar assinar. O time libera com motivo, e o card segue.
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        ProspeccaoDocumentoEntity curvaAbc = doc("Curva ABC", true, StatusDocumento.DISPENSADO, null);
+        curvaAbc.setAdmiteExcecaoSnapshot(true);
+        curvaAbc.setMotivo("Cliente não possui");
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
+                doc("Contrato social", true, StatusDocumento.VALIDADO, null),
+                curvaAbc));
+
+        assertThat(service.transicionar(card.getId(), EstagioProspeccao.DOCS_COMPLETOS, null, null, analista)
+                .getEstagio()).isEqualTo(EstagioProspeccao.DOCS_COMPLETOS);
+    }
+
+    @Test
     @DisplayName("fechar documentos: dispensado e não aplicável não travam o avanço")
     void shouldAllowClosingWithWaivedDocuments() {
         ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);

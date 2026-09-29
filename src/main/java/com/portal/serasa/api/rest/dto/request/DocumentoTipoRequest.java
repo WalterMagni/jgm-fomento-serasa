@@ -13,6 +13,8 @@ public record DocumentoTipoRequest(
         boolean obrigatorio,
         /** Pergunta em vez de documento: aparece, aceita resposta, nunca trava o avanço. */
         boolean informativo,
+        /** Obrigatório que o cliente pode legitimamente não ter; libera com justificativa. */
+        boolean admiteExcecao,
         /** UF em que o item existe, como a certidão da JUCESP só existe em SP. */
         @Size(min = 2, max = 2) String somenteUf,
         boolean ativo,

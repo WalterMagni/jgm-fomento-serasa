@@ -89,6 +89,11 @@ export type ProspeccaoDocumento = {
   obrigatorio: boolean;
   /** Pergunta em vez de documento: aceita resposta e nunca trava o avanço. */
   informativo: boolean;
+  /**
+   * Obrigatório que o cliente pode legitimamente não ter — endividamento, curva ABC — ou não
+   * aceitar assinar, como a autorização SCR. Libera com justificativa, em vez de ser ignorado.
+   */
+  admiteExcecao: boolean;
   escopo: EscopoDocumento;
   socioNome: string | null;
   socioDocumento: string | null;
@@ -138,6 +143,7 @@ export type DocumentoTipo = {
   escopo: EscopoDocumento;
   obrigatorio: boolean;
   informativo: boolean;
+  admiteExcecao: boolean;
   somenteUf: string | null;
   ativo: boolean;
   ordem: number;
@@ -180,7 +186,7 @@ export const ROTULO_STATUS_DOC: Record<StatusDocumento, string> = {
   VALIDADO: "Validado",
   REJEITADO: "Rejeitado",
   NAO_APLICAVEL: "Não se aplica",
-  DISPENSADO: "Dispensado",
+  DISPENSADO: "Liberado com justificativa",
 };
 
 export const ROTULO_CANAL: Record<CanalContato, string> = {

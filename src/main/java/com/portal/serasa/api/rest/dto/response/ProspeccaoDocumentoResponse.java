@@ -15,6 +15,8 @@ public record ProspeccaoDocumentoResponse(
         String nome,
         boolean obrigatorio,
         boolean informativo,
+        /** Obrigatório liberável com justificativa: muda o texto da ação na tela. */
+        boolean admiteExcecao,
         EscopoDocumento escopo,
         String socioNome,
         String socioDocumento,

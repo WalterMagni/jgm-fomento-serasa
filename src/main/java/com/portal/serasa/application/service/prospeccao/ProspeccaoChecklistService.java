@@ -130,6 +130,7 @@ public class ProspeccaoChecklistService {
                 .nomeSnapshot(tipo.getNome())
                 .obrigatorioSnapshot(Boolean.TRUE.equals(tipo.getObrigatorio()))
                 .informativoSnapshot(Boolean.TRUE.equals(tipo.getInformativo()))
+                .admiteExcecaoSnapshot(Boolean.TRUE.equals(tipo.getAdmiteExcecao()))
                 .socioAtivo(true)
                 .atualizadoEm(agora);
     }

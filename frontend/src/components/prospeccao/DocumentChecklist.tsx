@@ -20,13 +20,26 @@ const CLASSE_STATUS: Record<StatusDocumento, string> = {
   DISPENSADO: "bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300",
 };
 
-/** Ações oferecidas por status. Motivo é pedido quando o backend o exige. */
-const ACOES: { status: StatusDocumento; rotulo: string; pedeMotivo?: boolean }[] = [
-  { status: "VALIDADO", rotulo: "Validar" },
-  { status: "REJEITADO", rotulo: "Rejeitar", pedeMotivo: true },
-  { status: "DISPENSADO", rotulo: "Dispensar", pedeMotivo: true },
-  { status: "PENDENTE", rotulo: "Voltar a pendente" },
-];
+/**
+ * Ações de conferência.
+ *
+ * <p>Para item que admite exceção — endividamento, curva ABC, autorização SCR — a ação se chama
+ * "Liberar na exceção", porque é isso que o time faz: o cliente legitimamente não tem o documento,
+ * ou não aceita assinar, e a casa libera registrando o porquê. Chamar de "dispensar" esconderia
+ * que existe uma justificativa obrigatória por trás.</p>
+ */
+function acoesDe(documento: ProspeccaoDocumento): { status: StatusDocumento; rotulo: string; pedeMotivo?: boolean }[] {
+  return [
+    { status: "VALIDADO", rotulo: "Validar" },
+    { status: "REJEITADO", rotulo: "Rejeitar", pedeMotivo: true },
+    {
+      status: "DISPENSADO",
+      rotulo: documento.admiteExcecao ? "Liberar na exceção" : "Dispensar",
+      pedeMotivo: true,
+    },
+    { status: "PENDENTE", rotulo: "Voltar a pendente" },
+  ];
+}
 
 function Arquivo({ arquivo, cardId }: { arquivo: ProspeccaoArquivo; cardId: string }) {
   const remover = useRemoverArquivo();
@@ -64,7 +77,13 @@ function ItemDocumento({ documento, cardId }: { documento: ProspeccaoDocumento; 
   function aplicar(status: StatusDocumento, pedeMotivo?: boolean) {
     let motivo: string | undefined;
     if (pedeMotivo) {
-      const informado = window.prompt(`Por que ${status === "REJEITADO" ? "rejeitar" : "dispensar"} "${documento.nome}"?`);
+      const pergunta =
+        status === "REJEITADO"
+          ? `Por que rejeitar "${documento.nome}"?`
+          : documento.admiteExcecao
+            ? `Justifique a liberação de "${documento.nome}" (ex.: cliente não possui, cliente não autoriza):`
+            : `Por que dispensar "${documento.nome}"?`;
+      const informado = window.prompt(pergunta);
       if (!informado || !informado.trim()) return;
       motivo = informado.trim();
     }
@@ -84,6 +103,11 @@ function ItemDocumento({ documento, cardId }: { documento: ProspeccaoDocumento; 
           </p>
           {documento.informativo && (
             <p className="text-[10px] uppercase tracking-wide text-slate-400">informativo, não trava</p>
+          )}
+          {documento.admiteExcecao && !documento.informativo && (
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+              obrigatório · liberável com justificativa
+            </p>
           )}
           {documento.motivo && (
             <p className="mt-0.5 text-[11px] italic text-slate-500 dark:text-slate-400">{documento.motivo}</p>
@@ -153,7 +177,7 @@ function ItemDocumento({ documento, cardId }: { documento: ProspeccaoDocumento; 
           <Icon name={enviar.isPending ? "hourglass_top" : "upload_file"} className="text-[13px]" />
           {enviar.isPending ? "enviando…" : "anexar"}
         </button>
-        {ACOES.filter(acao => acao.status !== documento.status).map(acao => (
+        {acoesDe(documento).filter(acao => acao.status !== documento.status).map(acao => (
           <button
             key={acao.status}
             type="button"
