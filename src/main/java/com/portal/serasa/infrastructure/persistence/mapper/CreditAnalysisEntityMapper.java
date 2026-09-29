@@ -13,5 +13,9 @@ public interface CreditAnalysisEntityMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "client", ignore = true)
+    // A coluna é NOT NULL desde a V17 e o padrão vive no @Builder.Default da entidade — que o
+    // mapeamento anulava ao gravar o null do domínio explicitamente. Qualquer origem que não
+    // calcule o campo (o seeder, um JSON antigo) derrubava a escrita.
+    @Mapping(target = "visaoCedente", source = "visaoCedente", defaultValue = "PENDENTE")
     CreditAnalysisEntity toEntity(CreditAnalysis domain);
 }

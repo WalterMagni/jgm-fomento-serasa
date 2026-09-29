@@ -88,7 +88,18 @@ public class ProspeccaoAutorizacao {
         return DECIDEM.contains(papel(usuario));
     }
 
+    /**
+     * Papel normalizado para {@code ROLE_*}.
+     *
+     * <p>As duas grafias existem no banco: {@code AuthController} grava {@code ROLE_USER} e o
+     * {@code DatabaseSeeder} grava {@code ADMIN}. Comparar só uma forma trancaria fora da esteira
+     * justamente os usuários mais antigos, e sem erro que explicasse o motivo.</p>
+     */
     private String papel(UserEntity usuario) {
-        return usuario == null || usuario.getRole() == null ? "" : usuario.getRole();
+        if (usuario == null || usuario.getRole() == null || usuario.getRole().isBlank()) {
+            return "";
+        }
+        String bruto = usuario.getRole().trim().toUpperCase(java.util.Locale.ROOT);
+        return bruto.startsWith("ROLE_") ? bruto : "ROLE_" + bruto;
     }
 }

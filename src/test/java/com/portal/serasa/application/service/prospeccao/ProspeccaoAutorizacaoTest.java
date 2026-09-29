@@ -115,6 +115,19 @@ class ProspeccaoAutorizacaoTest {
     }
 
     @Test
+    @DisplayName("papel sem o prefixo ROLE_ vale igual — as duas grafias existem no banco")
+    void shouldAcceptRoleWithoutPrefix() {
+        // DatabaseSeeder grava "ADMIN"; AuthController grava "ROLE_USER". Comparar só uma forma
+        // trancaria fora da esteira justamente os usuários mais antigos.
+        UserEntity adminSeeder = UserEntity.builder().id(UUID.randomUUID()).name("Admin").role("ADMIN").build();
+        UserEntity analistaMinuscula = UserEntity.builder().id(UUID.randomUUID()).name("A").role("analista").build();
+
+        assertThatCode(() -> autorizacao.exigirAdmin(adminSeeder)).doesNotThrowAnyException();
+        assertThatCode(() -> autorizacao.exigirDecisor(analistaMinuscula)).doesNotThrowAnyException();
+        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(null), adminSeeder)).doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("usuário sem papel não passa de nenhuma porta")
     void shouldRejectRolelessUser() {
         UserEntity semPapel = UserEntity.builder().id(UUID.randomUUID()).name("X").build();

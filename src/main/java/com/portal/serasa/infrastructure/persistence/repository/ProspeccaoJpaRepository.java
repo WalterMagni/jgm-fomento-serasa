@@ -36,7 +36,10 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
      * segunda tentativa não afeta linha nenhuma, devolvendo 0. O default é que o analista puxe
      * da fila, e não que alguém distribua — ver os defaults de 2026-09-28.
      */
-    @Modifying
+    // clearAutomatically é obrigatório aqui: o UPDATE em JPQL não passa pelo contexto de
+    // persistência, então uma leitura posterior na mesma transação devolveria a entidade antiga
+    // em cache — o card apareceria como não assumido logo depois de ser assumido.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE ProspeccaoEntity p
                SET p.analistaId = :analistaId,
