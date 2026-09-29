@@ -69,3 +69,46 @@ export const ICONE_ESTAGIO: Record<EstagioProspeccao, string> = {
   REPROVADO: "block",
   REMOVIDO_RADAR: "visibility_off",
 };
+
+/**
+ * Ordenação de uma coluna do quadro.
+ *
+ * <p>O padrão é por urgência: quem está parado há mais tempo aparece primeiro, que é a ordem em
+ * que o trabalho deveria sair. Ordenar por nome serve para achar uma empresa específica numa
+ * coluna cheia — em Triagem, depois de puxar visão cedente, são dezenas de cards.</p>
+ */
+export type Ordenacao = "urgencia" | "nome" | "nome_desc";
+
+export const PROXIMA_ORDENACAO: Record<Ordenacao, Ordenacao> = {
+  urgencia: "nome",
+  nome: "nome_desc",
+  nome_desc: "urgencia",
+};
+
+export const ROTULO_ORDENACAO: Record<Ordenacao, string> = {
+  urgencia: "Por urgência (mais parado primeiro)",
+  nome: "Por nome (A a Z)",
+  nome_desc: "Por nome (Z a A)",
+};
+
+export const ICONE_ORDENACAO: Record<Ordenacao, string> = {
+  urgencia: "sort",
+  nome: "arrow_downward",
+  nome_desc: "arrow_upward",
+};
+
+export function ordenarCards<T extends { razaoSocial: string; diasNoEstagio: number; estagioDesde: string }>(
+  cards: T[],
+  ordenacao: Ordenacao,
+): T[] {
+  const copia = [...cards];
+  if (ordenacao === "urgencia") {
+    // Mais dias parado primeiro; empate desempata pela entrada no estágio.
+    return copia.sort(
+      (a, b) => b.diasNoEstagio - a.diasNoEstagio || a.estagioDesde.localeCompare(b.estagioDesde),
+    );
+  }
+  const direcao = ordenacao === "nome" ? 1 : -1;
+  // localeCompare com "pt-BR" para acento não jogar "Ávila" para o fim da lista.
+  return copia.sort((a, b) => direcao * a.razaoSocial.localeCompare(b.razaoSocial, "pt-BR"));
+}

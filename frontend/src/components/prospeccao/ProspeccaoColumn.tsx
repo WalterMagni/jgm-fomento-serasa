@@ -2,7 +2,7 @@
 
 import Icon from "@/components/ui/Icon";
 import { EstagioProspeccao, Prospeccao, ROTULO_ESTAGIO } from "@/types/prospeccao";
-import { ICONE_ESTAGIO } from "./formatters";
+import { ICONE_ESTAGIO, ICONE_ORDENACAO, Ordenacao, PROXIMA_ORDENACAO, ROTULO_ORDENACAO } from "./formatters";
 import ProspeccaoCard from "./ProspeccaoCard";
 
 type Props = {
@@ -16,6 +16,8 @@ type Props = {
   onDrop: (id: string, destino: EstagioProspeccao) => void;
   onAbrir: (id: string) => void;
   onMover: (card: Prospeccao) => void;
+  ordenacao: Ordenacao;
+  onOrdenar: (ordenacao: Ordenacao) => void;
 };
 
 export default function ProspeccaoColumn({
@@ -28,6 +30,8 @@ export default function ProspeccaoColumn({
   onDrop,
   onAbrir,
   onMover,
+  ordenacao,
+  onOrdenar,
 }: Props) {
   const arrastandoAlgo = cardArrastando !== null;
 
@@ -53,9 +57,25 @@ export default function ProspeccaoColumn({
           <Icon name={ICONE_ESTAGIO[estagio]} className="text-[15px]" />
           {ROTULO_ESTAGIO[estagio]}
         </h2>
-        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          {cards.length}
-        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onOrdenar(PROXIMA_ORDENACAO[ordenacao])}
+            title={ROTULO_ORDENACAO[ordenacao]}
+            aria-label={`Ordenar ${ROTULO_ESTAGIO[estagio]}. Atual: ${ROTULO_ORDENACAO[ordenacao]}`}
+            className={`cursor-pointer rounded p-1 transition-colors focus:outline-none
+              focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                ordenacao === "urgencia"
+                  ? "text-slate-400 hover:bg-white hover:text-slate-600 dark:hover:bg-slate-800"
+                  : "bg-white text-[#612035] dark:bg-slate-800 dark:text-[#D1732C]"
+              }`}
+          >
+            <Icon name={ICONE_ORDENACAO[ordenacao]} className="text-[14px]" />
+          </button>
+          <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {cards.length}
+          </span>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto">

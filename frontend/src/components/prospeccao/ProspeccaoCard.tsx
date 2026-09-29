@@ -28,9 +28,13 @@ export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, 
         onDragStart();
       }}
       onDragEnd={onDragEnd}
+      // Hover escurece o fundo e adensa a sombra. Sem transform: escala deslocaria os cards
+      // vizinhos a cada passada de mouse, e a coluna inteira tremeria.
       className={`esteira-card-in group cursor-grab rounded-lg border border-l-4 bg-white p-3 text-left
-        shadow-sm transition-shadow duration-200 hover:shadow-md active:cursor-grabbing
-        dark:bg-slate-800 ${CLASSE_SEMAFORO[semaforo]} ${arrastando ? "opacity-40" : ""}`}
+        shadow-sm transition-[background-color,box-shadow,border-color] duration-200 ease-out
+        hover:bg-slate-50 hover:shadow-md active:cursor-grabbing
+        dark:bg-slate-800 dark:hover:bg-slate-700/70
+        ${CLASSE_SEMAFORO[semaforo]} ${arrastando ? "opacity-40" : ""}`}
     >
       <button
         type="button"

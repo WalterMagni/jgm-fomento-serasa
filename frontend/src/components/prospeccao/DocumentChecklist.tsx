@@ -72,7 +72,8 @@ function ItemDocumento({ documento, cardId }: { documento: ProspeccaoDocumento; 
   }
 
   return (
-    <li className="rounded-md border border-slate-200 p-2 dark:border-slate-700">
+    <li className="rounded-md border border-slate-200 p-2 transition-colors duration-200 ease-out
+      hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-800 dark:text-slate-100">

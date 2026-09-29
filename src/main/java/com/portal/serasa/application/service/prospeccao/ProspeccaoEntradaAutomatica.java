@@ -63,6 +63,94 @@ public class ProspeccaoEntradaAutomatica {
     public record Previa(int comVisaoCedente, int jaNaEsteira, int seriamCriados, List<String> amostra) {
     }
 
+    /** Uma empresa que o backfill traria. */
+    public record Candidata(Long analiseId, String cnpj, String nome, boolean jaNaEsteira,
+                            LocalDateTime consultaEm) {
+    }
+
+    /** Página de candidatas: o total encontrado e o que coube no recorte pedido. */
+    public record Candidatas(int total, int exibidas, List<Candidata> itens) {
+    }
+
+    /** Teto de itens devolvidos numa busca, para a tela não receber centenas de linhas de uma vez. */
+    public static final int TETO_DA_BUSCA = 100;
+
+    /**
+     * Lista as empresas que o backfill traria, com busca por nome ou CNPJ.
+     *
+     * <p>Serve para trazer uma empresa específica em vez do lote: em produção são centenas de
+     * análises com visão cedente, e quase sempre o que se quer é uma delas.</p>
+     */
+    @Transactional(readOnly = true)
+    public Candidatas buscarCandidatas(String busca, LocalDate desde, boolean incluirJaNaEsteira) {
+        String termo = busca == null ? "" : busca.trim().toLowerCase();
+        String digitos = termo.replaceAll("\\D", "");
+
+        List<Candidata> encontradas = candidatas(desde).stream()
+                .map(analise -> new Candidata(
+                        analise.getId(),
+                        analise.getCnpj(),
+                        nomeDaEmpresa(analise),
+                        !aindaNaoEstaNaEsteira(analise),
+                        analise.getConsultaEm()))
+                .filter(candidata -> incluirJaNaEsteira || !candidata.jaNaEsteira())
+                .filter(candidata -> combina(candidata, termo, digitos))
+                .sorted(java.util.Comparator.comparing(Candidata::nome, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        return new Candidatas(
+                encontradas.size(),
+                Math.min(encontradas.size(), TETO_DA_BUSCA),
+                encontradas.stream().limit(TETO_DA_BUSCA).toList());
+    }
+
+    /** Casa por nome ou por CNPJ; o CNPJ é comparado só por dígitos, com ou sem pontuação. */
+    private boolean combina(Candidata candidata, String termo, String digitos) {
+        if (termo.isEmpty()) {
+            return true;
+        }
+        if (digitos.length() >= 2 && candidata.cnpj() != null && candidata.cnpj().contains(digitos)) {
+            return true;
+        }
+        return candidata.nome() != null && candidata.nome().toLowerCase().contains(termo);
+    }
+
+    /**
+     * Traz para a esteira apenas as empresas escolhidas.
+     *
+     * <p>É o caminho normal quando já se sabe qual empresa se quer. O lote continua existindo para
+     * a carga inicial, mas escolher a dedo não precisa de teto: o número é o que a pessoa marcou.</p>
+     *
+     * @return quantos cards foram criados
+     */
+    @Transactional
+    public int trazerEscolhidas(List<String> cnpjs) {
+        if (cnpjs == null || cnpjs.isEmpty()) {
+            return 0;
+        }
+        java.util.Set<String> desejados = cnpjs.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(cnpj -> cnpj.replaceAll("\\D", ""))
+                .collect(java.util.stream.Collectors.toSet());
+
+        int criados = 0;
+        for (CreditAnalysis analise : candidatas(null)) {
+            if (!desejados.contains(analise.getCnpj())) {
+                continue;
+            }
+            try {
+                if (prospeccaoService.criarPorAnalise(
+                        analise.getCnpj(), nomeDaEmpresa(analise), analise.getId()) != null) {
+                    criados++;
+                }
+            } catch (RuntimeException ex) {
+                log.warn("Esteira: não trouxe o CNPJ {}: {}", analise.getCnpj(), ex.getMessage());
+            }
+        }
+        log.info("Esteira: {} empresa(s) escolhida(s) trazida(s) para a triagem", criados);
+        return criados;
+    }
+
     /**
      * Quantas empresas o backfill traria, sem criar nada.
      *

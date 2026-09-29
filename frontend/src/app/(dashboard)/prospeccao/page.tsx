@@ -7,6 +7,7 @@ import ProspeccaoModal from "@/components/prospeccao/ProspeccaoModal";
 import NovaProspeccaoDialog from "@/components/prospeccao/NovaProspeccaoDialog";
 import BackfillDialog from "@/components/prospeccao/BackfillDialog";
 import { COLUNAS, EstagioProspeccao, Prospeccao, ROTULO_ESTAGIO, ROTULO_MOTIVO } from "@/types/prospeccao";
+import { Ordenacao, ordenarCards } from "@/components/prospeccao/formatters";
 import {
   ConteudoExport,
   exportarEsteira,
@@ -33,6 +34,9 @@ export default function ProspeccaoPage() {
   const [busca, setBusca] = useState("");
   const [responsavel, setResponsavel] = useState("");
   const [origem, setOrigem] = useState<"" | "MANUAL" | "AUTOMATICA">("");
+  // Ordenação por coluna: cada uma tem um volume e um uso diferente. Triagem enche depois de
+  // puxar visão cedente e é onde ordenar por nome mais ajuda.
+  const [ordenacoes, setOrdenacoes] = useState<Record<string, Ordenacao>>({});
 
   const { data: cards = [], isLoading, error } = useProspeccoes({ apenasAtrasados });
   const { data: resumo } = useProspeccaoResumo();
@@ -80,8 +84,11 @@ export default function ProspeccaoPage() {
     const mapa = new Map<EstagioProspeccao, Prospeccao[]>();
     COLUNAS.forEach(coluna => mapa.set(coluna, []));
     filtrados.forEach(card => mapa.get(card.estagio)?.push(card));
+    COLUNAS.forEach(coluna =>
+      mapa.set(coluna, ordenarCards(mapa.get(coluna) ?? [], ordenacoes[coluna] ?? "urgencia")),
+    );
     return mapa;
-  }, [filtrados]);
+  }, [filtrados, ordenacoes]);
 
   const terminais = useMemo(
     () => filtrados.filter(card => card.estagio === "REPROVADO" || card.estagio === "REMOVIDO_RADAR"),
@@ -360,6 +367,8 @@ export default function ProspeccaoPage() {
               onDrop={soltar}
               onAbrir={setCardAberto}
               onMover={moverPorMenu}
+              ordenacao={ordenacoes[coluna] ?? "urgencia"}
+              onOrdenar={proxima => setOrdenacoes(atual => ({ ...atual, [coluna]: proxima }))}
             />
           ))}
         </div>

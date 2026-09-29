@@ -350,6 +350,31 @@ public class ProspeccaoController {
     }
 
     /**
+     * Empresas que o backfill traria, com busca por nome ou CNPJ.
+     *
+     * <p>É o caminho para trazer uma empresa específica em vez do lote inteiro — em produção são
+     * centenas de análises com visão cedente, e quase sempre o que se quer é uma delas.</p>
+     */
+    @GetMapping("/backfill-visao-cedente/candidatas")
+    public ResponseEntity<ProspeccaoEntradaAutomatica.Candidatas> candidatasBackfill(
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false, defaultValue = "false") boolean incluirJaNaEsteira) {
+        usuarioAutenticado();
+        return ResponseEntity.ok(entradaAutomatica.buscarCandidatas(busca, desde, incluirJaNaEsteira));
+    }
+
+    /** Traz para a triagem apenas as empresas escolhidas na lista. */
+    @PostMapping("/backfill-visao-cedente/escolhidas")
+    public ResponseEntity<Map<String, Object>> trazerEscolhidas(@RequestBody Map<String, List<String>> corpo) {
+        UserEntity autor = usuarioAutenticado();
+        autorizacao.exigirDecisor(autor);
+        return ResponseEntity.ok(Map.of(
+                "cardsCriados", entradaAutomatica.trazerEscolhidas(corpo.get("cnpjs"))));
+    }
+
+    /**
      * Puxa para a esteira as análises com visão cedente SIM que já existiam antes desta tela.
      *
      * <p>É botão, não job de deploy: a analista decide se quer a fila cheia de histórico no

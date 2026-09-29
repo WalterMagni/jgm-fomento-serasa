@@ -193,6 +193,77 @@ class ProspeccaoEntradaAutomaticaTest {
     }
 
     @Test
+    @DisplayName("busca de candidatas acha por nome, ignorando maiúsculas")
+    void shouldFindCandidateByName() {
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(
+                CreditAnalysis.builder().id(1L).cnpj("11222333000181").companyName("FLEXSO SP COMERCIO")
+                        .visaoCedente("SIM").build(),
+                CreditAnalysis.builder().id(2L).cnpj("99888777000166").companyName("ACME LTDA")
+                        .visaoCedente("SIM").build()));
+        when(prospeccaoService.cardAbertoDoCnpj(any())).thenReturn(java.util.Optional.empty());
+
+        var achadas = entrada.buscarCandidatas("flex", null, false);
+
+        assertThat(achadas.total()).isEqualTo(1);
+        assertThat(achadas.itens()).singleElement()
+                .extracting(ProspeccaoEntradaAutomatica.Candidata::nome).isEqualTo("FLEXSO SP COMERCIO");
+    }
+
+    @Test
+    @DisplayName("busca de candidatas acha por CNPJ, com ou sem pontuação")
+    void shouldFindCandidateByCnpj() {
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(
+                CreditAnalysis.builder().id(1L).cnpj("11873686000141").companyName("FLEXSO")
+                        .visaoCedente("SIM").build(),
+                CreditAnalysis.builder().id(2L).cnpj("99888777000166").companyName("ACME")
+                        .visaoCedente("SIM").build()));
+        when(prospeccaoService.cardAbertoDoCnpj(any())).thenReturn(java.util.Optional.empty());
+
+        assertThat(entrada.buscarCandidatas("11.873.686", null, false).total()).isEqualTo(1);
+        assertThat(entrada.buscarCandidatas("11873686", null, false).total()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("busca esconde quem já está na esteira, salvo quando se pede o contrário")
+    void shouldHideCandidatesAlreadyInPipeline() {
+        CreditAnalysis jaEsta = CreditAnalysis.builder().id(1L).cnpj("11222333000181")
+                .companyName("JA ESTA").visaoCedente("SIM").build();
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(jaEsta));
+        when(prospeccaoService.cardAbertoDoCnpj("11222333000181"))
+                .thenReturn(java.util.Optional.of(ProspeccaoEntity.builder().id(UUID.randomUUID()).build()));
+
+        assertThat(entrada.buscarCandidatas("", null, false).total()).isZero();
+
+        var comTodas = entrada.buscarCandidatas("", null, true);
+        assertThat(comTodas.total()).isEqualTo(1);
+        assertThat(comTodas.itens().get(0).jaNaEsteira()).isTrue();
+    }
+
+    @Test
+    @DisplayName("trazer escolhidas cria só o que foi marcado, e aceita CNPJ pontuado")
+    void shouldBringOnlySelected() {
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(
+                CreditAnalysis.builder().id(1L).cnpj("11222333000181").companyName("ESCOLHIDA")
+                        .visaoCedente("SIM").build(),
+                CreditAnalysis.builder().id(2L).cnpj("99888777000166").companyName("NAO ESCOLHIDA")
+                        .visaoCedente("SIM").build()));
+        when(prospeccaoService.criarPorAnalise(any(), any(), any()))
+                .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
+
+        assertThat(entrada.trazerEscolhidas(List.of("11.222.333/0001-81"))).isEqualTo(1);
+        verify(prospeccaoService).criarPorAnalise(eq("11222333000181"), any(), any());
+        verify(prospeccaoService, never()).criarPorAnalise(eq("99888777000166"), any(), any());
+    }
+
+    @Test
+    @DisplayName("trazer escolhidas sem lista não faz nada")
+    void shouldIgnoreEmptySelection() {
+        assertThat(entrada.trazerEscolhidas(null)).isZero();
+        assertThat(entrada.trazerEscolhidas(List.of())).isZero();
+        verify(prospeccaoService, never()).criarPorAnalise(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("backfill sem candidata não cria nada")
     void shouldHandleEmptyBackfill() {
         when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of());

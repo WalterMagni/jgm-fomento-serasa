@@ -402,6 +402,59 @@ export function usePreviaBackfill(desde?: string, habilitado = false) {
   });
 }
 
+export type CandidataBackfill = {
+  analiseId: number;
+  cnpj: string;
+  nome: string;
+  jaNaEsteira: boolean;
+  consultaEm: string | null;
+};
+
+export type CandidatasBackfill = { total: number; exibidas: number; itens: CandidataBackfill[] };
+
+/** Empresas que o backfill traria, com busca por nome ou CNPJ. */
+export function useCandidatasBackfill(busca: string, desde?: string, habilitado = false) {
+  return useQuery<CandidatasBackfill>({
+    queryKey: ["prospeccaoCandidatas", busca, desde ?? ""],
+    enabled: habilitado,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (busca.trim()) params.set("busca", busca.trim());
+      if (desde) params.set("desde", desde);
+      const res = await fetch(`${API_BASE_URL}/prospeccao/backfill-visao-cedente/candidatas?${params}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao buscar empresas"));
+      return res.json();
+    },
+  });
+}
+
+/** Traz só as empresas marcadas na lista. */
+export function useTrazerEscolhidas() {
+  const invalidar = useInvalidar();
+  return useMutation<{ cardsCriados: number }, Error, string[]>({
+    mutationFn: async cnpjs => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/backfill-visao-cedente/escolhidas`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ cnpjs }),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao trazer as empresas"));
+      return res.json();
+    },
+    onSuccess: data => {
+      invalidar();
+      toast.success(
+        data.cardsCriados === 1
+          ? "1 empresa trazida para a triagem"
+          : `${data.cardsCriados} empresas trazidas para a triagem`,
+      );
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useBackfillVisaoCedente() {
   const invalidar = useInvalidar();
   return useMutation<{ cardsCriados: number }, Error, { desde?: string; limite: number }>({
