@@ -32,108 +32,54 @@ class ProspeccaoAutorizacaoTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {ProspeccaoAutorizacao.ANALISTA, ProspeccaoAutorizacao.GESTOR,
-            ProspeccaoAutorizacao.ADMIN})
-    @DisplayName("decidir sobre a análise: analista, gestor e admin")
-    void shouldAllowDecisionRoles(String papel) {
-        assertThatCode(() -> autorizacao.exigirDecisor(usuario(papel))).doesNotThrowAnyException();
+    @ValueSource(strings = {"ROLE_USER", "ROLE_COMERCIAL", "ROLE_ANALISTA", "ROLE_BACKOFFICE",
+            "ROLE_GESTOR", "ROLE_ADMIN", "USER", "ADMIN", "qualquer_coisa"})
+    @DisplayName("qualquer papel opera a esteira inteira")
+    void shouldLetEveryRoleOperate(String papel) {
+        UserEntity pessoa = usuario(papel);
+
+        assertThatCode(() -> autorizacao.exigirCriador(pessoa)).doesNotThrowAnyException();
+        assertThatCode(() -> autorizacao.exigirDecisor(pessoa)).doesNotThrowAnyException();
+        assertThatCode(() -> autorizacao.exigirConferente(pessoa)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("card de outro comercial pode ser alterado — a equipe cobre a carteira uma da outra")
+    void shouldLetAnyoneWriteOnAnyCard() {
+        UserEntity comercial = usuario("ROLE_USER");
+
+        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(UUID.randomUUID()), comercial))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(null), comercial))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("sem usuário autenticado nada passa")
+    void shouldStillRequireAuthentication() {
+        assertThatThrownBy(() -> autorizacao.exigirCriador(null)).isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> autorizacao.exigirDecisor(null)).isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> autorizacao.exigirEscrita(cardDe(null), null))
+                .isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> autorizacao.exigirAdmin(null)).isInstanceOf(AcessoNegadoException.class);
+
+        UserEntity semId = UserEntity.builder().name("Sem id").role("ROLE_ADMIN").build();
+        assertThatThrownBy(() -> autorizacao.exigirDecisor(semId)).isInstanceOf(AcessoNegadoException.class);
+    }
+
+    @Test
+    @DisplayName("catálogo de documentos continua só do admin: é configuração, não operação")
+    void shouldKeepCatalogAdminOnly() {
+        assertThatCode(() -> autorizacao.exigirAdmin(usuario("ROLE_ADMIN"))).doesNotThrowAnyException();
+        assertThatThrownBy(() -> autorizacao.exigirAdmin(usuario("ROLE_USER")))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessageContaining("catálogo");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {ProspeccaoAutorizacao.COMERCIAL, ProspeccaoAutorizacao.BACKOFFICE,
-            ProspeccaoAutorizacao.LEGADO})
-    @DisplayName("decidir sobre a análise: comercial e backoffice não decidem")
-    void shouldBlockNonDecisionRoles(String papel) {
-        assertThatThrownBy(() -> autorizacao.exigirDecisor(usuario(papel)))
-                .isInstanceOf(AcessoNegadoException.class)
-                .hasMessageContaining("decide sobre a análise");
-    }
-
-    @Test
-    @DisplayName("conferir documento: backoffice pode, comercial não")
-    void shouldRestrictDocumentReview() {
-        assertThatCode(() -> autorizacao.exigirConferente(usuario(ProspeccaoAutorizacao.BACKOFFICE)))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> autorizacao.exigirConferente(usuario(ProspeccaoAutorizacao.COMERCIAL)))
-                .isInstanceOf(AcessoNegadoException.class);
-    }
-
-    @Test
-    @DisplayName("comercial mexe no card dele")
-    void shouldAllowOwnerToWrite() {
-        UserEntity comercial = usuario(ProspeccaoAutorizacao.COMERCIAL);
-
-        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(comercial.getId()), comercial))
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("comercial não mexe no card de outro comercial, mas a mensagem explica por quê")
-    void shouldBlockWritingAnotherSalesCard() {
-        UserEntity comercial = usuario(ProspeccaoAutorizacao.COMERCIAL);
-
-        assertThatThrownBy(() -> autorizacao.exigirEscrita(cardDe(UUID.randomUUID()), comercial))
-                .isInstanceOf(AcessoNegadoException.class)
-                .hasMessageContaining("de outro comercial");
-    }
-
-    @Test
-    @DisplayName("papel legado ROLE_USER se comporta como comercial, sem reescrever o banco")
-    void shouldTreatLegacyRoleAsSales() {
-        UserEntity legado = usuario(ProspeccaoAutorizacao.LEGADO);
-
-        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(legado.getId()), legado))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> autorizacao.exigirEscrita(cardDe(UUID.randomUUID()), legado))
-                .isInstanceOf(AcessoNegadoException.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {ProspeccaoAutorizacao.ANALISTA, ProspeccaoAutorizacao.BACKOFFICE,
-            ProspeccaoAutorizacao.GESTOR, ProspeccaoAutorizacao.ADMIN})
-    @DisplayName("quem vê tudo mexe em qualquer card, inclusive nos sem comercial vinculado")
-    void shouldLetInternalRolesWriteAnyCard(String papel) {
-        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(null), usuario(papel)))
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("card sem comercial — o DIRETO da planilha — não fica intocável para o comercial")
-    void shouldBlockSalesOnUnassignedCard() {
-        // Sem dono, só quem vê tudo mexe. Evita que qualquer comercial altere card alheio.
-        assertThatThrownBy(() -> autorizacao.exigirEscrita(cardDe(null), usuario(ProspeccaoAutorizacao.COMERCIAL)))
-                .isInstanceOf(AcessoNegadoException.class);
-    }
-
-    @Test
-    @DisplayName("catálogo de documentos é só do admin")
-    void shouldRestrictCatalogToAdmin() {
-        assertThatCode(() -> autorizacao.exigirAdmin(usuario(ProspeccaoAutorizacao.ADMIN)))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> autorizacao.exigirAdmin(usuario(ProspeccaoAutorizacao.GESTOR)))
-                .isInstanceOf(AcessoNegadoException.class);
-    }
-
-    @Test
-    @DisplayName("papel sem o prefixo ROLE_ vale igual — as duas grafias existem no banco")
-    void shouldAcceptRoleWithoutPrefix() {
-        // DatabaseSeeder grava "ADMIN"; AuthController grava "ROLE_USER". Comparar só uma forma
-        // trancaria fora da esteira justamente os usuários mais antigos.
-        UserEntity adminSeeder = UserEntity.builder().id(UUID.randomUUID()).name("Admin").role("ADMIN").build();
-        UserEntity analistaMinuscula = UserEntity.builder().id(UUID.randomUUID()).name("A").role("analista").build();
-
-        assertThatCode(() -> autorizacao.exigirAdmin(adminSeeder)).doesNotThrowAnyException();
-        assertThatCode(() -> autorizacao.exigirDecisor(analistaMinuscula)).doesNotThrowAnyException();
-        assertThatCode(() -> autorizacao.exigirEscrita(cardDe(null), adminSeeder)).doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("usuário sem papel não passa de nenhuma porta")
-    void shouldRejectRolelessUser() {
-        UserEntity semPapel = UserEntity.builder().id(UUID.randomUUID()).name("X").build();
-
-        assertThatThrownBy(() -> autorizacao.exigirDecisor(semPapel)).isInstanceOf(AcessoNegadoException.class);
-        assertThatThrownBy(() -> autorizacao.exigirCriador(semPapel)).isInstanceOf(AcessoNegadoException.class);
-        assertThatThrownBy(() -> autorizacao.exigirAdmin(semPapel)).isInstanceOf(AcessoNegadoException.class);
+    @ValueSource(strings = {"ADMIN", "admin", "  ROLE_ADMIN  "})
+    @DisplayName("admin vale nas duas grafias: o seeder grava ADMIN e o cadastro grava ROLE_")
+    void shouldAcceptAdminInBothSpellings(String papel) {
+        assertThatCode(() -> autorizacao.exigirAdmin(usuario(papel))).doesNotThrowAnyException();
     }
 }

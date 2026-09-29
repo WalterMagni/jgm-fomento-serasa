@@ -67,9 +67,8 @@ import java.util.stream.Collectors;
  * habilitação (dossiê, comitê, contrato, SEC, QITech) continua fora daqui — o card sai em
  * PRONTO_HABILITACAO.</p>
  *
- * <p>Leitura é liberada para qualquer usuário autenticado, de propósito: esconder a esteira do
- * comercial só geraria pedido de exceção. A escrita é que respeita papel e dono, em
- * {@link ProspeccaoAutorizacao}.</p>
+ * <p>Toda pessoa autenticada opera a esteira inteira — ver {@link ProspeccaoAutorizacao} para o
+ * porquê. A exceção é o catálogo de documentos, que é configuração e não operação.</p>
  */
 @RestController
 @RequestMapping("/api/v1/prospeccao")
@@ -195,22 +194,15 @@ public class ProspeccaoController {
     /**
      * Move o card de estágio.
      *
-     * <p>Decidir sobre a análise é do analista; fechar documentação é de quem confere. Quando a
-     * documentação não está completa, a resposta é 422 com a lista do que falta, e é ela que a
-     * tela mostra ao devolver o card para a coluna de origem.</p>
+     * <p>Quando a documentação não está completa, a resposta é 422 com a lista do que falta, e é
+     * ela que a tela mostra ao devolver o card para a coluna de origem.</p>
      */
     @PatchMapping("/{id}/estagio")
     public ResponseEntity<ProspeccaoResponse> transicionar(
             @PathVariable UUID id,
             @Valid @RequestBody ProspeccaoTransicaoRequest request) {
         UserEntity autor = usuarioAutenticado();
-        ProspeccaoEntity card = prospeccaoService.buscar(id);
-
-        switch (request.estagio()) {
-            case APROVADO, REPROVADO, EM_ANALISE, TRIAGEM -> autorizacao.exigirDecisor(autor);
-            case DOCS_COMPLETOS, PRONTO_HABILITACAO -> autorizacao.exigirConferente(autor);
-            default -> autorizacao.exigirEscrita(card, autor);
-        }
+        autorizacao.exigirEscrita(prospeccaoService.buscar(id), autor);
 
         return ResponseEntity.ok(toResponse(prospeccaoService.transicionar(
                 id, request.estagio(), request.motivoRecusa(), request.observacao(), autor)));
