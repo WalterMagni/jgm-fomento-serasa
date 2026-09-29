@@ -12,6 +12,7 @@ import {
   Paperclip, Pencil, PenLine, Phone, Plus, Presentation, ReceiptText, Reply, RotateCcw, Save, ScrollText, Search,
   Settings, Shield, ShieldAlert, ShieldCheck, Sparkles, StickyNote, Store, Sun, Table, Tag, ThumbsUp, Trash2,
   TrendingUp, Undo2, Unlink, Upload, UploadCloud, User, UserCheck, Users, UserSearch, Wallet, X, ZoomIn,
+  Ban, BellOff, CirclePlus, FolderCheck, Flag, Megaphone, MinusCircle, RotateCw, EyeOff, Workflow, CircleCheckBig,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,6 +60,10 @@ const ICONS: Record<string, LucideIcon> = {
   public: Globe, account_balance_wallet: Wallet, trending_up: TrendingUp, store: Store,
   cancel: CircleX, database: Database, domain_verification: BadgeCheck, notes: StickyNote, pending: Clock,
   slideshow: Presentation,
+  // esteira de prospecção
+  conveyor_belt: Workflow, task_alt: CircleCheckBig, folder_supervised: FolderCheck, flag: Flag,
+  block: Ban, visibility_off: EyeOff, notifications_off: BellOff, campaign: Megaphone,
+  add_circle: CirclePlus, remove_circle: MinusCircle, restart_alt: RotateCw,
 };
 
 type Props = {
