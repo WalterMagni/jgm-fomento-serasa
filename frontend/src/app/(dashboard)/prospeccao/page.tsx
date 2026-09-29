@@ -6,6 +6,7 @@ import ProspeccaoColumn from "@/components/prospeccao/ProspeccaoColumn";
 import ProspeccaoModal from "@/components/prospeccao/ProspeccaoModal";
 import NovaProspeccaoDialog from "@/components/prospeccao/NovaProspeccaoDialog";
 import BackfillDialog from "@/components/prospeccao/BackfillDialog";
+import ManualDrawer from "@/components/prospeccao/ManualDrawer";
 import { COLUNAS, EstagioProspeccao, Prospeccao, ROTULO_ESTAGIO, ROTULO_MOTIVO } from "@/types/prospeccao";
 import { Ordenacao, ordenarCards } from "@/components/prospeccao/formatters";
 import {
@@ -31,6 +32,7 @@ export default function ProspeccaoPage() {
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [exportAberto, setExportAberto] = useState(false);
   const [backfillAberto, setBackfillAberto] = useState(false);
+  const [manualAberto, setManualAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [responsavel, setResponsavel] = useState("");
   const [origem, setOrigem] = useState<"" | "MANUAL" | "AUTOMATICA">("");
@@ -150,6 +152,18 @@ export default function ProspeccaoPage() {
             >
               beta
             </span>
+            <button
+              type="button"
+              onClick={() => setManualAberto(true)}
+              title="Como usar a esteira"
+              className="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs
+                text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+                dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              <Icon name="help" className="text-[15px]" />
+              Ajuda
+            </button>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Da análise do cedente até a documentação completa
@@ -402,6 +416,7 @@ export default function ProspeccaoPage() {
       {cardAberto && <ProspeccaoModal cardId={cardAberto} onFechar={() => setCardAberto(null)} />}
       {novaAberta && <NovaProspeccaoDialog onFechar={() => setNovaAberta(false)} />}
       {backfillAberto && <BackfillDialog onFechar={() => setBackfillAberto(false)} />}
+      {manualAberto && <ManualDrawer onFechar={() => setManualAberto(false)} />}
     </div>
   );
 }
