@@ -54,6 +54,16 @@ public class ProspeccaoChecklistService {
      */
     @Transactional
     public List<ProspeccaoDocumentoEntity> materializar(ProspeccaoEntity card) {
+        // Idempotente de propósito. Voltar o card para APROVADO é transição legítima da máquina de
+        // estados, e sem esta guarda o checklist seria criado de novo por cima do antigo —
+        // duplicando cada item e levando junto o status e a observação já preenchidos.
+        List<ProspeccaoDocumentoEntity> existente = documentoRepository.findByProspeccaoId(card.getId());
+        if (!existente.isEmpty()) {
+            log.debug("Checklist do card {} já existe com {} itens; materialização ignorada",
+                    card.getId(), existente.size());
+            return existente;
+        }
+
         List<DocumentoTipoEntity> catalogo = documentoTipoRepository.findByAtivoTrueOrderByEscopoAscOrdemAsc();
         String uf = ufDaEmpresa(card.getCnpj());
         LocalDateTime agora = LocalDateTime.now();

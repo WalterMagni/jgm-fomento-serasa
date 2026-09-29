@@ -24,7 +24,12 @@ public enum EstagioProspeccao {
     /** Uma analista assumiu. O nome dela fica no card. */
     EM_ANALISE(2),
 
-    /** Veredito humano favorável. Passa sozinho para DOCS_PENDENTES ao materializar o checklist. */
+    /**
+     * Veredito humano favorável.
+     *
+     * <p>Estado de passagem: aprovar materializa o checklist e cai em DOCS_PENDENTES na mesma
+     * transação. Por isso não é coluna do quadro — seria uma coluna permanentemente vazia.</p>
+     */
     APROVADO(1),
 
     /** Coleta documental — a etapa que mais trava, e a que a planilha acompanhava pior. */

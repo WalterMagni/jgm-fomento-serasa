@@ -159,6 +159,21 @@ class ProspeccaoServiceTest {
     }
 
     @Test
+    @DisplayName("voltar para aprovado não cria o checklist de novo")
+    void shouldNotRebuildChecklistWhenReturningToApproved() {
+        // DOCS_PENDENTES -> APROVADO é transição válida. Sem guarda, a materialização rodaria
+        // outra vez e duplicaria cada item, levando junto status e observação já preenchidos.
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
+                doc("Receita Federal", true, StatusDocumento.VALIDADO, null)));
+
+        service.transicionar(card.getId(), EstagioProspeccao.APROVADO, null, null, analista);
+
+        // O serviço continua chamando; quem protege é a checagem dentro do checklist.
+        verify(checklistService).materializar(card);
+    }
+
+    @Test
     @DisplayName("fechar documentos: lista o que falta em vez de deixar passar")
     void shouldListMissingRequiredDocuments() {
         ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
