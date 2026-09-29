@@ -43,9 +43,10 @@ export default function ProspeccaoColumn({
         const id = event.dataTransfer.getData("text/plain");
         if (id && aceitaDrop) onDrop(id, estagio);
       }}
-      className={`flex w-72 shrink-0 flex-col rounded-lg bg-slate-100/70 p-2 dark:bg-slate-900/60
-        ${arrastandoAlgo && aceitaDrop ? "ring-2 ring-[#612035]/40" : ""}
-        ${arrastandoAlgo && !aceitaDrop ? "opacity-50" : ""}`}
+      className={`flex w-72 shrink-0 flex-col rounded-lg border border-slate-200 bg-slate-50 p-2
+        transition-colors duration-200 dark:border-slate-700 dark:bg-slate-900/60
+        ${arrastandoAlgo && aceitaDrop ? "border-[#612035]/50 bg-[#612035]/5 ring-2 ring-[#612035]/30" : ""}
+        ${arrastandoAlgo && !aceitaDrop ? "opacity-40" : ""}`}
     >
       <header className="flex items-center justify-between px-1 pb-2">
         <h2 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
@@ -70,7 +71,9 @@ export default function ProspeccaoColumn({
           />
         ))}
         {cards.length === 0 && (
-          <p className="px-1 py-6 text-center text-[11px] text-slate-400">vazio</p>
+          <p className="px-1 py-6 text-center text-[11px] text-slate-400">
+            {arrastandoAlgo && aceitaDrop ? "solte aqui" : "nenhum card"}
+          </p>
         )}
       </div>
     </section>

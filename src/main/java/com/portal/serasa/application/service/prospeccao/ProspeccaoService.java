@@ -347,6 +347,18 @@ public class ProspeccaoService {
      * <p>Importa porque a empresa pode ter sido reprovada, voltado e sido aprovada depois — ver
      * a planilha. A tela do card precisa mostrar que houve passagem anterior.</p>
      */
+    /** Card em aberto de um CNPJ, se houver. Usado pela prévia do backfill. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<ProspeccaoEntity> cardAbertoDoCnpj(String cnpj) {
+        return prospeccaoRepository.findAberta(normalizarCnpj(cnpj));
+    }
+
+    /** Se aquela análise já gerou card alguma vez. */
+    @Transactional(readOnly = true)
+    public boolean jaVeioDaAnalise(Long creditAnalysisId) {
+        return creditAnalysisId != null && prospeccaoRepository.existsByCreditAnalysisId(creditAnalysisId);
+    }
+
     @Transactional(readOnly = true)
     public List<ProspeccaoEntity> listarPorCnpj(String cnpj) {
         return prospeccaoRepository.findByCnpjOrderByCreatedAtDesc(normalizarCnpj(cnpj));

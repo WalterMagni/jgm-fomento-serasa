@@ -374,11 +374,41 @@ export function useDocumentoTipos() {
   });
 }
 
+export type PreviaBackfill = {
+  comVisaoCedente: number;
+  jaNaEsteira: number;
+  seriamCriados: number;
+  amostra: string[];
+};
+
+/**
+ * Quantas empresas o backfill traria, sem criar nada.
+ *
+ * <p>Em produção há centenas de análises com visão cedente SIM. Apertar o botão sem saber o
+ * número despejaria a fila inteira em triagem, e não há desfazer em massa.</p>
+ */
+export function usePreviaBackfill(desde?: string, habilitado = false) {
+  return useQuery<PreviaBackfill>({
+    queryKey: ["prospeccaoPreviaBackfill", desde ?? ""],
+    enabled: habilitado,
+    queryFn: async () => {
+      const params = desde ? `?desde=${desde}` : "";
+      const res = await fetch(`${API_BASE_URL}/prospeccao/backfill-visao-cedente/previa${params}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao consultar a prévia"));
+      return res.json();
+    },
+  });
+}
+
 export function useBackfillVisaoCedente() {
   const invalidar = useInvalidar();
-  return useMutation<{ cardsCriados: number }, Error, void>({
-    mutationFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/prospeccao/backfill-visao-cedente`, {
+  return useMutation<{ cardsCriados: number }, Error, { desde?: string; limite: number }>({
+    mutationFn: async ({ desde, limite }) => {
+      const params = new URLSearchParams({ limite: String(limite) });
+      if (desde) params.set("desde", desde);
+      const res = await fetch(`${API_BASE_URL}/prospeccao/backfill-visao-cedente?${params}`, {
         method: "POST",
         headers: getAuthHeaders("application/json"),
       });

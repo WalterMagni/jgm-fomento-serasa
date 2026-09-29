@@ -177,3 +177,37 @@
   from { transform: rotate(0deg) translateX(13px) rotate(0deg); }
   to { transform: rotate(360deg) translateX(13px) rotate(-360deg); }
 }
+
+/* ---------------------------------------------------------------------------
+   Esteira de prospecção — entradas curtas.
+   Duração de 150 a 200ms: acima disso a tela parece lenta a cada abrir de card.
+   Easing ease-out na entrada, que é o que dá sensação de chegar e assentar.
+   --------------------------------------------------------------------------- */
+@keyframes esteira-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes esteira-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes esteira-card-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.esteira-fade-in  { animation: esteira-fade-in 150ms ease-out both; }
+.esteira-modal-in { animation: esteira-modal-in 200ms ease-out both; }
+.esteira-card-in  { animation: esteira-card-in 180ms ease-out both; }
+
+/* Quem pediu menos movimento recebe o conteúdo direto, sem transição nenhuma.
+   O conteúdo continua aparecendo — o que some é o deslocamento. */
+@media (prefers-reduced-motion: reduce) {
+  .esteira-fade-in,
+  .esteira-modal-in,
+  .esteira-card-in {
+    animation: none;
+  }
+}

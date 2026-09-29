@@ -33,10 +33,15 @@ export function semaforoDe(card: Prospeccao): Semaforo {
   return "ok";
 }
 
+/**
+ * Borda do card. A cor do semáforo vive na borda esquerda, mais grossa; as outras três bordas
+ * existem sempre, para o card ter contorno visível no claro e no escuro — antes o cartão sem
+ * alerta flutuava sem limite sobre o fundo da coluna.
+ */
 export const CLASSE_SEMAFORO: Record<Semaforo, string> = {
-  ok: "border-l-transparent",
-  atencao: "border-l-[#D1732C]",
-  estourado: "border-l-red-600",
+  ok: "border-slate-200 border-l-slate-300 dark:border-slate-700 dark:border-l-slate-600",
+  atencao: "border-[#D1732C]/30 border-l-[#D1732C] dark:border-[#D1732C]/40",
+  estourado: "border-red-300 border-l-red-600 dark:border-red-900/60",
 };
 
 export const CLASSE_BADGE_SEMAFORO: Record<Semaforo, string> = {

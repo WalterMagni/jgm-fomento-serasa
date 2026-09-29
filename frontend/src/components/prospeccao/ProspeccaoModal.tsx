@@ -66,12 +66,19 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      // z-50 é o topo da escala do projeto: 10 para camada de fundo de menu, 20 para menu
+      // suspenso, 50 para diálogo. O desfoque separa o card do quadro atrás sem escurecer tudo.
+      className="esteira-fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4
+        backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label={card ? `Card de ${card.razaoSocial}` : "Card da esteira"}
       onClick={event => {
         if (event.target === event.currentTarget) onFechar();
       }}
     >
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white shadow-2xl dark:bg-slate-800">
+      <div className="esteira-modal-in flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border
+        border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
         {isLoading && <p className="p-8 text-center text-sm text-slate-500">Carregando…</p>}
         {error && <p className="p-8 text-center text-sm text-red-600">{error.message}</p>}
 
@@ -102,7 +109,14 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
                   </p>
                 )}
               </div>
-              <button type="button" onClick={onFechar} className="shrink-0 text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                onClick={onFechar}
+                aria-label="Fechar"
+                className="shrink-0 cursor-pointer rounded p-1 text-slate-400 transition-colors
+                  hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2
+                  focus-visible:ring-[#612035] dark:hover:bg-slate-700"
+              >
                 <Icon name="close" />
               </button>
             </header>
@@ -113,7 +127,10 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
                   type="button"
                   onClick={() => assumir.mutate(cardId)}
                   disabled={assumir.isPending}
-                  className="rounded bg-[#612035] px-2.5 py-1 text-xs text-white disabled:opacity-50"
+                  className="cursor-pointer rounded bg-[#612035] px-2.5 py-1 text-xs text-white
+                    transition-colors hover:bg-[#4d1a2a] focus:outline-none focus-visible:ring-2
+                    focus-visible:ring-[#612035] focus-visible:ring-offset-1 disabled:cursor-not-allowed
+                    disabled:opacity-50"
                 >
                   {assumir.isPending ? "assumindo…" : "Assumir análise"}
                 </button>
@@ -124,8 +141,10 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
                   type="button"
                   onClick={() => mover(destino)}
                   disabled={transicionar.isPending}
-                  className="rounded border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50
-                    disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="cursor-pointer rounded border border-slate-300 px-2.5 py-1 text-xs text-slate-700
+                    transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2
+                    focus-visible:ring-[#612035] disabled:cursor-not-allowed disabled:opacity-50
+                    dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   {ROTULO_ESTAGIO[destino]}
                 </button>

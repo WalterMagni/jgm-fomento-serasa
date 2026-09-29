@@ -28,11 +28,17 @@ export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, 
         onDragStart();
       }}
       onDragEnd={onDragEnd}
-      className={`group rounded-lg border border-l-4 bg-white p-3 text-left shadow-sm transition
-        hover:shadow-md dark:border-slate-700 dark:bg-slate-800
-        ${CLASSE_SEMAFORO[semaforo]} ${arrastando ? "opacity-40" : ""}`}
+      className={`esteira-card-in group cursor-grab rounded-lg border border-l-4 bg-white p-3 text-left
+        shadow-sm transition-shadow duration-200 hover:shadow-md active:cursor-grabbing
+        dark:bg-slate-800 ${CLASSE_SEMAFORO[semaforo]} ${arrastando ? "opacity-40" : ""}`}
     >
-      <button type="button" onClick={onAbrir} className="w-full text-left" aria-label={`Abrir ${card.razaoSocial}`}>
+      <button
+        type="button"
+        onClick={onAbrir}
+        aria-label={`Abrir ${card.razaoSocial}`}
+        className="w-full cursor-pointer rounded text-left focus:outline-none focus-visible:ring-2
+          focus-visible:ring-[#612035] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+      >
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           {card.razaoSocial}
         </h3>
@@ -77,8 +83,9 @@ export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, 
         <button
           type="button"
           onClick={onMover}
-          className="rounded px-1.5 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100 hover:text-slate-700
-            dark:text-slate-400 dark:hover:bg-slate-700"
+          className="cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-slate-500 transition-colors
+            hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2
+            focus-visible:ring-[#612035] dark:text-slate-400 dark:hover:bg-slate-700"
           title={`Mover de ${ROTULO_ESTAGIO[card.estagio]}`}
         >
           Mover

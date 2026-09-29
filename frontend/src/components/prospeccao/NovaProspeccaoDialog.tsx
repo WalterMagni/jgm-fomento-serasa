@@ -41,15 +41,27 @@ export default function NovaProspeccaoDialog({ onFechar }: { onFechar: () => voi
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="esteira-fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4
+        backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Nova prospecção"
       onClick={event => {
         if (event.target === event.currentTarget) onFechar();
       }}
     >
-      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl dark:bg-slate-800">
+      <div className="esteira-modal-in w-full max-w-md rounded-xl border border-slate-200 bg-white p-5
+        shadow-2xl dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">Nova prospecção</h2>
-          <button type="button" onClick={onFechar} className="text-slate-400 hover:text-slate-600">
+          <button
+            type="button"
+            onClick={onFechar}
+            aria-label="Fechar"
+            className="cursor-pointer rounded p-1 text-slate-400 transition-colors hover:bg-slate-100
+              hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              dark:hover:bg-slate-700"
+          >
             <Icon name="close" />
           </button>
         </div>
@@ -94,7 +106,9 @@ export default function NovaProspeccaoDialog({ onFechar }: { onFechar: () => voi
                 { onSuccess: onFechar },
               )
             }
-            className="rounded bg-[#612035] px-3 py-1.5 text-xs text-white disabled:opacity-40"
+            className="cursor-pointer rounded bg-[#612035] px-3 py-1.5 text-xs text-white transition-colors
+              hover:bg-[#4d1a2a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {criar.isPending ? "abrindo…" : "Abrir na triagem"}
           </button>

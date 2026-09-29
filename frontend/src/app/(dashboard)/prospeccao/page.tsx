@@ -5,11 +5,11 @@ import Icon from "@/components/ui/Icon";
 import ProspeccaoColumn from "@/components/prospeccao/ProspeccaoColumn";
 import ProspeccaoModal from "@/components/prospeccao/ProspeccaoModal";
 import NovaProspeccaoDialog from "@/components/prospeccao/NovaProspeccaoDialog";
+import BackfillDialog from "@/components/prospeccao/BackfillDialog";
 import { COLUNAS, EstagioProspeccao, Prospeccao, ROTULO_ESTAGIO, ROTULO_MOTIVO } from "@/types/prospeccao";
 import {
   ConteudoExport,
   exportarEsteira,
-  useBackfillVisaoCedente,
   useEstagios,
   useProspeccaoResumo,
   useProspeccoes,
@@ -29,31 +29,68 @@ export default function ProspeccaoPage() {
   const [novaAberta, setNovaAberta] = useState(false);
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [exportAberto, setExportAberto] = useState(false);
+  const [backfillAberto, setBackfillAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [responsavel, setResponsavel] = useState("");
+  const [origem, setOrigem] = useState<"" | "MANUAL" | "AUTOMATICA">("");
 
   const { data: cards = [], isLoading, error } = useProspeccoes({ apenasAtrasados });
   const { data: resumo } = useProspeccaoResumo();
   const { data: transicoes } = useEstagios();
   const transicionar = useTransicionarProspeccao();
-  const backfill = useBackfillVisaoCedente();
 
   // O filtro não persiste entre sessões de propósito: ler localStorage no mount exigiria
   // setState em efeito, que a regra react-hooks/set-state-in-effect proíbe neste projeto, e
   // a alternativa sancionada (useSyncExternalStore com emissor próprio, porque localStorage
   // não notifica a própria aba) seria maquinaria demais para um botão de filtro.
 
+  /** Nomes que aparecem no filtro de responsável: quem realmente tem card na esteira. */
+  const responsaveis = useMemo(() => {
+    const nomes = new Set<string>();
+    cards.forEach(card => {
+      if (card.analistaNome) nomes.add(card.analistaNome);
+      if (card.comercialNome) nomes.add(card.comercialNome);
+    });
+    return Array.from(nomes).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [cards]);
+
+  /**
+   * Busca por nome ou CNPJ, sem ir ao servidor: a esteira aberta cabe em memória, e filtrar aqui
+   * responde a cada tecla. O CNPJ é comparado só por dígitos, para achar tanto quem digita com
+   * pontuação quanto sem.
+   */
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const digitos = busca.replace(/\D/g, "");
+
+    return cards.filter(card => {
+      if (responsavel && card.analistaNome !== responsavel && card.comercialNome !== responsavel) {
+        return false;
+      }
+      if (origem && card.origem !== origem) return false;
+      if (!termo) return true;
+      if (digitos.length >= 2 && card.cnpj.includes(digitos)) return true;
+      return card.razaoSocial.toLowerCase().includes(termo);
+    });
+  }, [cards, busca, responsavel, origem]);
+
+  const temFiltro = Boolean(busca.trim() || responsavel || origem || apenasAtrasados);
+
   const porEstagio = useMemo(() => {
     const mapa = new Map<EstagioProspeccao, Prospeccao[]>();
     COLUNAS.forEach(coluna => mapa.set(coluna, []));
-    cards.forEach(card => mapa.get(card.estagio)?.push(card));
+    filtrados.forEach(card => mapa.get(card.estagio)?.push(card));
     return mapa;
-  }, [cards]);
+  }, [filtrados]);
 
   const terminais = useMemo(
-    () => cards.filter(card => card.estagio === "REPROVADO" || card.estagio === "REMOVIDO_RADAR"),
-    [cards],
+    () => filtrados.filter(card => card.estagio === "REPROVADO" || card.estagio === "REMOVIDO_RADAR"),
+    [filtrados],
   );
 
-  const cardEmArraste = arrastando ? cards.find(card => card.id === arrastando) : undefined;
+  const noQuadro = COLUNAS.reduce((soma, coluna) => soma + (porEstagio.get(coluna)?.length ?? 0), 0);
+
+  const cardEmArraste = arrastando ? filtrados.find(card => card.id === arrastando) : undefined;
 
   function aceitaDrop(destino: EstagioProspeccao) {
     if (!cardEmArraste || !transicoes) return false;
@@ -67,7 +104,7 @@ export default function ProspeccaoPage() {
    */
   function soltar(id: string, destino: EstagioProspeccao) {
     setArrastando(null);
-    const card = cards.find(item => item.id === id);
+    const card = filtrados.find(item => item.id === id);
     if (!card || card.estagio === destino) return;
 
     const exigeMotivo = destino === "REPROVADO" || destino === "REMOVIDO_RADAR";
@@ -189,14 +226,15 @@ export default function ProspeccaoPage() {
 
           <button
             type="button"
-            onClick={() => backfill.mutate()}
-            disabled={backfill.isPending}
+            onClick={() => setBackfillAberto(true)}
             title="Traz para a esteira as análises com visão cedente SIM que já existiam"
-            className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs text-slate-600
-              shadow-sm disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200
+              bg-white px-2.5 py-1.5 text-xs text-slate-600 shadow-sm transition-colors hover:bg-slate-50
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Icon name="download" className="text-[15px]" />
-            {backfill.isPending ? "trazendo…" : "puxar visão cedente"}
+            puxar visão cedente
           </button>
 
           <button
@@ -210,10 +248,105 @@ export default function ProspeccaoPage() {
         </div>
       </header>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2
+        shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="relative min-w-[16rem] flex-1">
+          <Icon
+            name="search"
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400"
+          />
+          <input
+            type="search"
+            value={busca}
+            onChange={event => setBusca(event.target.value)}
+            placeholder="Buscar por razão social ou CNPJ…"
+            aria-label="Buscar por razão social ou CNPJ"
+            className="w-full rounded-md border border-slate-300 py-1.5 pl-8 pr-2 text-xs
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          />
+        </div>
+
+        <label className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+          Responsável
+          <select
+            value={responsavel}
+            onChange={event => setResponsavel(event.target.value)}
+            className="cursor-pointer rounded-md border border-slate-300 px-2 py-1.5 text-xs
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <option value="">todos</option>
+            {responsaveis.map(nome => (
+              <option key={nome} value={nome}>{nome}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+          Entrada
+          <select
+            value={origem}
+            onChange={event => setOrigem(event.target.value as "" | "MANUAL" | "AUTOMATICA")}
+            className="cursor-pointer rounded-md border border-slate-300 px-2 py-1.5 text-xs
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <option value="">todas</option>
+            <option value="MANUAL">manual</option>
+            <option value="AUTOMATICA">visão cedente</option>
+          </select>
+        </label>
+
+        {temFiltro && (
+          <>
+            <span className="text-xs text-slate-400">
+              {noQuadro + terminais.length} de {cards.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setBusca("");
+                setResponsavel("");
+                setOrigem("");
+                setApenasAtrasados(false);
+              }}
+              className="cursor-pointer rounded px-2 py-1 text-xs text-slate-500 transition-colors
+                hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2
+                focus-visible:ring-[#612035] dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              limpar
+            </button>
+          </>
+        )}
+      </div>
+
       {isLoading && <p className="p-8 text-center text-sm text-slate-500">Carregando a esteira…</p>}
       {error && <p className="p-8 text-center text-sm text-red-600">{error.message}</p>}
 
-      {!isLoading && !error && (
+      {!isLoading && !error && noQuadro === 0 && terminais.length === 0 && temFiltro && (
+        <div className="esteira-fade-in flex flex-1 flex-col items-center justify-center gap-2 rounded-lg
+          border border-dashed border-slate-300 py-16 dark:border-slate-700">
+          <Icon name="search_off" className="text-[28px] text-slate-300" />
+          <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum card com esse filtro.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setBusca("");
+              setResponsavel("");
+              setOrigem("");
+              setApenasAtrasados(false);
+            }}
+            className="cursor-pointer rounded border border-slate-300 px-3 py-1 text-xs text-slate-600
+              transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2
+              focus-visible:ring-[#612035] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !error && (noQuadro > 0 || terminais.length > 0 || !temFiltro) && (
         <div className="flex flex-1 gap-3 overflow-x-auto pb-2">
           {COLUNAS.map(coluna => (
             <ProspeccaoColumn
@@ -259,6 +392,7 @@ export default function ProspeccaoPage() {
 
       {cardAberto && <ProspeccaoModal cardId={cardAberto} onFechar={() => setCardAberto(null)} />}
       {novaAberta && <NovaProspeccaoDialog onFechar={() => setNovaAberta(false)} />}
+      {backfillAberto && <BackfillDialog onFechar={() => setBackfillAberto(false)} />}
     </div>
   );
 }

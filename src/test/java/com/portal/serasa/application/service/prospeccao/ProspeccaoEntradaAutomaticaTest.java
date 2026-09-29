@@ -12,6 +12,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -92,7 +94,7 @@ class ProspeccaoEntradaAutomaticaTest {
         when(prospeccaoService.criarPorAnalise(eq("99888777000166"), any(), any()))
                 .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
 
-        assertThat(entrada.backfill()).isEqualTo(1);
+        assertThat(entrada.backfill(null, 0)).isEqualTo(1);
     }
 
     @Test
@@ -108,8 +110,86 @@ class ProspeccaoEntradaAutomaticaTest {
         when(prospeccaoService.criarPorAnalise(eq("99888777000166"), any(), any()))
                 .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
 
-        assertThat(entrada.backfill()).isEqualTo(1);
+        assertThat(entrada.backfill(null, 0)).isEqualTo(1);
         verify(prospeccaoService, times(2)).criarPorAnalise(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("backfill respeita o teto: produção tem centenas de análises com visão cedente")
+    void shouldCapTheBatch() {
+        List<CreditAnalysis> muitas = new java.util.ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            muitas.add(CreditAnalysis.builder()
+                    .id((long) i)
+                    .cnpj(String.format("%014d", 11222333000181L + i))
+                    .companyName("EMPRESA " + i)
+                    .visaoCedente("SIM")
+                    .build());
+        }
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(muitas);
+        when(prospeccaoService.criarPorAnalise(any(), any(), any()))
+                .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
+
+        assertThat(entrada.backfill(null, 10)).isEqualTo(10);
+        verify(prospeccaoService, times(10)).criarPorAnalise(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("backfill sem limite informado usa o teto padrão em vez de trazer tudo")
+    void shouldFallBackToDefaultCap() {
+        List<CreditAnalysis> muitas = new java.util.ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            muitas.add(CreditAnalysis.builder()
+                    .id((long) i)
+                    .cnpj(String.format("%014d", 11222333000181L + i))
+                    .companyName("EMPRESA " + i)
+                    .visaoCedente("SIM")
+                    .build());
+        }
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(muitas);
+        when(prospeccaoService.criarPorAnalise(any(), any(), any()))
+                .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
+
+        assertThat(entrada.backfill(null, 0)).isEqualTo(ProspeccaoEntradaAutomatica.LIMITE_PADRAO);
+    }
+
+    @Test
+    @DisplayName("backfill recorta por data de consulta")
+    void shouldFilterByDate() {
+        CreditAnalysis antiga = CreditAnalysis.builder().id(1L).cnpj("11222333000181")
+                .companyName("ANTIGA").visaoCedente("SIM")
+                .consultaEm(LocalDateTime.now().minusYears(2)).build();
+        CreditAnalysis recente = CreditAnalysis.builder().id(2L).cnpj("99888777000166")
+                .companyName("RECENTE").visaoCedente("SIM")
+                .consultaEm(LocalDateTime.now().minusDays(3)).build();
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(antiga, recente));
+        when(prospeccaoService.criarPorAnalise(any(), any(), any()))
+                .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
+
+        assertThat(entrada.backfill(LocalDate.now().minusDays(30), 100)).isEqualTo(1);
+        verify(prospeccaoService).criarPorAnalise(eq("99888777000166"), any(), any());
+    }
+
+    @Test
+    @DisplayName("prévia conta sem criar nada — a ação não tem desfazer em massa")
+    void shouldPreviewWithoutCreating() {
+        CreditAnalysis jaNaEsteira = CreditAnalysis.builder().id(1L).cnpj("11222333000181")
+                .companyName("JA TEM").visaoCedente("SIM").build();
+        CreditAnalysis nova = CreditAnalysis.builder().id(2L).cnpj("99888777000166")
+                .companyName("NOVA").visaoCedente("SIM").build();
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(jaNaEsteira, nova));
+        when(prospeccaoService.cardAbertoDoCnpj("11222333000181"))
+                .thenReturn(java.util.Optional.of(ProspeccaoEntity.builder().id(UUID.randomUUID()).build()));
+        when(prospeccaoService.cardAbertoDoCnpj("99888777000166")).thenReturn(java.util.Optional.empty());
+        when(prospeccaoService.jaVeioDaAnalise(2L)).thenReturn(false);
+
+        ProspeccaoEntradaAutomatica.Previa previa = entrada.previa(null);
+
+        assertThat(previa.comVisaoCedente()).isEqualTo(2);
+        assertThat(previa.jaNaEsteira()).isEqualTo(1);
+        assertThat(previa.seriamCriados()).isEqualTo(1);
+        assertThat(previa.amostra()).containsExactly("NOVA");
+        verify(prospeccaoService, never()).criarPorAnalise(any(), any(), any());
     }
 
     @Test
@@ -117,6 +197,6 @@ class ProspeccaoEntradaAutomaticaTest {
     void shouldHandleEmptyBackfill() {
         when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of());
 
-        assertThat(entrada.backfill()).isZero();
+        assertThat(entrada.backfill(null, 0)).isZero();
     }
 }

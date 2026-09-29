@@ -50,7 +50,10 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -337,17 +340,32 @@ public class ProspeccaoController {
         return ResponseEntity.ok().headers(headers).body(conteudo);
     }
 
+    /** Quantas empresas o backfill traria, sem criar nada. A tela pergunta antes de agir. */
+    @GetMapping("/backfill-visao-cedente/previa")
+    public ResponseEntity<ProspeccaoEntradaAutomatica.Previa> previaBackfill(
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde) {
+        usuarioAutenticado();
+        return ResponseEntity.ok(entradaAutomatica.previa(desde));
+    }
+
     /**
      * Puxa para a esteira as análises com visão cedente SIM que já existiam antes desta tela.
      *
      * <p>É botão, não job de deploy: a analista decide se quer a fila cheia de histórico no
      * primeiro dia. Reexecutar é seguro, quem já tem card é ignorado.</p>
+     *
+     * <p>O lote tem teto. Em produção são centenas de análises com visão cedente SIM, e sem
+     * limite um clique despejaria todas em triagem de uma vez, sem desfazer em massa.</p>
      */
     @PostMapping("/backfill-visao-cedente")
-    public ResponseEntity<Map<String, Object>> backfillVisaoCedente() {
+    public ResponseEntity<Map<String, Object>> backfillVisaoCedente(
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false, defaultValue = "0") int limite) {
         UserEntity autor = usuarioAutenticado();
         autorizacao.exigirDecisor(autor);
-        return ResponseEntity.ok(Map.of("cardsCriados", entradaAutomatica.backfill()));
+        return ResponseEntity.ok(Map.of("cardsCriados", entradaAutomatica.backfill(desde, limite)));
     }
 
     // -------------------------------------------------- catálogo (só admin)
