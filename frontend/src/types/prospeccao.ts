@@ -100,7 +100,11 @@ export type ProspeccaoDocumento = {
    */
   admiteExcecao: boolean;
   escopo: EscopoDocumento;
+  /** SOCIO ou AVALISTA. O avalista entrega os mesmos documentos, mas não é sócio. */
+  pessoaPapel: "SOCIO" | "AVALISTA";
   socioNome: string | null;
+  /** Participação no capital, quando conhecida. Só o Serasa informa. */
+  socioParticipacao: number | null;
   socioDocumento: string | null;
   socioAtivo: boolean;
   socioInativoMotivo: string | null;

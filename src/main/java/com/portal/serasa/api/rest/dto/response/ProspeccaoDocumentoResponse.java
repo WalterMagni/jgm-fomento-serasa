@@ -18,7 +18,11 @@ public record ProspeccaoDocumentoResponse(
         /** Obrigatório liberável com justificativa: muda o texto da ação na tela. */
         boolean admiteExcecao,
         EscopoDocumento escopo,
+        /** SOCIO ou AVALISTA. */
+        String pessoaPapel,
         String socioNome,
+        /** Participação no capital, quando conhecida. Só o Serasa informa. */
+        java.math.BigDecimal socioParticipacao,
         String socioDocumento,
         boolean socioAtivo,
         String socioInativoMotivo,

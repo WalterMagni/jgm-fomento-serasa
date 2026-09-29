@@ -8,7 +8,14 @@ import {
   ROTULO_STATUS_DOC,
   StatusDocumento,
 } from "@/types/prospeccao";
-import { baixarArquivo, useAtualizarDocumento, useDefinirSocio, useEnviarArquivo, useRemoverArquivo } from "@/hooks/useProspeccao";
+import {
+  baixarArquivo,
+  useAdicionarPessoa,
+  useAtualizarDocumento,
+  useDefinirSocio,
+  useEnviarArquivo,
+  useRemoverArquivo,
+} from "@/hooks/useProspeccao";
 import { formatBytes, formatDate } from "./formatters";
 
 const CLASSE_STATUS: Record<StatusDocumento, string> = {
@@ -212,6 +219,7 @@ export default function DocumentChecklist({
   documentos: ProspeccaoDocumento[];
 }) {
   const definirSocio = useDefinirSocio();
+  const adicionarPessoa = useAdicionarPessoa();
 
   if (documentos.length === 0) {
     return (
@@ -245,11 +253,17 @@ export default function DocumentChecklist({
 
       {socios.map(([nome, referencia]) => {
         const itens = documentos.filter(documento => documento.socioNome === nome);
+        const papel = referencia.pessoaPapel === "AVALISTA" ? "Avalista" : "Sócio";
         return (
           <section key={nome} className={referencia.socioAtivo ? "" : "opacity-60"}>
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Sócio · {nome}
+                {papel} · {nome}
+                {referencia.socioParticipacao != null && (
+                  <span className="ml-1 normal-case font-normal text-slate-400">
+                    ({Number(referencia.socioParticipacao)}% do capital)
+                  </span>
+                )}
                 {!referencia.socioAtivo && (
                   <span className="ml-1 normal-case text-[11px] font-normal italic">
                     fora do checklist{referencia.socioInativoMotivo ? ` — ${referencia.socioInativoMotivo}` : ""}
@@ -260,7 +274,9 @@ export default function DocumentChecklist({
                 type="button"
                 onClick={() => {
                   if (referencia.socioAtivo) {
-                    const motivo = window.prompt(`Por que ${nome} sai do checklist? (ex.: saiu da sociedade, faleceu)`);
+                    const motivo = window.prompt(
+                      `Por que ${nome} sai do checklist? (ex.: faleceu, participação abaixo de 15%)`,
+                    );
                     if (!motivo || !motivo.trim()) return;
                     definirSocio.mutate({ cardId, socioNome: nome, ativo: false, motivo: motivo.trim() });
                   } else {
@@ -280,6 +296,24 @@ export default function DocumentChecklist({
           </section>
         );
       })}
+
+      <button
+        type="button"
+        onClick={() => {
+          const nome = window.prompt("Nome do avalista:");
+          if (!nome || !nome.trim()) return;
+          const documento = window.prompt("CPF do avalista (opcional):") ?? "";
+          adicionarPessoa.mutate({ cardId, nome: nome.trim(), documento, papel: "AVALISTA" });
+        }}
+        disabled={adicionarPessoa.isPending}
+        className="inline-flex cursor-pointer items-center gap-1 rounded border border-dashed
+          border-slate-300 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-slate-50
+          hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+          disabled:opacity-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+      >
+        <Icon name="add" className="text-[13px]" />
+        {adicionarPessoa.isPending ? "adicionando…" : "adicionar avalista"}
+      </button>
     </div>
   );
 }

@@ -66,8 +66,8 @@ dobro sem saber.
 checklist de documentos é criado na hora. Ao **Reprovar**, o sistema pede o motivo de uma
 lista fechada; se escolher "Outro", descreva.
 
-**Cobrar o cliente.** Aba *Histórico* do card: escreva o que aconteceu e escolha o canal
-(e-mail, WhatsApp, ligação, reunião). Registrar a cobrança **zera o contador de silêncio**.
+**Cobrar o cliente.** Aba *Histórico* do card: escreva o que aconteceu e escolha o canal,
+e-mail ou WhatsApp. Registrar a cobrança **zera o contador de silêncio**.
 Se for recado interno, deixe em "nota interna" — não conta como contato com o cliente.
 
 **Mover o card.** Arraste entre colunas. A coluna que não aceita fica apagada — é a regra
@@ -96,6 +96,14 @@ inerte. O sistema **sugere**; quem decide é o analista.
 
 Nasce quando a análise é aprovada, em dois blocos: **documentos da empresa** e um bloco
 **por sócio**, montado a partir do quadro societário. Sócio pessoa jurídica não gera bloco.
+
+Quando a participação no capital é conhecida, ela aparece ao lado do nome, e quem está **abaixo
+de 15%** já nasce fora do checklist, com o motivo. Na maioria das empresas o percentual não é
+conhecido — a Receita não publica esse dado —, então o bloco nasce ativo e vocês tiram quem não
+interessa.
+
+**Avalista** entra pelo botão *adicionar avalista*, no fim do checklist. Recebe os mesmos itens
+do sócio. Ele não vem automático porque não consta do quadro societário.
 
 | Status | Quer dizer |
 |---|---|

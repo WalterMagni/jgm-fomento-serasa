@@ -265,6 +265,31 @@ export function useDefinirSocio() {
   });
 }
 
+/** Adiciona ao checklist alguém fora do quadro societário — na prática, o avalista. */
+export function useAdicionarPessoa() {
+  const invalidar = useInvalidar();
+  return useMutation<
+    unknown,
+    Error,
+    { cardId: string; nome: string; documento?: string; papel: "SOCIO" | "AVALISTA" }
+  >({
+    mutationFn: async ({ cardId, ...body }) => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/${cardId}/pessoas`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao adicionar a pessoa"));
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      invalidar(vars.cardId);
+      toast.success(`${vars.papel === "AVALISTA" ? "Avalista" : "Sócio"} adicionado ao checklist`);
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useEnviarArquivo() {
   const invalidar = useInvalidar();
   return useMutation<ProspeccaoArquivo, Error, { cardId: string; documentoId: string; file: File }>({

@@ -4,6 +4,7 @@ import com.portal.serasa.api.rest.dto.request.DocumentoTipoRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoCreateRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoDocumentoStatusRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoEventoRequest;
+import com.portal.serasa.api.rest.dto.request.ProspeccaoPessoaRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoSocioAtivoRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoTransicaoRequest;
 import com.portal.serasa.api.rest.dto.response.DocumentoTipoResponse;
@@ -80,6 +81,7 @@ public class ProspeccaoController {
 
     private final ProspeccaoService prospeccaoService;
     private final ProspeccaoDocumentoService documentoService;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoChecklistService checklistService;
     private final ProspeccaoArquivoService arquivoService;
     private final ProspeccaoAutorizacao autorizacao;
     private final ProspeccaoEntradaAutomatica entradaAutomatica;
@@ -253,6 +255,31 @@ public class ProspeccaoController {
         ProspeccaoDocumentoEntity documento = documentoService.atualizarStatus(
                 documentoId, request.status(), request.observacao(), request.motivo(), autor);
         return ResponseEntity.ok(mapper.toResponse(documento, arquivosPorDocumento(documento.getProspeccaoId())));
+    }
+
+    /**
+     * Adiciona ao checklist uma pessoa que não está no quadro societário — o avalista.
+     *
+     * <p>Ela recebe os mesmos itens do sócio. Não há de onde puxá-la automaticamente: avalista não
+     * consta da Receita nem do Serasa como sócio.</p>
+     */
+    @PostMapping("/{id}/pessoas")
+    public ResponseEntity<List<ProspeccaoDocumentoResponse>> adicionarPessoa(
+            @PathVariable UUID id,
+            @Valid @RequestBody ProspeccaoPessoaRequest request) {
+        UserEntity autor = usuarioAutenticado();
+        ProspeccaoEntity card = prospeccaoService.buscar(id);
+        autorizacao.exigirConferente(autor);
+
+        checklistService.adicionarPessoa(card, request.nome(), request.documento(), request.papel());
+        prospeccaoService.registrarEvento(card,
+                com.portal.serasa.domain.model.prospeccao.TipoEventoProspeccao.NOTA, null, null, null,
+                "%s adicionado ao checklist: %s".formatted(
+                        request.papel() == com.portal.serasa.domain.model.prospeccao.PapelPessoa.AVALISTA
+                                ? "Avalista" : "Sócio",
+                        request.nome()),
+                autor);
+        return ResponseEntity.status(201).body(documentos(id));
     }
 
     /** Tira ou devolve um sócio ao checklist, sem apagar o histórico dele. */

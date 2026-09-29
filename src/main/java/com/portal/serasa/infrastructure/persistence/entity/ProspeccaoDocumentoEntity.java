@@ -1,6 +1,7 @@
 package com.portal.serasa.infrastructure.persistence.entity;
 
 import com.portal.serasa.domain.model.prospeccao.EscopoDocumento;
+import com.portal.serasa.domain.model.prospeccao.PapelPessoa;
 import com.portal.serasa.domain.model.prospeccao.StatusDocumento;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -59,8 +60,18 @@ public class ProspeccaoDocumentoEntity {
     @Column(nullable = false, length = 8)
     private EscopoDocumento escopo;
 
+    /** Sócio ou avalista. Ver V62. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pessoa_papel", nullable = false, length = 10)
+    @Builder.Default
+    private PapelPessoa pessoaPapel = PapelPessoa.SOCIO;
+
     @Column(name = "socio_nome", length = 200)
     private String socioNome;
+
+    /** Participação no capital, quando conhecida. Só o Serasa informa. */
+    @Column(name = "socio_participacao", precision = 9, scale = 4)
+    private java.math.BigDecimal socioParticipacao;
 
     @Column(name = "socio_documento", length = 14)
     private String socioDocumento;

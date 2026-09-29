@@ -1,6 +1,8 @@
 package com.portal.serasa.application.service.prospeccao;
 
 import com.portal.serasa.domain.model.prospeccao.EscopoDocumento;
+import com.portal.serasa.domain.model.prospeccao.PapelPessoa;
+import com.portal.serasa.infrastructure.persistence.entity.DocumentoTipoEntity;
 import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
 import com.portal.serasa.domain.model.prospeccao.StatusDocumento;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDocumentoEntity;
@@ -79,6 +81,61 @@ class ProspeccaoChecklistServiceTest {
         assertThat(resultado.get(0).getObservacao()).isEqualTo("CRC válido");
         verify(documentoRepository, never()).saveAll(any());
         verify(documentoTipoRepository, never()).findByAtivoTrueOrderByEscopoAscOrdemAsc();
+    }
+
+    @Test
+    @DisplayName("avalista entra com os mesmos itens do sócio, e não vem do quadro societário")
+    void shouldAddGuarantorBlock() {
+        ProspeccaoEntity card = card();
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of());
+        when(documentoTipoRepository.findByEscopoAndAtivoTrueOrderByOrdemAsc(EscopoDocumento.SOCIO))
+                .thenReturn(List.of(tipoSocio("socio-identidade"), tipoSocio("socio-comprovante-endereco")));
+        when(documentoRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        List<ProspeccaoDocumentoEntity> itens = service.adicionarPessoa(
+                card, "  Joana Ribeiro  ", "123.456.789-09", PapelPessoa.AVALISTA);
+
+        assertThat(itens).hasSize(2);
+        assertThat(itens).allSatisfy(item -> {
+            assertThat(item.getPessoaPapel()).isEqualTo(PapelPessoa.AVALISTA);
+            assertThat(item.getSocioNome()).isEqualTo("Joana Ribeiro");
+            assertThat(item.getSocioDocumento()).isEqualTo("12345678909");
+            assertThat(item.getEscopo()).isEqualTo(EscopoDocumento.SOCIO);
+        });
+    }
+
+    @Test
+    @DisplayName("mesma pessoa não entra duas vezes no checklist")
+    void shouldRejectDuplicatePerson() {
+        ProspeccaoEntity card = card();
+        ProspeccaoDocumentoEntity existente = ProspeccaoDocumentoEntity.builder()
+                .id(UUID.randomUUID()).prospeccaoId(card.getId())
+                .codigoSnapshot("socio-identidade").nomeSnapshot("RG")
+                .obrigatorioSnapshot(true).informativoSnapshot(false)
+                .escopo(EscopoDocumento.SOCIO).socioNome("Joana Ribeiro").socioAtivo(true)
+                .status(StatusDocumento.PENDENTE).atualizadoEm(LocalDateTime.now()).build();
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(existente));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        service.adicionarPessoa(card, "joana ribeiro", null, PapelPessoa.AVALISTA))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Já existe bloco");
+    }
+
+    @Test
+    @DisplayName("avalista sem nome não entra")
+    void shouldRequireName() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        service.adicionarPessoa(card(), "   ", null, PapelPessoa.AVALISTA))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private DocumentoTipoEntity tipoSocio(String codigo) {
+        return DocumentoTipoEntity.builder()
+                .id(UUID.randomUUID()).codigo(codigo).nome(codigo)
+                .escopo(EscopoDocumento.SOCIO).obrigatorio(true).informativo(false)
+                .admiteExcecao(false).ativo(true).ordem(1)
+                .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
     }
 
     @Test

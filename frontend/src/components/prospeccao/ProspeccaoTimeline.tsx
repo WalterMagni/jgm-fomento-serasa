@@ -21,7 +21,14 @@ const ICONE_EVENTO: Record<TipoEvento, string> = {
   REABERTURA: "restart_alt",
 };
 
-const CANAIS: CanalContato[] = ["EMAIL", "WHATSAPP", "LIGACAO", "REUNIAO"];
+/**
+ * Canais que o time usa de fato.
+ *
+ * <p>Ligação e reunião existem no domínio e continuam legíveis no histórico antigo, mas não são
+ * oferecidos: o departamento de cadastro respondeu que cobra por e-mail e WhatsApp. Botão que
+ * ninguém aperta só atrapalha a escolha.</p>
+ */
+const CANAIS: CanalContato[] = ["EMAIL", "WHATSAPP"];
 
 function descricao(evento: ProspeccaoEvento) {
   if (evento.tipo === "TRANSICAO" && evento.estagioDe && evento.estagioPara) {

@@ -1,6 +1,7 @@
 package com.portal.serasa.application.service.prospeccao;
 
 import com.portal.serasa.domain.model.prospeccao.EscopoDocumento;
+import com.portal.serasa.domain.model.prospeccao.PapelPessoa;
 import com.portal.serasa.domain.model.prospeccao.StatusDocumento;
 import com.portal.serasa.infrastructure.persistence.entity.DocumentoTipoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDocumentoEntity;
@@ -42,6 +43,15 @@ public class ProspeccaoChecklistService {
     private final ShareholderCompanyJpaRepository shareholderCompanyRepository;
     private final ShareholderJpaRepository shareholderRepository;
     private final CompanyDetailJpaRepository companyDetailRepository;
+
+    /**
+     * Participação mínima para exigir documento do sócio.
+     *
+     * <p>Número do departamento de cadastro. Só é aplicado quando o percentual é conhecido: a cópia
+     * da Receita não traz participação, e desligar o bloco por falta de dado deixaria o checklist
+     * de sócio vazio em quase toda empresa.</p>
+     */
+    public static final java.math.BigDecimal PARTICIPACAO_MINIMA = new java.math.BigDecimal("15");
 
     /**
      * Cria os itens do checklist do card.
@@ -112,12 +122,59 @@ public class ProspeccaoChecklistService {
                                                   DocumentoTipoEntity tipo,
                                                   Socio socio,
                                                   LocalDateTime agora) {
+        // Abaixo do corte conhecido, o bloco nasce fora do checklist — visível, com o motivo, e
+        // reativável em um clique. Sem percentual conhecido, nasce ativo.
+        boolean abaixoDoCorte = socio.participacao() != null
+                && socio.participacao().compareTo(PARTICIPACAO_MINIMA) < 0;
+
         return base(card, tipo, agora)
                 .escopo(EscopoDocumento.SOCIO)
+                .pessoaPapel(PapelPessoa.SOCIO)
                 .socioNome(socio.nome())
                 .socioDocumento(socio.documento())
+                .socioParticipacao(socio.participacao())
+                .socioAtivo(!abaixoDoCorte)
+                .socioInativoMotivo(abaixoDoCorte
+                        ? "Participação de %s%%, abaixo dos %s%% exigidos"
+                                .formatted(socio.participacao().stripTrailingZeros().toPlainString(),
+                                        PARTICIPACAO_MINIMA.toPlainString())
+                        : null)
                 .status(StatusDocumento.PENDENTE)
                 .build();
+    }
+
+    /**
+     * Cria o bloco de documentos de uma pessoa adicionada à mão — tipicamente um avalista.
+     *
+     * <p>O avalista entrega os mesmos documentos do sócio, mas não consta do quadro societário, e
+     * por isso não há de onde puxá-lo automaticamente.</p>
+     */
+    @Transactional
+    public List<ProspeccaoDocumentoEntity> adicionarPessoa(ProspeccaoEntity card, String nome,
+                                                           String documento, PapelPessoa papel) {
+        String nomeLimpo = nome == null ? "" : nome.trim();
+        if (nomeLimpo.isBlank()) {
+            throw new IllegalArgumentException("Informe o nome da pessoa");
+        }
+        boolean jaExiste = documentoRepository.findByProspeccaoId(card.getId()).stream()
+                .anyMatch(item -> nomeLimpo.equalsIgnoreCase(item.getSocioNome()));
+        if (jaExiste) {
+            throw new IllegalArgumentException("Já existe bloco para " + nomeLimpo + " neste card");
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+        List<ProspeccaoDocumentoEntity> itens = documentoTipoRepository
+                .findByEscopoAndAtivoTrueOrderByOrdemAsc(EscopoDocumento.SOCIO).stream()
+                .map(tipo -> base(card, tipo, agora)
+                        .escopo(EscopoDocumento.SOCIO)
+                        .pessoaPapel(papel)
+                        .socioNome(nomeLimpo)
+                        .socioDocumento(documento == null || documento.isBlank()
+                                ? null : documento.replaceAll("\\D", ""))
+                        .status(StatusDocumento.PENDENTE)
+                        .build())
+                .toList();
+        return documentoRepository.saveAll(itens);
     }
 
     private ProspeccaoDocumentoEntity.ProspeccaoDocumentoEntityBuilder base(ProspeccaoEntity card,
@@ -162,6 +219,12 @@ public class ProspeccaoChecklistService {
         Map<UUID, ShareholderEntity> porId = shareholderRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(ShareholderEntity::getId, Function.identity()));
 
+        // Participação, quando a fonte informou. A Receita não traz; o Serasa sim.
+        Map<UUID, java.math.BigDecimal> percentuais = vinculos.stream()
+                .filter(vinculo -> vinculo.getCapitalPercent() != null)
+                .collect(Collectors.toMap(ShareholderCompanyEntity::getShareholderId,
+                        ShareholderCompanyEntity::getCapitalPercent, (a, b) -> a));
+
         return vinculos.stream()
                 .map(vinculo -> porId.get(vinculo.getShareholderId()))
                 .filter(java.util.Objects::nonNull)
@@ -169,12 +232,12 @@ public class ProspeccaoChecklistService {
                 // O documento completo nem sempre é conhecido: a carga gratuita da Receita traz
                 // o CPF mascarado. O nome é o que sempre existe, e é por ele que o bloco é
                 // identificado na tela.
-                .map(s -> new Socio(s.getName(), s.getDocument()))
+                .map(s -> new Socio(s.getName(), s.getDocument(), percentuais.get(s.getId())))
                 .sorted(Comparator.comparing(Socio::nome))
                 .distinct()
                 .toList();
     }
 
-    private record Socio(String nome, String documento) {
+    private record Socio(String nome, String documento, java.math.BigDecimal participacao) {
     }
 }
