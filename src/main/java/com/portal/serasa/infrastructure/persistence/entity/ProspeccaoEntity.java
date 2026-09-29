@@ -73,9 +73,9 @@ public class ProspeccaoEntity {
     @Column(name = "estagio_desde", nullable = false)
     private LocalDateTime estagioDesde;
 
-    /** Prazo vigente quando o card entrou no estágio atual. Ver a nota de snapshot na V56. */
-    @Column(name = "prazo_estagio_dias", nullable = false)
-    private Integer prazoEstagioDias;
+    /** Prazo do estágio em horas úteis, congelado na transição. Ver V56 e V61. */
+    @Column(name = "prazo_estagio_horas", nullable = false)
+    private Integer prazoEstagioHoras;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "motivo_recusa", length = 40)

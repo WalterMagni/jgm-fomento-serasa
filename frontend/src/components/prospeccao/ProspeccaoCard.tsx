@@ -64,7 +64,7 @@ export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, 
         {card.silencioProlongado && (
           <p className="mt-1.5 inline-flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700 dark:bg-red-950/40 dark:text-red-300">
             <Icon name="notifications_off" className="text-[13px]" />
-            Sem resposta há mais de 30 dias
+            {card.diasEmSilencio} dias sem retorno · encaminhar para inerte
           </p>
         )}
 

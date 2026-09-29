@@ -51,8 +51,8 @@ limita o tamanho do lote, porque não há como desfazer em massa.
 | **Documentos completos** | Tudo que era obrigatório foi resolvido. |
 | **Pronto p/ habilitação** | Sai da esteira. Daqui em diante é a habilitação. |
 
-**Reprovados e removidos do radar** ficam na faixa recolhível no pé da página, com o
-motivo ao lado. Aparecem por 90 dias.
+**Reprovados e inertes** ficam na faixa recolhível no pé da página, com o motivo ao lado.
+Aparecem por 90 dias.
 
 ---
 
@@ -83,11 +83,12 @@ do fluxo, não um travamento. Quem prefere não arrastar usa o botão **Mover** 
 | **âmbar** | perto de estourar (a partir de 70% do prazo) |
 | **vermelho** | prazo estourado |
 
-Prazos atuais: **1 dia útil** para alguém pegar a análise, **2 dias úteis** para decidir,
-**10 dias úteis** para a documentação. São dias úteis, com feriado nacional descontado.
+Prazos da análise: **12 horas úteis** para alguém pegar e **24 horas úteis** para decidir.
+Fim de semana e feriado nacional não contam.
 
-A faixa vermelha **"Sem resposta há mais de 30 dias"** conta desde a última cobrança
-registrada. O sistema **sugere** remover do radar; quem decide é uma pessoa.
+**A coleta de documentos não tem prazo** — quem envia é o cliente. O que corre ali é o
+silêncio, em dias corridos: **30 dias** sem retorno deixa o card âmbar, **45 dias** marca para
+inerte. O sistema **sugere**; quem decide é o analista.
 
 ---
 
@@ -103,10 +104,14 @@ Nasce quando a análise é aprovada, em dois blocos: **documentos da empresa** e
 | Validado | alguém abriu, conferiu e aceitou |
 | Rejeitado | errado, vencido ou ilegível — volta a ser cobrado |
 | Não se aplica | automático, como a certidão da JUCESP para empresa fora de São Paulo |
-| Dispensado | decisão de abrir mão, com motivo |
+| Liberado com justificativa | a casa abriu mão do item, com o porquê registrado |
 
-Só **Validado**, **Não se aplica** e **Dispensado** liberam o avanço. Se tentar fechar com
-pendência, o sistema diz exatamente quais documentos faltam.
+Só **Validado**, **Não se aplica** e **Liberado com justificativa** liberam o avanço. Se tentar
+fechar com pendência, o sistema diz exatamente quais documentos faltam.
+
+Três itens são obrigatórios mas admitem exceção: **endividamento**, **curva ABC** e
+**autorização SCR**. O cliente pode legitimamente não ter os dois primeiros, ou não aceitar
+assinar o terceiro. Neles a ação se chama **Liberar na exceção** e exige escrever o motivo.
 
 **Anexar** sobe o arquivo para a pasta da empresa no compartilhamento de rede, a mesma
 pasta \`CLIENTES\` de sempre. Reenviar cria uma versão nova sem apagar a anterior. Remover

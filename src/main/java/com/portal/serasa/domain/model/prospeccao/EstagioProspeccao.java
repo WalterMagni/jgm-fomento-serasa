@@ -19,10 +19,10 @@ import java.util.Set;
 public enum EstagioProspeccao {
 
     /** Entrou na esteira, ninguém pegou ainda. Porta de entrada do manual e do automático. */
-    TRIAGEM(1),
+    TRIAGEM(12),
 
     /** Uma analista assumiu. O nome dela fica no card. */
-    EM_ANALISE(2),
+    EM_ANALISE(24),
 
     /**
      * Veredito humano favorável.
@@ -30,13 +30,19 @@ public enum EstagioProspeccao {
      * <p>Estado de passagem: aprovar materializa o checklist e cai em DOCS_PENDENTES na mesma
      * transação. Por isso não é coluna do quadro — seria uma coluna permanentemente vazia.</p>
      */
-    APROVADO(1),
+    APROVADO(0),
 
-    /** Coleta documental — a etapa que mais trava, e a que a planilha acompanhava pior. */
-    DOCS_PENDENTES(10),
+    /**
+     * Coleta documental.
+     *
+     * <p>Sem prazo de propósito: depende do cliente enviar, e o time não cobra a si mesmo por isso.
+     * O que corre aqui é o relógio do silêncio — trinta dias corridos sem retorno é atenção,
+     * quarenta e cinco encaminha para inerte.</p>
+     */
+    DOCS_PENDENTES(0),
 
     /** Todo obrigatório resolvido. Aguarda o repasse para a habilitação. */
-    DOCS_COMPLETOS(2),
+    DOCS_COMPLETOS(24),
 
     /** Saída da esteira: daqui em diante é a esteira de habilitação, fora deste escopo. */
     PRONTO_HABILITACAO(0),
@@ -44,18 +50,28 @@ public enum EstagioProspeccao {
     /** Terminal com motivo. Reabre para TRIAGEM quando o time decide reanalisar. */
     REPROVADO(0),
 
-    /** Terminal com motivo. A aba homônima da planilha tem 193 linhas: é desfecho frequente. */
+    /**
+     * Terminal com motivo. O time chama de <b>inerte</b>: cliente que parou de responder.
+     *
+     * <p>A aba homônima da planilha tem 193 linhas — é desfecho frequente, não exceção.</p>
+     */
     REMOVIDO_RADAR(0);
 
-    private final int prazoDiasUteis;
+    private final int prazoHorasUteis;
 
-    EstagioProspeccao(int prazoDiasUteis) {
-        this.prazoDiasUteis = prazoDiasUteis;
+    EstagioProspeccao(int prazoHorasUteis) {
+        this.prazoHorasUteis = prazoHorasUteis;
     }
 
-    /** Prazo do estágio em dias úteis. Zero significa que o estágio não é cobrado por SLA. */
-    public int prazoDiasUteis() {
-        return prazoDiasUteis;
+    /**
+     * Prazo do estágio em horas úteis. Zero significa estágio sem prazo.
+     *
+     * <p>Doze horas para alguém pegar a análise e vinte e quatro para decidir são os números que o
+     * departamento de cadastro pratica. A coleta de documentos fica em zero porque depende do
+     * cliente — ali o que corre é o silêncio, não o relógio do estágio.</p>
+     */
+    public int prazoHorasUteis() {
+        return prazoHorasUteis;
     }
 
     /** Terminais liberam o CNPJ para um card novo — ver o índice parcial da V56. */
@@ -65,7 +81,7 @@ public enum EstagioProspeccao {
 
     /** Estágios em que o SLA corre. Fora deles o card não aparece na lista de atrasados. */
     public boolean contaSla() {
-        return prazoDiasUteis > 0;
+        return prazoHorasUteis > 0;
     }
 
     /** Sair daqui exige motivo preenchido. */

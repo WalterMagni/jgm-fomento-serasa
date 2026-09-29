@@ -29,7 +29,7 @@ export type Semaforo = "ok" | "atencao" | "estourado";
 
 export function semaforoDe(card: Prospeccao): Semaforo {
   if (card.slaEstourado || card.silencioProlongado) return "estourado";
-  if (card.slaEmAtencao) return "atencao";
+  if (card.slaEmAtencao || card.silencioEmAtencao) return "atencao";
   return "ok";
 }
 
@@ -50,13 +50,24 @@ export const CLASSE_BADGE_SEMAFORO: Record<Semaforo, string> = {
   estourado: "text-red-600 dark:text-red-400 font-semibold",
 };
 
-/** Texto do prazo. "no prazo" em vez de um número nu, que não diz nada sozinho. */
+/**
+ * Texto do prazo.
+ *
+ * <p>Na coleta de documentos não existe prazo — depende do cliente — então o que se mostra é há
+ * quanto tempo ele está em silêncio, que é o número pelo qual o time age.</p>
+ */
 export function textoPrazo(card: Prospeccao) {
-  if (card.prazoEstagioDias === 0) return "sem prazo";
-  const dias = card.diasNoEstagio;
-  const sufixo = dias === 1 ? "dia útil" : "dias úteis";
-  if (card.slaEstourado) return `${dias} ${sufixo} — atrasado`;
-  return `${dias} de ${card.prazoEstagioDias} ${sufixo}`;
+  if (card.estagio === "DOCS_PENDENTES") {
+    if (card.diasEmSilencio <= 0) return "aguardando o cliente";
+    const dias = `${card.diasEmSilencio} dia${card.diasEmSilencio > 1 ? "s" : ""}`;
+    if (card.silencioProlongado) return `${dias} sem retorno — encaminhar para inerte`;
+    return `${dias} sem retorno`;
+  }
+  if (card.prazoEstagioHoras === 0) return "sem prazo";
+  const horas = card.horasNoEstagio;
+  const sufixo = horas === 1 ? "hora útil" : "horas úteis";
+  if (card.slaEstourado) return `${horas} ${sufixo} — atrasado`;
+  return `${horas} de ${card.prazoEstagioHoras} ${sufixo}`;
 }
 
 export const ICONE_ESTAGIO: Record<EstagioProspeccao, string> = {
@@ -97,15 +108,15 @@ export const ICONE_ORDENACAO: Record<Ordenacao, string> = {
   nome_desc: "arrow_upward",
 };
 
-export function ordenarCards<T extends { razaoSocial: string; diasNoEstagio: number; estagioDesde: string }>(
+export function ordenarCards<T extends { razaoSocial: string; horasNoEstagio: number; estagioDesde: string }>(
   cards: T[],
   ordenacao: Ordenacao,
 ): T[] {
   const copia = [...cards];
   if (ordenacao === "urgencia") {
-    // Mais dias parado primeiro; empate desempata pela entrada no estágio.
+    // Mais tempo parado primeiro; empate desempata pela entrada no estágio.
     return copia.sort(
-      (a, b) => b.diasNoEstagio - a.diasNoEstagio || a.estagioDesde.localeCompare(b.estagioDesde),
+      (a, b) => b.horasNoEstagio - a.horasNoEstagio || a.estagioDesde.localeCompare(b.estagioDesde),
     );
   }
   const direcao = ordenacao === "nome" ? 1 : -1;

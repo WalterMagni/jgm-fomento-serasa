@@ -78,7 +78,7 @@ public class ProspeccaoExportService {
         Map<UUID, List<ProspeccaoDocumentoEntity>> docs = documentoService.listarPorCards(ids(cards));
 
         StringBuilder csv = new StringBuilder(BOM);
-        linha(csv, "Empresa", "CNPJ", "Estágio", "Dias no estágio", "Prazo (dias úteis)", "Situação",
+        linha(csv, "Empresa", "CNPJ", "Estágio", "Horas no estágio", "Prazo (horas úteis)", "Situação",
                 "Comercial", "Analista", "Origem", "Motivo da recusa", "Observação", "Reaberturas",
                 "Documentos resolvidos", "Documentos no checklist", "Última cobrança", "Aberto em", "Fechado em");
 
@@ -98,8 +98,8 @@ public class ProspeccaoExportService {
                     card.getRazaoSocial(),
                     cnpjFormatado(card.getCnpj()),
                     rotulo(card.getEstagio()),
-                    String.valueOf(prospeccaoService.diasNoEstagio(card)),
-                    String.valueOf(card.getPrazoEstagioDias()),
+                    String.valueOf(prospeccaoService.horasNoEstagio(card)),
+                    String.valueOf(card.getPrazoEstagioHoras()),
                     situacao(card),
                     card.getComercialNome(),
                     nomes.get(card.getAnalistaId()),
@@ -124,7 +124,10 @@ public class ProspeccaoExportService {
             return "Encerrado";
         }
         if (prospeccaoService.silencioProlongado(card)) {
-            return "Sem resposta";
+            return "Para inerte";
+        }
+        if (prospeccaoService.silencioEmAtencao(card)) {
+            return "Sem resposta há 30 dias";
         }
         if (prospeccaoService.slaEstourado(card)) {
             return "Atrasado";
@@ -231,7 +234,7 @@ public class ProspeccaoExportService {
             case DOCS_COMPLETOS -> "Documentos completos";
             case PRONTO_HABILITACAO -> "Pronto p/ habilitação";
             case REPROVADO -> "Reprovado";
-            case REMOVIDO_RADAR -> "Removido do radar";
+            case REMOVIDO_RADAR -> "Inerte";
         };
     }
 

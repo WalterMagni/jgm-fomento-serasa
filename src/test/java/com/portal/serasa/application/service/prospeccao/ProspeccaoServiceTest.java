@@ -63,7 +63,7 @@ class ProspeccaoServiceTest {
                 .razaoSocial("ACME LTDA")
                 .estagio(estagio)
                 .estagioDesde(LocalDateTime.now())
-                .prazoEstagioDias(estagio.prazoDiasUteis())
+                .prazoEstagioHoras(estagio.prazoHorasUteis())
                 .reaberturas(0)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -149,7 +149,8 @@ class ProspeccaoServiceTest {
 
         verify(checklistService).materializar(card);
         assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.DOCS_PENDENTES);
-        assertThat(resultado.getPrazoEstagioDias()).isEqualTo(10);
+        // A coleta de documentos não tem prazo de estágio: quem envia é o cliente.
+        assertThat(resultado.getPrazoEstagioHoras()).isZero();
 
         ArgumentCaptor<ProspeccaoEventoEntity> eventos = ArgumentCaptor.forClass(ProspeccaoEventoEntity.class);
         verify(eventoRepository, org.mockito.Mockito.atLeast(2)).save(eventos.capture());

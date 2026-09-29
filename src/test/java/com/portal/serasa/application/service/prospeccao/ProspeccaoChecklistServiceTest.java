@@ -48,7 +48,7 @@ class ProspeccaoChecklistServiceTest {
                 .razaoSocial("ACME LTDA")
                 .estagio(EstagioProspeccao.APROVADO)
                 .estagioDesde(LocalDateTime.now())
-                .prazoEstagioDias(1)
+                .prazoEstagioHoras(1)
                 .build();
     }
 

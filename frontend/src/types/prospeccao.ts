@@ -56,12 +56,17 @@ export type Prospeccao = {
   analistaId: string | null;
   analistaNome: string | null;
   estagioDesde: string;
-  prazoEstagioDias: number;
-  /** Dias úteis, calculados no backend para as duas pontas não divergirem. */
-  diasNoEstagio: number;
+  /** Prazo do estágio em horas úteis. Zero quer dizer estágio sem prazo. */
+  prazoEstagioHoras: number;
+  /** Horas úteis, calculadas no backend para as duas pontas não divergirem. */
+  horasNoEstagio: number;
   slaEstourado: boolean;
   slaEmAtencao: boolean;
+  /** 30 dias corridos sem retorno do cliente. */
+  silencioEmAtencao: boolean;
+  /** 45 dias: o time encaminha para inerte. */
   silencioProlongado: boolean;
+  diasEmSilencio: number;
   motivoRecusa: MotivoRecusa | null;
   observacao: string | null;
   reaberturas: number;
@@ -167,7 +172,7 @@ export const ROTULO_ESTAGIO: Record<EstagioProspeccao, string> = {
   DOCS_COMPLETOS: "Documentos completos",
   PRONTO_HABILITACAO: "Pronto p/ habilitação",
   REPROVADO: "Reprovado",
-  REMOVIDO_RADAR: "Removido do radar",
+  REMOVIDO_RADAR: "Inerte",
 };
 
 export const ROTULO_MOTIVO: Record<MotivoRecusa, string> = {

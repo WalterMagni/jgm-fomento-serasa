@@ -22,6 +22,31 @@ public final class DiasUteis {
     }
 
     /**
+     * Horas úteis decorridas entre dois instantes.
+     *
+     * <p>O time mede a análise em horas, não em dias: doze horas para alguém pegar, vinte e quatro
+     * para decidir. Conta-se a hora que cai em dia útil — fim de semana e feriado nacional são
+     * pulados por inteiro. Não se modela expediente das nove às dezoito: seria preciso acertar
+     * horário de almoço, plantão e exceção, e errar isso deixaria o prazo mais confuso do que
+     * ausente.</p>
+     */
+    public static long horasUteisEntre(java.time.LocalDateTime inicio, java.time.LocalDateTime fim) {
+        if (inicio == null || fim == null || !fim.isAfter(inicio)) {
+            return 0;
+        }
+        Set<LocalDate> feriados = feriadosNacionais(inicio.getYear(), fim.getYear());
+        long horas = 0;
+        java.time.LocalDateTime cursor = inicio.truncatedTo(java.time.temporal.ChronoUnit.HOURS);
+        while (cursor.isBefore(fim)) {
+            if (util(cursor.toLocalDate(), feriados)) {
+                horas++;
+            }
+            cursor = cursor.plusHours(1);
+        }
+        return horas;
+    }
+
+    /**
      * Dias úteis decorridos entre duas datas, sem contar o dia inicial.
      *
      * <p>Entrar num estágio hoje significa zero dia útil decorrido: o prazo só começa a correr

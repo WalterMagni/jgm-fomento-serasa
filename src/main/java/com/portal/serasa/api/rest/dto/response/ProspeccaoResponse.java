@@ -26,11 +26,15 @@ public record ProspeccaoResponse(
         UUID analistaId,
         String analistaNome,
         LocalDateTime estagioDesde,
-        Integer prazoEstagioDias,
-        int diasNoEstagio,
+        Integer prazoEstagioHoras,
+        long horasNoEstagio,
         boolean slaEstourado,
         boolean slaEmAtencao,
+        /** Trinta dias corridos sem retorno do cliente. */
+        boolean silencioEmAtencao,
+        /** Quarenta e cinco dias: o time encaminha para inerte. */
         boolean silencioProlongado,
+        long diasEmSilencio,
         MotivoRecusa motivoRecusa,
         String observacao,
         Integer reaberturas,

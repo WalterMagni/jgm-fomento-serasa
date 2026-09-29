@@ -64,7 +64,7 @@ class ProspeccaoArquivoServiceTest {
                 .razaoSocial("ACME LTDA")
                 .estagio(EstagioProspeccao.DOCS_PENDENTES)
                 .estagioDesde(LocalDateTime.now())
-                .prazoEstagioDias(10)
+                .prazoEstagioHoras(10)
                 .build();
 
         documento = ProspeccaoDocumentoEntity.builder()

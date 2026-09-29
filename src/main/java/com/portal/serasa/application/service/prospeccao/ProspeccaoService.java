@@ -37,8 +37,16 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProspeccaoService {
 
-    /** Silêncio do cliente que faz o sistema sugerir a remoção do radar. Ele sugere, não remove. */
-    public static final int DIAS_SILENCIO_PARA_SUGERIR_REMOCAO = 30;
+    /**
+     * Silêncio do cliente, em dias corridos.
+     *
+     * <p>Trinta dias sem retorno é sinal de atenção; quarenta e cinco é quando o time encaminha
+     * para inerte. São corridos, e não úteis, porque quem está em silêncio é o cliente — o
+     * calendário dele não é o nosso.</p>
+     */
+    public static final int DIAS_SILENCIO_ATENCAO = 30;
+
+    public static final int DIAS_SILENCIO_PARA_INERTE = 45;
 
     private final ProspeccaoJpaRepository prospeccaoRepository;
     private final ProspeccaoEventoJpaRepository eventoRepository;
@@ -92,7 +100,7 @@ public class ProspeccaoService {
                 .comercialId(comercialId)
                 .comercialNome(comercialNome)
                 .estagioDesde(agora)
-                .prazoEstagioDias(EstagioProspeccao.TRIAGEM.prazoDiasUteis())
+                .prazoEstagioHoras(EstagioProspeccao.TRIAGEM.prazoHorasUteis())
                 .reaberturas(0)
                 .createdAt(agora)
                 .updatedAt(agora)
@@ -118,7 +126,7 @@ public class ProspeccaoService {
     public ProspeccaoEntity assumir(UUID id, UserEntity analista) {
         ProspeccaoEntity card = buscar(id);
         int afetadas = prospeccaoRepository.assumirAnalise(
-                id, analista.getId(), EstagioProspeccao.EM_ANALISE.prazoDiasUteis(), LocalDateTime.now());
+                id, analista.getId(), EstagioProspeccao.EM_ANALISE.prazoHorasUteis(), LocalDateTime.now());
         if (afetadas == 0) {
             throw new TransicaoInvalidaException(card.getAnalistaId() != null
                     ? "Card já assumido por outro analista."
@@ -223,7 +231,7 @@ public class ProspeccaoService {
     private void aplicarEstagio(ProspeccaoEntity card, EstagioProspeccao destino, UserEntity autor) {
         card.setEstagio(destino);
         card.setEstagioDesde(LocalDateTime.now());
-        card.setPrazoEstagioDias(destino.prazoDiasUteis());
+        card.setPrazoEstagioHoras(destino.prazoHorasUteis());
         card.setUpdatedAt(LocalDateTime.now());
         if (destino == EstagioProspeccao.EM_ANALISE && card.getAnalistaId() == null && autor != null) {
             card.setAnalistaId(autor.getId());
@@ -279,14 +287,14 @@ public class ProspeccaoService {
 
     // ------------------------------------------------------------------- SLA
 
-    /** Dias úteis parados no estágio atual. */
-    public int diasNoEstagio(ProspeccaoEntity card) {
-        return DiasUteis.entre(card.getEstagioDesde().toLocalDate(), LocalDate.now());
+    /** Horas úteis paradas no estágio atual. */
+    public long horasNoEstagio(ProspeccaoEntity card) {
+        return DiasUteis.horasUteisEntre(card.getEstagioDesde(), LocalDateTime.now());
     }
 
-    /** Estourou o prazo do estágio. Estágio sem prazo nunca estoura. */
+    /** Estourou o prazo do estágio. Estágio sem prazo, como a coleta de documentos, nunca estoura. */
     public boolean slaEstourado(ProspeccaoEntity card) {
-        return card.getEstagio().contaSla() && diasNoEstagio(card) > card.getPrazoEstagioDias();
+        return card.getEstagio().contaSla() && horasNoEstagio(card) > card.getPrazoEstagioHoras();
     }
 
     /** Perto de estourar: 70% do prazo, que é o ponto do amarelo na tela. */
@@ -294,22 +302,34 @@ public class ProspeccaoService {
         if (!card.getEstagio().contaSla() || slaEstourado(card)) {
             return false;
         }
-        return diasNoEstagio(card) >= Math.ceil(card.getPrazoEstagioDias() * 0.7);
+        return horasNoEstagio(card) >= Math.ceil(card.getPrazoEstagioHoras() * 0.7);
     }
 
-    /**
-     * Silêncio longo do cliente. Vira sugestão de remover do radar — e só sugestão: a aba
-     * REMOVIDAS DO RADAR tem 193 linhas, todas decisão de alguém.
-     */
-    public boolean silencioProlongado(ProspeccaoEntity card) {
+    /** Dias corridos desde a última cobrança, ou desde a entrada no estágio se nunca houve. */
+    public long diasEmSilencio(ProspeccaoEntity card) {
         if (card.getEstagio() != EstagioProspeccao.DOCS_PENDENTES) {
-            return false;
+            return 0;
         }
         LocalDateTime referencia = card.getUltimoContatoEm() != null
                 ? card.getUltimoContatoEm()
                 : card.getEstagioDesde();
-        return referencia.toLocalDate().plusDays(DIAS_SILENCIO_PARA_SUGERIR_REMOCAO)
-                .isBefore(LocalDate.now());
+        return java.time.temporal.ChronoUnit.DAYS.between(referencia.toLocalDate(), LocalDate.now());
+    }
+
+    /** Trinta dias corridos sem retorno: hora de cobrar com mais força. */
+    public boolean silencioEmAtencao(ProspeccaoEntity card) {
+        long dias = diasEmSilencio(card);
+        return dias >= DIAS_SILENCIO_ATENCAO && dias < DIAS_SILENCIO_PARA_INERTE;
+    }
+
+    /**
+     * Quarenta e cinco dias corridos sem retorno: o time encaminha para inerte.
+     *
+     * <p>O sistema sugere; quem decide é o analista. A aba REMOVIDAS DO RADAR da planilha tem 193
+     * linhas, todas decisão de alguém.</p>
+     */
+    public boolean silencioProlongado(ProspeccaoEntity card) {
+        return diasEmSilencio(card) >= DIAS_SILENCIO_PARA_INERTE;
     }
 
     // ---------------------------------------------------------------- leitura

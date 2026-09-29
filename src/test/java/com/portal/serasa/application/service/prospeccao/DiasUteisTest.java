@@ -67,6 +67,32 @@ class DiasUteisTest {
     }
 
     @Test
+    @DisplayName("horasUteisEntre: conta hora a hora dentro do dia útil")
+    void shouldCountBusinessHours() {
+        java.time.LocalDateTime segundaManha = java.time.LocalDateTime.of(2026, 9, 21, 9, 0);
+        assertThat(DiasUteis.horasUteisEntre(segundaManha, segundaManha.plusHours(12))).isEqualTo(12);
+        assertThat(DiasUteis.horasUteisEntre(segundaManha, segundaManha)).isZero();
+    }
+
+    @Test
+    @DisplayName("horasUteisEntre: fim de semana inteiro não conta")
+    void shouldSkipWeekendHours() {
+        // Sexta 09h a segunda 09h: 15h de sexta + 9h de segunda; sábado e domingo não entram.
+        java.time.LocalDateTime sexta = java.time.LocalDateTime.of(2026, 9, 18, 9, 0);
+        java.time.LocalDateTime segunda = java.time.LocalDateTime.of(2026, 9, 21, 9, 0);
+        assertThat(DiasUteis.horasUteisEntre(sexta, segunda)).isEqualTo(24);
+    }
+
+    @Test
+    @DisplayName("horasUteisEntre: feriado nacional não conta")
+    void shouldSkipHolidayHours() {
+        // 07/09/2026 é segunda-feira e feriado: as 24h daquele dia não entram.
+        java.time.LocalDateTime sexta = java.time.LocalDateTime.of(2026, 9, 4, 0, 0);
+        java.time.LocalDateTime terca = java.time.LocalDateTime.of(2026, 9, 8, 0, 0);
+        assertThat(DiasUteis.horasUteisEntre(sexta, terca)).isEqualTo(24);
+    }
+
+    @Test
     @DisplayName("entre: data final anterior à inicial não é negativa")
     void shouldClampInvertedRange() {
         assertThat(DiasUteis.entre(LocalDate.of(2026, 9, 21), LocalDate.of(2026, 9, 1))).isZero();

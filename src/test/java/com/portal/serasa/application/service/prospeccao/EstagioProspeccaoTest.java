@@ -72,13 +72,19 @@ class EstagioProspeccaoTest {
     }
 
     @Test
-    @DisplayName("SLA corre só nos estágios de trabalho; os defaults são 1/2/10 dias úteis")
+    @DisplayName("prazos em horas úteis, conforme o time pratica: 12 para pegar, 24 para decidir")
     void shouldExposeSlaWindows() {
-        assertThat(EstagioProspeccao.TRIAGEM.prazoDiasUteis()).isEqualTo(1);
-        assertThat(EstagioProspeccao.EM_ANALISE.prazoDiasUteis()).isEqualTo(2);
-        assertThat(EstagioProspeccao.DOCS_PENDENTES.prazoDiasUteis()).isEqualTo(10);
+        assertThat(EstagioProspeccao.TRIAGEM.prazoHorasUteis()).isEqualTo(12);
+        assertThat(EstagioProspeccao.EM_ANALISE.prazoHorasUteis()).isEqualTo(24);
         assertThat(EstagioProspeccao.PRONTO_HABILITACAO.contaSla()).isFalse();
         assertThat(EstagioProspeccao.REPROVADO.contaSla()).isFalse();
+    }
+
+    @Test
+    @DisplayName("coleta de documentos não tem prazo: depende do cliente, não do time")
+    void shouldNotTimeDocumentCollection() {
+        assertThat(EstagioProspeccao.DOCS_PENDENTES.prazoHorasUteis()).isZero();
+        assertThat(EstagioProspeccao.DOCS_PENDENTES.contaSla()).isFalse();
     }
 
     @ParameterizedTest

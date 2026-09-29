@@ -72,7 +72,8 @@ class ProspeccaoExportServiceTest {
     @DisplayName("estágio sai com o mesmo rótulo que a tela mostra")
     void shouldUseScreenLabels() {
         assertThat(ProspeccaoExportService.rotulo(EstagioProspeccao.DOCS_PENDENTES)).isEqualTo("Documentos pendentes");
-        assertThat(ProspeccaoExportService.rotulo(EstagioProspeccao.REMOVIDO_RADAR)).isEqualTo("Removido do radar");
+        // "Inerte" é a palavra que o time usa para o cliente que parou de responder.
+        assertThat(ProspeccaoExportService.rotulo(EstagioProspeccao.REMOVIDO_RADAR)).isEqualTo("Inerte");
     }
 
     @Test

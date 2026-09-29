@@ -59,7 +59,7 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
                SET p.analistaId = :analistaId,
                    p.estagio = com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.EM_ANALISE,
                    p.estagioDesde = :agora,
-                   p.prazoEstagioDias = :prazo,
+                   p.prazoEstagioHoras = :prazo,
                    p.updatedAt = :agora
              WHERE p.id = :id
                AND p.analistaId IS NULL
@@ -74,7 +74,7 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
     @Query("""
             SELECT p FROM ProspeccaoEntity p
              WHERE p.closedAt IS NULL
-               AND p.prazoEstagioDias > 0
+               AND p.prazoEstagioHoras > 0
              ORDER BY p.estagioDesde ASC
             """)
     List<ProspeccaoEntity> findAbertasComPrazo();
