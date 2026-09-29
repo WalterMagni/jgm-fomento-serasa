@@ -7,6 +7,8 @@ import ProspeccaoModal from "@/components/prospeccao/ProspeccaoModal";
 import NovaProspeccaoDialog from "@/components/prospeccao/NovaProspeccaoDialog";
 import { COLUNAS, EstagioProspeccao, Prospeccao, ROTULO_ESTAGIO, ROTULO_MOTIVO } from "@/types/prospeccao";
 import {
+  ConteudoExport,
+  exportarEsteira,
   useBackfillVisaoCedente,
   useEstagios,
   useProspeccaoResumo,
@@ -26,6 +28,7 @@ export default function ProspeccaoPage() {
   const [cardAberto, setCardAberto] = useState<string | null>(null);
   const [novaAberta, setNovaAberta] = useState(false);
   const [arrastando, setArrastando] = useState<string | null>(null);
+  const [exportAberto, setExportAberto] = useState(false);
 
   const { data: cards = [], isLoading, error } = useProspeccoes({ apenasAtrasados });
   const { data: resumo } = useProspeccaoResumo();
@@ -94,7 +97,16 @@ export default function ProspeccaoPage() {
     <div className="flex h-full flex-col gap-3 p-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Esteira de prospecção</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Esteira de prospecção</h1>
+            <span
+              className="rounded border border-[#D1732C] px-1.5 py-px text-[10px] font-bold uppercase
+                tracking-wider text-[#D1732C]"
+              title="Em avaliação: o fluxo ainda pode mudar e os dados podem ser reiniciados"
+            >
+              beta
+            </span>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Da análise do cedente até a documentação completa
           </p>
@@ -130,6 +142,50 @@ export default function ProspeccaoPage() {
             <Icon name="filter_alt" className="text-[15px]" />
             {apenasAtrasados ? "só atrasados" : "todos"}
           </button>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportAberto(aberto => !aberto)}
+              className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs text-slate-600
+                shadow-sm dark:bg-slate-800 dark:text-slate-300"
+            >
+              <Icon name="table_chart" className="text-[15px]" />
+              Exportar
+            </button>
+            {exportAberto && (
+              <>
+                {/* Fecha ao clicar fora, sem prender o foco da página. */}
+                <div className="fixed inset-0 z-10" onClick={() => setExportAberto(false)} />
+                <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg bg-white py-1 text-xs shadow-lg
+                  dark:bg-slate-800">
+                  {(
+                    [
+                      ["CARDS", "Cards da esteira", "uma linha por empresa"],
+                      ["DOCUMENTOS", "Checklist item a item", "qual documento mais trava"],
+                      ["EVENTOS", "Histórico de cobranças", "canal, autor e data"],
+                    ] as [ConteudoExport, string, string][]
+                  ).map(([conteudo, titulo, ajuda]) => (
+                    <button
+                      key={conteudo}
+                      type="button"
+                      onClick={() => {
+                        setExportAberto(false);
+                        exportarEsteira(conteudo, { apenasAtrasados });
+                      }}
+                      className="block w-full px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700"
+                    >
+                      <span className="block text-slate-700 dark:text-slate-200">{titulo}</span>
+                      <span className="block text-[10px] text-slate-400">{ajuda}</span>
+                    </button>
+                  ))}
+                  <p className="border-t border-slate-100 px-3 pt-1.5 text-[10px] text-slate-400 dark:border-slate-700">
+                    CSV que o Excel abre. Respeita o filtro atual.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
 
           <button
             type="button"

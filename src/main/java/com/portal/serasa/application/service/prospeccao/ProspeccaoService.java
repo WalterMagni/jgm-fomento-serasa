@@ -320,9 +320,25 @@ public class ProspeccaoService {
                 .orElseThrow(() -> new EntityNotFoundException("Card de prospecção não encontrado: " + id));
     }
 
+    /** Janela de desfechos que a esteira ainda mostra; mais antigo que isso é assunto de relatório. */
+    public static final int DIAS_DE_DESFECHO_VISIVEL = 90;
+
     @Transactional(readOnly = true)
     public List<ProspeccaoEntity> listarAbertas() {
         return prospeccaoRepository.findByClosedAtIsNullOrderByEstagioDesdeAsc();
+    }
+
+    /**
+     * O que a tela mostra: os cards em aberto e os encerrados nos últimos 90 dias.
+     *
+     * <p>Sem os encerrados a seção de reprovados e removidos do radar ficaria sempre vazia, e o
+     * motivo da recusa — o dado que a planilha mais registra e ninguém consegue tabular — nunca
+     * apareceria em lugar nenhum.</p>
+     */
+    @Transactional(readOnly = true)
+    public List<ProspeccaoEntity> listarVisiveis() {
+        return prospeccaoRepository.findAbertasEEncerradasDesde(
+                LocalDateTime.now().minusDays(DIAS_DE_DESFECHO_VISIVEL));
     }
 
     /**

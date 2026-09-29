@@ -323,6 +323,43 @@ export async function baixarArquivo(arquivo: ProspeccaoArquivo) {
   URL.revokeObjectURL(url);
 }
 
+export type ConteudoExport = "CARDS" | "DOCUMENTOS" | "EVENTOS";
+
+/**
+ * Baixa a exportação em CSV.
+ *
+ * <p>Passa pelo fetch autenticado e não por um link direto, porque o endpoint exige o token no
+ * cabeçalho — um href simples voltaria 401. Os filtros são os mesmos da listagem, então o
+ * arquivo traz o que a pessoa está vendo.</p>
+ */
+export async function exportarEsteira(
+  conteudo: ConteudoExport,
+  filtros?: { estagio?: EstagioProspeccao; comercialId?: string; apenasAtrasados?: boolean },
+) {
+  const params = new URLSearchParams({ tipo: conteudo });
+  if (filtros?.estagio) params.set("estagio", filtros.estagio);
+  if (filtros?.comercialId) params.set("comercialId", filtros.comercialId);
+  if (filtros?.apenasAtrasados) params.set("apenasAtrasados", "true");
+
+  const res = await fetch(`${API_BASE_URL}/prospeccao/exportar?${params}`, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    toast.error(await extractErrorMessage(res, "Falha ao exportar"));
+    return;
+  }
+
+  // O nome vem do backend, com a data do dia.
+  const disposicao = res.headers.get("content-disposition") ?? "";
+  const nome = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicao)?.[1];
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = decodeURIComponent(nome ?? "esteira.csv");
+  link.click();
+  URL.revokeObjectURL(url);
+  toast.success("Exportação baixada");
+}
+
 export function useDocumentoTipos() {
   return useQuery<DocumentoTipo[]>({
     queryKey: ["documentoTipos"],

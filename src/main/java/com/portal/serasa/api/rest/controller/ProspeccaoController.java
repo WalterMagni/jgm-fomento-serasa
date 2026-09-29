@@ -18,6 +18,7 @@ import com.portal.serasa.application.service.prospeccao.ProspeccaoArquivoService
 import com.portal.serasa.application.service.prospeccao.ProspeccaoAutorizacao;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoDocumentoService;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoEntradaAutomatica;
+import com.portal.serasa.application.service.prospeccao.ProspeccaoExportService;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoService;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
@@ -80,6 +81,7 @@ public class ProspeccaoController {
     private final ProspeccaoArquivoService arquivoService;
     private final ProspeccaoAutorizacao autorizacao;
     private final ProspeccaoEntradaAutomatica entradaAutomatica;
+    private final ProspeccaoExportService exportService;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final UserRepository userRepository;
@@ -96,7 +98,7 @@ public class ProspeccaoController {
 
         List<ProspeccaoEntity> cards = cnpj != null && !cnpj.isBlank()
                 ? prospeccaoService.listarPorCnpj(cnpj)
-                : prospeccaoService.listarAbertas();
+                : prospeccaoService.listarVisiveis();
 
         List<ProspeccaoEntity> filtrados = cards.stream()
                 .filter(card -> estagio == null || card.getEstagio() == estagio)
@@ -308,6 +310,39 @@ public class ProspeccaoController {
 
         arquivoService.remover(arquivoId, autor);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Exporta a esteira em CSV, um assunto por arquivo.
+     *
+     * <p>Os filtros são os mesmos da listagem, então o que sai é o que a pessoa está vendo. O
+     * arquivo abre no Excel com as colunas separadas e os acentos certos, sem depender de nenhuma
+     * biblioteca nova.</p>
+     */
+    @GetMapping("/exportar")
+    public ResponseEntity<byte[]> exportar(
+            @RequestParam(defaultValue = "CARDS") ProspeccaoExportService.Conteudo tipo,
+            @RequestParam(required = false) EstagioProspeccao estagio,
+            @RequestParam(required = false) UUID comercialId,
+            @RequestParam(required = false, defaultValue = "false") boolean apenasAtrasados) {
+        usuarioAutenticado();
+
+        List<ProspeccaoEntity> cards = prospeccaoService.listarVisiveis().stream()
+                .filter(card -> estagio == null || card.getEstagio() == estagio)
+                .filter(card -> comercialId == null || comercialId.equals(card.getComercialId()))
+                .filter(card -> !apenasAtrasados
+                        || prospeccaoService.slaEstourado(card)
+                        || prospeccaoService.silencioProlongado(card))
+                .toList();
+
+        byte[] conteudo = exportService.exportar(tipo, cards).getBytes(StandardCharsets.UTF_8);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(exportService.nomeDoArquivo(tipo), StandardCharsets.UTF_8)
+                .build());
+        return ResponseEntity.ok().headers(headers).body(conteudo);
     }
 
     /**

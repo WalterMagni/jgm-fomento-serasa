@@ -20,6 +20,8 @@ export type NavItem = {
    * Só a esteira usa: é a única tela com prazo correndo contra o usuário.
    */
   badge?: number;
+  /** Marca a área como em avaliação, para o time saber que o fluxo ainda pode mudar. */
+  beta?: boolean;
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -39,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/prospeccao",
     icon: "conveyor_belt",
     label: "Esteira de Prospecção",
+    beta: true,
     isActive: p => p.startsWith("/prospeccao"),
   },
   {
@@ -140,6 +143,15 @@ export function NavLink({
       >
         {item.label}
       </span>
+      {item.beta && (
+        <span
+          className={`shrink-0 rounded border border-white/30 px-1 py-px text-[9px] font-bold uppercase
+            tracking-wider text-white/70 ${labelVisibility}`}
+          title="Em avaliação: o fluxo ainda pode mudar"
+        >
+          beta
+        </span>
+      )}
       {item.badge != null && item.badge > 0 && (
         <span
           // Na sidebar recolhida o rótulo desaparece, mas o contador fica: é o único aviso

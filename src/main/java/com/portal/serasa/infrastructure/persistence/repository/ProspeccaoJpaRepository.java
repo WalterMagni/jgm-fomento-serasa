@@ -32,6 +32,20 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
     List<ProspeccaoEntity> findByClosedAtIsNullOrderByEstagioDesdeAsc();
 
     /**
+     * Abertos mais os encerrados recentemente.
+     *
+     * <p>A tela mostra reprovados e removidos do radar numa seção à parte, e o relatório precisa
+     * deles para a coluna de motivo da recusa fazer sentido. O corte por data evita que a lista
+     * cresça para sempre — desfecho de um ano atrás é assunto de relatório, não de esteira.</p>
+     */
+    @Query("""
+            SELECT p FROM ProspeccaoEntity p
+             WHERE p.closedAt IS NULL OR p.closedAt >= :desde
+             ORDER BY p.estagioDesde ASC
+            """)
+    List<ProspeccaoEntity> findAbertasEEncerradasDesde(@Param("desde") LocalDateTime desde);
+
+    /**
      * Assume a análise sem corrida: o analista que chegar primeiro grava o próprio id, e a
      * segunda tentativa não afeta linha nenhuma, devolvendo 0. O default é que o analista puxe
      * da fila, e não que alguém distribua — ver os defaults de 2026-09-28.
