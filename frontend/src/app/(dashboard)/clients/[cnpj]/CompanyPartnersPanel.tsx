@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { openInNewTab } from "@/lib/newTab";
 import { toast } from "sonner";
 import { useEconomicGroup } from "./useEconomicGroup";
 
@@ -73,7 +73,6 @@ async function readError(res: Response, fallback: string) {
 }
 
 export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -534,7 +533,7 @@ export function CompanyPartnersPanel({ cnpj }: { cnpj: string }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => router.push(`/clients/${p.cnpj.replace(/\D/g, "")}`)}
+                    onClick={() => openInNewTab(`/clients/${p.cnpj.replace(/\D/g, "")}`)}
                     className="rounded-md border border-border-light px-2.5 py-1 text-xs font-semibold text-grafite transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-white/5"
                   >
                     Ver perfil

@@ -4,6 +4,8 @@ import React from "react";
 import Icon from "@/components/ui/Icon";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { reserveNewTab } from "@/lib/newTab";
 import { toast } from "sonner";
 import { usePersonProfile } from "../../../../hooks/usePersonProfile";
 import { PersonNotesPanel } from "./PersonNotesPanel";
@@ -497,6 +499,7 @@ export default function PersonDetailPage() {
   const { cpf } = useParams<{ cpf: string }>();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { profile, isLoading, isError, consultSerasa, isConsulting } = usePersonProfile(cpf);
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({});
@@ -650,6 +653,7 @@ export default function PersonDetailPage() {
     }
 
     setCreatingCompanyCnpj(cnpjClean);
+    const tab = reserveNewTab();
     try {
       const token = localStorage.getItem("serasa_token");
       const response = await fetch(
@@ -669,8 +673,10 @@ export default function PersonDetailPage() {
       }
 
       toast.success("Empresa criada com sucesso na carteira.");
-      router.push(`/clients/${cnpjClean}?${buildContextQuery(pathname, profile.personName ?? formatCpf(profile.cpf))}`);
+      queryClient.invalidateQueries({ queryKey: ["personProfile", cpf.replace(/\D/g, "")] });
+      tab.go(`/clients/${cnpjClean}?${buildContextQuery(pathname, profile.personName ?? formatCpf(profile.cpf))}`);
     } catch (error) {
+      tab.cancel();
       toast.error(error instanceof Error ? error.message : "Erro ao criar empresa.");
     } finally {
       setCreatingCompanyCnpj(null);
@@ -1183,6 +1189,8 @@ export default function PersonDetailPage() {
                     {cnpjClean.length === 14 && isRegistered && (
                       <Link
                         href={`/clients/${cnpjClean}?${buildContextQuery(pathname, profile.personName ?? formatCpf(profile.cpf))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-xs font-sans font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5"
                       >
                         Ver empresa

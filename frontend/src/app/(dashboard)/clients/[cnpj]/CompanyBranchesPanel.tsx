@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { openInNewTab, reserveNewTab } from "@/lib/newTab";
 import { toast } from "sonner";
 import { useCompanyBranches } from "../../../../hooks/usePaymentPlace";
 
@@ -24,7 +24,6 @@ function formatCnpj(cnpj: string) {
 }
 
 export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
 
@@ -32,7 +31,7 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
   const { data, isFetching, isError, error } = useCompanyBranches(cnpj, true);
 
   const createProfile = useMutation({
-    mutationFn: async (branchCnpj: string) => {
+    mutationFn: async ({ branchCnpj }: { branchCnpj: string; tab: ReturnType<typeof reserveNewTab> }) => {
       const res = await fetch(`${API_BASE_URL}/company/enrich/cnpja/${branchCnpj.replace(/\D/g, "")}`, {
         method: "POST",
         headers: getAuthHeaders(),
@@ -40,12 +39,15 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
       if (!res.ok) throw new Error("Falha ao criar perfil da filial");
       return branchCnpj;
     },
-    onSuccess: (branchCnpj) => {
+    onSuccess: (branchCnpj, { tab }) => {
       toast.success("Perfil da filial criado");
       queryClient.invalidateQueries({ queryKey: ["companyBranches", cnpj] });
-      router.push(`/clients/${branchCnpj.replace(/\D/g, "")}`);
+      tab.go(`/clients/${branchCnpj.replace(/\D/g, "")}`);
     },
-    onError: (e) => toast.error((e as Error).message),
+    onError: (e, { tab }) => {
+      tab.cancel();
+      toast.error((e as Error).message);
+    },
   });
 
   const branches = data ?? [];
@@ -97,7 +99,7 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
                 {b.inSystem ? (
                   <button
                     type="button"
-                    onClick={() => router.push(`/clients/${b.cnpj.replace(/\D/g, "")}`)}
+                    onClick={() => openInNewTab(`/clients/${b.cnpj.replace(/\D/g, "")}`)}
                     className="rounded-md border border-border-light px-2.5 py-1 text-xs font-semibold text-grafite transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-200 dark:hover:bg-white/5"
                   >
                     Ver perfil
@@ -105,11 +107,11 @@ export function CompanyBranchesPanel({ cnpj }: { cnpj: string }) {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => createProfile.mutate(b.cnpj)}
+                    onClick={() => createProfile.mutate({ branchCnpj: b.cnpj, tab: reserveNewTab() })}
                     disabled={createProfile.isPending}
                     className="rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                   >
-                    {createProfile.isPending && createProfile.variables === b.cnpj ? "Criando…" : "Criar perfil"}
+                    {createProfile.isPending && createProfile.variables?.branchCnpj === b.cnpj ? "Criando…" : "Criar perfil"}
                   </button>
                 )}
               </div>

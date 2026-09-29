@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import { openInNewTab } from "@/lib/newTab";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -106,12 +107,10 @@ function formatDateTime(raw: string | undefined, options?: { dateOnly?: boolean 
   }).format(date);
 }
 function navigateToIndividualProfile(target: string) {
-  if (typeof window === "undefined") return;
-  window.location.assign(`/individuals/${target}`);
+  openInNewTab(`/individuals/${target}`);
 }
 function navigateToCompanyProfile(cnpj: string) {
-  if (typeof window === "undefined") return;
-  window.location.assign(`/clients/${cnpj.replace(/\D/g, "")}`);
+  openInNewTab(`/clients/${cnpj.replace(/\D/g, "")}`);
 }
 /** Quantas outras empresas a pessoa tem, segundo o cruzamento por sócio da base da Receita. */
 function OtherCompaniesChip({ count }: { count: number }) {
