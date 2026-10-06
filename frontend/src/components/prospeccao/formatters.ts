@@ -123,3 +123,19 @@ export function ordenarCards<T extends { razaoSocial: string; horasNoEstagio: nu
   // localeCompare com "pt-BR" para acento não jogar "Ávila" para o fim da lista.
   return copia.sort((a, b) => direcao * a.razaoSocial.localeCompare(b.razaoSocial, "pt-BR"));
 }
+
+/**
+ * Confirmação antes de apagar. Lista até cinco nomes para quem selecionou em lote enxergar o que
+ * vai sumir, e lembra a alternativa: quem desistiu da empresa deveria reprovar ou remover do radar.
+ */
+export function confirmarExclusao(cards: { razaoSocial: string }[]): boolean {
+  if (cards.length === 0) return false;
+  const nomes = cards.slice(0, 5).map(card => `• ${card.razaoSocial}`).join("\n");
+  const resto = cards.length > 5 ? `\n… e mais ${cards.length - 5}` : "";
+  const titulo = cards.length === 1 ? "Apagar este card?" : `Apagar ${cards.length} cards?`;
+  return window.confirm(
+    `${titulo}\n\n${nomes}${resto}\n\n` +
+      "Checklist e histórico somem junto e não dá para desfazer. Arquivos enviados continuam na pasta CLIENTES.\n\n" +
+      "Se a empresa só não vai seguir, use Reprovar ou Remover do radar.",
+  );
+}

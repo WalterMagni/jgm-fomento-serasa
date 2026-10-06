@@ -8,11 +8,12 @@ import NovaProspeccaoDialog from "@/components/prospeccao/NovaProspeccaoDialog";
 import BackfillDialog from "@/components/prospeccao/BackfillDialog";
 import ManualDrawer from "@/components/prospeccao/ManualDrawer";
 import { COLUNAS, EstagioProspeccao, Prospeccao, ROTULO_ESTAGIO, ROTULO_MOTIVO } from "@/types/prospeccao";
-import { Ordenacao, ordenarCards } from "@/components/prospeccao/formatters";
+import { confirmarExclusao, Ordenacao, ordenarCards } from "@/components/prospeccao/formatters";
 import {
   ConteudoExport,
   exportarEsteira,
   useEstagios,
+  useExcluirProspeccoes,
   useProspeccaoResumo,
   useProspeccoes,
   useTransicionarProspeccao,
@@ -39,11 +40,15 @@ export default function ProspeccaoPage() {
   // Ordenação por coluna: cada uma tem um volume e um uso diferente. Triagem enche depois de
   // puxar visão cedente e é onde ordenar por nome mais ajuda.
   const [ordenacoes, setOrdenacoes] = useState<Record<string, Ordenacao>>({});
+  // Modo seleção para apagar em lote. Clicar no card marca em vez de abrir.
+  const [selecionando, setSelecionando] = useState(false);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const { data: cards = [], isLoading, error } = useProspeccoes({ apenasAtrasados });
   const { data: resumo } = useProspeccaoResumo();
   const { data: transicoes } = useEstagios();
   const transicionar = useTransicionarProspeccao();
+  const excluir = useExcluirProspeccoes();
 
   // O filtro não persiste entre sessões de propósito: ler localStorage no mount exigiria
   // setState em efeito, que a regra react-hooks/set-state-in-effect proíbe neste projeto, e
@@ -98,6 +103,40 @@ export default function ProspeccaoPage() {
   );
 
   const noQuadro = COLUNAS.reduce((soma, coluna) => soma + (porEstagio.get(coluna)?.length ?? 0), 0);
+
+  // Só conta o que está visível: card marcado e depois escondido pelo filtro não é apagado sem
+  // que a pessoa o veja.
+  const marcadosVisiveis = useMemo(
+    () => filtrados.filter(card => selecionados.has(card.id)),
+    [filtrados, selecionados],
+  );
+
+  function alternarSelecao(id: string) {
+    setSelecionados(atual => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  }
+
+  function selecionarColuna(ids: string[], marcar: boolean) {
+    setSelecionados(atual => {
+      const proximo = new Set(atual);
+      ids.forEach(id => (marcar ? proximo.add(id) : proximo.delete(id)));
+      return proximo;
+    });
+  }
+
+  function sairDaSelecao() {
+    setSelecionando(false);
+    setSelecionados(new Set());
+  }
+
+  function apagarSelecionados() {
+    if (!confirmarExclusao(marcadosVisiveis)) return;
+    excluir.mutate(marcadosVisiveis.map(card => card.id), { onSuccess: sairDaSelecao });
+  }
 
   const cardEmArraste = arrastando ? filtrados.find(card => card.id === arrastando) : undefined;
 
@@ -247,6 +286,21 @@ export default function ProspeccaoPage() {
 
           <button
             type="button"
+            onClick={() => (selecionando ? sairDaSelecao() : setSelecionando(true))}
+            title="Marcar cards para apagar de uma vez"
+            className={`inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs shadow-sm
+              transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                selecionando
+                  ? "bg-[#612035] text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+          >
+            <Icon name="checklist_rtl" className="text-[15px]" />
+            {selecionando ? "sair da seleção" : "selecionar"}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setBackfillAberto(true)}
             title="Traz para a esteira as análises com visão cedente SIM que já existiam"
             className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200
@@ -383,6 +437,10 @@ export default function ProspeccaoPage() {
               onMover={moverPorMenu}
               ordenacao={ordenacoes[coluna] ?? "urgencia"}
               onOrdenar={proxima => setOrdenacoes(atual => ({ ...atual, [coluna]: proxima }))}
+              selecionando={selecionando}
+              selecionados={selecionados}
+              onAlternarSelecao={alternarSelecao}
+              onSelecionarColuna={selecionarColuna}
             />
           ))}
         </div>
@@ -411,6 +469,37 @@ export default function ProspeccaoPage() {
             ))}
           </ul>
         </details>
+      )}
+
+      {selecionando && (
+        <div className="esteira-fade-in sticky bottom-2 z-30 mx-auto flex items-center gap-3 rounded-lg
+          border border-slate-200 bg-white px-4 py-2 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-800">
+          <span className="text-slate-600 dark:text-slate-300">
+            {marcadosVisiveis.length === 0
+              ? "Clique nos cards para marcar"
+              : `${marcadosVisiveis.length} selecionado${marcadosVisiveis.length > 1 ? "s" : ""}`}
+          </span>
+          <button
+            type="button"
+            onClick={apagarSelecionados}
+            disabled={marcadosVisiveis.length === 0 || excluir.isPending}
+            className="inline-flex cursor-pointer items-center gap-1 rounded bg-red-600 px-2.5 py-1 text-white
+              transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500
+              focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Icon name="delete" className="text-[15px]" />
+            {excluir.isPending ? "apagando…" : "Apagar"}
+          </button>
+          <button
+            type="button"
+            onClick={sairDaSelecao}
+            className="cursor-pointer rounded px-2 py-1 text-slate-500 transition-colors hover:bg-slate-100
+              hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+              dark:text-slate-400 dark:hover:bg-slate-700"
+          >
+            cancelar
+          </button>
+        </div>
       )}
 
       {cardAberto && <ProspeccaoModal cardId={cardAberto} onFechar={() => setCardAberto(null)} />}

@@ -13,15 +13,29 @@ type Props = {
   arrastando: boolean;
   /** Fallback de teclado e de quem não quer arrastar: mover por menu. */
   onMover: () => void;
+  /** Modo seleção: clicar marca o card em vez de abrir, e arrastar fica desligado. */
+  selecionando?: boolean;
+  selecionado?: boolean;
+  onAlternarSelecao?: () => void;
 };
 
-export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, arrastando, onMover }: Props) {
+export default function ProspeccaoCard({
+  card,
+  onAbrir,
+  onDragStart,
+  onDragEnd,
+  arrastando,
+  onMover,
+  selecionando = false,
+  selecionado = false,
+  onAlternarSelecao,
+}: Props) {
   const semaforo = semaforoDe(card);
   const progresso = card.documentosTotal > 0 ? `${card.documentosResolvidos}/${card.documentosTotal}` : null;
 
   return (
     <article
-      draggable
+      draggable={!selecionando}
       onDragStart={event => {
         event.dataTransfer.setData("text/plain", card.id);
         event.dataTransfer.effectAllowed = "move";
@@ -34,17 +48,25 @@ export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, 
         shadow-sm transition-[background-color,box-shadow,border-color] duration-200 ease-out
         hover:bg-slate-50 hover:shadow-md active:cursor-grabbing
         dark:bg-slate-800 dark:hover:bg-slate-700/70
-        ${CLASSE_SEMAFORO[semaforo]} ${arrastando ? "opacity-40" : ""}`}
+        ${CLASSE_SEMAFORO[semaforo]} ${arrastando ? "opacity-40" : ""}
+        ${selecionando ? "cursor-pointer" : ""} ${selecionado ? "ring-2 ring-[#612035] dark:ring-[#D1732C]" : ""}`}
     >
       <button
         type="button"
-        onClick={onAbrir}
-        aria-label={`Abrir ${card.razaoSocial}`}
+        onClick={selecionando ? onAlternarSelecao : onAbrir}
+        aria-label={selecionando ? `Selecionar ${card.razaoSocial}` : `Abrir ${card.razaoSocial}`}
+        aria-pressed={selecionando ? selecionado : undefined}
         className="w-full cursor-pointer rounded text-left focus:outline-none focus-visible:ring-2
           focus-visible:ring-[#612035] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
       >
-        <h3 className="line-clamp-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-          {card.razaoSocial}
+        <h3 className="flex items-start gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          {selecionando && (
+            <Icon
+              name={selecionado ? "check_box" : "check_box_outline_blank"}
+              className={`mt-px shrink-0 text-[18px] ${selecionado ? "text-[#612035] dark:text-[#D1732C]" : "text-slate-400"}`}
+            />
+          )}
+          <span className="line-clamp-2">{card.razaoSocial}</span>
         </h3>
         <p className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">{formatCnpj(card.cnpj)}</p>
 
@@ -84,16 +106,18 @@ export default function ProspeccaoCard({ card, onAbrir, onDragStart, onDragEnd, 
         <span className="text-[10px] uppercase tracking-wide text-slate-400">
           {card.origem === "AUTOMATICA" ? "visão cedente" : "manual"}
         </span>
-        <button
-          type="button"
-          onClick={onMover}
-          className="cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-slate-500 transition-colors
-            hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2
-            focus-visible:ring-[#612035] dark:text-slate-400 dark:hover:bg-slate-700"
-          title={`Mover de ${ROTULO_ESTAGIO[card.estagio]}`}
-        >
-          Mover
-        </button>
+        {!selecionando && (
+          <button
+            type="button"
+            onClick={onMover}
+            className="cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-slate-500 transition-colors
+              hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2
+              focus-visible:ring-[#612035] dark:text-slate-400 dark:hover:bg-slate-700"
+            title={`Mover de ${ROTULO_ESTAGIO[card.estagio]}`}
+          >
+            Mover
+          </button>
+        )}
       </div>
     </article>
   );

@@ -6,13 +6,14 @@ import Icon from "@/components/ui/Icon";
 import { EstagioProspeccao, MotivoRecusa, ROTULO_ESTAGIO, ROTULO_MOTIVO } from "@/types/prospeccao";
 import {
   useAssumirProspeccao,
+  useExcluirProspeccoes,
   useProspeccaoDetalhe,
   useReabrirProspeccao,
   useTransicionarProspeccao,
 } from "@/hooks/useProspeccao";
 import DocumentChecklist from "./DocumentChecklist";
 import ProspeccaoTimeline from "./ProspeccaoTimeline";
-import { CLASSE_BADGE_SEMAFORO, formatCnpj, formatDate, semaforoDe, textoPrazo } from "./formatters";
+import { CLASSE_BADGE_SEMAFORO, confirmarExclusao, formatCnpj, formatDate, semaforoDe, textoPrazo } from "./formatters";
 
 const MOTIVOS: MotivoRecusa[] = [
   "QUANTIDADE_DE_RESTRICOES",
@@ -29,6 +30,7 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
   const assumir = useAssumirProspeccao();
   const transicionar = useTransicionarProspeccao();
   const reabrir = useReabrirProspeccao();
+  const excluir = useExcluirProspeccoes();
   const [aba, setAba] = useState<"documentos" | "timeline">("documentos");
 
   useEffect(() => {
@@ -167,6 +169,22 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
                   Card repassado para a habilitação — segue fora desta tela.
                 </p>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirmarExclusao([card])) return;
+                  excluir.mutate([cardId], { onSuccess: onFechar });
+                }}
+                disabled={excluir.isPending}
+                title="Apagar card criado por engano"
+                className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded px-2.5 py-1 text-xs
+                  text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2
+                  focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50
+                  dark:text-red-400 dark:hover:bg-red-950/40"
+              >
+                <Icon name="delete" className="text-[15px]" />
+                {excluir.isPending ? "apagando…" : "Apagar"}
+              </button>
             </div>
 
             <nav className="flex gap-4 border-b border-slate-200 px-4 dark:border-slate-700">

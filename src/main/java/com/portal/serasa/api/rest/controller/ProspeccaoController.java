@@ -224,6 +224,26 @@ public class ProspeccaoController {
         return ResponseEntity.ok(toResponse(prospeccaoService.reabrir(id, request.texto(), autor)));
     }
 
+    /** Apaga um card. Ver {@link ProspeccaoService#excluir} para o que some junto. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluir(@PathVariable UUID id) {
+        UserEntity autor = usuarioAutenticado();
+        autorizacao.exigirExclusao(autor);
+        if (prospeccaoService.excluir(List.of(id), autor) == 0) {
+            throw new com.portal.serasa.domain.exception.EntityNotFoundException(
+                    "Card de prospecção não encontrado: " + id);
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Apaga em lote. POST e não DELETE porque corpo em DELETE é ignorado por alguns proxies. */
+    @PostMapping("/excluir")
+    public ResponseEntity<Map<String, Object>> excluirEmLote(@RequestBody Map<String, List<UUID>> corpo) {
+        UserEntity autor = usuarioAutenticado();
+        autorizacao.exigirExclusao(autor);
+        return ResponseEntity.ok(Map.of("cardsApagados", prospeccaoService.excluir(corpo.get("ids"), autor)));
+    }
+
     /** Cobrança quando há canal; nota interna quando não há. */
     @PostMapping("/{id}/eventos")
     public ResponseEntity<ProspeccaoEventoResponse> registrarEvento(

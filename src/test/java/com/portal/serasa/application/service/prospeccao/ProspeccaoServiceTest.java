@@ -293,6 +293,36 @@ class ProspeccaoServiceTest {
                 .build();
     }
 
+    @Test
+    @DisplayName("excluir: apaga só os cards que existem e devolve quantos foram")
+    void shouldDeleteOnlyExistingCards() {
+        ProspeccaoEntity existente = card(EstagioProspeccao.TRIAGEM);
+        UUID sumido = UUID.randomUUID();
+        when(prospeccaoRepository.findAllById(List.of(existente.getId(), sumido))).thenReturn(List.of(existente));
+
+        int apagados = service.excluir(List.of(existente.getId(), sumido), analista);
+
+        assertThat(apagados).isEqualTo(1);
+        verify(prospeccaoRepository).deleteAllByIdInBatch(List.of(existente.getId()));
+    }
+
+    @Test
+    @DisplayName("excluir: lista vazia não toca no banco")
+    void shouldIgnoreEmptyDeletion() {
+        assertThat(service.excluir(List.of(), analista)).isZero();
+        verify(prospeccaoRepository, never()).deleteAllByIdInBatch(any());
+    }
+
+    @Test
+    @DisplayName("excluir: recusa lote acima do teto")
+    void shouldRejectOversizedDeletion() {
+        List<UUID> ids = java.util.stream.Stream.generate(UUID::randomUUID)
+                .limit(ProspeccaoService.LIMITE_EXCLUSAO + 1L).toList();
+
+        assertThatThrownBy(() -> service.excluir(ids, analista)).isInstanceOf(IllegalArgumentException.class);
+        verify(prospeccaoRepository, never()).deleteAllByIdInBatch(any());
+    }
+
     private static int anyInt() {
         return org.mockito.ArgumentMatchers.anyInt();
     }

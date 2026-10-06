@@ -49,6 +49,14 @@ public class ProspeccaoAutorizacao {
     }
 
     /**
+     * Apagar card. Aberto a todos como o resto da esteira: o caso de uso é desfazer card criado
+     * errado, e quem criou precisa conseguir desfazer.
+     */
+    public void exigirExclusao(UserEntity usuario) {
+        exigirAutenticado(usuario);
+    }
+
+    /**
      * Catálogo de documentos: continua restrito ao admin.
      *
      * <p>Não é operação da esteira e sim configuração: mexer aqui muda o que passa a ser exigido

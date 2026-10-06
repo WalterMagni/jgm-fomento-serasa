@@ -312,6 +312,28 @@ export function useEnviarArquivo() {
   });
 }
 
+/** Apaga de vez: checklist e histórico vão junto. Um card ou a seleção inteira. */
+export function useExcluirProspeccoes() {
+  const invalidar = useInvalidar();
+  return useMutation<number, Error, string[]>({
+    mutationFn: async ids => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/excluir`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Não foi possível apagar"));
+      const corpo: { cardsApagados: number } = await res.json();
+      return corpo.cardsApagados;
+    },
+    onSuccess: apagados => {
+      invalidar();
+      toast.success(apagados === 1 ? "Card apagado" : `${apagados} cards apagados`);
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useRemoverArquivo() {
   const invalidar = useInvalidar();
   return useMutation<void, Error, { cardId: string; arquivoId: string }>({

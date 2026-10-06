@@ -340,6 +340,46 @@ public class ProspeccaoService {
                 .orElseThrow(() -> new EntityNotFoundException("Card de prospecção não encontrado: " + id));
     }
 
+    /** Teto por chamada: apagar é irreversível, e a tela nunca precisa de mais que uma coluna cheia. */
+    public static final int LIMITE_EXCLUSAO = 500;
+
+    /**
+     * Apaga cards de vez, com checklist, histórico e registro de arquivos.
+     *
+     * <p>É para card criado por engano e para limpar a fila, não para encerrar análise: quem
+     * desiste da empresa usa reprovar ou remover do radar, que guardam o motivo. Por isso a
+     * exclusão some com tudo — documento e evento caem por {@code ON DELETE CASCADE}.</p>
+     *
+     * <p>O arquivo em si fica no compartilhamento, pela mesma regra da remoção de arquivo: aquela
+     * pasta é usada por outras equipes e apagar byte de lá não tem volta. Sem a timeline, o log da
+     * aplicação é o único rastro de quem apagou o quê.</p>
+     *
+     * <p>Card que veio da visão cedente volta a aparecer como candidato em "puxar visão cedente",
+     * porque é a existência do card que marca a análise como já trazida.</p>
+     *
+     * @return quantos cards foram apagados; id que não existe mais é ignorado
+     */
+    @Transactional
+    public int excluir(List<UUID> ids, UserEntity autor) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        if (ids.size() > LIMITE_EXCLUSAO) {
+            throw new IllegalArgumentException(
+                    "No máximo " + LIMITE_EXCLUSAO + " cards por vez; recebidos " + ids.size() + ".");
+        }
+        List<ProspeccaoEntity> cards = prospeccaoRepository.findAllById(ids);
+        if (cards.isEmpty()) {
+            return 0;
+        }
+        String quem = autor == null ? "desconhecido" : autor.getEmail() != null ? autor.getEmail() : autor.getName();
+        cards.forEach(card -> log.warn("Esteira: card {} apagado por {} — CNPJ {}, {}, estágio {}",
+                card.getId(), quem, card.getCnpj(), card.getRazaoSocial(), card.getEstagio()));
+
+        prospeccaoRepository.deleteAllByIdInBatch(cards.stream().map(ProspeccaoEntity::getId).toList());
+        return cards.size();
+    }
+
     /** Janela de desfechos que a esteira ainda mostra; mais antigo que isso é assunto de relatório. */
     public static final int DIAS_DE_DESFECHO_VISIVEL = 90;
 

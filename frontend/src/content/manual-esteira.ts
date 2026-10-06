@@ -154,6 +154,14 @@ atual: os cards, o checklist item a item e o histórico de cobranças.
 **Empresa reprovada que melhorou.** Abra o card na faixa de reprovados e use **Reabrir em
 triagem**. O motivo anterior fica no histórico e o card passa a mostrar "reanálise".
 
+**Card criado por engano ou fila para limpar.** Dentro do card, **Apagar**. Para vários de
+uma vez, botão **selecionar** no topo: clique nos cards (ou no ícone do cabeçalho para marcar
+a coluna inteira) e **Apagar** na barra de baixo. Só entra o que está visível no filtro
+atual. Apagar não tem volta: checklist e histórico somem junto, os arquivos ficam na pasta
+\`CLIENTES\`. Se a empresa só não vai seguir, prefira **Reprovar** ou **Remover do radar**,
+que guardam o motivo. Card que veio da visão cedente volta a aparecer em **puxar visão
+cedente** depois de apagado.
+
 **Mesma empresa duas vezes.** Não dá: só existe um card aberto por CNPJ. Quando o card
 chega a um desfecho, o CNPJ é liberado para um card novo.
 

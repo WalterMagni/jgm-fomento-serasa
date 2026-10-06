@@ -18,6 +18,11 @@ type Props = {
   onMover: (card: Prospeccao) => void;
   ordenacao: Ordenacao;
   onOrdenar: (ordenacao: Ordenacao) => void;
+  selecionando: boolean;
+  selecionados: Set<string>;
+  onAlternarSelecao: (id: string) => void;
+  /** Marca ou desmarca de uma vez os cards visíveis da coluna. */
+  onSelecionarColuna: (ids: string[], marcar: boolean) => void;
 };
 
 export default function ProspeccaoColumn({
@@ -32,8 +37,13 @@ export default function ProspeccaoColumn({
   onMover,
   ordenacao,
   onOrdenar,
+  selecionando,
+  selecionados,
+  onAlternarSelecao,
+  onSelecionarColuna,
 }: Props) {
   const arrastandoAlgo = cardArrastando !== null;
+  const todosMarcados = cards.length > 0 && cards.every(card => selecionados.has(card.id));
 
   return (
     <section
@@ -58,6 +68,18 @@ export default function ProspeccaoColumn({
           {ROTULO_ESTAGIO[estagio]}
         </h2>
         <div className="flex items-center gap-1">
+          {selecionando && cards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onSelecionarColuna(cards.map(card => card.id), !todosMarcados)}
+              title={todosMarcados ? "Desmarcar todos da coluna" : "Marcar todos da coluna"}
+              aria-label={`${todosMarcados ? "Desmarcar" : "Marcar"} todos de ${ROTULO_ESTAGIO[estagio]}`}
+              className="cursor-pointer rounded p-1 text-slate-500 transition-colors hover:bg-white
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:hover:bg-slate-800"
+            >
+              <Icon name={todosMarcados ? "check_box" : "select_all"} className="text-[15px]" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onOrdenar(PROXIMA_ORDENACAO[ordenacao])}
@@ -88,6 +110,9 @@ export default function ProspeccaoColumn({
             onDragStart={() => onDragStart(card.id)}
             onDragEnd={onDragEnd}
             onMover={() => onMover(card)}
+            selecionando={selecionando}
+            selecionado={selecionados.has(card.id)}
+            onAlternarSelecao={() => onAlternarSelecao(card.id)}
           />
         ))}
         {cards.length === 0 && (
