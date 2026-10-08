@@ -17,7 +17,12 @@ import com.portal.serasa.infrastructure.persistence.entity.LiberacaoParecerEntit
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoPendenciaEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoSacadoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
+import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEtiquetaEntity;
+import com.portal.serasa.infrastructure.persistence.entity.LiberacaoEtiquetaEntity;
+import com.portal.serasa.infrastructure.persistence.repository.LiberacaoCardEtiquetaJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoComentarioJpaRepository;
+import com.portal.serasa.infrastructure.persistence.repository.LiberacaoEtiquetaJpaRepository;
+import com.portal.serasa.infrastructure.persistence.repository.LiberacaoEventoJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoMembroJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoParecerJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoPendenciaJpaRepository;
@@ -28,6 +33,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -59,6 +65,9 @@ public class LiberacaoResponseAssembler {
     private final LiberacaoMembroJpaRepository membroRepository;
     private final LiberacaoComentarioJpaRepository comentarioRepository;
     private final LiberacaoComentarioService comentarioService;
+    private final LiberacaoCardEtiquetaJpaRepository cardEtiquetaRepository;
+    private final LiberacaoEtiquetaJpaRepository etiquetaRepository;
+    private final LiberacaoEventoJpaRepository eventoRepository;
     private final UserRepository userRepository;
     private final CompanyDetailRepository companyDetailRepository;
     private final LiberacaoAutorizacao autorizacao;
@@ -81,6 +90,14 @@ public class LiberacaoResponseAssembler {
                 .collect(Collectors.groupingBy(LiberacaoMembroEntity::getCardId));
         Map<UUID, Long> comentarios = comentarioRepository.contarPorCard(ids).stream()
                 .collect(Collectors.toMap(linha -> (UUID) linha[0], linha -> (Long) linha[1]));
+        Map<UUID, LocalDateTime> ultimoEvento = maximos(eventoRepository.ultimoPorCard(ids));
+        Map<UUID, LocalDateTime> ultimoComentario = maximos(comentarioRepository.ultimoPorCard(ids));
+        Map<UUID, List<LiberacaoCardEtiquetaEntity>> vinculos = cardEtiquetaRepository.findByCardIdIn(ids).stream()
+                .collect(Collectors.groupingBy(LiberacaoCardEtiquetaEntity::getCardId));
+        Map<UUID, LiberacaoEtiquetaEntity> etiquetas = vinculos.isEmpty() ? Map.of()
+                : etiquetaRepository.findAllById(vinculos.values().stream().flatMap(List::stream)
+                        .map(LiberacaoCardEtiquetaEntity::getEtiquetaId).collect(Collectors.toSet())).stream()
+                        .collect(Collectors.toMap(LiberacaoEtiquetaEntity::getId, Function.identity()));
 
         Map<UUID, UserEntity> usuarios = usuarios(membros.values().stream()
                 .flatMap(List::stream).map(LiberacaoMembroEntity::getUsuarioId).toList());
@@ -95,6 +112,14 @@ public class LiberacaoResponseAssembler {
                         comentarios.getOrDefault(card.getId(), 0L).intValue(),
                         membros.getOrDefault(card.getId(), List.of()),
                         usuarios, cadastrados, comiteVazio, usuario))
+                .map(resposta -> completar(resposta,
+                        vinculos.getOrDefault(resposta.id(), List.of()).stream()
+                                .map(vinculo -> etiquetas.get(vinculo.getEtiquetaId()))
+                                .filter(Objects::nonNull)
+                                .sorted(Comparator.comparing(LiberacaoEtiquetaEntity::getNome))
+                                .map(etiqueta -> new LiberacaoCardResponse.Etiqueta(etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()))
+                                .toList(),
+                        mais(resposta.atualizadoEm(), ultimoEvento.get(resposta.id()), ultimoComentario.get(resposta.id()))))
                 .toList();
     }
 
@@ -168,6 +193,8 @@ public class LiberacaoResponseAssembler {
                 .valor(card.getValor())
                 .prazo(card.getPrazo())
                 .parecerOrigem(card.getParecerOrigem())
+                .cor(card.getCor())
+                .criadoPorId(card.getCriadoPorId())
                 .criadoPorNome(card.getCriadoPorNome())
                 .criadoEm(card.getCriadoEm())
                 .atualizadoPorNome(card.getAtualizadoPorNome())
@@ -175,6 +202,10 @@ public class LiberacaoResponseAssembler {
                 .finalizadoEm(card.getFinalizadoEm())
                 .version(card.getVersion())
                 .sacadosQtd(sacados.size())
+                .sacados(sacados.stream()
+                        .sorted(Comparator.comparing(LiberacaoSacadoEntity::getOrdem))
+                        .map(sacado -> new LiberacaoCardResponse.SacadoCurto(sacado.getCnpj(), sacado.getNome()))
+                        .toList())
                 .somaSacados(algumValor ? soma : null)
                 .pareceres(pareceres.stream().map(this::parecer).toList())
                 .pendenciasAbertas(pendenciasAbertas)
@@ -196,6 +227,31 @@ public class LiberacaoResponseAssembler {
                         })
                         .toList())
                 .build();
+    }
+
+    /** Etiquetas e última atividade vêm de consultas em lote feitas depois; entram aqui. */
+    private static LiberacaoCardResponse completar(LiberacaoCardResponse base, List<LiberacaoCardResponse.Etiqueta> etiquetas,
+                                                   LocalDateTime ultimaAtividade) {
+        return new LiberacaoCardResponse(base.id(), base.numero(), base.etapa(), base.etapaDesde(), base.rodada(),
+                base.cedenteCnpj(), base.cedenteNome(), base.cedenteCadastrado(), base.tipoOperacao(), base.valor(),
+                base.prazo(), base.parecerOrigem(), base.cor(), etiquetas, base.criadoPorId(), base.criadoPorNome(),
+                base.criadoEm(), base.atualizadoPorNome(), base.atualizadoEm(), base.finalizadoEm(), ultimaAtividade,
+                base.version(), base.sacadosQtd(), base.sacados(), base.somaSacados(), base.pareceres(),
+                base.pendenciasAbertas(), base.comentarios(), base.membros(), base.podeEditar(), base.destinos());
+    }
+
+    private static Map<UUID, LocalDateTime> maximos(List<Object[]> linhas) {
+        return linhas.stream().collect(Collectors.toMap(linha -> (UUID) linha[0], linha -> (LocalDateTime) linha[1]));
+    }
+
+    private static LocalDateTime mais(LocalDateTime... datas) {
+        LocalDateTime maior = null;
+        for (LocalDateTime data : datas) {
+            if (data != null && (maior == null || data.isAfter(maior))) {
+                maior = data;
+            }
+        }
+        return maior;
     }
 
     private LiberacaoCardResponse.Parecer parecer(LiberacaoParecerEntity parecer) {

@@ -484,6 +484,11 @@ public class LiberacaoService {
         adicionarMembro(cardId, usuarioId, origem);
     }
 
+    /** Publica para quem está com o quadro aberto ver a mudança. Sem menção, sem notificação. */
+    public void avisarEdicao(LiberacaoCardEntity card, UserEntity autor) {
+        eventos.publishEvent(new LiberacaoEvento.Editado(card, autor, new java.util.LinkedHashSet<>(), null));
+    }
+
     public static String trecho(String texto) {
         String plano = MencaoParser.textoPlano(texto);
         return plano == null || plano.isBlank() ? null : plano;
@@ -607,6 +612,11 @@ public class LiberacaoService {
         card.setAtualizadoEm(LocalDateTime.now());
         card.setAtualizadoPorId(autor.getId());
         card.setAtualizadoPorNome(autor.getName());
+    }
+
+    /** Para edições feitas fora deste serviço (cor, etiquetas) entrarem na mesma timeline. */
+    public void registrarEdicao(LiberacaoCardEntity card, String campo, String antes, String depois, UserEntity autor) {
+        registrar(card, TipoEventoLiberacao.EDICAO, null, null, campo, antes, depois, null, autor);
     }
 
     private void registrar(LiberacaoCardEntity card, TipoEventoLiberacao tipo, EtapaLiberacao de,

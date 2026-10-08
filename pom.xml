@@ -82,6 +82,12 @@
             <artifactId>openpdf</artifactId>
             <version>2.0.3</version>
         </dependency>
+        <!-- Relatório .xlsx da esteira de liberação: várias abas, moeda e data formatadas. -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>

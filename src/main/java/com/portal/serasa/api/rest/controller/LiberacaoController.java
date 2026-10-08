@@ -2,6 +2,7 @@ package com.portal.serasa.api.rest.controller;
 
 import com.portal.serasa.api.rest.dto.request.LiberacaoCardRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoComentarioRequest;
+import com.portal.serasa.api.rest.dto.request.LiberacaoOrganizacaoRequests;
 import com.portal.serasa.api.rest.dto.request.LiberacaoParecerRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoPendenciaRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoRespostaRequest;
@@ -10,6 +11,8 @@ import com.portal.serasa.api.rest.dto.response.LiberacaoCardResponse;
 import com.portal.serasa.api.rest.dto.response.LiberacaoDetalheResponse;
 import com.portal.serasa.api.rest.mapper.LiberacaoResponseAssembler;
 import com.portal.serasa.application.service.liberacao.LiberacaoComentarioService;
+import com.portal.serasa.application.service.liberacao.LiberacaoExportService;
+import com.portal.serasa.application.service.liberacao.LiberacaoOrganizacaoService;
 import com.portal.serasa.application.service.liberacao.LiberacaoService;
 import com.portal.serasa.application.service.liberacao.LiberacaoService.DadosCard;
 import com.portal.serasa.application.service.liberacao.LiberacaoService.DadosSacado;
@@ -19,6 +22,9 @@ import com.portal.serasa.infrastructure.security.UsuarioLogado;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,6 +56,8 @@ public class LiberacaoController {
 
     private final LiberacaoService liberacaoService;
     private final LiberacaoComentarioService comentarioService;
+    private final LiberacaoOrganizacaoService organizacaoService;
+    private final LiberacaoExportService exportService;
     private final LiberacaoResponseAssembler assembler;
     private final UsuarioLogado usuarioLogado;
 
@@ -157,6 +165,78 @@ public class LiberacaoController {
     public ResponseEntity<Void> excluir(@PathVariable UUID id) {
         liberacaoService.excluir(id, usuarioLogado.obter());
         return ResponseEntity.noContent().build();
+    }
+
+    // ------------------------------------------------- etiquetas, cor, membros
+
+    public record EtiquetaResponse(UUID id, String nome, com.portal.serasa.domain.model.liberacao.CorLiberacao cor) {
+    }
+
+    @GetMapping("/etiquetas")
+    public ResponseEntity<List<EtiquetaResponse>> etiquetas() {
+        usuarioLogado.obter();
+        return ResponseEntity.ok(organizacaoService.etiquetas().stream()
+                .map(etiqueta -> new EtiquetaResponse(etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()))
+                .toList());
+    }
+
+    @PostMapping("/etiquetas")
+    public ResponseEntity<EtiquetaResponse> criarEtiqueta(@Valid @RequestBody LiberacaoOrganizacaoRequests.Etiqueta request) {
+        var etiqueta = organizacaoService.criarEtiqueta(request.nome(), request.cor(), usuarioLogado.obter());
+        return ResponseEntity.ok(new EtiquetaResponse(etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()));
+    }
+
+    @PatchMapping("/etiquetas/{etiquetaId}")
+    public ResponseEntity<EtiquetaResponse> editarEtiqueta(@PathVariable UUID etiquetaId,
+                                                           @Valid @RequestBody LiberacaoOrganizacaoRequests.Etiqueta request) {
+        var etiqueta = organizacaoService.editarEtiqueta(etiquetaId, request.nome(), request.cor(), usuarioLogado.obter());
+        return ResponseEntity.ok(new EtiquetaResponse(etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()));
+    }
+
+    @DeleteMapping("/etiquetas/{etiquetaId}")
+    public ResponseEntity<Void> apagarEtiqueta(@PathVariable UUID etiquetaId) {
+        organizacaoService.apagarEtiqueta(etiquetaId, usuarioLogado.obter());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/etiquetas")
+    public ResponseEntity<LiberacaoCardResponse> etiquetasDoCard(@PathVariable UUID id,
+                                                                 @Valid @RequestBody LiberacaoOrganizacaoRequests.EtiquetasDoCard request) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(organizacaoService.definirEtiquetas(id, request.ids(), autor), autor));
+    }
+
+    @PatchMapping("/{id}/cor")
+    public ResponseEntity<LiberacaoCardResponse> cor(@PathVariable UUID id, @RequestBody LiberacaoOrganizacaoRequests.Cor request) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(organizacaoService.definirCor(id, request.cor(), autor), autor));
+    }
+
+    @PostMapping("/{id}/membros")
+    public ResponseEntity<LiberacaoCardResponse> adicionarMembro(@PathVariable UUID id,
+                                                                 @Valid @RequestBody LiberacaoOrganizacaoRequests.Membro request) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(organizacaoService.adicionarMembro(id, request.usuarioId(), autor), autor));
+    }
+
+    @DeleteMapping("/{id}/membros/{usuarioId}")
+    public ResponseEntity<LiberacaoCardResponse> removerMembro(@PathVariable UUID id, @PathVariable UUID usuarioId) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(organizacaoService.removerMembro(id, usuarioId, autor), autor));
+    }
+
+    // ----------------------------------------------------------------- relatório
+
+    /** Planilha dos cards que a tela está mostrando. POST porque a lista de ids pode ser longa. */
+    @PostMapping("/exportar")
+    public ResponseEntity<byte[]> exportar(@Valid @RequestBody LiberacaoOrganizacaoRequests.Exportacao request) {
+        usuarioLogado.obter();
+        byte[] planilha = exportService.exportar(request.ids());
+        String nome = "esteira-liberacao-" + LocalDate.now() + ".xlsx";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(nome).build().toString())
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(planilha);
     }
 
     // ---------------------------------------------------------------- internos

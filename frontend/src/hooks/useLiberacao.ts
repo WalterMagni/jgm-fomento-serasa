@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
+  CorLiberacao,
   DadosCard,
+  Etiqueta,
   EmpresaEncontrada,
   EtapaLiberacao,
   LiberacaoCard,
@@ -319,6 +321,114 @@ export function useExcluirCard() {
     },
     onError: error => toast.error(error.message),
   });
+}
+
+// --------------------------------------------------------- etiquetas, cor, membros
+
+const ETIQUETAS_KEY = ["liberacaoEtiquetas"] as const;
+
+export function useEtiquetas() {
+  return useQuery<Etiqueta[]>({
+    queryKey: ETIQUETAS_KEY,
+    queryFn: () => pedir(`${API_BASE_URL}/liberacao/etiquetas`, {}, "Falha ao carregar as etiquetas"),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useCriarEtiqueta() {
+  const queryClient = useQueryClient();
+  return useMutation<Etiqueta, Error, { nome: string; cor: CorLiberacao }>({
+    mutationFn: body =>
+      pedir(`${API_BASE_URL}/liberacao/etiquetas`, { method: "POST", body: JSON.stringify(body) }, "Falha ao criar a etiqueta"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ETIQUETAS_KEY }),
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useEditarEtiqueta() {
+  const queryClient = useQueryClient();
+  return useMutation<Etiqueta, Error, { id: string; nome: string; cor: CorLiberacao }>({
+    mutationFn: ({ id, ...body }) =>
+      pedir(`${API_BASE_URL}/liberacao/etiquetas/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "Falha ao alterar a etiqueta"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ETIQUETAS_KEY });
+      queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useApagarEtiqueta() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: id => pedir(`${API_BASE_URL}/liberacao/etiquetas/${id}`, { method: "DELETE" }, "Falha ao apagar a etiqueta"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ETIQUETAS_KEY });
+      queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** Ações rápidas do card que devolvem o card atualizado. */
+function useAcaoCard<T>(montar: (variaveis: T) => { url: string; init: RequestInit }, falhaPadrao: string) {
+  const atualizar = useAtualizarCache();
+  return useMutation<LiberacaoCard, Error, T>({
+    mutationFn: variaveis => {
+      const { url, init } = montar(variaveis);
+      return pedir(url, init, falhaPadrao);
+    },
+    onSuccess: card => atualizar(card),
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useDefinirEtiquetas() {
+  return useAcaoCard<{ id: string; ids: string[] }>(
+    ({ id, ids }) => ({ url: `${API_BASE_URL}/liberacao/${id}/etiquetas`, init: { method: "PUT", body: JSON.stringify({ ids }) } }),
+    "Falha ao mudar as etiquetas",
+  );
+}
+
+export function useDefinirCor() {
+  return useAcaoCard<{ id: string; cor: CorLiberacao | null }>(
+    ({ id, cor }) => ({ url: `${API_BASE_URL}/liberacao/${id}/cor`, init: { method: "PATCH", body: JSON.stringify({ cor }) } }),
+    "Falha ao mudar a cor",
+  );
+}
+
+export function useAdicionarMembro() {
+  return useAcaoCard<{ id: string; usuarioId: string }>(
+    ({ id, usuarioId }) => ({ url: `${API_BASE_URL}/liberacao/${id}/membros`, init: { method: "POST", body: JSON.stringify({ usuarioId }) } }),
+    "Falha ao adicionar membro",
+  );
+}
+
+export function useRemoverMembro() {
+  return useAcaoCard<{ id: string; usuarioId: string }>(
+    ({ id, usuarioId }) => ({ url: `${API_BASE_URL}/liberacao/${id}/membros/${usuarioId}`, init: { method: "DELETE" } }),
+    "Falha ao remover membro",
+  );
+}
+
+/** Baixa a planilha dos cards que a tela está mostrando. */
+export async function exportarLiberacao(ids: string[]) {
+  const res = await fetch(`${API_BASE_URL}/liberacao/exportar`, {
+    method: "POST",
+    headers: headers(true),
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) return falha(res, "Falha ao gerar o relatório");
+  const blob = await res.blob();
+  const nome = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? "esteira-liberacao.xlsx";
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 /**

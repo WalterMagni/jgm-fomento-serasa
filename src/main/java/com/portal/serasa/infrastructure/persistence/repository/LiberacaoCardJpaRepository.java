@@ -3,6 +3,7 @@ package com.portal.serasa.infrastructure.persistence.repository;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,6 +28,24 @@ public interface LiberacaoCardJpaRepository extends JpaRepository<LiberacaoCardE
               and (c.finalizadoEm is null or c.finalizadoEm >= :finalizadosDesde)
             """)
     List<LiberacaoCardEntity> listarQuadro(@Param("finalizadosDesde") LocalDateTime finalizadosDesde);
+
+    /**
+     * Cor e etiquetas mudam por consulta direta, sem passar pela versão do card: são ações
+     * rápidas, ortogonais aos campos, e não podem invalidar o formulário aberto de outra pessoa.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = "update liberacao_card set cor = :cor where id = :id", nativeQuery = true)
+    void definirCor(@Param("id") UUID id, @Param("cor") String cor);
+
+    /** Registra quem mexeu por último, também sem tocar na versão. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update LiberacaoCardEntity c
+            set c.atualizadoEm = :quando, c.atualizadoPorId = :autorId, c.atualizadoPorNome = :autorNome
+            where c.id = :id
+            """)
+    void tocarSemVersao(@Param("id") UUID id, @Param("quando") LocalDateTime quando,
+                        @Param("autorId") UUID autorId, @Param("autorNome") String autorNome);
 
     @Query("""
             select c.id from LiberacaoCardEntity c

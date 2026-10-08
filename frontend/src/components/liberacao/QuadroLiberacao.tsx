@@ -13,7 +13,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { toast } from "sonner";
 import Icon from "@/components/ui/Icon";
+import ManualDrawer from "@/components/prospeccao/ManualDrawer";
+import { MANUAL_LIBERACAO } from "@/content/manual-liberacao";
+import BarraFiltros from "@/components/liberacao/BarraFiltros";
+import { aplicarFiltros, escreverFiltros, finalizadosDesde, lerFiltros, ordenarCards, type Filtros } from "@/components/liberacao/filtros";
 import CardDetalheModal from "@/components/liberacao/CardDetalheModal";
 import LiberacaoColumn from "@/components/liberacao/LiberacaoColumn";
 import { CardFace } from "@/components/liberacao/LiberacaoCardItem";
@@ -21,13 +26,9 @@ import NovoCardDialog from "@/components/liberacao/NovoCardDialog";
 import { COR_ETAPA, aguardando } from "@/components/liberacao/formatters";
 import { useMovimento } from "@/components/liberacao/useMovimento";
 import { useTempoReal } from "@/components/notificacoes/NotificacoesProvider";
-import { useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
+import { exportarLiberacao, useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
 import { ETAPAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard } from "@/types/liberacao";
 
-/**
- * Ordem dentro da coluna: prazo mais próximo primeiro, sem prazo depois, e entre iguais o mais
- * antigo na etapa. É o que precisa de atenção antes. Filtros e outras ordenações chegam na fase 4.
- */
 const CELULAR = "(max-width: 767px)";
 
 /**
@@ -48,15 +49,6 @@ function useEhCelular() {
   );
 }
 
-function ordenar(cards: LiberacaoCard[]) {
-  return [...cards].sort((a, b) => {
-    if (a.prazo && b.prazo) return a.prazo.localeCompare(b.prazo);
-    if (a.prazo) return -1;
-    if (b.prazo) return 1;
-    return a.etapaDesde.localeCompare(b.etapaDesde);
-  });
-}
-
 export default function QuadroLiberacao() {
   const router = useRouter();
   const pathname = usePathname();
@@ -65,12 +57,14 @@ export default function QuadroLiberacao() {
 
   const { data: eu } = useUsuarioAtual();
   const tempoReal = useTempoReal();
-  const { data: cards = [], isLoading, error } = useLiberacaoCards(undefined, tempoReal);
+  const filtros = useMemo(() => lerFiltros(new URLSearchParams(params.toString())), [params]);
+  const { data: cards = [], isLoading, error } = useLiberacaoCards(finalizadosDesde(filtros.finalizados), tempoReal);
   const { data: resumo } = useLiberacaoResumo();
   const movimento = useMovimento(eu?.id);
   const ehCelular = useEhCelular();
 
-  const [busca, setBusca] = useState("");
+  const [manualAberto, setManualAberto] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [novoAberto, setNovoAberto] = useState(false);
   const [arrastando, setArrastando] = useState<LiberacaoCard | null>(null);
   const [abaCelular, setAbaCelular] = useState<EtapaLiberacao>("ORIGEM");
@@ -87,6 +81,14 @@ export default function QuadroLiberacao() {
     [params, pathname, router],
   );
 
+  const mudarFiltros = useCallback(
+    (novos: Filtros) => {
+      const escritos = escreverFiltros(new URLSearchParams(params.toString()), novos);
+      router.replace(`${pathname}${escritos.size ? `?${escritos}` : ""}`, { scroll: false });
+    },
+    [params, pathname, router],
+  );
+
   const sensors = useSensors(
     // Distância mínima: um clique simples abre o card em vez de começar um arraste.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -96,24 +98,35 @@ export default function QuadroLiberacao() {
     useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] } }),
   );
 
-  const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    const digitos = busca.replace(/\D/g, "");
-    if (!termo) return cards;
-    return cards.filter(
-      card =>
-        card.cedenteNome.toLowerCase().includes(termo) ||
-        (digitos.length >= 2 && card.cedenteCnpj.includes(digitos)) ||
-        String(card.numero) === termo.replace("#", ""),
-    );
-  }, [cards, busca]);
+  const filtrados = useMemo(() => aplicarFiltros(cards, filtros, eu?.id), [cards, filtros, eu?.id]);
+
+  // "Ocultar finalizados" tira as duas colunas de decisão e dá o espaço às três de trabalho.
+  const etapas = useMemo(
+    () => (filtros.finalizados === "ocultar" ? ETAPAS.filter(etapa => etapa !== "APROVADO" && etapa !== "REPROVADO") : ETAPAS),
+    [filtros.finalizados],
+  );
+
+  // Aba do celular numa coluna que acabou de ser ocultada volta para a Origem.
+  const abaVisivel = etapas.includes(abaCelular) ? abaCelular : "ORIGEM";
 
   const porEtapa = useMemo(() => {
     const mapa = new Map<EtapaLiberacao, LiberacaoCard[]>(ETAPAS.map(etapa => [etapa, []]));
     filtrados.forEach(card => mapa.get(card.etapa)?.push(card));
-    ETAPAS.forEach(etapa => mapa.set(etapa, ordenar(mapa.get(etapa) ?? [])));
+    ETAPAS.forEach(etapa => mapa.set(etapa, ordenarCards(mapa.get(etapa) ?? [], filtros.ordem)));
     return mapa;
-  }, [filtrados]);
+  }, [filtrados, filtros.ordem]);
+
+  async function exportar() {
+    setExportando(true);
+    try {
+      await exportarLiberacao(filtrados.map(card => card.id));
+      toast.success(`Relatório com ${filtrados.length} card${filtrados.length === 1 ? "" : "s"} baixado`);
+    } catch (erro) {
+      toast.error((erro as Error).message);
+    } finally {
+      setExportando(false);
+    }
+  }
 
   const meusPareceres = useMemo(
     () => cards.filter(card => card.etapa === "COMITE" && aguardando(card).some(parecer => parecer.usuarioId === eu?.id)),
@@ -156,18 +169,15 @@ export default function QuadroLiberacao() {
           <p className="text-xs text-slate-500 dark:text-slate-400">Da origem da análise à decisão do Comitê</p>
         </div>
 
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
-            <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={busca}
-              onChange={event => setBusca(event.target.value)}
-              placeholder="Cedente, CNPJ ou #número"
-              aria-label="Buscar card"
-              className="min-h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400
-                focus:border-[#612035] focus:outline-none focus:ring-2 focus:ring-[#612035]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setManualAberto(true)}
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm text-slate-600 transition-colors hover:bg-white
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Icon name="help" size={16} /> Ajuda
+          </button>
           <button
             type="button"
             onClick={() => setNovoAberto(true)}
@@ -207,17 +217,26 @@ export default function QuadroLiberacao() {
         </div>
       )}
 
+      <BarraFiltros
+        filtros={filtros}
+        onMudar={mudarFiltros}
+        visiveis={filtrados.length}
+        total={cards.length}
+        onExportar={exportar}
+        exportando={exportando}
+      />
+
       {/* ------------------------------------------------------ abas do celular */}
       {ehCelular && (
         <nav className="-mx-1 flex gap-1 overflow-x-auto px-1" aria-label="Etapas">
-          {ETAPAS.map(etapa => (
+          {etapas.map(etapa => (
             <button
               key={etapa}
               type="button"
               onClick={() => setAbaCelular(etapa)}
-              aria-current={abaCelular === etapa ? "true" : undefined}
+              aria-current={abaVisivel === etapa ? "true" : undefined}
               className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
-                abaCelular === etapa
+                abaVisivel === etapa
                   ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white"
                   : "text-slate-500 hover:bg-white/60 dark:hover:bg-slate-800/60"
               }`}
@@ -245,11 +264,11 @@ export default function QuadroLiberacao() {
             // Celular: uma coluna por vez. Mover pelo detalhe do card.
             <div className="flex min-h-0 flex-1">
               <LiberacaoColumn
-                etapa={abaCelular}
-                cards={porEtapa.get(abaCelular) ?? []}
+                etapa={abaVisivel}
+                cards={porEtapa.get(abaVisivel) ?? []}
                 alvo={null}
                 onAbrir={abrir}
-                onNovo={abaCelular === "ORIGEM" ? () => setNovoAberto(true) : undefined}
+                onNovo={abaVisivel === "ORIGEM" ? () => setNovoAberto(true) : undefined}
                 larguraTotal
               />
             </div>
@@ -259,7 +278,7 @@ export default function QuadroLiberacao() {
               className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto pb-2
                 [background-image:radial-gradient(circle,rgb(148_163_184/0.25)_1px,transparent_1px)] [background-size:18px_18px]"
             >
-              {ETAPAS.map(etapa => (
+              {etapas.map(etapa => (
                 <LiberacaoColumn
                   key={etapa}
                   etapa={etapa}
@@ -304,6 +323,8 @@ export default function QuadroLiberacao() {
 
       {/* Depois do detalhe: a confirmação de mover precisa ficar por cima dele. */}
       {movimento.dialogo}
+
+      {manualAberto && <ManualDrawer conteudo={MANUAL_LIBERACAO} rotulo="Manual de uso da esteira de liberação" onFechar={() => setManualAberto(false)} />}
     </div>
   );
 }

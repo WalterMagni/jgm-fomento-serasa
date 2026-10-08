@@ -17,6 +17,8 @@ const ROTULO_CAMPO: Record<string, string> = {
   prazo: "o prazo",
   parecerOrigem: "o parecer da origem",
   sacados: "os sacados",
+  etiquetas: "as etiquetas",
+  cor: "a cor",
 };
 
 const ICONE_EVENTO: Record<EventoLiberacao["tipo"], string> = {

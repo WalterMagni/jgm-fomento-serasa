@@ -6,9 +6,9 @@ import Icon from "@/components/ui/Icon";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
 import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, ROTULO_TIPO, type LiberacaoCard } from "@/types/liberacao";
-import Avatar from "./Avatar";
 import CardForm from "./CardForm";
 import Atividade from "./Atividade";
+import OrganizacaoCard from "./OrganizacaoCard";
 import { PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
 import Dialogo from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
@@ -290,18 +290,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
             </div>
           </div>
 
-          <div>
-            <h3 className="mb-2 font-sans text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Membros</h3>
-            <ul className="space-y-1.5">
-              {card.membros.map(membro => (
-                <li key={membro.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                  <Avatar nome={membro.nome} iniciais={membro.iniciais} tamanho="xs" />
-                  <span className="truncate">{membro.nome}</span>
-                  {membro.id === euId && <span className="text-[10px] text-slate-400">você</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <OrganizacaoCard card={card} euId={euId} ehAnalista={ehAnalista} />
 
           <div className="space-y-2 text-[11px] text-slate-500 dark:text-slate-400">
             <p>

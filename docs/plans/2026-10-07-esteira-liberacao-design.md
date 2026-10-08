@@ -224,9 +224,10 @@ Aviso de prazo vencendo por agendador. A cor do chip já sinaliza.
 - Ordenação: prazo mais próximo (padrão), última atividade, mais recentes, mais antigos,
   maior valor, nome do cedente.
 - Abaixo da largura de tablet, uma coluna por vez com abas; mover pelo botão do detalhe.
-- Relatório XLSX com Apache POI, respeitando os filtros da tela, com cinco abas: Cards,
-  Sacados, Pareceres, Pendências e Histórico. Cabeçalho congelado, filtro automático,
-  moeda e data formatadas.
+- Relatório XLSX com Apache POI, respeitando os filtros da tela (a tela manda os ids dos
+  cards visíveis), com seis abas: Cards, Sacados, Pareceres, Pendências, Histórico e
+  Comentários — a sexta entrou na fase 4, junto com as horas que cada card passou em cada
+  etapa. Cabeçalho congelado, filtro automático, moeda e data formatadas.
 - Visual alinhado ao portal: bordô `#612035`, laranja `#D1732C`, modo escuro.
 
 ## 6. Backend, testes e entrega

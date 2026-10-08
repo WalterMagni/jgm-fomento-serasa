@@ -20,4 +20,13 @@ public interface LiberacaoComentarioJpaRepository extends JpaRepository<Liberaca
             group by c.cardId
             """)
     List<Object[]> contarPorCard(@Param("cardIds") Collection<UUID> cardIds);
+
+    @Query("""
+            select c.cardId, max(c.criadoEm) from LiberacaoComentarioEntity c
+            where c.cardId in :cardIds and c.excluidoEm is null
+            group by c.cardId
+            """)
+    List<Object[]> ultimoPorCard(@Param("cardIds") Collection<UUID> cardIds);
+
+    List<LiberacaoComentarioEntity> findByCardIdInAndExcluidoEmIsNullOrderByCriadoEm(Collection<UUID> cardIds);
 }

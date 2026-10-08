@@ -1,5 +1,6 @@
 package com.portal.serasa.infrastructure.persistence.entity;
 
+import com.portal.serasa.domain.model.liberacao.CorLiberacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import jakarta.persistence.Column;
@@ -67,6 +68,14 @@ public class LiberacaoCardEntity {
 
     @Column(name = "parecer_origem", columnDefinition = "text")
     private String parecerOrigem;
+
+    /**
+     * Faixa no topo do card. Gravada por consulta própria, fora da trava de versão: trocar a cor
+     * não pode derrubar com 409 quem está editando os campos ao mesmo tempo. Ver V67.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 12, insertable = false, updatable = false)
+    private CorLiberacao cor;
 
     @Column(name = "criado_por_id")
     private UUID criadoPorId;

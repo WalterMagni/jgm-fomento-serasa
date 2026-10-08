@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Icon from "@/components/ui/Icon";
@@ -16,7 +17,16 @@ import { MANUAL_ESTEIRA } from "@/content/manual-esteira";
  * <p>O painel não tem estilo de tipografia pronto no projeto, então cada elemento do markdown é
  * mapeado à mão — é também o que garante contraste no claro e no escuro.</p>
  */
-export default function ManualDrawer({ onFechar }: { onFechar: () => void }) {
+export default function ManualDrawer({
+  onFechar,
+  conteudo = MANUAL_ESTEIRA,
+  rotulo = "Manual de uso da esteira",
+}: {
+  onFechar: () => void;
+  /** Markdown do manual. A esteira de liberação usa o mesmo painel com o texto dela. */
+  conteudo?: string;
+  rotulo?: string;
+}) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") onFechar();
@@ -25,12 +35,14 @@ export default function ManualDrawer({ onFechar }: { onFechar: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onFechar]);
 
-  return (
+  // Portal para o body: dentro do <main> (relative z-0) o painel ficaria atrás da barra do topo,
+  // escondendo o próprio botão de fechar.
+  return createPortal(
     <div
       className="esteira-fade-in fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Manual de uso da esteira"
+      aria-label={rotulo}
       onClick={event => {
         if (event.target === event.currentTarget) onFechar();
       }}
@@ -115,10 +127,11 @@ export default function ManualDrawer({ onFechar }: { onFechar: () => void }) {
               ),
             }}
           >
-            {MANUAL_ESTEIRA}
+            {conteudo}
           </ReactMarkdown>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -4,6 +4,7 @@ import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
 import { ROTULO_POSICAO, ROTULO_TIPO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
 import Avatar from "./Avatar";
+import { TOM } from "./cores";
 import {
   COR_POSICAO,
   ICONE_POSICAO,
@@ -56,9 +57,20 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
 
   return (
     <div
-      className={`rounded-xl border border-slate-200/80 bg-white p-3 text-left dark:border-slate-700 dark:bg-slate-800
+      className={`relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3 text-left dark:border-slate-700 dark:bg-slate-800
+        ${card.cor ? "pt-4" : ""}
         ${sobreposicao ? "rotate-[1.5deg] shadow-2xl ring-1 ring-black/5" : "shadow-[0_1px_2px_rgba(15,23,42,0.06)]"}`}
     >
+      {card.cor && <span className={`absolute inset-x-0 top-0 h-1.5 ${TOM[card.cor].faixa}`} aria-label={`Cor ${TOM[card.cor].nome}`} />}
+      {card.etiquetas.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1">
+          {card.etiquetas.map(etiqueta => (
+            <span key={etiqueta.id} className={`max-w-full truncate rounded px-1.5 py-px text-[10px] font-semibold ${TOM[etiqueta.cor].chip}`}>
+              {etiqueta.nome}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="font-mono text-[10px] font-medium text-slate-400">#{card.numero}</span>

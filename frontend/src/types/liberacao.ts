@@ -6,6 +6,12 @@ export type TipoOperacao = "DUPLICATA" | "CHEQUE" | "COMISSARIA" | "INTERCOMPANY
 
 export type PosicaoParecer = "FAVORAVEL" | "COM_RESSALVAS" | "DESFAVORAVEL";
 
+export type CorLiberacao = "VERMELHO" | "LARANJA" | "AMARELO" | "VERDE" | "AZUL" | "ROXO" | "ROSA" | "CINZA";
+
+export const CORES: CorLiberacao[] = ["VERMELHO", "LARANJA", "AMARELO", "VERDE", "AZUL", "ROXO", "ROSA", "CINZA"];
+
+export type Etiqueta = { id: string; nome: string; cor: CorLiberacao };
+
 export type TipoEventoLiberacao =
   | "CRIACAO"
   | "EDICAO"
@@ -81,13 +87,18 @@ export type LiberacaoCard = {
   valor: number | null;
   prazo: string | null;
   parecerOrigem: string | null;
+  cor: CorLiberacao | null;
+  etiquetas: Etiqueta[];
+  criadoPorId: string | null;
   criadoPorNome: string;
   criadoEm: string;
   atualizadoPorNome: string;
   atualizadoEm: string;
   finalizadoEm: string | null;
+  ultimaAtividade: string | null;
   version: number;
   sacadosQtd: number;
+  sacados: { documento: string; nome: string | null }[];
   somaSacados: number | null;
   pareceres: Parecer[];
   pendenciasAbertas: number;
