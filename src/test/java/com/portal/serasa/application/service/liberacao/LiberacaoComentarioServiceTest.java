@@ -8,6 +8,7 @@ import com.portal.serasa.infrastructure.persistence.entity.LiberacaoComentarioEn
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoComentarioJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,8 @@ class LiberacaoComentarioServiceTest {
     @Mock private LiberacaoComentarioJpaRepository comentarioRepository;
     @Mock private LiberacaoService liberacaoService;
     @Spy private LiberacaoAutorizacao autorizacao = new LiberacaoAutorizacao();
+
+    @Mock private ApplicationEventPublisher eventos;
 
     @InjectMocks private LiberacaoComentarioService service;
 

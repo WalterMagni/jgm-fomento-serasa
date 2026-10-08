@@ -26,6 +26,7 @@ import com.portal.serasa.infrastructure.persistence.repository.LiberacaoSacadoJp
 import com.portal.serasa.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +41,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Regras da esteira de liberação de operações.
@@ -69,6 +72,7 @@ public class LiberacaoService {
     private final UserRepository userRepository;
     private final CompanyDetailRepository companyDetailRepository;
     private final LiberacaoAutorizacao autorizacao;
+    private final ApplicationEventPublisher eventos;
 
     /** Dados editáveis do card. Os mesmos na criação e na edição. */
     public record DadosCard(String cedenteCnpj, String cedenteNome, TipoOperacao tipoOperacao,
@@ -167,6 +171,8 @@ public class LiberacaoService {
         gravarSacados(card.getId(), normalizarSacados(dados.sacados()));
         adicionarMembro(card.getId(), autor.getId(), OrigemMembro.CRIADOR);
         registrar(card, TipoEventoLiberacao.CRIACAO, null, null, null, null, null, "Card criado", autor);
+        Set<UUID> mencionados = acompanharMencionados(card.getId(), MencaoParser.usuarios(card.getParecerOrigem()));
+        eventos.publishEvent(new LiberacaoEvento.Criado(card, autor, mencionados, trecho(card.getParecerOrigem())));
         return card;
     }
 
@@ -214,6 +220,7 @@ public class LiberacaoService {
             card.setPrazo(dados.prazo());
         }
         String parecer = textoOuNulo(dados.parecerOrigem());
+        String parecerAnterior = card.getParecerOrigem();
         if (!Objects.equals(parecer, card.getParecerOrigem())) {
             mudancas.add(new String[]{"parecerOrigem", card.getParecerOrigem(), parecer});
             card.setParecerOrigem(parecer);
@@ -237,6 +244,8 @@ public class LiberacaoService {
         if (diferencaSacados != null) {
             registrar(salvo, TipoEventoLiberacao.EDICAO, null, null, "sacados", null, null, diferencaSacados, autor);
         }
+        Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.novosUsuarios(parecerAnterior, parecer));
+        eventos.publishEvent(new LiberacaoEvento.Editado(salvo, autor, mencionados, trecho(parecer)));
         return salvo;
     }
 
@@ -299,6 +308,8 @@ public class LiberacaoService {
 
         registrar(salvo, reabertura ? TipoEventoLiberacao.REABERTURA : TipoEventoLiberacao.TRANSICAO,
                 de, para, null, null, null, textoOuNulo(observacao), autor);
+        Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.usuarios(observacao));
+        eventos.publishEvent(new LiberacaoEvento.Movido(salvo, de, para, autor, mencionados, trecho(observacao)));
 
         for (NovaPendencia pendencia : novasPendencias) {
             abrirPendencia(salvo, pendencia, autor);
@@ -324,6 +335,7 @@ public class LiberacaoService {
                         "Seu parecer não é esperado neste card."));
 
         boolean revisao = parecer.registrado();
+        String textoAnterior = parecer.getTexto();
         parecer.setPosicao(posicao);
         parecer.setTexto(textoOuNulo(texto));
         parecer.setRegistradoEm(LocalDateTime.now());
@@ -334,6 +346,8 @@ public class LiberacaoService {
                 revisao ? "Parecer revisto" : "Parecer registrado", autor);
 
         boolean ultimo = !revisao && aguardandoParecer(card).isEmpty();
+        Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.novosUsuarios(textoAnterior, salvo.getTexto()));
+        eventos.publishEvent(new LiberacaoEvento.ParecerDado(card, salvo, ultimo, revisao, autor, mencionados, trecho(salvo.getTexto())));
         return new ParecerRegistrado(card, salvo, ultimo);
     }
 
@@ -373,6 +387,8 @@ public class LiberacaoService {
         LiberacaoPendenciaEntity salva = pendenciaRepository.save(pendencia);
         registrar(card, TipoEventoLiberacao.PENDENCIA_RESPONDIDA, null, null, null, null, null,
                 "Respondeu a pendência de " + pendencia.getAbertaPorNome(), autor);
+        Set<UUID> mencionados = acompanharMencionados(cardId, MencaoParser.usuarios(texto));
+        eventos.publishEvent(new LiberacaoEvento.PendenciaRespondida(card, salva, autor, mencionados, trecho(texto)));
         return salva;
     }
 
@@ -397,6 +413,7 @@ public class LiberacaoService {
         card.setExcluidoPorNome(autor.getName());
         cardRepository.save(card);
         registrar(card, TipoEventoLiberacao.EXCLUSAO, card.getEtapa(), null, null, null, null, "Card apagado", autor);
+        eventos.publishEvent(new LiberacaoEvento.Excluido(card, autor));
         log.warn("Card de liberação #{} ({} · {}) apagado por {} em {}",
                 card.getNumero(), card.getCedenteNome(), card.getCedenteCnpj(), autor.getEmail(), card.getEtapa());
     }
@@ -440,7 +457,36 @@ public class LiberacaoService {
         adicionarMembro(card.getId(), destinatario.getId(), OrigemMembro.PENDENCIA);
         registrar(card, TipoEventoLiberacao.PENDENCIA_ABERTA, null, null, null, null, null,
                 "Pendência para " + destinatario.getName() + ": " + texto, autor);
+        Set<UUID> mencionados = acompanharMencionados(card.getId(), MencaoParser.usuarios(texto));
+        // O destinatário já recebe "abriu uma pendência para você"; marcado no mesmo texto seria aviso dobrado.
+        mencionados.remove(destinatario.getId());
+        eventos.publishEvent(new LiberacaoEvento.PendenciaAberta(card, salva, autor, mencionados, trecho(texto)));
         return salva;
+    }
+
+    /**
+     * Quem foi marcado passa a acompanhar o card, como no GitHub. Id que não é usuário (marcação
+     * digitada à mão) é descartado aqui, antes de virar chave estrangeira inválida.
+     */
+    public Set<UUID> acompanharMencionados(UUID cardId, Set<UUID> ids) {
+        if (ids.isEmpty()) {
+            return new java.util.LinkedHashSet<>();
+        }
+        Set<UUID> existentes = userRepository.findAllById(ids).stream()
+                .map(UserEntity::getId)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        existentes.forEach(usuarioId -> adicionarMembro(cardId, usuarioId, OrigemMembro.MENCAO));
+        return existentes;
+    }
+
+    /** Para o comentário fazer quem comentou acompanhar o card. */
+    public void acompanhar(UUID cardId, UUID usuarioId, OrigemMembro origem) {
+        adicionarMembro(cardId, usuarioId, origem);
+    }
+
+    public static String trecho(String texto) {
+        String plano = MencaoParser.textoPlano(texto);
+        return plano == null || plano.isBlank() ? null : plano;
     }
 
     private void adicionarMembro(UUID cardId, UUID usuarioId, OrigemMembro origem) {

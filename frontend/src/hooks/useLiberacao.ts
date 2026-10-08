@@ -64,15 +64,16 @@ async function pedir<T>(url: string, init: RequestInit, fallback: string): Promi
 
 // ------------------------------------------------------------------ leitura
 
-export function useLiberacaoCards(finalizadosDesde?: string) {
+/** @param tempoReal canal de notificações ligado: o quadro se atualiza por evento, sem polling. */
+export function useLiberacaoCards(finalizadosDesde?: string, tempoReal = false) {
   const query = finalizadosDesde ? `?finalizadosDesde=${finalizadosDesde}` : "";
   return useQuery<LiberacaoCard[]>({
     queryKey: [...LISTA_KEY, finalizadosDesde ?? ""],
     queryFn: () => pedir(`${API_BASE_URL}/liberacao${query}`, {}, "Falha ao carregar a esteira"),
     staleTime: 15 * 1000,
-    // Até as notificações em tempo real chegarem (fase 3), o quadro se atualiza sozinho de
-    // tempos em tempos para quem deixa a tela aberta o dia todo.
-    refetchInterval: 30 * 1000,
+    // Com o canal ligado, cada mudança chega como evento. Sem ele (reconectando), o quadro volta
+    // a se atualizar sozinho a cada 30 s para quem deixa a tela aberta o dia todo.
+    refetchInterval: tempoReal ? false : 30 * 1000,
   });
 }
 

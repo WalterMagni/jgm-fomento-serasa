@@ -51,6 +51,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         .requestMatchers("/actuator/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        // EventSource não manda Authorization: o canal confere um ticket de uso
+                        // único emitido com JWT. Ver TicketSse.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/notificacoes/stream").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

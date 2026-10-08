@@ -97,6 +97,9 @@ public class AuthController {
         if (body.containsKey("emailNotificacaoCedente") && body.get("emailNotificacaoCedente") != null) {
             user.setEmailNotificacaoCedente(Boolean.parseBoolean(body.get("emailNotificacaoCedente").toString()));
         }
+        if (body.containsKey("somNotificacao") && body.get("somNotificacao") != null) {
+            user.setSomNotificacao(Boolean.parseBoolean(body.get("somNotificacao").toString()));
+        }
 
         userRepository.save(user);
 
@@ -206,6 +209,7 @@ public class AuthController {
         perfil.put("canManageUsers", adminAllowList.contem(user.getEmail()));
         perfil.put("analista", user.isAnalista());
         perfil.put("comite", user.isComite());
+        perfil.put("somNotificacao", user.isSomNotificacao());
         return perfil;
     }
 }

@@ -60,4 +60,9 @@ public class UserEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean comite = false;
+
+    /** Som do sino de notificações. Ver V66. */
+    @Column(name = "som_notificacao", nullable = false)
+    @Builder.Default
+    private boolean somNotificacao = true;
 }

@@ -2,16 +2,19 @@ package com.portal.serasa.application.service.liberacao;
 
 import com.portal.serasa.domain.exception.AcessoNegadoException;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
+import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoComentarioEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoComentarioJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -29,6 +32,7 @@ public class LiberacaoComentarioService {
     private final LiberacaoComentarioJpaRepository comentarioRepository;
     private final LiberacaoService liberacaoService;
     private final LiberacaoAutorizacao autorizacao;
+    private final ApplicationEventPublisher eventos;
 
     @Transactional(readOnly = true)
     public List<LiberacaoComentarioEntity> listar(UUID cardId) {
@@ -39,13 +43,19 @@ public class LiberacaoComentarioService {
     public LiberacaoComentarioEntity comentar(UUID cardId, String texto, UserEntity autor) {
         autorizacao.exigirAutenticado(autor);
         LiberacaoCardEntity card = liberacaoService.buscar(cardId);
-        return comentarioRepository.save(LiberacaoComentarioEntity.builder()
+        LiberacaoComentarioEntity salvo = comentarioRepository.save(LiberacaoComentarioEntity.builder()
                 .cardId(card.getId())
                 .autorId(autor.getId())
                 .autorNome(autor.getName())
                 .texto(validar(texto))
                 .criadoEm(LocalDateTime.now())
                 .build());
+        // Quem entra na conversa quer saber da resposta.
+        liberacaoService.acompanhar(card.getId(), autor.getId(), OrigemMembro.COMENTARIO);
+        Set<UUID> mencionados = liberacaoService.acompanharMencionados(card.getId(), MencaoParser.usuarios(salvo.getTexto()));
+        eventos.publishEvent(new LiberacaoEvento.Comentado(card, salvo, false, autor, mencionados,
+                LiberacaoService.trecho(salvo.getTexto())));
+        return salvo;
     }
 
     /** Devolve o texto anterior junto, para quem precisar saber quem passou a ser mencionado. */
@@ -61,6 +71,9 @@ public class LiberacaoComentarioService {
             comentario.setTexto(novo);
             comentario.setEditadoEm(LocalDateTime.now());
             comentario = comentarioRepository.save(comentario);
+            Set<UUID> mencionados = liberacaoService.acompanharMencionados(cardId, MencaoParser.novosUsuarios(anterior, novo));
+            eventos.publishEvent(new LiberacaoEvento.Comentado(liberacaoService.buscar(cardId), comentario, true, autor,
+                    mencionados, LiberacaoService.trecho(novo)));
         }
         return new Edicao(comentario, anterior);
     }
@@ -70,6 +83,8 @@ public class LiberacaoComentarioService {
         LiberacaoComentarioEntity comentario = doAutor(cardId, comentarioId, autor);
         comentario.setExcluidoEm(LocalDateTime.now());
         comentarioRepository.save(comentario);
+        // Só para o quadro dos outros atualizar a contagem: apagar não notifica ninguém.
+        eventos.publishEvent(new LiberacaoEvento.Comentado(liberacaoService.buscar(cardId), comentario, true, autor, Set.of(), null));
     }
 
     private LiberacaoComentarioEntity doAutor(UUID cardId, UUID comentarioId, UserEntity autor) {

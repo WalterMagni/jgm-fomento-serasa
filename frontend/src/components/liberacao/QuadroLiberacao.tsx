@@ -20,6 +20,7 @@ import { CardFace } from "@/components/liberacao/LiberacaoCardItem";
 import NovoCardDialog from "@/components/liberacao/NovoCardDialog";
 import { COR_ETAPA, aguardando } from "@/components/liberacao/formatters";
 import { useMovimento } from "@/components/liberacao/useMovimento";
+import { useTempoReal } from "@/components/notificacoes/NotificacoesProvider";
 import { useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
 import { ETAPAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard } from "@/types/liberacao";
 
@@ -63,7 +64,8 @@ export default function QuadroLiberacao() {
   const cardAberto = params.get("card");
 
   const { data: eu } = useUsuarioAtual();
-  const { data: cards = [], isLoading, error } = useLiberacaoCards();
+  const tempoReal = useTempoReal();
+  const { data: cards = [], isLoading, error } = useLiberacaoCards(undefined, tempoReal);
   const { data: resumo } = useLiberacaoResumo();
   const movimento = useMovimento(eu?.id);
   const ehCelular = useEhCelular();

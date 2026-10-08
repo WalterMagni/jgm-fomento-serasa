@@ -198,6 +198,16 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* Sino balançando quando chega notificação. Só com motion-safe — ver SinoNotificacoes. */
+@keyframes sino {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+}
+
 .esteira-fade-in  { animation: esteira-fade-in 150ms ease-out both; }
 .esteira-modal-in { animation: esteira-modal-in 200ms ease-out both; }
 .esteira-card-in  { animation: esteira-card-in 180ms ease-out both; }

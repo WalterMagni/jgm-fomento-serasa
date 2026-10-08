@@ -102,7 +102,8 @@ append-only com usuário, nome copiado, data, hora e o que mudou
 - **Cor do card**: faixa no topo, paleta de oito cores.
 - **Membros**: avatares com iniciais. Entram automaticamente o criador, os membros do
   Comitê e quem recebe pendência; dá para adicionar à mão. Membros são notificados quando
-  o card muda de coluna.
+  o card muda de coluna. Ajuste da fase 3: quem comenta ou é marcado também passa a
+  acompanhar o card, como no GitHub, para receber a resposta da conversa em que entrou.
 - **Comentários**: thread com menções. O autor edita e apaga o próprio comentário, que
   fica marcado como editado.
 - **Atividade**: comentários e eventos numa linha do tempo única, com filtro "só

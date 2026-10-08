@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useMarcarLidasDoLink } from "@/hooks/useNotificacoes";
 import Icon from "@/components/ui/Icon";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
@@ -46,6 +47,13 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
   const novaPendencia = useNovaPendencia();
   const cadastrar = useCadastrarEmpresa();
   const [editando, setEditando] = useState(false);
+  const marcarLidas = useMarcarLidasDoLink();
+  const { mutate: marcarLidasDoCard } = marcarLidas;
+
+  // Abrir o card resolve as notificações que apontavam para ele.
+  useEffect(() => {
+    marcarLidasDoCard(`/liberacao?card=${cardId}`);
+  }, [cardId, marcarLidasDoCard]);
   const [abrindoPendencia, setAbrindoPendencia] = useState(false);
 
   const card = data?.card;

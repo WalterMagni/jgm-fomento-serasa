@@ -172,4 +172,5 @@ export type UsuarioAtual = {
   canManageUsers: boolean;
   analista: boolean;
   comite: boolean;
+  somNotificacao: boolean;
 };

@@ -30,6 +30,7 @@ import com.portal.serasa.infrastructure.persistence.repository.LiberacaoPendenci
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoSacadoJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -79,6 +80,8 @@ class LiberacaoServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private CompanyDetailRepository companyDetailRepository;
     @Spy private LiberacaoAutorizacao autorizacao = new LiberacaoAutorizacao();
+
+    @Mock private ApplicationEventPublisher eventos;
 
     @InjectMocks private LiberacaoService service;
 
@@ -1390,5 +1393,34 @@ class LiberacaoServiceTest {
         assertThat(LiberacaoService.normalizarCnpj(CNPJ_MASCARADO)).isEqualTo(CNPJ);
         assertThatThrownBy(() -> LiberacaoService.normalizarCnpj("123")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> LiberacaoService.normalizarCnpj(null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // ------------------------------------------------------------------ eventos
+
+    @Test
+    @DisplayName("criar: publica Criado com quem foi marcado no parecer, descartando id que não é usuário")
+    void shouldPublishCreatedWithExistingMentionsOnly() {
+        UserEntity mychelly = usuario("Mychelly");
+        UUID fantasma = UUID.randomUUID();
+        when(companyDetailRepository.findByDocumentNumber(CNPJ)).thenReturn(Optional.of(empresa(CNPJ, "ACME")));
+        when(userRepository.findAllById(any())).thenReturn(List.of(mychelly));
+        String parecer = "Ver com @[Mychelly](user:" + mychelly.getId() + ") e @[Ninguém](user:" + fantasma + ")";
+
+        service.criar(new DadosCard(CNPJ, null, TipoOperacao.DUPLICATA, null, null, parecer, null), auxiliar);
+
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(evento.capture());
+        assertThat(evento.getValue()).isInstanceOfSatisfying(LiberacaoEvento.Criado.class, criado -> {
+            assertThat(criado.mencionados()).containsExactly(mychelly.getId());
+            assertThat(criado.trecho()).isEqualTo("Ver com @Mychelly e @Ninguém");
+        });
+    }
+
+    @Test
+    @DisplayName("excluir: publica Excluido para o quadro dos outros tirar o card")
+    void shouldPublishDeleted() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        service.excluir(card.getId(), auxiliar);
+        verify(eventos).publishEvent(org.mockito.ArgumentMatchers.isA(LiberacaoEvento.Excluido.class));
     }
 }
