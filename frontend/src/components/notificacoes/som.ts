@@ -60,7 +60,7 @@ export function tocarSino() {
 }
 
 /**
- * Com o portal aberto em várias abas, só uma toca e mostra o aviso da área de trabalho.
+ * Com o portal aberto em várias abas, só uma toca.
  *
  * <p>A aba visível reivindica na hora; as escondidas esperam um pouco antes de tentar, então a
  * visível ganha quando existe. A trava fica no localStorage por 10 s, o bastante para as outras

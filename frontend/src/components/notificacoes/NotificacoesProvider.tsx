@@ -20,7 +20,7 @@ export function useTempoReal() {
  * Mantém o canal de notificações aberto enquanto o portal está aberto.
  *
  * <p>Recebe dois tipos de evento: {@code notificacao}, só para esta pessoa — atualiza o sino,
- * mostra o toast, toca o som e, com a aba escondida, o aviso da área de trabalho — e
+ * mostra o toast e toca o som — e
  * {@code quadro}, para todos — um card mudou, as telas da esteira se atualizam sozinhas.</p>
  *
  * <p>Se a conexão cai, tenta de novo com espera crescente (1 s, 2 s, 4 s… até 30 s), sempre com
@@ -68,16 +68,7 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
         action: { label: "Abrir", onClick: () => navegar.current(notificacao.link) },
         duration: 8000,
       });
-      if (!(await reivindicarAviso(notificacao.id))) return;
-      if (somLigado.current) tocarSino();
-      if (document.hidden && typeof Notification !== "undefined" && Notification.permission === "granted") {
-        const aviso = new Notification(notificacao.titulo, { body: notificacao.resumo ?? undefined, tag: notificacao.id, icon: "/logo-light.png" });
-        aviso.onclick = () => {
-          window.focus();
-          navegar.current(notificacao.link);
-          aviso.close();
-        };
-      }
+      if (somLigado.current && (await reivindicarAviso(notificacao.id))) tocarSino();
     }
 
     function aoMudarQuadro(cardId: string | undefined) {

@@ -126,9 +126,9 @@ as últimas e ir direto ao card. Você recebe aviso quando:
 
 Quem faz a ação nunca é avisado da própria ação.
 
-No painel do sino dá para **desligar o som** e **ativar avisos na área de trabalho**, que
-aparecem mesmo com o navegador minimizado. O som só funciona depois do primeiro clique na
-página — é regra do navegador.
+No painel do sino dá para **desligar o som**. O som só funciona depois do primeiro clique na
+página — é regra do navegador. Com o portal em segundo plano, o número de notificações
+aparece no título da aba.
 
 O quadro se atualiza sozinho: quando alguém move um card, você vê na hora.
 

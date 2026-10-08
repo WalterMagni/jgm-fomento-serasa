@@ -31,12 +31,6 @@ function useMontado() {
   );
 }
 
-type Permissao = NotificationPermission | "indisponivel";
-
-function permissaoAtual(): Permissao {
-  return typeof Notification === "undefined" ? "indisponivel" : Notification.permission;
-}
-
 function Item({ notificacao, onAbrir }: { notificacao: Notificacao; onAbrir: () => void }) {
   const visual = VISUAL[notificacao.tipo] ?? VISUAL.DECISAO;
   const nova = !notificacao.lidaEm;
@@ -70,7 +64,7 @@ function Item({ notificacao, onAbrir }: { notificacao: Notificacao; onAbrir: () 
  * Sino da barra do topo.
  *
  * <p>Contador vermelho com as não lidas; o painel lista as 20 últimas, leva ao card ao clicar e
- * guarda as duas preferências: som e aviso na área de trabalho.</p>
+ * guarda a preferência de som.</p>
  */
 export default function SinoNotificacoes() {
   const montado = useMontado();
@@ -82,7 +76,6 @@ export default function SinoNotificacoes() {
   const marcarTodas = useMarcarTodasLidas();
   const definirSom = useDefinirSom();
   const [aberto, setAberto] = useState(false);
-  const [permissao, setPermissao] = useState<Permissao>("default");
   const painel = useRef<HTMLDivElement>(null);
 
   const naoLidas = montado ? (data?.naoLidas ?? 0) : 0;
@@ -110,19 +103,11 @@ export default function SinoNotificacoes() {
     router.push(notificacao.link);
   }
 
-  async function pedirPermissao() {
-    if (typeof Notification === "undefined") return;
-    setPermissao(await Notification.requestPermission());
-  }
-
   return (
     <div className="relative" ref={painel}>
       <button
         type="button"
-        onClick={() => {
-          setPermissao(permissaoAtual());
-          setAberto(atual => !atual);
-        }}
+        onClick={() => setAberto(atual => !atual)}
         aria-label={naoLidas > 0 ? `Notificações: ${naoLidas} não lida(s)` : "Notificações"}
         aria-expanded={aberto}
         aria-haspopup="dialog"
@@ -181,7 +166,7 @@ export default function SinoNotificacoes() {
             )}
           </ul>
 
-          <footer className="space-y-2.5 border-t border-slate-100 bg-slate-50/80 px-4 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+          <footer className="border-t border-slate-100 bg-slate-50/80 px-4 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <span className="text-slate-600 dark:text-slate-300">Som de notificação</span>
               <span className="flex items-center gap-2">
@@ -206,27 +191,6 @@ export default function SinoNotificacoes() {
                 />
               </span>
             </label>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-slate-600 dark:text-slate-300">Avisos na área de trabalho</span>
-              {permissao === "granted" ? (
-                <span className="font-medium text-emerald-700 dark:text-emerald-400">ativados</span>
-              ) : permissao === "denied" ? (
-                <span className="text-right text-slate-400" title="Libere nas configurações do site, no cadeado da barra de endereço">
-                  bloqueados no navegador
-                </span>
-              ) : permissao === "indisponivel" ? (
-                <span className="text-slate-400">indisponível</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={pedirPermissao}
-                  className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-100
-                    dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                >
-                  Ativar
-                </button>
-              )}
-            </div>
           </footer>
         </div>
       )}

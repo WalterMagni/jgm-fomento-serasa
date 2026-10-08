@@ -187,7 +187,8 @@ Quem fez a ação nunca é notificado.
 - Som curto gerado com Web Audio, no máximo um a cada 3 segundos, tocado por uma única
   aba quando há várias abertas. Liga e desliga no painel; a preferência fica no perfil do
   usuário (`som_notificacao`), e não no navegador.
-- Notificação da área de trabalho opcional, ativada por botão no painel.
+- Sem aviso na área de trabalho: exigiria HTTPS, e o portal roda em HTTP na rede interna.
+  Retirado a pedido do Walter em 2026-10-08.
 
 ### Transporte
 
