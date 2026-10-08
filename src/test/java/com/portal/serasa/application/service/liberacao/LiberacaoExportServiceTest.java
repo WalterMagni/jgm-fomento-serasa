@@ -3,7 +3,6 @@ package com.portal.serasa.application.service.liberacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
-import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoComentarioEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoEventoEntity;
@@ -90,7 +89,7 @@ class LiberacaoExportServiceTest {
     void shouldBuildWorkbook() throws Exception {
         UUID id = UUID.randomUUID();
         LiberacaoCardEntity card = LiberacaoCardEntity.builder().id(id).numero(12L).etapa(EtapaLiberacao.APROVADO).rodada(1)
-                .cedenteCnpj("11222333000181").cedenteNome("ACME LTDA").tipoOperacao(TipoOperacao.DUPLICATA)
+                .cedenteCnpj("11222333000181").cedenteNome("ACME LTDA").tipoOperacao("Duplicata")
                 .valor(new BigDecimal("80000.50")).criadoPorNome("Aline").criadoEm(T0).atualizadoPorNome("Andressa")
                 .atualizadoEm(T0.plusHours(8)).finalizadoEm(T0.plusHours(8))
                 .parecerOrigem("Ver com @[Andressa](user:" + UUID.randomUUID() + ")").build();

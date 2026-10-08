@@ -14,7 +14,6 @@ import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
-import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoEventoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoMembroEntity;
@@ -124,7 +123,7 @@ class LiberacaoServiceTest {
                 .rodada(1)
                 .cedenteCnpj(CNPJ)
                 .cedenteNome("ACME LTDA")
-                .tipoOperacao(TipoOperacao.DUPLICATA)
+                .tipoOperacao("Duplicata")
                 .valor(new BigDecimal("1000.00"))
                 .prazo(LocalDateTime.of(2026, 10, 30, 12, 0))
                 .parecerOrigem("Cliente antigo")
@@ -146,7 +145,7 @@ class LiberacaoServiceTest {
     }
 
     private DadosCard dadosNovos(String cnpj, String nome, List<DadosSacado> sacados) {
-        return new DadosCard(cnpj, nome, TipoOperacao.DUPLICATA, new BigDecimal("5000"),
+        return new DadosCard(cnpj, nome, "Duplicata", new BigDecimal("5000"),
                 LocalDateTime.of(2026, 11, 1, 10, 0), "  Parecer da origem  ", sacados);
     }
 
@@ -421,12 +420,12 @@ class LiberacaoServiceTest {
     @DisplayName("editar: analista edita card no Comitê")
     void shouldLetAnalystEditCardInComite() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
-        DadosCard dados = new DadosCard(CNPJ, null, TipoOperacao.CHEQUE, card.getValor(), card.getPrazo(),
+        DadosCard dados = new DadosCard(CNPJ, null, "Cheque", card.getValor(), card.getPrazo(),
                 card.getParecerOrigem(), null);
 
         LiberacaoCardEntity editado = service.editar(card.getId(), card.getVersion(), dados, analista);
 
-        assertThat(editado.getTipoOperacao()).isEqualTo(TipoOperacao.CHEQUE);
+        assertThat(editado.getTipoOperacao()).isEqualTo("Cheque");
         assertThat(editado.getAtualizadoPorId()).isEqualTo(analista.getId());
         assertThat(editado.getAtualizadoPorNome()).isEqualTo("Andressa");
     }
@@ -497,7 +496,7 @@ class LiberacaoServiceTest {
     @DisplayName("editar: um evento por campo alterado")
     void shouldRecordOneEventPerChangedField() {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
-        DadosCard dados = new DadosCard(CNPJ, null, TipoOperacao.CHEQUE, new BigDecimal("1.50"),
+        DadosCard dados = new DadosCard(CNPJ, null, "Cheque", new BigDecimal("1.50"),
                 LocalDateTime.of(2026, 12, 31, 18, 0), null, null);
 
         service.editar(card.getId(), card.getVersion(), dados, auxiliar);
@@ -1406,7 +1405,7 @@ class LiberacaoServiceTest {
         when(userRepository.findAllById(any())).thenReturn(List.of(mychelly));
         String parecer = "Ver com @[Mychelly](user:" + mychelly.getId() + ") e @[Ninguém](user:" + fantasma + ")";
 
-        service.criar(new DadosCard(CNPJ, null, TipoOperacao.DUPLICATA, null, null, parecer, null), auxiliar);
+        service.criar(new DadosCard(CNPJ, null, "Duplicata", null, null, parecer, null), auxiliar);
 
         ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
         verify(eventos).publishEvent(evento.capture());
@@ -1422,5 +1421,26 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
         service.excluir(card.getId(), auxiliar);
         verify(eventos).publishEvent(org.mockito.ArgumentMatchers.isA(LiberacaoEvento.Excluido.class));
+    }
+
+    // ------------------------------------------------------------------- resumo
+
+    @Test
+    @DisplayName("resumo: precisamAtencao junta atrasados e o que é seu sem contar card repetido")
+    void shouldMergeOverdueAndMineWithoutDuplicates() {
+        UUID atrasado = UUID.randomUUID();
+        UUID atrasadoEMeu = UUID.randomUUID();
+        UUID soMeu = UUID.randomUUID();
+        when(cardRepository.idsAtrasados(any())).thenReturn(List.of(atrasado, atrasadoEMeu));
+        when(parecerRepository.cardsAguardando(analista.getId())).thenReturn(List.of(atrasadoEMeu));
+        when(pendenciaRepository.cardsComPendenciaPara(analista.getId())).thenReturn(List.of(soMeu));
+        when(parecerRepository.contarAguardando(analista.getId())).thenReturn(1L);
+        when(pendenciaRepository.contarAbertasPara(analista.getId())).thenReturn(1L);
+
+        var resumo = service.resumo(analista);
+
+        assertThat(resumo).containsEntry("atrasados", 2L)
+                .containsEntry("total", 2L)
+                .containsEntry("precisamAtencao", 3L);
     }
 }

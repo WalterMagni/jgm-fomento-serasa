@@ -18,6 +18,14 @@ public interface LiberacaoPendenciaJpaRepository extends JpaRepository<Liberacao
     long countByCardIdAndRespondidaEmIsNull(UUID cardId);
 
     @Query("""
+            select distinct p.cardId from LiberacaoPendenciaEntity p, LiberacaoCardEntity c
+            where p.cardId = c.id and p.destinatarioId = :usuarioId
+              and p.respondidaEm is null and c.excluidoEm is null
+              and c.etapa = com.portal.serasa.domain.model.liberacao.EtapaLiberacao.PENDENCIA
+            """)
+    List<UUID> cardsComPendenciaPara(@Param("usuarioId") UUID usuarioId);
+
+    @Query("""
             select count(p) from LiberacaoPendenciaEntity p, LiberacaoCardEntity c
             where p.cardId = c.id and p.destinatarioId = :usuarioId
               and p.respondidaEm is null and c.excluidoEm is null

@@ -2,7 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
-import { ROTULO_POSICAO, ROTULO_TIPO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
+import { ROTULO_POSICAO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
 import {
@@ -77,7 +77,7 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
           {card.tipoOperacao && (
             <span className="truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide
               text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-              {ROTULO_TIPO[card.tipoOperacao]}
+              {card.tipoOperacao}
             </span>
           )}
         </div>

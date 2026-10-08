@@ -189,7 +189,7 @@ public class LiberacaoExportService {
             texto(row, c++, card.getCedenteNome(), estilos.texto);
             texto(row, c++, LiberacaoService.formatarDocumento(card.getCedenteCnpj()), estilos.texto);
             texto(row, c++, LiberacaoAutorizacao.rotulo(card.getEtapa()), estilos.texto);
-            texto(row, c++, card.getTipoOperacao() == null ? "" : rotuloTipo(card), estilos.texto);
+            texto(row, c++, card.getTipoOperacao(), estilos.texto);
             moeda(row, c++, card.getValor(), estilos);
             dataHora(row, c++, card.getPrazo(), estilos);
             texto(row, c++, String.join(", ", dados.etiquetas().getOrDefault(card.getId(), List.of())), estilos.texto);
@@ -464,16 +464,6 @@ public class LiberacaoExportService {
             case FAVORAVEL -> "Favorável";
             case COM_RESSALVAS -> "Com ressalvas";
             case DESFAVORAVEL -> "Desfavorável";
-        };
-    }
-
-    private static String rotuloTipo(LiberacaoCardEntity card) {
-        return switch (card.getTipoOperacao()) {
-            case DUPLICATA -> "Duplicata";
-            case CHEQUE -> "Cheque";
-            case COMISSARIA -> "Comissária";
-            case INTERCOMPANY -> "Intercompany";
-            case OUTROS -> "Outros";
         };
     }
 

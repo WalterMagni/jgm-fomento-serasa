@@ -2,8 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import Icon from "@/components/ui/Icon";
+import CampoData from "@/components/ui/CampoData";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
-import { ROTULO_TIPO, TIPOS_OPERACAO, type DadosCard, type Sacado, type TipoOperacao } from "@/types/liberacao";
+import { normalizar } from "@/components/ui/mencao/mencoes";
+import { useTiposOperacao } from "@/hooks/useLiberacao";
+import type { DadosCard, Sacado, TipoOperacao } from "@/types/liberacao";
 import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
 import {
@@ -58,6 +61,23 @@ function documentosColados(texto: string) {
 export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, onCancelar }: Props) {
   const [cedente, setCedente] = useState<CedenteEscolhido | null>(inicial?.cedente ?? null);
   const [tipo, setTipo] = useState<TipoOperacao | null>(inicial?.tipoOperacao ?? null);
+  const { data: tiposSalvos = [] } = useTiposOperacao();
+  // Tipo novo digitado agora ainda não está na lista do servidor; aparece junto até salvar.
+  const tipos = tipo && !tiposSalvos.some(item => normalizar(item) === normalizar(tipo)) ? [...tiposSalvos, tipo] : tiposSalvos;
+  const [criandoTipo, setCriandoTipo] = useState(false);
+  const [tipoNovo, setTipoNovo] = useState("");
+
+  /** Mesma regra do servidor: casa com um tipo existente sem olhar maiúscula nem acento. */
+  function confirmarTipoNovo() {
+    const limpo = tipoNovo.trim().replace(/\s+/g, " ");
+    if (limpo) {
+      const chave = normalizar(limpo);
+      const existente = tiposSalvos.find(item => normalizar(item) === chave);
+      setTipo(existente ?? limpo.charAt(0).toUpperCase() + limpo.slice(1));
+    }
+    setTipoNovo("");
+    setCriandoTipo(false);
+  }
   const [valor, setValor] = useState(moedaParaCampo(inicial?.valor));
   const [prazo, setPrazo] = useState(isoParaCampoData(inicial?.prazo));
   const [parecer, setParecer] = useState(inicial?.parecerOrigem ?? "");
@@ -129,7 +149,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
         <fieldset>
           <legend className={ROTULO}>Tipo de operação</legend>
           <div className="flex flex-wrap gap-1.5">
-            {TIPOS_OPERACAO.map(opcao => (
+            {tipos.map(opcao => (
               <button
                 key={opcao}
                 type="button"
@@ -142,16 +162,53 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
                       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   }`}
               >
-                {ROTULO_TIPO[opcao]}
+                {opcao}
               </button>
             ))}
+            {criandoTipo ? (
+              <span className="inline-flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={tipoNovo}
+                  maxLength={40}
+                  onChange={event => setTipoNovo(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      confirmarTipoNovo();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setTipoNovo("");
+                      setCriandoTipo(false);
+                    }
+                  }}
+                  onBlur={confirmarTipoNovo}
+                  placeholder="Nome do tipo"
+                  aria-label="Novo tipo de operação"
+                  className="min-h-9 w-44 rounded-lg border border-[#612035] bg-white px-3 text-xs text-slate-800 focus:outline-none focus:ring-2
+                    focus:ring-[#612035]/20 dark:bg-slate-800 dark:text-white"
+                />
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCriandoTipo(true)}
+                className="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 text-xs
+                  font-medium text-slate-500 transition-colors hover:border-[#612035] hover:text-[#612035] focus:outline-none
+                  focus-visible:ring-2 focus-visible:ring-[#612035] dark:border-slate-600 dark:text-slate-400"
+              >
+                <Icon name="add" size={13} /> Novo tipo
+              </button>
+            )}
           </div>
+          <p className="mt-1 text-[11px] text-slate-400">Opcional. Tipo novo fica disponível para todos.</p>
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="card-valor" className={ROTULO}>
-              Valor da operação
+              Valor da operação <span className="font-normal text-slate-400">(opcional)</span>
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
@@ -170,13 +227,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
             <label htmlFor="card-prazo" className={ROTULO}>
               Prazo para decisão <span className="font-normal text-slate-400">(opcional)</span>
             </label>
-            <input
-              id="card-prazo"
-              type="datetime-local"
-              value={prazo}
-              onChange={event => setPrazo(event.target.value)}
-              className={CAMPO}
-            />
+            <CampoData id="card-prazo" value={prazo} onChange={setPrazo} comHora />
           </div>
         </div>
 
@@ -264,7 +315,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
             value={parecer}
             onChange={setParecer}
             rows={5}
-            placeholder="O que a análise encontrou, o que recomenda e por quê. Use @ para marcar pessoas ou empresas."
+            placeholder="Use @ para marcar pessoas ou empresas."
           />
         </div>
 

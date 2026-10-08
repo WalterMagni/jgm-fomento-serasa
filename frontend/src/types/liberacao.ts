@@ -2,7 +2,8 @@
 
 export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "APROVADO" | "REPROVADO";
 
-export type TipoOperacao = "DUPLICATA" | "CHEQUE" | "COMISSARIA" | "INTERCOMPANY" | "OUTROS";
+/** Texto livre: os padrões vêm de GET /liberacao/tipos junto com os criados pelo time. */
+export type TipoOperacao = string;
 
 export type PosicaoParecer = "FAVORAVEL" | "COM_RESSALVAS" | "DESFAVORAVEL";
 
@@ -39,16 +40,6 @@ export const ROTULO_ETAPA_CURTO: Record<EtapaLiberacao, string> = {
   PENDENCIA: "Pendência",
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
-};
-
-export const TIPOS_OPERACAO: TipoOperacao[] = ["DUPLICATA", "CHEQUE", "COMISSARIA", "INTERCOMPANY", "OUTROS"];
-
-export const ROTULO_TIPO: Record<TipoOperacao, string> = {
-  DUPLICATA: "Duplicata",
-  CHEQUE: "Cheque",
-  COMISSARIA: "Comissária",
-  INTERCOMPANY: "Intercompany",
-  OUTROS: "Outros",
 };
 
 export const ROTULO_POSICAO: Record<PosicaoParecer, string> = {
@@ -158,7 +149,16 @@ export type LiberacaoDetalhe = {
   empresas: Record<string, boolean>;
 };
 
-export type LiberacaoResumo = { pareceresAguardando: number; pendenciasParaMim: number; total: number };
+export type LiberacaoResumo = {
+  pareceresAguardando: number;
+  pendenciasParaMim: number;
+  /** Parecer seu + pendência para você. */
+  total: number;
+  /** Cards em aberto com prazo vencido, iguais para todo mundo. */
+  atrasados: number;
+  /** Atrasados e os seus, sem repetir card: o número vermelho do menu. */
+  precisamAtencao: number;
+};
 
 /** Corpo de criação e edição. `version` só na edição. */
 export type DadosCard = {

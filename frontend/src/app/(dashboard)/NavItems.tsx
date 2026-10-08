@@ -19,7 +19,7 @@ export type NavItem = {
   isActive: (pathname: string) => boolean;
   /**
    * Contador vermelho ao lado do rótulo, para o que exige ação hoje: cards atrasados na
-   * prospecção, e na liberação o parecer e a pendência que esperam pelo usuário.
+   * prospecção; na liberação, os de prazo vencido mais o parecer e a pendência do usuário.
    */
   badge?: number;
   /** Marca a área como em avaliação, para o time saber que o fluxo ainda pode mudar. */
@@ -50,24 +50,17 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    href: "/reports/visao-cedente",
+    icon: "swap_horiz",
+    label: "Visão Cedente",
+    isActive: p => p.startsWith("/reports"),
+  },
+  {
     href: "/prospeccao",
     icon: "conveyor_belt",
     label: "Esteira de Prospecção",
     beta: true,
     isActive: p => p.startsWith("/prospeccao"),
-  },
-  {
-    href: "/liberacao",
-    icon: "fact_check",
-    label: "Esteira de Liberação",
-    beta: true,
-    isActive: p => p.startsWith("/liberacao"),
-  },
-  {
-    href: "/reports/visao-cedente",
-    icon: "swap_horiz",
-    label: "Visão Cedente",
-    isActive: p => p.startsWith("/reports"),
   },
   {
     href: "/praca-pagamento",
@@ -97,6 +90,13 @@ export const NAV_ITEMS: NavItem[] = [
         isActive: p => p === "/praca-pagamento/historico",
       },
     ],
+  },
+  {
+    href: "/liberacao",
+    icon: "fact_check",
+    label: "Esteira de Liberação",
+    beta: true,
+    isActive: p => p.startsWith("/liberacao"),
   },
 ];
 

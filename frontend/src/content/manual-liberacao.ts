@@ -53,7 +53,9 @@ Botão **Nova análise** (ou o **+** na coluna Origem).
 
 1. **Cedente**: digite o nome ou o CNPJ. Se a empresa já está no portal, escolha na lista.
    Se não está, digite o CNPJ completo e informe a razão social.
-2. **Tipo de operação**, **valor** e, se houver, **prazo para decisão**.
+2. **Tipo de operação**, **valor** e **prazo para decisão** — os três são opcionais. Se o
+   tipo que você precisa não está na lista, use **+ Novo tipo**: ele passa a aparecer para
+   todo mundo. O prazo pode ser digitado (dd/mm/aaaa hh:mm) ou escolhido no calendário.
 3. **Sacados**: um CNPJ ou CPF por linha, com valor opcional. **Dá para colar vários de
    uma vez** — copie a lista do e-mail ou da planilha e cole na primeira linha.
 4. **Parecer da origem**: o que a análise encontrou e o que recomenda.

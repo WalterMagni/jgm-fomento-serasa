@@ -85,9 +85,10 @@ append-only com usuário, nome copiado, data, hora e o que mudou
 - **Cedente**: busca por nome ou CNPJ na base de empresas. O título é gerado
   automaticamente: `RAZÃO SOCIAL · 12.345.678/0001-90`. CNPJ fora da base é aceito, com
   aviso "Empresa não cadastrada" e botão para cadastrar em nova aba.
-- **Tipo de operação**: Duplicata, Cheque, Comissária, Intercompany, Outros. Lista
-  provisória, a confirmar com o time.
-- **Valor da operação** em reais.
+- **Tipo de operação**: opcional. Padrões Duplicata, Cheque, Comissária e Intercompany, mais
+  os tipos que o time criar na hora (V68: texto livre, casado sem diferenciar maiúscula nem
+  acento com os existentes; tipo sem card que o use sai da lista sozinho).
+- **Valor da operação** em reais, opcional.
 - **Prazo**: data e hora, opcional. O chip fica âmbar faltando menos de 24 horas e
   vermelho depois do vencimento.
 - **Sacados**: lista de CNPJ, nome resolvido e valor opcional. Cada sacado abre a página

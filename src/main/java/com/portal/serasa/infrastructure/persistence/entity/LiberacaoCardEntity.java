@@ -2,7 +2,6 @@ package com.portal.serasa.infrastructure.persistence.entity;
 
 import com.portal.serasa.domain.model.liberacao.CorLiberacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
-import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -57,9 +56,9 @@ public class LiberacaoCardEntity {
     @Column(name = "cedente_nome", nullable = false, columnDefinition = "text")
     private String cedenteNome;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_operacao", length = 16)
-    private TipoOperacao tipoOperacao;
+    /** Texto livre desde a V68; ver TipoOperacao. */
+    @Column(name = "tipo_operacao", length = 40)
+    private String tipoOperacao;
 
     @Column(precision = 15, scale = 2)
     private BigDecimal valor;

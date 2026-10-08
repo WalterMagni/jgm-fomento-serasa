@@ -5,7 +5,7 @@ import { useMarcarLidasDoLink } from "@/hooks/useNotificacoes";
 import Icon from "@/components/ui/Icon";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
-import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, ROTULO_TIPO, type LiberacaoCard } from "@/types/liberacao";
+import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, type LiberacaoCard } from "@/types/liberacao";
 import CardForm from "./CardForm";
 import Atividade from "./Atividade";
 import OrganizacaoCard from "./OrganizacaoCard";
@@ -168,7 +168,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   <Dado rotulo="Valor">
                     <span className="font-display text-xl font-semibold tracking-tight">{formatMoeda(card.valor)}</span>
                   </Dado>
-                  <Dado rotulo="Tipo">{card.tipoOperacao ? ROTULO_TIPO[card.tipoOperacao] : "—"}</Dado>
+                  <Dado rotulo="Tipo">{card.tipoOperacao ?? "—"}</Dado>
                   <Dado rotulo="Prazo">
                     {card.prazo ? (
                       <span

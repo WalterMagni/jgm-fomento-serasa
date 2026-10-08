@@ -3,7 +3,6 @@ package com.portal.serasa.api.rest.dto.response;
 import com.portal.serasa.domain.model.liberacao.CorLiberacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
-import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -22,7 +21,7 @@ public record LiberacaoCardResponse(
         String cedenteCnpj,
         String cedenteNome,
         boolean cedenteCadastrado,
-        TipoOperacao tipoOperacao,
+        String tipoOperacao,
         BigDecimal valor,
         LocalDateTime prazo,
         String parecerOrigem,

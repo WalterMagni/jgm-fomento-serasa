@@ -47,6 +47,21 @@ public interface LiberacaoCardJpaRepository extends JpaRepository<LiberacaoCardE
     void tocarSemVersao(@Param("id") UUID id, @Param("quando") LocalDateTime quando,
                         @Param("autorId") UUID autorId, @Param("autorNome") String autorNome);
 
+    /** Cards em aberto com prazo vencido: o "atrasado" da esteira, igual para todo mundo. */
+    @Query("""
+            select c.id from LiberacaoCardEntity c
+            where c.excluidoEm is null and c.finalizadoEm is null
+              and c.prazo is not null and c.prazo < :agora
+            """)
+    List<UUID> idsAtrasados(@Param("agora") LocalDateTime agora);
+
+    /** Tipos que algum card em uso tem: é daqui que saem os tipos personalizados do time. */
+    @Query("""
+            select distinct c.tipoOperacao from LiberacaoCardEntity c
+            where c.excluidoEm is null and c.tipoOperacao is not null
+            """)
+    List<String> tiposUsados();
+
     @Query("""
             select c.id from LiberacaoCardEntity c
             where c.excluidoEm is null and c.etapa in :etapas

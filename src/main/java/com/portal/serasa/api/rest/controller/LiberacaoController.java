@@ -73,6 +73,13 @@ public class LiberacaoController {
                 usuario));
     }
 
+    /** Tipos de operação para o formulário e o filtro: padrões e os criados pelo time. */
+    @GetMapping("/tipos")
+    public ResponseEntity<List<String>> tipos() {
+        usuarioLogado.obter();
+        return ResponseEntity.ok(liberacaoService.tiposDeOperacao());
+    }
+
     /** O que espera por quem pediu. Alimenta o contador do menu. */
     @GetMapping("/resumo")
     public ResponseEntity<Map<String, Long>> resumo() {

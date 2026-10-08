@@ -30,7 +30,7 @@ export default function NavList({
   const { data: resumo } = useProspeccaoResumo();
   const precisamAtencao = resumo?.precisamAtencao ?? 0;
   const { data: liberacao } = useLiberacaoResumo();
-  const esperandoPorMim = liberacao?.total ?? 0;
+  const liberacaoAtencao = liberacao?.precisamAtencao ?? 0;
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -57,7 +57,7 @@ export default function NavList({
                   item.href === "/prospeccao"
                     ? { ...item, badge: precisamAtencao }
                     : item.href === "/liberacao"
-                      ? { ...item, badge: esperandoPorMim }
+                      ? { ...item, badge: liberacaoAtencao }
                       : item
                 }
                 pathname={pathname}

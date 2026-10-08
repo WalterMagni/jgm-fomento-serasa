@@ -1,6 +1,5 @@
 package com.portal.serasa.api.rest.dto.request;
 
-import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -19,7 +18,7 @@ import java.util.List;
 public record LiberacaoCardRequest(
         @NotBlank String cedenteCnpj,
         @Size(max = 300) String cedenteNome,
-        TipoOperacao tipoOperacao,
+        @Size(max = 40) String tipoOperacao,
         @DecimalMin(value = "0.00", message = "Valor não pode ser negativo") BigDecimal valor,
         LocalDateTime prazo,
         @Size(max = 20000) String parecerOrigem,

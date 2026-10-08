@@ -75,7 +75,7 @@ public class LiberacaoService {
     private final ApplicationEventPublisher eventos;
 
     /** Dados editáveis do card. Os mesmos na criação e na edição. */
-    public record DadosCard(String cedenteCnpj, String cedenteNome, TipoOperacao tipoOperacao,
+    public record DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao,
                             BigDecimal valor, LocalDateTime prazo, String parecerOrigem,
                             List<DadosSacado> sacados) {
     }
@@ -111,15 +111,30 @@ public class LiberacaoService {
         return eventoRepository.findByCardIdOrderByCriadoEmDesc(cardId);
     }
 
-    /** O que espera por esta pessoa: parecer devido e pendência destinada a ela. */
+    /**
+     * O que pede atenção, para o contador do menu e a faixa do quadro.
+     *
+     * <p>{@code total} é o que espera por esta pessoa: parecer devido e pendência destinada a
+     * ela. {@code atrasados} são os cards em aberto com prazo vencido, iguais para todo mundo,
+     * como os atrasados da prospecção. {@code precisamAtencao} junta os dois sem contar o mesmo
+     * card duas vezes — é o número vermelho do menu.</p>
+     */
     @Transactional(readOnly = true)
     public Map<String, Long> resumo(UserEntity usuario) {
         long pareceres = parecerRepository.contarAguardando(usuario.getId());
         long pendencias = pendenciaRepository.contarAbertasPara(usuario.getId());
+        List<UUID> atrasados = cardRepository.idsAtrasados(LocalDateTime.now());
+
+        Set<UUID> atencao = new java.util.HashSet<>(atrasados);
+        atencao.addAll(parecerRepository.cardsAguardando(usuario.getId()));
+        atencao.addAll(pendenciaRepository.cardsComPendenciaPara(usuario.getId()));
+
         Map<String, Long> resumo = new LinkedHashMap<>();
         resumo.put("pareceresAguardando", pareceres);
         resumo.put("pendenciasParaMim", pendencias);
         resumo.put("total", pareceres + pendencias);
+        resumo.put("atrasados", (long) atrasados.size());
+        resumo.put("precisamAtencao", (long) atencao.size());
         return resumo;
     }
 
@@ -135,6 +150,17 @@ public class LiberacaoService {
                 .filter(parecer -> !parecer.registrado() && parecer.getUsuarioId() != null)
                 .map(LiberacaoParecerEntity::getUsuarioNome)
                 .toList();
+    }
+
+    /** Tipos para o formulário e o filtro: os padrões primeiro, depois os criados pelo time. */
+    @Transactional(readOnly = true)
+    public List<String> tiposDeOperacao() {
+        List<String> tipos = new ArrayList<>(TipoOperacao.PADRAO);
+        cardRepository.tiposUsados().stream()
+                .filter(tipo -> TipoOperacao.PADRAO.stream().noneMatch(padrao -> padrao.equalsIgnoreCase(tipo)))
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .forEach(tipos::add);
+        return tipos;
     }
 
     @Transactional(readOnly = true)
@@ -156,7 +182,7 @@ public class LiberacaoService {
                 .rodada(1)
                 .cedenteCnpj(cnpj)
                 .cedenteNome(resolverNomeCedente(cnpj, dados.cedenteNome()))
-                .tipoOperacao(dados.tipoOperacao())
+                .tipoOperacao(TipoOperacao.resolver(dados.tipoOperacao(), cardRepository.tiposUsados()))
                 .valor(dados.valor())
                 .prazo(dados.prazo())
                 .parecerOrigem(textoOuNulo(dados.parecerOrigem()))
@@ -207,9 +233,10 @@ public class LiberacaoService {
             mudancas.add(new String[]{"cedente", card.getCedenteNome(), dados.cedenteNome().trim()});
             card.setCedenteNome(dados.cedenteNome().trim());
         }
-        if (dados.tipoOperacao() != card.getTipoOperacao()) {
-            mudancas.add(new String[]{"tipoOperacao", rotulo(card.getTipoOperacao()), rotulo(dados.tipoOperacao())});
-            card.setTipoOperacao(dados.tipoOperacao());
+        String tipo = TipoOperacao.resolver(dados.tipoOperacao(), cardRepository.tiposUsados());
+        if (!Objects.equals(tipo, card.getTipoOperacao())) {
+            mudancas.add(new String[]{"tipoOperacao", rotulo(card.getTipoOperacao()), rotulo(tipo)});
+            card.setTipoOperacao(tipo);
         }
         if (!mesmoValor(dados.valor(), card.getValor())) {
             mudancas.add(new String[]{"valor", moeda(card.getValor()), moeda(dados.valor())});
@@ -685,17 +712,8 @@ public class LiberacaoService {
         return documento;
     }
 
-    private static String rotulo(TipoOperacao tipo) {
-        if (tipo == null) {
-            return "—";
-        }
-        return switch (tipo) {
-            case DUPLICATA -> "Duplicata";
-            case CHEQUE -> "Cheque";
-            case COMISSARIA -> "Comissária";
-            case INTERCOMPANY -> "Intercompany";
-            case OUTROS -> "Outros";
-        };
+    private static String rotulo(String tipo) {
+        return tipo == null ? "—" : tipo;
     }
 
     private static String rotulo(PosicaoParecer posicao) {

@@ -156,6 +156,7 @@ function avisarConflito(error: Error, recarregar: () => void) {
 
 export function useCriarCard() {
   const atualizar = useAtualizarCache();
+  const queryClient = useQueryClient();
   return useMutation<LiberacaoCard, Error, DadosCard>({
     mutationFn: body =>
       pedir(`${API_BASE_URL}/liberacao`, { method: "POST", body: JSON.stringify(body) }, "Falha ao criar o card"),
@@ -163,6 +164,7 @@ export function useCriarCard() {
       atualizar(card);
       toast.success(`Card #${card.numero} criado`);
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["liberacaoTipos"] }),
     onError: error => toast.error(error.message),
   });
 }
@@ -176,6 +178,7 @@ export function useEditarCard() {
     onSuccess: card => {
       atualizar(card);
       toast.success("Card salvo");
+      queryClient.invalidateQueries({ queryKey: ["liberacaoTipos"] });
     },
     onError: (error, { id }) =>
       avisarConflito(error, () => {
@@ -320,6 +323,15 @@ export function useExcluirCard() {
       toast.success(`Card #${numero} apagado`);
     },
     onError: error => toast.error(error.message),
+  });
+}
+
+/** Tipos de operação: os padrões e os que o time já criou. */
+export function useTiposOperacao() {
+  return useQuery<string[]>({
+    queryKey: ["liberacaoTipos"],
+    queryFn: () => pedir(`${API_BASE_URL}/liberacao/tipos`, {}, "Falha ao carregar os tipos de operação"),
+    staleTime: 60 * 1000,
   });
 }
 

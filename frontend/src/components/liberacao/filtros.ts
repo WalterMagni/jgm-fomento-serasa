@@ -1,5 +1,5 @@
 import { textoPlano } from "@/components/ui/mencao/mencoes";
-import type { LiberacaoCard, TipoOperacao } from "@/types/liberacao";
+import type { LiberacaoCard } from "@/types/liberacao";
 
 /**
  * Filtros e ordenação do quadro.
@@ -18,7 +18,7 @@ export type Filtros = {
   busca: string;
   membros: string[];
   etiquetas: string[];
-  tipos: TipoOperacao[];
+  tipos: string[];
   criador: string | null;
   de: string | null;
   ate: string | null;
@@ -60,7 +60,8 @@ export function lerFiltros(params: URLSearchParams): Filtros {
     busca: params.get("q") ?? "",
     membros: lista(params.get("membro")),
     etiquetas: lista(params.get("etiqueta")),
-    tipos: lista(params.get("tipo")) as TipoOperacao[],
+    // Tipo é texto livre e pode ter vírgula; separa por barra vertical.
+    tipos: (params.get("tipo") ?? "").split("|").filter(Boolean),
     criador: params.get("criador"),
     de: params.get("de"),
     ate: params.get("ate"),
@@ -81,7 +82,7 @@ export function escreverFiltros(atuais: URLSearchParams, filtros: Filtros): URLS
   definir("q", filtros.busca.trim());
   definir("membro", filtros.membros.join(","));
   definir("etiqueta", filtros.etiquetas.join(","));
-  definir("tipo", filtros.tipos.join(","));
+  definir("tipo", filtros.tipos.join("|"));
   definir("criador", filtros.criador);
   definir("de", filtros.de);
   definir("ate", filtros.ate);

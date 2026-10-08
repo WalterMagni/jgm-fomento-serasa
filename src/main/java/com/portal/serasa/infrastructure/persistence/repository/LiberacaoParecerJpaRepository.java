@@ -46,6 +46,15 @@ public interface LiberacaoParecerJpaRepository extends JpaRepository<LiberacaoPa
             """)
     int apagarAguardandoDoUsuario(@Param("usuarioId") UUID usuarioId);
 
+    /** Cards no Comitê esperando o parecer desta pessoa. */
+    @Query("""
+            select p.cardId from LiberacaoParecerEntity p, LiberacaoCardEntity c
+            where p.cardId = c.id and p.rodada = c.rodada and p.usuarioId = :usuarioId
+              and p.posicao is null and c.excluidoEm is null
+              and c.etapa = com.portal.serasa.domain.model.liberacao.EtapaLiberacao.COMITE
+            """)
+    List<UUID> cardsAguardando(@Param("usuarioId") UUID usuarioId);
+
     /** Pareceres que esperam por esta pessoa, em cards que estão no Comitê. */
     @Query("""
             select count(p) from LiberacaoParecerEntity p, LiberacaoCardEntity c

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
-import { useDiretorio, useEtiquetas } from "@/hooks/useLiberacao";
-import { ROTULO_TIPO, TIPOS_OPERACAO, type TipoOperacao } from "@/types/liberacao";
+import CampoData from "@/components/ui/CampoData";
+import { useDiretorio, useEtiquetas, useTiposOperacao } from "@/hooks/useLiberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
 import {
@@ -61,6 +61,7 @@ function alternar<T>(lista: T[], item: T) {
 export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExportar, exportando }: Props) {
   const { data: pessoas = [] } = useDiretorio();
   const { data: etiquetas = [] } = useEtiquetas();
+  const { data: tiposOperacao = [] } = useTiposOperacao();
   const [painel, setPainel] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const [busca, setBusca] = useState(filtros.busca);
@@ -103,7 +104,7 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
       const etiqueta = etiquetas.find(item => item.id === id);
       return { chave: `e-${id}`, rotulo: <>etiqueta: {etiqueta?.nome ?? "…"}</>, tirar: () => mudar({ etiquetas: filtros.etiquetas.filter(item => item !== id) }) };
     }),
-    ...filtros.tipos.map(tipo => ({ chave: `t-${tipo}`, rotulo: <>{ROTULO_TIPO[tipo]}</>, tirar: () => mudar({ tipos: filtros.tipos.filter(item => item !== tipo) }) })),
+    ...filtros.tipos.map(tipo => ({ chave: `t-${tipo}`, rotulo: <>{tipo}</>, tirar: () => mudar({ tipos: filtros.tipos.filter(item => item !== tipo) }) })),
     ...(filtros.criador ? [{ chave: "c", rotulo: <>criado por {nome(filtros.criador)}</>, tirar: () => mudar({ criador: null }) }] : []),
     ...(filtros.de || filtros.ate
       ? [{
@@ -195,9 +196,9 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
               <section>
                 <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Tipo de operação</h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {TIPOS_OPERACAO.map(tipo => (
-                    <Chip key={tipo} ativo={filtros.tipos.includes(tipo)} onClick={() => mudar({ tipos: alternar<TipoOperacao>(filtros.tipos, tipo) })}>
-                      {ROTULO_TIPO[tipo]}
+                  {tiposOperacao.map(tipo => (
+                    <Chip key={tipo} ativo={filtros.tipos.includes(tipo)} onClick={() => mudar({ tipos: alternar(filtros.tipos, tipo) })}>
+                      {tipo}
                     </Chip>
                   ))}
                 </div>
@@ -214,24 +215,14 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
               </section>
               <section className="grid grid-cols-2 gap-2">
                 <h4 className="col-span-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Criado</h4>
-                <label className="text-[11px] text-slate-500">
+                <div className="text-[11px] text-slate-500">
                   de
-                  <input
-                    type="date"
-                    value={filtros.de ?? ""}
-                    onChange={event => mudar({ de: event.target.value || null })}
-                    className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </label>
-                <label className="text-[11px] text-slate-500">
+                  <CampoData value={filtros.de ?? ""} onChange={valor => mudar({ de: valor || null })} aria-label="Criado a partir de" className="mt-0.5 text-xs" />
+                </div>
+                <div className="text-[11px] text-slate-500">
                   até
-                  <input
-                    type="date"
-                    value={filtros.ate ?? ""}
-                    onChange={event => mudar({ ate: event.target.value || null })}
-                    className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </label>
+                  <CampoData value={filtros.ate ?? ""} onChange={valor => mudar({ ate: valor || null })} aria-label="Criado até" className="mt-0.5 text-xs" />
+                </div>
                 <label className="col-span-2 text-[11px] text-slate-500">
                   por
                   <select

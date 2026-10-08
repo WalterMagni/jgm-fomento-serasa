@@ -189,8 +189,8 @@ export default function QuadroLiberacao() {
         </div>
       </header>
 
-      {/* ------------------------------------------------- o que espera por você */}
-      {resumo && resumo.total > 0 && (
+      {/* -------------------------------------------------------- pede atenção */}
+      {resumo && (resumo.total > 0 || resumo.atrasados > 0) && (
         <div className="esteira-fade-in flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-[#612035]/15 bg-gradient-to-r
           from-[#612035]/[0.07] via-[#612035]/[0.03] to-transparent px-4 py-2.5 text-sm dark:border-[#e8a3b6]/20 dark:from-[#612035]/30">
           <span className="inline-flex items-center gap-2 font-semibold text-[#612035] dark:text-[#e8a3b6]">
@@ -198,7 +198,7 @@ export default function QuadroLiberacao() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#612035] opacity-60 motion-reduce:hidden dark:bg-[#e8a3b6]" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[#612035] dark:bg-[#e8a3b6]" />
             </span>
-            Esperando por você
+            Pede atenção
           </span>
           {resumo.pareceresAguardando > 0 && (
             <button
@@ -206,13 +206,24 @@ export default function QuadroLiberacao() {
               onClick={() => meusPareceres[0] && abrir(meusPareceres[0].id)}
               className="cursor-pointer text-slate-700 underline-offset-2 hover:underline dark:text-slate-200"
             >
-              {resumo.pareceresAguardando} parecer{resumo.pareceresAguardando > 1 ? "es" : ""} no Comitê
+              {resumo.pareceresAguardando === 1 ? "1 parecer seu no Comitê" : `${resumo.pareceresAguardando} pareceres seus no Comitê`}
             </button>
           )}
           {resumo.pendenciasParaMim > 0 && (
             <span className="text-slate-700 dark:text-slate-200">
-              {resumo.pendenciasParaMim} pendência{resumo.pendenciasParaMim > 1 ? "s" : ""} para responder
+              {resumo.pendenciasParaMim} pendência{resumo.pendenciasParaMim > 1 ? "s" : ""} para você responder
             </span>
+          )}
+          {resumo.atrasados > 0 && (
+            <button
+              type="button"
+              onClick={() => mudarFiltros({ ...filtros, prazo: "vencido" })}
+              title="Mostrar só os cards com prazo vencido"
+              className="inline-flex cursor-pointer items-center gap-1 font-medium text-rose-700 underline-offset-2 hover:underline dark:text-rose-300"
+            >
+              <Icon name="schedule" size={13} />
+              {resumo.atrasados === 1 ? "1 card com prazo vencido" : `${resumo.atrasados} cards com prazo vencido`}
+            </button>
           )}
         </div>
       )}
