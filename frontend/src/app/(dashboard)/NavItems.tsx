@@ -11,8 +11,10 @@ export type NavItem = {
   href: string;
   icon: string;
   label: string;
-  /** Sub-item da Praça de Pagamento: recuado e com fonte menor. */
+  /** Sub-item de um grupo: recuado e com fonte menor. */
   sub?: boolean;
+  /** Sub-itens do grupo, mostrados abaixo do pai quando o grupo está aberto. */
+  children?: NavItem[];
   /** Marca o item como ativo a partir do pathname. */
   isActive: (pathname: string) => boolean;
   /**
@@ -30,12 +32,22 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "folder_shared",
     label: "Gestão de Carteira",
     isActive: p => p === "/" || p.startsWith("/clients/"),
-  },
-  {
-    href: "/commercial-information",
-    icon: "business_center",
-    label: "Informações Comerciais",
-    isActive: p => p === "/commercial-information",
+    children: [
+      {
+        href: "/commercial-information",
+        icon: "business_center",
+        label: "Informações Comerciais",
+        sub: true,
+        isActive: p => p === "/commercial-information",
+      },
+      {
+        href: "/individuals",
+        icon: "person_search",
+        label: "Pessoas Físicas",
+        sub: true,
+        isActive: p => p === "/individuals" || p.startsWith("/individuals/"),
+      },
+    ],
   },
   {
     href: "/prospeccao",
@@ -55,33 +67,29 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "account_balance",
     label: "Praça de Pagamento",
     isActive: p => p === "/praca-pagamento",
-  },
-  {
-    href: "/praca-pagamento/inconclusivos",
-    icon: "rule",
-    label: "Inconclusivos",
-    sub: true,
-    isActive: p => p === "/praca-pagamento/inconclusivos",
-  },
-  {
-    href: "/praca-pagamento/padroes",
-    icon: "psychology",
-    label: "Padrões",
-    sub: true,
-    isActive: p => p === "/praca-pagamento/padroes",
-  },
-  {
-    href: "/praca-pagamento/historico",
-    icon: "history",
-    label: "Histórico",
-    sub: true,
-    isActive: p => p === "/praca-pagamento/historico",
-  },
-  {
-    href: "/individuals",
-    icon: "person_search",
-    label: "Pessoas Físicas",
-    isActive: p => p === "/individuals" || p.startsWith("/individuals/"),
+    children: [
+      {
+        href: "/praca-pagamento/inconclusivos",
+        icon: "rule",
+        label: "Inconclusivos",
+        sub: true,
+        isActive: p => p === "/praca-pagamento/inconclusivos",
+      },
+      {
+        href: "/praca-pagamento/padroes",
+        icon: "psychology",
+        label: "Padrões",
+        sub: true,
+        isActive: p => p === "/praca-pagamento/padroes",
+      },
+      {
+        href: "/praca-pagamento/historico",
+        icon: "history",
+        label: "Histórico",
+        sub: true,
+        isActive: p => p === "/praca-pagamento/historico",
+      },
+    ],
   },
 ];
 
@@ -121,7 +129,7 @@ export function NavLink({
           // No drawer o sub-item usa py-3 para chegar aos 44px de alvo de toque.
           ? `px-3 ${showLabel === "always" ? "py-3 ml-6" : "py-2.5 lg:ml-6"}`
           : "px-3 py-3"
-      } ${
+      } ${item.children?.length ? (showLabel === "always" ? "pr-16" : "pr-10") : ""} ${
         active
           ? "bg-white/10 text-white shadow-sm"
           : `${item.sub ? "text-white/60" : "text-white/70"} hover:bg-white/5 hover:text-white`
