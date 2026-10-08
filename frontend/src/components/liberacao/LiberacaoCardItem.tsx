@@ -2,11 +2,13 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
-import { ROTULO_POSICAO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
+import { ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
 import {
   COR_POSICAO,
+  COR_RESULTADO,
+  ICONE_RESULTADO,
   ICONE_POSICAO,
   aguardando,
   formatDocumento,
@@ -103,10 +105,20 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
         </p>
       )}
 
+      {card.resultado && (
+        <p className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${COR_RESULTADO[card.resultado]}`}>
+          <Icon name={ICONE_RESULTADO[card.resultado]} size={11} />
+          {ROTULO_RESULTADO[card.resultado]}
+          {card.resultado === "PARCIAL" && card.valorAprovado != null && <span className="font-normal">· {formatMoeda(card.valorAprovado)}</span>}
+        </p>
+      )}
+
       {card.etapa === "COMITE" && faltam.length > 0 && (
+        // Sem nenhum parecer o card não sai do Comitê (cadeado). Com pelo menos um, já pode sair
+        // com aviso: o chip só lembra quem falta.
         <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-[#612035]/8 px-1.5 py-0.5 text-[10.5px]
           font-medium text-[#612035] dark:bg-[#612035]/30 dark:text-[#e8a3b6]">
-          <Icon name="lock" size={11} />
+          <Icon name={card.pareceres.some(parecer => parecer.posicao) ? "hourglass_top" : "lock"} size={11} />
           {faltam.length === 1 ? `falta parecer de ${faltam[0].usuarioNome.split(" ")[0]}` : `faltam ${faltam.length} pareceres`}
         </p>
       )}
@@ -130,6 +142,12 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
             <span className="inline-flex items-center gap-0.5" title={`${card.comentarios} comentário(s)`}>
               <Icon name="chat" size={12} />
               {card.comentarios}
+            </span>
+          )}
+          {card.anexos > 0 && (
+            <span className="inline-flex items-center gap-0.5" title={`${card.anexos} anexo(s)`}>
+              <Icon name="attach_file" size={12} />
+              {card.anexos}
             </span>
           )}
           {card.pendenciasAbertas > 0 && (

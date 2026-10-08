@@ -93,17 +93,17 @@ export function useMarcarLidasDoLink() {
   );
 }
 
-/** Liga ou desliga o som do sino. Fica no perfil, vale em qualquer computador. */
-export function useDefinirSom() {
+/** Preferências do sino (som, e-mail). Ficam no perfil e valem em qualquer computador. */
+export function useDefinirPreferencia() {
   const queryClient = useQueryClient();
-  return useMutation<unknown, Error, boolean>({
-    mutationFn: async som => {
+  return useMutation<unknown, Error, { somNotificacao?: boolean; emailLiberacao?: boolean }>({
+    mutationFn: async preferencia => {
       const res = await fetch(`${AUTH_BASE_URL}/api/auth/profile`, {
         method: "PATCH",
         headers: headers(true),
-        body: JSON.stringify({ somNotificacao: som }),
+        body: JSON.stringify(preferencia),
       });
-      if (!res.ok) throw new Error("Falha ao salvar a preferência de som");
+      if (!res.ok) throw new Error("Falha ao salvar a preferência");
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["usuarioAtual"] }),

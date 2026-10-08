@@ -10,5 +10,7 @@ public enum TipoEventoLiberacao {
     PARECER,
     PENDENCIA_ABERTA,
     PENDENCIA_RESPONDIDA,
+    ANEXO_ADICIONADO,
+    ANEXO_REMOVIDO,
     EXCLUSAO
 }

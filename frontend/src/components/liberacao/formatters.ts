@@ -123,19 +123,12 @@ export const COR_ETAPA: Record<EtapaLiberacao, { faixa: string; texto: string; f
     anel: "ring-[#D1732C]/40",
     hex: "#D1732C",
   },
-  APROVADO: {
-    faixa: "bg-emerald-600",
-    texto: "text-emerald-700 dark:text-emerald-300",
-    fundo: "bg-emerald-50 dark:bg-emerald-900/30",
-    anel: "ring-emerald-500/40",
-    hex: "#059669",
-  },
-  REPROVADO: {
-    faixa: "bg-rose-700",
-    texto: "text-rose-700 dark:text-rose-300",
-    fundo: "bg-rose-50 dark:bg-rose-900/30",
-    anel: "ring-rose-500/40",
-    hex: "#be123c",
+  FINALIZADO: {
+    faixa: "bg-slate-700 dark:bg-slate-300",
+    texto: "text-slate-700 dark:text-slate-200",
+    fundo: "bg-slate-200/70 dark:bg-slate-700/50",
+    anel: "ring-slate-500/40",
+    hex: "#334155",
   },
 };
 
@@ -143,8 +136,20 @@ export const ICONE_ETAPA: Record<EtapaLiberacao, string> = {
   ORIGEM: "inbox",
   COMITE: "gavel",
   PENDENCIA: "hourglass_top",
+  FINALIZADO: "task_alt",
+};
+
+/** Resultado e decisão de sacado: verde, vermelho e âmbar, nos dois temas. */
+export const COR_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL", string> = {
+  APROVADO: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+  REPROVADO: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
+  PARCIAL: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100",
+};
+
+export const ICONE_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL", string> = {
   APROVADO: "check_circle",
   REPROVADO: "cancel",
+  PARCIAL: "remove_circle",
 };
 
 /** Cor do anel do avatar de parecer. Aguardando fica tracejado, sem cor. */

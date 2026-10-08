@@ -1,6 +1,7 @@
 package com.portal.serasa.api.rest.dto.response;
 
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
+import com.portal.serasa.domain.model.liberacao.ResultadoLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
 import lombok.Builder;
 
@@ -20,18 +21,32 @@ public record LiberacaoDetalheResponse(
         List<Evento> eventos,
         /** Mais recente primeiro. */
         List<Comentario> comentarios,
+        /** Mais recente primeiro. */
+        List<Anexo> anexos,
         /**
          * CNPJs mencionados em qualquer texto do card, e se cada um tem página de empresa. A tela
          * desenha o chip sólido ou tracejado sem consultar empresa por empresa.
          */
         Map<String, Boolean> empresas) {
 
-    public record Sacado(String documento, String nome, BigDecimal valor, boolean cadastrado) {
+    public record Sacado(String documento, String nome, BigDecimal valor, boolean cadastrado, String praca,
+                         ResultadoLiberacao situacao, BigDecimal valorAprovado, String situacaoPorNome,
+                         LocalDateTime situacaoEm,
+                         /** Decisões sobre o mesmo documento em outros cards, a mais recente primeiro. */
+                         List<DecisaoAnterior> historico) {
+    }
+
+    public record DecisaoAnterior(UUID cardId, Long numero, String cedenteNome, ResultadoLiberacao situacao,
+                                  BigDecimal valorAprovado, String decididoPor, LocalDateTime decididoEm) {
     }
 
     public record Pendencia(UUID id, String abertaPorNome, UUID destinatarioId, String destinatarioNome,
                             String texto, String resposta, LocalDateTime abertaEm,
                             LocalDateTime respondidaEm, String respondidaPorNome, boolean podeResponder) {
+    }
+
+    public record Anexo(UUID id, String nome, String mimeType, long tamanhoBytes, String enviadoPorNome,
+                        LocalDateTime enviadoEm, boolean podeRemover) {
     }
 
     public record Comentario(UUID id, UUID autorId, String autorNome, String iniciais, String texto,

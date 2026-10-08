@@ -65,4 +65,9 @@ public class UserEntity {
     @Column(name = "som_notificacao", nullable = false)
     @Builder.Default
     private boolean somNotificacao = true;
+
+    /** Aviso por e-mail da esteira de liberação. Ver V72. */
+    @Column(name = "email_liberacao", nullable = false)
+    @Builder.Default
+    private boolean emailLiberacao = true;
 }

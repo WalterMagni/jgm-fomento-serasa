@@ -41,19 +41,29 @@ public class LiberacaoAutorizacao {
     /**
      * Por que esta pessoa não pode mover o card para {@code destino} agora. Vazio = pode.
      *
-     * @param aguardando nomes de quem ainda deve parecer na rodada vigente
+     * @param registrados quantos pareceres a rodada vigente já tem
      * @param comiteVazio ninguém tem a marca de Comitê
      */
     public Optional<String> motivoBloqueio(LiberacaoCardEntity card, EtapaLiberacao destino,
-                                           UserEntity usuario, List<String> aguardando,
-                                           boolean comiteVazio) {
+                                           UserEntity usuario, int registrados, boolean comiteVazio) {
         return motivoCaminho(card, destino)
                 .or(() -> motivoPermissao(card, usuario))
-                .or(() -> motivoRegra(card, destino, aguardando, comiteVazio));
+                .or(() -> motivoRegra(card, destino, registrados, comiteVazio));
+    }
+
+    /**
+     * O que a tela confirma antes de mover, sem impedir: sair do Comitê com parecer faltando. Na
+     * ausência de uma das analistas o card precisa andar, mas quem move vê de quem falta.
+     */
+    public Optional<String> aviso(LiberacaoCardEntity card, EtapaLiberacao destino, List<String> aguardando) {
+        if (EtapaLiberacao.decisaoDoComite(card.getEtapa(), destino) && !aguardando.isEmpty()) {
+            return Optional.of(juntar(aguardando) + (aguardando.size() == 1 ? " ainda não deu parecer." : " ainda não deram parecer."));
+        }
+        return Optional.empty();
     }
 
     public void exigirTransicao(LiberacaoCardEntity card, EtapaLiberacao destino, UserEntity usuario,
-                                List<String> aguardando, boolean comiteVazio) {
+                                int registrados, boolean comiteVazio) {
         exigirAutenticado(usuario);
         // Caminho inexistente é regra da máquina de estados (409), não falta de permissão (403).
         motivoCaminho(card, destino).ifPresent(motivo -> {
@@ -62,7 +72,7 @@ public class LiberacaoAutorizacao {
         motivoPermissao(card, usuario).ifPresent(motivo -> {
             throw new AcessoNegadoException(motivo);
         });
-        motivoRegra(card, destino, aguardando, comiteVazio).ifPresent(motivo -> {
+        motivoRegra(card, destino, registrados, comiteVazio).ifPresent(motivo -> {
             throw new TransicaoInvalidaException(motivo);
         });
     }
@@ -104,13 +114,17 @@ public class LiberacaoAutorizacao {
         return Optional.empty();
     }
 
+    /**
+     * Sair do Comitê pede pelo menos um parecer (pedido do time em 2026-10-08): na ausência de uma
+     * das analistas o card anda com o parecer da outra, mas não sem parecer nenhum.
+     */
     private Optional<String> motivoRegra(LiberacaoCardEntity card, EtapaLiberacao destino,
-                                         List<String> aguardando, boolean comiteVazio) {
+                                         int registrados, boolean comiteVazio) {
         if (destino == EtapaLiberacao.COMITE && comiteVazio) {
             return Optional.of("Ninguém está marcado como Comitê. Peça ao admin para marcar em Configurações.");
         }
-        if (EtapaLiberacao.decisaoDoComite(card.getEtapa(), destino) && !aguardando.isEmpty()) {
-            return Optional.of("Aguardando parecer de " + juntar(aguardando) + ".");
+        if (EtapaLiberacao.decisaoDoComite(card.getEtapa(), destino) && registrados == 0) {
+            return Optional.of("Precisa de pelo menos um parecer do Comitê.");
         }
         return Optional.empty();
     }
@@ -132,8 +146,7 @@ public class LiberacaoAutorizacao {
             case ORIGEM -> "Origem";
             case COMITE -> "Comitê";
             case PENDENCIA -> "Pendência";
-            case APROVADO -> "Aprovado";
-            case REPROVADO -> "Reprovado";
+            case FINALIZADO -> "Finalizados";
         };
     }
 }

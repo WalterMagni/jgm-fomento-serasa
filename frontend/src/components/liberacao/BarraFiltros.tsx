@@ -6,6 +6,7 @@ import CampoData from "@/components/ui/CampoData";
 import { useDiretorio, useEtiquetas, useTiposOperacao } from "@/hooks/useLiberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
+import { ROTULO_RESULTADO, type Resultado } from "@/types/liberacao";
 import {
   ROTULO_FINALIZADOS,
   ROTULO_ORDEM,
@@ -105,6 +106,11 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
       return { chave: `e-${id}`, rotulo: <>etiqueta: {etiqueta?.nome ?? "…"}</>, tirar: () => mudar({ etiquetas: filtros.etiquetas.filter(item => item !== id) }) };
     }),
     ...filtros.tipos.map(tipo => ({ chave: `t-${tipo}`, rotulo: <>{tipo}</>, tirar: () => mudar({ tipos: filtros.tipos.filter(item => item !== tipo) }) })),
+    ...filtros.resultados.map(resultado => ({
+      chave: `r-${resultado}`,
+      rotulo: <>{ROTULO_RESULTADO[resultado]}</>,
+      tirar: () => mudar({ resultados: filtros.resultados.filter(item => item !== resultado) }),
+    })),
     ...(filtros.criador ? [{ chave: "c", rotulo: <>criado por {nome(filtros.criador)}</>, tirar: () => mudar({ criador: null }) }] : []),
     ...(filtros.de || filtros.ate
       ? [{
@@ -204,6 +210,16 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
                 </div>
               </section>
               <section>
+                <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Resultado</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(Object.keys(ROTULO_RESULTADO) as Resultado[]).map(resultado => (
+                    <Chip key={resultado} ativo={filtros.resultados.includes(resultado)} onClick={() => mudar({ resultados: alternar(filtros.resultados, resultado) })}>
+                      {ROTULO_RESULTADO[resultado]}
+                    </Chip>
+                  ))}
+                </div>
+              </section>
+              <section>
                 <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Prazo</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {(Object.keys(ROTULO_PRAZO) as FiltroPrazo[]).map(prazo => (
@@ -242,7 +258,7 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
               {ativos > 0 && (
                 <button
                   type="button"
-                  onClick={() => mudar({ membros: [], etiquetas: [], tipos: [], criador: null, de: null, ate: null, prazo: null })}
+                  onClick={() => mudar({ membros: [], etiquetas: [], tipos: [], resultados: [], criador: null, de: null, ate: null, prazo: null })}
                   className="text-xs font-medium text-[#612035] hover:underline dark:text-[#e8a3b6]"
                 >
                   limpar filtros

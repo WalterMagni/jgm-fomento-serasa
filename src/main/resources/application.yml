@@ -55,6 +55,8 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
   user-management:
     allowed-emails: ${APP_USER_MANAGEMENT_ALLOWED_EMAILS:}
+  # Endereço do portal no navegador, para links em e-mail. Ex.: http://10.0.0.5:3001
+  portal-url: ${APP_PORTAL_URL:}
 
 api:
   security:
@@ -94,6 +96,9 @@ email:
     from: ${EMAIL_FROM:jgmempresarial@jgmempresarial.com}
     to: ${EMAIL_COMERCIAL:comercial@jgmfomento.com}
     enabled: ${EMAIL_CEDENTE_ENABLED:true}
+  # Avisos da esteira de liberação. Desligado fora da produção: o docker-compose liga.
+  liberacao:
+    enabled: ${EMAIL_LIBERACAO_ENABLED:false}
 
 server:
   compression:

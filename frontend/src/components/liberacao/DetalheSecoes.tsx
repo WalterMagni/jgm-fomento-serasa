@@ -4,10 +4,14 @@ import { useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import TextoRico from "@/components/ui/mencao/TextoRico";
-import { useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
+import { useDecidirSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
 import {
   ROTULO_POSICAO,
+  ROTULO_RESULTADO,
+  ROTULO_RESULTADO_CURTO,
+  type DecisaoAnterior,
   type LiberacaoCard,
+  type Resultado,
   type Parecer,
   type Pendencia,
   type PosicaoParecer,
@@ -15,7 +19,20 @@ import {
 } from "@/types/liberacao";
 import Avatar from "./Avatar";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./Dialogo";
-import { COR_POSICAO, ICONE_POSICAO, formatDataHora, formatDocumento, formatMoeda, tempoRelativo } from "./formatters";
+import {
+  COR_POSICAO,
+  COR_RESULTADO,
+  ICONE_POSICAO,
+  ICONE_RESULTADO,
+  formatDataHora,
+  formatDocumento,
+  formatMoeda,
+  moedaParaCampo,
+  parseMoeda,
+  tempoRelativo,
+} from "./formatters";
+
+const formatData = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
 export function Secao({ titulo, icone, acao, children }: { titulo: string; icone: string; acao?: ReactNode; children: ReactNode }) {
   return (
@@ -34,56 +51,190 @@ export function Secao({ titulo, icone, acao, children }: { titulo: string; icone
 
 // ------------------------------------------------------------------ sacados
 
-export function SacadosLista({ sacados, valorOperacao }: { sacados: Sacado[]; valorOperacao: number | null }) {
+/** Decisões anteriores sobre o mesmo sacado, em outros cards. Reprovação primeiro chama atenção. */
+export function HistoricoSacado({ historico, compacto = false }: { historico: DecisaoAnterior[]; compacto?: boolean }) {
+  if (historico.length === 0) return null;
+  const visiveis = compacto ? historico.slice(0, 2) : historico.slice(0, 4);
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {visiveis.map(decisao => (
+        <a
+          key={`${decisao.cardId}-${decisao.situacao}`}
+          href={`/liberacao?card=${decisao.cardId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`${ROTULO_RESULTADO[decisao.situacao]} no card #${decisao.numero} (${decisao.cedenteNome})${decisao.decididoPor ? ` por ${decisao.decididoPor}` : ""}`}
+          className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium hover:underline ${COR_RESULTADO[decisao.situacao]}`}
+        >
+          <Icon name={ICONE_RESULTADO[decisao.situacao]} size={10} />
+          {ROTULO_RESULTADO_CURTO[decisao.situacao]} em #{decisao.numero}
+          {decisao.decididoEm && <span className="opacity-75">· {formatData(decisao.decididoEm)}</span>}
+        </a>
+      ))}
+      {historico.length > visiveis.length && <span className="text-[10.5px] text-slate-400">+{historico.length - visiveis.length}</span>}
+    </div>
+  );
+}
+
+const DECISOES: Resultado[] = ["APROVADO", "PARCIAL", "REPROVADO"];
+
+/** Decisão de um sacado na lista do card, para analista no Comitê ou em Pendência. */
+function DecisaoInline({ cardId, sacado }: { cardId: string; sacado: Sacado }) {
+  const decidir = useDecidirSacado();
+  const [parcial, setParcial] = useState(false);
+  const [valor, setValor] = useState(moedaParaCampo(sacado.valorAprovado));
+
+  if (parcial) {
+    return (
+      <form
+        className="flex items-center gap-1"
+        onSubmit={event => {
+          event.preventDefault();
+          const numero = parseMoeda(valor);
+          if (!numero) return;
+          decidir.mutate({ id: cardId, documento: sacado.documento, situacao: "PARCIAL", valorAprovado: numero }, { onSuccess: () => setParcial(false) });
+        }}
+      >
+        <div className="relative w-28">
+          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">R$</span>
+          <input
+            autoFocus
+            inputMode="decimal"
+            value={valor}
+            onChange={event => setValor(event.target.value)}
+            placeholder="aprovado"
+            aria-label="Valor aprovado"
+            className="w-full rounded-md border border-amber-300 bg-white py-1 pl-6 pr-1.5 text-right text-xs tabular-nums focus:outline-none dark:bg-slate-800 dark:text-white"
+          />
+        </div>
+        <button type="submit" disabled={decidir.isPending} className="h-7 cursor-pointer rounded-md bg-amber-500 px-2 text-[11px] font-semibold text-white">
+          ok
+        </button>
+        <button type="button" onClick={() => setParcial(false)} aria-label="Cancelar" className="h-7 cursor-pointer px-1 text-slate-400 hover:text-slate-700">
+          <Icon name="close" size={12} />
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-0.5" role="radiogroup" aria-label={`Decisão de ${sacado.nome ?? sacado.documento}`}>
+      {DECISOES.map(opcao => (
+        <button
+          key={opcao}
+          type="button"
+          role="radio"
+          aria-checked={sacado.situacao === opcao}
+          disabled={decidir.isPending}
+          title={ROTULO_RESULTADO[opcao]}
+          onClick={() => {
+            if (opcao === "PARCIAL") {
+              setParcial(true);
+              return;
+            }
+            decidir.mutate({ id: cardId, documento: sacado.documento, situacao: sacado.situacao === opcao ? null : opcao });
+          }}
+          className={`inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-md px-1.5 text-[10.5px] font-semibold transition-colors ${
+            sacado.situacao === opcao ? COR_RESULTADO[opcao] : "text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+          }`}
+        >
+          <Icon name={ICONE_RESULTADO[opcao]} size={12} />
+          <span className="hidden sm:inline">{ROTULO_RESULTADO_CURTO[opcao]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function SacadosLista({
+  cardId,
+  sacados,
+  valorOperacao,
+  podeDecidir,
+}: {
+  cardId: string;
+  sacados: Sacado[];
+  valorOperacao: number | null;
+  /** Analista com o card no Comitê ou em Pendência. */
+  podeDecidir: boolean;
+}) {
   if (sacados.length === 0) {
     return <p className="text-sm text-slate-400">Nenhum sacado informado.</p>;
   }
   const comValor = sacados.filter(sacado => sacado.valor != null);
   const soma = comValor.reduce((total, sacado) => total + (sacado.valor ?? 0), 0);
   const divergente = valorOperacao != null && comValor.length > 0 && Math.abs(soma - valorOperacao) >= 0.01;
+  const decididos = sacados.filter(sacado => sacado.situacao);
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
         {sacados.map(sacado => (
-          <li key={sacado.documento} className="flex items-center gap-3 px-3 py-2.5">
+          <li key={sacado.documento} className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
                 {sacado.nome ?? <span className="font-normal italic text-slate-400">sem nome na base</span>}
               </p>
-              <p className="font-mono text-[11px] text-slate-500">{formatDocumento(sacado.documento)}</p>
+              <p className="text-[11px] text-slate-500">
+                <span className="font-mono">{formatDocumento(sacado.documento)}</span>
+                {sacado.praca && <span className="text-slate-400"> · {sacado.praca}</span>}
+              </p>
+              <HistoricoSacado historico={sacado.historico} />
             </div>
-            {sacado.valor != null && (
-              <span className="shrink-0 text-sm tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.valor)}</span>
-            )}
-            {sacado.documento.length === 14 && (
-              <a
-                href={`/clients/${sacado.documento}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={sacado.cadastrado ? "Abrir a página da empresa em nova aba" : "Empresa não cadastrada: abre a página para cadastrar"}
-                aria-label={`Abrir ${sacado.nome ?? formatDocumento(sacado.documento)} em nova aba`}
-                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors focus:outline-none
-                  focus-visible:ring-2 focus-visible:ring-[#612035] ${
-                    sacado.cadastrado
-                      ? "text-slate-500 hover:bg-slate-100 hover:text-[#612035] dark:hover:bg-slate-800"
-                      : "border border-dashed border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30"
-                  }`}
-              >
-                <Icon name="open_in_new" size={14} />
-              </a>
+            <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+              {sacado.valor != null && (
+                <span className="text-sm tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.valor)}</span>
+              )}
+              {podeDecidir ? (
+                <DecisaoInline cardId={cardId} sacado={sacado} />
+              ) : (
+                sacado.situacao && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${COR_RESULTADO[sacado.situacao]}`}
+                    title={sacado.situacaoPorNome ? `por ${sacado.situacaoPorNome}` : undefined}
+                  >
+                    <Icon name={ICONE_RESULTADO[sacado.situacao]} size={11} />
+                    {ROTULO_RESULTADO_CURTO[sacado.situacao]}
+                  </span>
+                )
+              )}
+              {sacado.documento.length === 14 && (
+                <a
+                  href={`/clients/${sacado.documento}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={sacado.cadastrado ? "Abrir a página da empresa em nova aba" : "Empresa não cadastrada: abre a página para cadastrar"}
+                  aria-label={`Abrir ${sacado.nome ?? formatDocumento(sacado.documento)} em nova aba`}
+                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors focus:outline-none
+                    focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                      sacado.cadastrado
+                        ? "text-slate-500 hover:bg-slate-100 hover:text-[#612035] dark:hover:bg-slate-800"
+                        : "border border-dashed border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                    }`}
+                >
+                  <Icon name="open_in_new" size={14} />
+                </a>
+              )}
+            </div>
+            {sacado.situacao === "PARCIAL" && sacado.valorAprovado != null && (
+              <span className="text-[10.5px] text-amber-700 sm:hidden dark:text-amber-300">aprovado {formatMoeda(sacado.valorAprovado)}</span>
             )}
           </li>
         ))}
       </ul>
-      {comValor.length > 0 && (
-        <p className={`flex items-center gap-1 border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-800/50
-          ${divergente ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
-          {divergente && <Icon name="warning" size={12} />}
-          Soma dos sacados <strong className="ml-auto tabular-nums">{formatMoeda(soma)}</strong>
-          {divergente && <span className="ml-1">≠ {formatMoeda(valorOperacao)}</span>}
-        </p>
-      )}
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-800/50
+        ${divergente ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
+        {comValor.length > 0 && (
+          <span className="flex items-center gap-1">
+            {divergente && <Icon name="warning" size={12} />}
+            Soma dos sacados <strong className="tabular-nums">{formatMoeda(soma)}</strong>
+            {divergente && <span>≠ {formatMoeda(valorOperacao)}</span>}
+          </span>
+        )}
+        <span className="ml-auto text-slate-500">
+          {decididos.length} de {sacados.length} decidido{sacados.length === 1 ? "" : "s"}
+        </span>
+      </div>
     </div>
   );
 }
@@ -153,7 +304,8 @@ function FormParecer({ card, atual, onCancelar }: { card: LiberacaoCard; atual?:
   );
 }
 
-function LinhaParecer({ parecer }: { parecer: Parecer }) {
+/** `aberto`: o card está no Comitê e o parecer ainda pode chegar. Fora dele, quem não deu fica "sem parecer". */
+function LinhaParecer({ parecer, aberto = false }: { parecer: Parecer; aberto?: boolean }) {
   return (
     <li className="flex gap-3 py-3 first:pt-0">
       <Avatar nome={parecer.usuarioNome} iniciais={parecer.iniciais} tamanho="md" aguardando={!parecer.posicao} />
@@ -166,7 +318,7 @@ function LinhaParecer({ parecer }: { parecer: Parecer }) {
               {ROTULO_POSICAO[parecer.posicao]}
             </span>
           ) : (
-            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500 dark:bg-slate-800">aguardando</span>
+            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500 dark:bg-slate-800">{aberto ? "aguardando" : "sem parecer"}</span>
           )}
           {parecer.registradoEm && (
             <span className="text-[11px] text-slate-400" title={formatDataHora(parecer.registradoEm)}>
@@ -203,7 +355,7 @@ export function PareceresComite({ card, pareceres, euId }: { card: LiberacaoCard
           {card.rodada > 1 && <p className="mb-2 text-[11px] font-medium text-slate-400">Rodada {card.rodada}</p>}
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {vigentes.map(parecer => (
-              <LinhaParecer key={parecer.id} parecer={parecer} />
+              <LinhaParecer key={parecer.id} parecer={parecer} aberto={noComite} />
             ))}
           </ul>
         </>

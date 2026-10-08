@@ -284,3 +284,27 @@ Cada fase roda e é testada antes da seguinte.
 3. **Notificações**: SSE, sino, toast, som, área de trabalho.
 4. **Trello e relatório**: etiquetas, cor, membros, filtros, ordenação, ocultar
    finalizados, XLSX, layout de celular, manual.
+
+## Ajustes depois do primeiro uso (2026-10-08)
+
+Pedidos do time, com as decisões do Walter. Onde contradizem as seções acima, valem estes.
+
+- **Finalizados no lugar de Aprovado e Reprovado** (V70). Cada sacado é decidido como
+  Aprovado, Reprovado ou Parcial (com valor aprovado). O resultado do card sai deles: todos
+  aprovados = Aprovado, todos reprovados = Reprovado, qualquer mistura ou parcial = Parcialmente
+  aprovado. Card sem sacados recebe o resultado direto. Filtro por resultado no quadro.
+- **Comitê sai com pelo menos um parecer**, não mais com todos. Faltando parecer, a tela
+  confirma e o histórico registra de quem faltou.
+- **Histórico do sacado**: ao digitar um CNPJ e no detalhe do card aparecem as decisões sobre o
+  mesmo sacado em outros cards.
+- **Nome e praça** do cedente e dos sacados vêm do CNPJ Já e também das consultas do Serasa
+  (`clients`), resolvidos na hora de mostrar.
+- **Posição no parecer da origem** (V69): Favorável, Com ressalvas, Desfavorável.
+- **Anexos** (V71) na pasta do cedente no compartilhamento: `{cnpj}/liberacao/{numero}/`.
+- **Aviso por e-mail** (V72) para os avisos dirigidos à pessoa, com link para o card. Precisa de
+  `APP_PORTAL_URL` no `.env`. Aviso nativo do sistema operacional exigiria HTTPS.
+- **Fuso**: backend passa a rodar em America/Sao_Paulo; `scripts/ajuste-fuso-esteiras.sql`
+  corrige uma vez os horários já gravados em UTC.
+- **Arrasto**: o card cai na coluna do ponteiro, não na que a cópia arrastada encosta.
+- **Pendente**: importar a proposta da operação a partir do PDF (CNPJ, razão social, valor, a
+  vencer, vencido, liquidado) — aguardando um PDF de exemplo.

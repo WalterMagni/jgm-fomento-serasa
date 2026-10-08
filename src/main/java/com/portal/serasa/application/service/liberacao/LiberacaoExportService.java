@@ -84,6 +84,7 @@ public class LiberacaoExportService {
     private final LiberacaoCardEtiquetaJpaRepository cardEtiquetaRepository;
     private final LiberacaoEtiquetaJpaRepository etiquetaRepository;
     private final UserRepository userRepository;
+    private final EmpresaResolver empresaResolver;
 
     @Transactional(readOnly = true)
     public byte[] exportar(Collection<UUID> ids) {
@@ -117,7 +118,8 @@ public class LiberacaoExportService {
 
     // ------------------------------------------------------------------ dados
 
-    private record Dados(Map<UUID, List<LiberacaoSacadoEntity>> sacados,
+    private record Dados(Map<String, EmpresaResolver.Empresa> empresas,
+                         Map<UUID, List<LiberacaoSacadoEntity>> sacados,
                          Map<UUID, List<LiberacaoParecerEntity>> pareceres,
                          Map<UUID, List<LiberacaoPendenciaEntity>> pendencias,
                          Map<UUID, List<LiberacaoEventoEntity>> eventos,
@@ -128,7 +130,7 @@ public class LiberacaoExportService {
 
     private Dados carregar(List<UUID> ids) {
         if (ids.isEmpty()) {
-            return new Dados(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+            return new Dados(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
         }
         Map<UUID, String> nomesUsuarios = new java.util.HashMap<>();
         List<LiberacaoMembroEntity> membros = membroRepository.findByCardIdIn(ids);
@@ -137,8 +139,12 @@ public class LiberacaoExportService {
         Map<UUID, String> nomesEtiquetas = etiquetaRepository.findAll().stream()
                 .collect(Collectors.toMap(LiberacaoEtiquetaEntity::getId, LiberacaoEtiquetaEntity::getNome));
 
+        List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdIn(ids);
+        List<String> documentos = new java.util.ArrayList<>(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList());
+        cardRepository.findAllById(ids).forEach(card -> documentos.add(card.getCedenteCnpj()));
         return new Dados(
-                agrupar(sacadoRepository.findByCardIdIn(ids), LiberacaoSacadoEntity::getCardId),
+                empresaResolver.resolver(documentos),
+                agrupar(sacados, LiberacaoSacadoEntity::getCardId),
                 agrupar(ids.stream().flatMap(id -> parecerRepository.findByCardIdOrderByRodadaDescCriadoEm(id).stream()).toList(),
                         LiberacaoParecerEntity::getCardId),
                 agrupar(ids.stream().flatMap(id -> pendenciaRepository.findByCardIdOrderByAbertaEm(id).stream()).toList(),
@@ -160,11 +166,11 @@ public class LiberacaoExportService {
 
     private void abaCards(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
         Sheet aba = cabecalho(planilha, estilos, "Cards", new String[]{
-                "Nº", "Cedente", "CNPJ", "Etapa", "Tipo", "Valor", "Prazo", "Etiquetas", "Criado por", "Criado em",
+                "Nº", "Cedente", "CNPJ", "Praça do cedente", "Etapa", "Tipo", "Valor", "Prazo", "Etiquetas", "Criado por", "Criado em",
                 "Última alteração por", "Última alteração em", "Membros", "Pareceres (rodada vigente)",
-                "Pendências abertas", "Comentários", "Decisão", "Decidido por", "Decidido em",
-                "Horas na Origem", "Horas no Comitê", "Horas em Pendência", "Parecer da origem"},
-                new int[]{6, 38, 20, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 11, 22, 17, 11, 11, 11, 60});
+                "Pendências abertas", "Comentários", "Resultado", "Valor aprovado", "Decidido por", "Decidido em",
+                "Horas na Origem", "Horas no Comitê", "Horas em Pendência", "Posição da origem", "Parecer da origem"},
+                new int[]{6, 38, 20, 22, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 20, 16, 22, 17, 11, 11, 11, 15, 60});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             Row row = aba.createRow(linha++);
@@ -188,6 +194,7 @@ public class LiberacaoExportService {
             numero(row, c++, card.getNumero(), estilos.inteiro);
             texto(row, c++, card.getCedenteNome(), estilos.texto);
             texto(row, c++, LiberacaoService.formatarDocumento(card.getCedenteCnpj()), estilos.texto);
+            texto(row, c++, praca(dados, card.getCedenteCnpj()), estilos.texto);
             texto(row, c++, LiberacaoAutorizacao.rotulo(card.getEtapa()), estilos.texto);
             texto(row, c++, card.getTipoOperacao(), estilos.texto);
             moeda(row, c++, card.getValor(), estilos);
@@ -201,20 +208,24 @@ public class LiberacaoExportService {
             texto(row, c++, pareceres, estilos.quebra);
             numero(row, c++, pendenciasAbertas, estilos.inteiro);
             numero(row, c++, dados.comentarios().getOrDefault(card.getId(), List.of()).size(), estilos.inteiro);
-            texto(row, c++, decisao == null ? "" : LiberacaoAutorizacao.rotulo(decisao.getEtapaPara()), estilos.texto);
+            texto(row, c++, card.getResultado() == null ? "" : card.getResultado().rotulo(), estilos.texto);
+            moeda(row, c++, LiberacaoService.valorAprovado(
+                    dados.sacados().getOrDefault(card.getId(), List.of())), estilos);
             texto(row, c++, decisao == null ? "" : decisao.getUsuarioNome(), estilos.texto);
             dataHora(row, c++, decisao == null ? null : decisao.getCriadoEm(), estilos);
             horas(row, c++, horas.get(EtapaLiberacao.ORIGEM), estilos);
             horas(row, c++, horas.get(EtapaLiberacao.COMITE), estilos);
             horas(row, c++, horas.get(EtapaLiberacao.PENDENCIA), estilos);
+            texto(row, c++, card.getPosicaoOrigem() == null ? "" : LiberacaoService.rotulo(card.getPosicaoOrigem()), estilos.texto);
             texto(row, c, MencaoParser.textoPlano(card.getParecerOrigem()), estilos.quebra);
         }
-        fechar(aba, linha, 22);
+        fechar(aba, linha, 25);
     }
 
     private void abaSacados(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
-        Sheet aba = cabecalho(planilha, estilos, "Sacados", new String[]{"Nº card", "Cedente", "Documento", "Sacado", "Valor"},
-                new int[]{9, 38, 20, 38, 16});
+        Sheet aba = cabecalho(planilha, estilos, "Sacados", new String[]{"Nº card", "Cedente", "Documento", "Sacado", "Praça", "Valor",
+                        "Situação", "Valor aprovado", "Decidido por", "Decidido em"},
+                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             for (LiberacaoSacadoEntity sacado : ordenar(dados.sacados().get(card.getId()), Comparator.comparing(LiberacaoSacadoEntity::getOrdem))) {
@@ -222,11 +233,22 @@ public class LiberacaoExportService {
                 numero(row, 0, card.getNumero(), estilos.inteiro);
                 texto(row, 1, card.getCedenteNome(), estilos.texto);
                 texto(row, 2, LiberacaoService.formatarDocumento(sacado.getCnpj()), estilos.texto);
-                texto(row, 3, sacado.getNome(), estilos.texto);
-                moeda(row, 4, sacado.getValor(), estilos);
+                EmpresaResolver.Empresa empresa = dados.empresas().get(sacado.getCnpj());
+                texto(row, 3, sacado.getNome() != null ? sacado.getNome() : empresa == null ? null : empresa.nome(), estilos.texto);
+                texto(row, 4, praca(dados, sacado.getCnpj()), estilos.texto);
+                moeda(row, 5, sacado.getValor(), estilos);
+                texto(row, 6, sacado.getSituacao() == null ? "A decidir" : sacado.getSituacao().rotulo(), estilos.texto);
+                moeda(row, 7, sacado.getSituacao() == null ? null
+                        : switch (sacado.getSituacao()) {
+                            case APROVADO -> sacado.getValor();
+                            case PARCIAL -> sacado.getValorAprovado();
+                            case REPROVADO -> java.math.BigDecimal.ZERO;
+                        }, estilos);
+                texto(row, 8, sacado.getSituacaoPorNome(), estilos.texto);
+                dataHora(row, 9, sacado.getSituacaoEm(), estilos);
             }
         }
-        fechar(aba, linha, 4);
+        fechar(aba, linha, 9);
     }
 
     private void abaPareceres(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
@@ -446,6 +468,11 @@ public class LiberacaoExportService {
         cell.setCellStyle(estilos.dataHora);
     }
 
+    private static String praca(Dados dados, String documento) {
+        EmpresaResolver.Empresa empresa = dados.empresas().get(documento);
+        return empresa == null ? null : empresa.praca();
+    }
+
     private static <T> List<T> ordenar(List<T> itens, Comparator<T> ordem) {
         if (itens == null) {
             return List.of();
@@ -476,6 +503,8 @@ public class LiberacaoExportService {
             case PARECER -> "Parecer";
             case PENDENCIA_ABERTA -> "Pendência aberta";
             case PENDENCIA_RESPONDIDA -> "Pendência respondida";
+            case ANEXO_ADICIONADO -> "Anexo enviado";
+            case ANEXO_REMOVIDO -> "Anexo removido";
             case EXCLUSAO -> "Exclusão";
         };
     }

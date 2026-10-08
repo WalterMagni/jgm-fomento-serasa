@@ -31,6 +31,8 @@ public interface ClientRepository {
 
     List<Client> findByDocumentNumberStartingWith(String documentRoot);
 
+    List<Client> findByDocumentNumberIn(Collection<String> documentNumbers);
+
     void deleteById(UUID id);
 
     void deleteByDocumentNumber(String documentNumber);

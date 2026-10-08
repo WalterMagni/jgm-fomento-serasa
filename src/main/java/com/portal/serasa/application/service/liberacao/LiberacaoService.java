@@ -1,13 +1,12 @@
 package com.portal.serasa.application.service.liberacao;
 
-import com.portal.serasa.application.port.out.CompanyDetailRepository;
 import com.portal.serasa.domain.exception.ConflitoEdicaoException;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.exception.TransicaoInvalidaException;
-import com.portal.serasa.domain.model.CompanyDetail;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
+import com.portal.serasa.domain.model.liberacao.ResultadoLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoOperacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
@@ -70,20 +69,30 @@ public class LiberacaoService {
     private final LiberacaoPendenciaJpaRepository pendenciaRepository;
     private final LiberacaoEventoJpaRepository eventoRepository;
     private final UserRepository userRepository;
-    private final CompanyDetailRepository companyDetailRepository;
+    private final EmpresaResolver empresaResolver;
     private final LiberacaoAutorizacao autorizacao;
     private final ApplicationEventPublisher eventos;
 
     /** Dados editáveis do card. Os mesmos na criação e na edição. */
     public record DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao,
                             BigDecimal valor, LocalDateTime prazo, String parecerOrigem,
-                            List<DadosSacado> sacados) {
+                            PosicaoParecer posicaoOrigem, List<DadosSacado> sacados) {
     }
 
     public record DadosSacado(String documento, String nome, BigDecimal valor) {
     }
 
     public record NovaPendencia(UUID destinatarioId, String texto) {
+    }
+
+    /** Decisão sobre um sacado. Valor aprovado só no parcial. */
+    public record DecisaoSacado(String documento, ResultadoLiberacao situacao, BigDecimal valorAprovado) {
+    }
+
+    /** Decisão anterior sobre um documento, em outro card. */
+    public record DecisaoAnterior(String documento, UUID cardId, Long numero, String cedenteNome,
+                                  ResultadoLiberacao situacao, BigDecimal valorAprovado,
+                                  String decididoPor, LocalDateTime decididoEm) {
     }
 
     /** Resultado de registrar parecer: o card e se este foi o último que faltava. */
@@ -186,6 +195,7 @@ public class LiberacaoService {
                 .valor(dados.valor())
                 .prazo(dados.prazo())
                 .parecerOrigem(textoOuNulo(dados.parecerOrigem()))
+                .posicaoOrigem(dados.posicaoOrigem())
                 .criadoPorId(autor.getId())
                 .criadoPorNome(autor.getName())
                 .criadoEm(agora)
@@ -253,9 +263,17 @@ public class LiberacaoService {
             card.setParecerOrigem(parecer);
         }
 
+        if (dados.posicaoOrigem() != card.getPosicaoOrigem()) {
+            mudancas.add(new String[]{"posicaoOrigem", rotuloPosicao(card.getPosicaoOrigem()), rotuloPosicao(dados.posicaoOrigem())});
+            card.setPosicaoOrigem(dados.posicaoOrigem());
+        }
+
         List<DadosSacado> novos = normalizarSacados(dados.sacados());
         String diferencaSacados = diferencaSacados(sacadoRepository.findByCardIdOrderByOrdem(id), novos);
         if (diferencaSacados != null) {
+            if (card.getEtapa() == EtapaLiberacao.FINALIZADO) {
+                throw new TransicaoInvalidaException("Card finalizado: reabra no Comitê para mudar os sacados.");
+            }
             gravarSacados(id, novos);
         }
 
@@ -289,6 +307,20 @@ public class LiberacaoService {
     public LiberacaoCardEntity transicionar(UUID id, EtapaLiberacao de, EtapaLiberacao para,
                                             List<NovaPendencia> pendencias, String observacao,
                                             UserEntity autor) {
+        return transicionar(id, de, para, pendencias, observacao, List.of(), null, autor);
+    }
+
+    /**
+     * Move o card, com as decisões dos sacados quando o destino é Finalizados.
+     *
+     * @param decisoes            situação de cada sacado, aplicada antes de calcular o resultado
+     * @param resultadoSemSacados resultado de card sem nenhum sacado, que não tem de onde calcular
+     */
+    @Transactional
+    public LiberacaoCardEntity transicionar(UUID id, EtapaLiberacao de, EtapaLiberacao para,
+                                            List<NovaPendencia> pendencias, String observacao,
+                                            List<DecisaoSacado> decisoes, ResultadoLiberacao resultadoSemSacados,
+                                            UserEntity autor) {
         LiberacaoCardEntity card = buscar(id);
         if (card.getEtapa() != de) {
             throw new ConflitoEdicaoException("O card já está em " + LiberacaoAutorizacao.rotulo(card.getEtapa())
@@ -298,8 +330,19 @@ public class LiberacaoService {
         List<UserEntity> comite = para == EtapaLiberacao.COMITE
                 ? userRepository.findByComiteTrueOrderByNameAsc()
                 : List.of();
-        autorizacao.exigirTransicao(card, para, autor, aguardandoParecer(card),
+        List<LiberacaoParecerEntity> rodada = parecerRepository.findByCardIdAndRodadaOrderByCriadoEm(id, card.getRodada());
+        int registrados = (int) rodada.stream().filter(LiberacaoParecerEntity::registrado).count();
+        List<String> faltando = aguardando(rodada);
+        autorizacao.exigirTransicao(card, para, autor, registrados,
                 para == EtapaLiberacao.COMITE && comite.isEmpty());
+
+        List<DecisaoSacado> decisoesSacados = decisoes == null ? List.of() : decisoes;
+        if (para != EtapaLiberacao.FINALIZADO && (!decisoesSacados.isEmpty() || resultadoSemSacados != null)) {
+            throw new IllegalArgumentException("Decisão de sacado só ao finalizar ou pela própria tela do sacado.");
+        }
+        ResultadoLiberacao resultado = para == EtapaLiberacao.FINALIZADO
+                ? finalizar(card, decisoesSacados, resultadoSemSacados, autor)
+                : null;
 
         List<NovaPendencia> novasPendencias = pendencias == null ? List.of() : pendencias;
         if (para != EtapaLiberacao.PENDENCIA && !novasPendencias.isEmpty()) {
@@ -324,6 +367,7 @@ public class LiberacaoService {
         card.setEtapa(para);
         card.setEtapaDesde(agora);
         card.setFinalizadoEm(para.terminal() ? agora : null);
+        card.setResultado(resultado);
         tocar(card, autor);
         LiberacaoCardEntity salvo = cardRepository.saveAndFlush(card);
 
@@ -333,8 +377,15 @@ public class LiberacaoService {
             convocarComite(salvo, comite);
         }
 
+        // Saiu do Comitê com parecer faltando: fica dito no histórico, junto da observação.
+        String texto = textoOuNulo(observacao);
+        if (EtapaLiberacao.decisaoDoComite(de, para) && !faltando.isEmpty()) {
+            String aviso = "Movido sem o parecer de " + LiberacaoAutorizacao.juntar(faltando) + ".";
+            texto = texto == null ? aviso : texto + "\n\n" + aviso;
+        }
         registrar(salvo, reabertura ? TipoEventoLiberacao.REABERTURA : TipoEventoLiberacao.TRANSICAO,
-                de, para, null, null, null, textoOuNulo(observacao), autor);
+                de, para, resultado == null ? null : "resultado", null, resultado == null ? null : resultado.rotulo(),
+                texto, autor);
         Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.usuarios(observacao));
         eventos.publishEvent(new LiberacaoEvento.Movido(salvo, de, para, autor, mencionados, trecho(observacao)));
 
@@ -342,6 +393,125 @@ public class LiberacaoService {
             abrirPendencia(salvo, pendencia, autor);
         }
         return salvo;
+    }
+
+    /**
+     * Aplica as decisões e calcula o resultado. Todo sacado precisa estar decidido: card finalizado
+     * com sacado "a decidir" deixaria o resultado mentindo sobre o que foi aprovado.
+     */
+    private ResultadoLiberacao finalizar(LiberacaoCardEntity card, List<DecisaoSacado> decisoes,
+                                         ResultadoLiberacao resultadoSemSacados, UserEntity autor) {
+        List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(card.getId());
+        for (DecisaoSacado decisao : decisoes) {
+            aplicarDecisao(card, sacados, decisao, autor);
+        }
+        if (sacados.isEmpty()) {
+            if (resultadoSemSacados == null || resultadoSemSacados == ResultadoLiberacao.PARCIAL) {
+                throw new IllegalArgumentException("Card sem sacados: informe se foi aprovado ou reprovado.");
+            }
+            return resultadoSemSacados;
+        }
+        List<String> aDecidir = sacados.stream()
+                .filter(sacado -> sacado.getSituacao() == null)
+                .map(sacado -> rotuloSacado(sacado.getCnpj(), sacado.getNome()))
+                .toList();
+        if (!aDecidir.isEmpty()) {
+            throw new TransicaoInvalidaException("Decida todos os sacados antes de finalizar. Falta: " + String.join(", ", aDecidir) + ".");
+        }
+        return ResultadoLiberacao.doCard(sacados.stream().map(LiberacaoSacadoEntity::getSituacao).toList());
+    }
+
+    /**
+     * Decide um sacado fora da finalização, pela lista de sacados do card. Só analista, e só com o
+     * card no Comitê ou em Pendência: na Origem ainda não há decisão, e Finalizado se reabre antes.
+     */
+    @Transactional
+    public LiberacaoCardEntity decidirSacado(UUID cardId, DecisaoSacado decisao, UserEntity autor) {
+        LiberacaoCardEntity card = buscar(cardId);
+        autorizacao.exigirAnalista(autor, "decidir sacado");
+        if (card.getEtapa() != EtapaLiberacao.COMITE && card.getEtapa() != EtapaLiberacao.PENDENCIA) {
+            throw new TransicaoInvalidaException(card.getEtapa() == EtapaLiberacao.FINALIZADO
+                    ? "Card finalizado: reabra no Comitê para mudar a decisão."
+                    : "Sacado é decidido a partir do Comitê.");
+        }
+        if (!aplicarDecisao(card, sacadoRepository.findByCardIdOrderByOrdem(cardId), decisao, autor)) {
+            return card;
+        }
+        cardRepository.tocarSemVersao(cardId, LocalDateTime.now(), autor.getId(), autor.getName());
+        LiberacaoCardEntity atualizado = buscar(cardId);
+        avisarEdicao(atualizado, autor);
+        return atualizado;
+    }
+
+    /** @return false quando a decisão já era essa (clique repetido): nada gravado. */
+    private boolean aplicarDecisao(LiberacaoCardEntity card, List<LiberacaoSacadoEntity> sacados, DecisaoSacado decisao, UserEntity autor) {
+        String documento = decisao.documento() == null ? "" : decisao.documento().replaceAll("\\D", "");
+        LiberacaoSacadoEntity sacado = sacados.stream()
+                .filter(item -> item.getCnpj().equals(documento))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Sacado " + formatarDocumento(documento) + " não está neste card."));
+        BigDecimal valorAprovado = null;
+        if (decisao.situacao() == ResultadoLiberacao.PARCIAL) {
+            valorAprovado = decisao.valorAprovado();
+            if (valorAprovado == null || valorAprovado.signum() <= 0) {
+                throw new IllegalArgumentException("Parcial: informe o valor aprovado de " + rotuloSacado(sacado.getCnpj(), sacado.getNome()) + ".");
+            }
+            if (sacado.getValor() != null && valorAprovado.compareTo(sacado.getValor()) >= 0) {
+                throw new IllegalArgumentException("Parcial: o valor aprovado precisa ser menor que " + moeda(sacado.getValor()) + ".");
+            }
+        }
+        if (sacado.getSituacao() == decisao.situacao() && mesmoValor(sacado.getValorAprovado(), valorAprovado)) {
+            return false;
+        }
+        String antes = rotuloDecisao(sacado.getSituacao(), sacado.getValorAprovado());
+        sacado.setSituacao(decisao.situacao());
+        sacado.setValorAprovado(valorAprovado);
+        sacado.setSituacaoPorNome(decisao.situacao() == null ? null : autor.getName());
+        sacado.setSituacaoEm(decisao.situacao() == null ? null : LocalDateTime.now());
+        sacadoRepository.save(sacado);
+        registrar(card, TipoEventoLiberacao.EDICAO, null, null, "situacaoSacado", antes,
+                rotuloDecisao(decisao.situacao(), valorAprovado), rotuloSacado(sacado.getCnpj(), sacado.getNome()), autor);
+        return true;
+    }
+
+    private static String rotuloDecisao(ResultadoLiberacao situacao, BigDecimal valorAprovado) {
+        if (situacao == null) {
+            return "a decidir";
+        }
+        return situacao == ResultadoLiberacao.PARCIAL ? "Parcial (" + moeda(valorAprovado) + ")" : situacao.rotulo();
+    }
+
+    /**
+     * Quanto da operação foi aprovado, pelas decisões dos sacados: o valor inteiro dos aprovados
+     * mais o valor aprovado dos parciais. Nulo enquanto ninguém foi decidido.
+     */
+    public static BigDecimal valorAprovado(List<LiberacaoSacadoEntity> sacados) {
+        if (sacados.stream().noneMatch(sacado -> sacado.getSituacao() != null)) {
+            return null;
+        }
+        return sacados.stream()
+                .map(sacado -> switch (sacado.getSituacao() == null ? ResultadoLiberacao.REPROVADO : sacado.getSituacao()) {
+                    case APROVADO -> sacado.getValor() == null ? BigDecimal.ZERO : sacado.getValor();
+                    case PARCIAL -> sacado.getValorAprovado() == null ? BigDecimal.ZERO : sacado.getValorAprovado();
+                    case REPROVADO -> BigDecimal.ZERO;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** Decisões em outros cards sobre estes documentos, da mais recente para a mais antiga. */
+    @Transactional(readOnly = true)
+    public List<DecisaoAnterior> decisoesAnteriores(java.util.Collection<String> documentos) {
+        if (documentos.isEmpty()) {
+            return List.of();
+        }
+        return sacadoRepository.decisoesAnteriores(documentos).stream()
+                .map(linha -> {
+                    LiberacaoSacadoEntity sacado = (LiberacaoSacadoEntity) linha[0];
+                    LiberacaoCardEntity card = (LiberacaoCardEntity) linha[1];
+                    return new DecisaoAnterior(sacado.getCnpj(), card.getId(), card.getNumero(), card.getCedenteNome(),
+                            sacado.getSituacao(), sacado.getValorAprovado(), sacado.getSituacaoPorNome(), sacado.getSituacaoEm());
+                })
+                .toList();
     }
 
     // --------------------------------------------------------------- pareceres
@@ -534,19 +704,38 @@ public class LiberacaoService {
     }
 
     private void gravarSacados(UUID cardId, List<DadosSacado> sacados) {
+        // Regrava a lista inteira, mas a decisão de quem continua nela não pode se perder na edição.
+        Map<String, LiberacaoSacadoEntity> anteriores = new LinkedHashMap<>();
+        sacadoRepository.findByCardIdOrderByOrdem(cardId).forEach(sacado -> anteriores.put(sacado.getCnpj(), sacado));
         sacadoRepository.apagarDoCard(cardId);
         List<LiberacaoSacadoEntity> linhas = new ArrayList<>();
         for (int i = 0; i < sacados.size(); i++) {
             DadosSacado sacado = sacados.get(i);
+            LiberacaoSacadoEntity anterior = anteriores.get(sacado.documento());
+            if (anterior != null && !decisaoCabe(anterior, sacado.valor())) {
+                anterior = null;
+            }
             linhas.add(LiberacaoSacadoEntity.builder()
                     .cardId(cardId)
                     .cnpj(sacado.documento())
                     .nome(sacado.nome())
                     .valor(sacado.valor())
                     .ordem(i)
+                    .situacao(anterior == null ? null : anterior.getSituacao())
+                    .valorAprovado(anterior == null ? null : anterior.getValorAprovado())
+                    .situacaoPorNome(anterior == null ? null : anterior.getSituacaoPorNome())
+                    .situacaoEm(anterior == null ? null : anterior.getSituacaoEm())
                     .build());
         }
         sacadoRepository.saveAll(linhas);
+    }
+
+    /** Parcial só vale abaixo do valor do sacado; se o valor baixou até ele, a decisão cai. */
+    private static boolean decisaoCabe(LiberacaoSacadoEntity anterior, BigDecimal novoValor) {
+        return anterior.getSituacao() != ResultadoLiberacao.PARCIAL
+                || novoValor == null
+                || anterior.getValorAprovado() == null
+                || anterior.getValorAprovado().compareTo(novoValor) < 0;
     }
 
     /**
@@ -577,19 +766,14 @@ public class LiberacaoService {
             return List.of();
         }
 
-        Map<String, String> nomesDaBase = new LinkedHashMap<>();
         List<String> semNome = porDocumento.values().stream()
                 .filter(sacado -> sacado.nome() == null && sacado.documento().length() == 14)
                 .map(DadosSacado::documento)
                 .toList();
-        if (!semNome.isEmpty()) {
-            for (CompanyDetail empresa : companyDetailRepository.findByDocumentNumberIn(semNome)) {
-                nomesDaBase.put(empresa.getDocumentNumber(), empresa.getCompanyName());
-            }
-        }
+        Map<String, EmpresaResolver.Empresa> daBase = semNome.isEmpty() ? Map.of() : empresaResolver.resolver(semNome);
         return porDocumento.values().stream()
-                .map(sacado -> sacado.nome() != null ? sacado
-                        : new DadosSacado(sacado.documento(), nomesDaBase.get(sacado.documento()), sacado.valor()))
+                .map(sacado -> sacado.nome() != null || !daBase.containsKey(sacado.documento()) ? sacado
+                        : new DadosSacado(sacado.documento(), daBase.get(sacado.documento()).nome(), sacado.valor()))
                 .toList();
     }
 
@@ -622,9 +806,8 @@ public class LiberacaoService {
     }
 
     private String resolverNomeCedente(String cnpj, String informado) {
-        Optional<String> daBase = companyDetailRepository.findByDocumentNumber(cnpj)
-                .map(CompanyDetail::getCompanyName)
-                .filter(nome -> !nome.isBlank());
+        Optional<String> daBase = Optional.ofNullable(empresaResolver.resolver(List.of(cnpj)).get(cnpj))
+                .map(EmpresaResolver.Empresa::nome);
         if (daBase.isPresent()) {
             return daBase.get();
         }
@@ -639,6 +822,13 @@ public class LiberacaoService {
         card.setAtualizadoEm(LocalDateTime.now());
         card.setAtualizadoPorId(autor.getId());
         card.setAtualizadoPorNome(autor.getName());
+    }
+
+    /** Anexo enviado ou removido entra no histórico e atualiza o quadro dos outros. */
+    public void registrarAnexo(LiberacaoCardEntity card, boolean adicionado, String nome, UserEntity autor) {
+        registrar(card, adicionado ? TipoEventoLiberacao.ANEXO_ADICIONADO : TipoEventoLiberacao.ANEXO_REMOVIDO,
+                null, null, null, null, null, nome, autor);
+        avisarEdicao(card, autor);
     }
 
     /** Para edições feitas fora deste serviço (cor, etiquetas) entrarem na mesma timeline. */
@@ -716,7 +906,11 @@ public class LiberacaoService {
         return tipo == null ? "—" : tipo;
     }
 
-    private static String rotulo(PosicaoParecer posicao) {
+    private static String rotuloPosicao(PosicaoParecer posicao) {
+        return posicao == null ? "—" : rotulo(posicao);
+    }
+
+    static String rotulo(PosicaoParecer posicao) {
         return switch (posicao) {
             case FAVORAVEL -> "Favorável";
             case COM_RESSALVAS -> "Com ressalvas";

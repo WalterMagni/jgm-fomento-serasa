@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import type {
   CorLiberacao,
   DadosCard,
+  DecisaoSacado,
+  EmpresaConhecida,
   Etiqueta,
   EmpresaEncontrada,
   EtapaLiberacao,
@@ -12,6 +14,7 @@ import type {
   NovaPendencia,
   PessoaDiretorio,
   PosicaoParecer,
+  Resultado,
   UsuarioAtual,
 } from "../types/liberacao";
 
@@ -188,7 +191,17 @@ export function useEditarCard() {
   });
 }
 
-type Mover = { id: string; de: EtapaLiberacao; para: EtapaLiberacao; pendencias?: NovaPendencia[]; observacao?: string };
+type Mover = {
+  id: string;
+  de: EtapaLiberacao;
+  para: EtapaLiberacao;
+  pendencias?: NovaPendencia[];
+  observacao?: string;
+  /** Ao finalizar: decisão de cada sacado. */
+  decisoes?: DecisaoSacado[];
+  /** Ao finalizar card sem sacados. */
+  resultado?: Resultado;
+};
 
 /**
  * Move o card na hora e desfaz se o servidor recusar.
@@ -241,6 +254,67 @@ export function useRegistrarParecer() {
       const faltam = detalhe.card.pareceres.filter(parecer => !parecer.posicao && parecer.usuarioId).length;
       toast.success(faltam === 0 ? "Parecer registrado. Comitê completo: o card pode ser movido." : "Parecer registrado");
     },
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** Anexa um arquivo ao card. Multipart: o navegador define o Content-Type com o boundary. */
+export function useAnexar() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; arquivo: File }>({
+    mutationFn: async ({ id, arquivo }) => {
+      const corpo = new FormData();
+      corpo.append("file", arquivo);
+      const res = await fetch(`${API_BASE_URL}/liberacao/${id}/anexos`, { method: "POST", headers: headers(false), body: corpo });
+      if (!res.ok) return falha(res, "Falha ao anexar o arquivo");
+      return res.json();
+    },
+    onSuccess: detalhe => {
+      atualizar(detalhe);
+      toast.success("Arquivo anexado");
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useRemoverAnexo() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; anexoId: string }>({
+    mutationFn: ({ id, anexoId }) =>
+      pedir(`${API_BASE_URL}/liberacao/${id}/anexos/${anexoId}`, { method: "DELETE" }, "Falha ao remover o anexo"),
+    onSuccess: detalhe => {
+      atualizar(detalhe);
+      toast.success("Anexo removido");
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** Baixa o anexo pela API autenticada; o caminho no compartilhamento nunca chega ao navegador. */
+export async function baixarAnexo(cardId: string, anexoId: string, nome: string) {
+  const res = await fetch(`${API_BASE_URL}/liberacao/${cardId}/anexos/${anexoId}`, { headers: headers(false) });
+  if (!res.ok) return falha(res, "Falha ao baixar o anexo");
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Decide um sacado pela lista do card, sem finalizar. */
+export function useDecidirSacado() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string } & DecisaoSacado>({
+    mutationFn: ({ id, documento, ...body }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/${id}/sacados/${documento}/situacao`,
+        { method: "PATCH", body: JSON.stringify({ documento, ...body }) },
+        "Falha ao decidir o sacado",
+      ),
+    onSuccess: atualizar,
     onError: error => toast.error(error.message),
   });
 }
@@ -323,6 +397,21 @@ export function useExcluirCard() {
       toast.success(`Card #${numero} apagado`);
     },
     onError: error => toast.error(error.message),
+  });
+}
+
+/**
+ * Nome e praça de cada documento completo, para o formulário mostrar o sacado assim que o CNPJ
+ * termina de ser digitado. Uma consulta só para a lista inteira.
+ */
+export function useEmpresasConhecidas(documentos: string[]) {
+  const completos = [...new Set(documentos.filter(documento => documento.length === 14))].sort();
+  return useQuery<EmpresaConhecida[]>({
+    queryKey: ["liberacaoEmpresas", completos.join(",")],
+    enabled: completos.length > 0,
+    queryFn: () =>
+      pedir(`${API_BASE_URL}/liberacao/empresas?documentos=${completos.join(",")}`, {}, "Falha ao consultar as empresas"),
+    staleTime: 60 * 1000,
   });
 }
 
@@ -455,6 +544,7 @@ export function useCadastrarEmpresa() {
       pedir(`${API_BASE_URL}/company/enrich/cnpja/${cnpj}`, { method: "POST" }, "Falha ao cadastrar pelo CNPJ Já"),
     onSuccess: (_resultado, { cardId }) => {
       queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+      queryClient.invalidateQueries({ queryKey: ["liberacaoEmpresas"] });
       if (cardId) queryClient.invalidateQueries({ queryKey: detalheKey(cardId) });
       toast.success("Empresa cadastrada");
     },

@@ -18,4 +18,6 @@ USER spring:spring
 COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Fuso de São Paulo: a imagem roda em UTC, e todo horário gravado pelo portal (LocalDateTime) saía
+# 3 h adiantado no histórico. O banco de fuso vem no próprio Java, não depende de tzdata.
+ENTRYPOINT ["java", "-Duser.timezone=America/Sao_Paulo", "-jar", "app.jar"]

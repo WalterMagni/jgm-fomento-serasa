@@ -22,6 +22,7 @@ public record LiberacaoCardRequest(
         @DecimalMin(value = "0.00", message = "Valor não pode ser negativo") BigDecimal valor,
         LocalDateTime prazo,
         @Size(max = 20000) String parecerOrigem,
+        com.portal.serasa.domain.model.liberacao.PosicaoParecer posicaoOrigem,
         @Valid @Size(max = 200) List<Sacado> sacados,
         Long version) {
 

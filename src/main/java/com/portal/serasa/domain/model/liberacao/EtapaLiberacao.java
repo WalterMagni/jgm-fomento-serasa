@@ -4,29 +4,31 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Etapas da esteira de liberação de operações, as cinco colunas da planilha do departamento.
+ * Etapas da esteira de liberação de operações.
  *
  * <p>A máquina de estados fica aqui, como em {@code EstagioProspeccao}, para a regra ser legível
- * de uma vez só. Quem pode disparar cada transição — e a trava dos pareceres do Comitê — mora em
+ * de uma vez só. Quem pode disparar cada transição — e a regra do parecer do Comitê — mora em
  * {@code LiberacaoAutorizacao} e {@code LiberacaoService}; o enum só diz o que é caminho válido.</p>
+ *
+ * <p>Até a V70 havia Aprovado e Reprovado como colunas separadas. Viraram Finalizados: a decisão
+ * é por sacado, e o resultado do card (aprovado, reprovado, parcial) sai deles.</p>
  */
 public enum EtapaLiberacao {
 
     /** A auxiliar abriu o card. Única etapa em que qualquer usuário edita. */
     ORIGEM,
 
-    /** Aguardando o parecer de cada membro do Comitê. Só sai quando todos registraram. */
+    /** Aguardando parecer do Comitê. Sai com pelo menos um parecer registrado. */
     COMITE,
 
-    /** A analista pediu algo a alguém. Volta para decisão quando as pendências são respondidas. */
+    /** A analista pediu algo a alguém antes de decidir. */
     PENDENCIA,
 
-    APROVADO,
-
-    REPROVADO;
+    /** Decidido. O resultado está no card e a decisão de cada sacado, no sacado. */
+    FINALIZADO;
 
     public boolean terminal() {
-        return this == APROVADO || this == REPROVADO;
+        return this == FINALIZADO;
     }
 
     /**
@@ -39,9 +41,9 @@ public enum EtapaLiberacao {
     public Set<EtapaLiberacao> destinos() {
         return switch (this) {
             case ORIGEM -> EnumSet.of(COMITE);
-            case COMITE -> EnumSet.of(PENDENCIA, APROVADO, REPROVADO, ORIGEM);
-            case PENDENCIA -> EnumSet.of(APROVADO, REPROVADO, COMITE);
-            case APROVADO, REPROVADO -> EnumSet.of(COMITE);
+            case COMITE -> EnumSet.of(PENDENCIA, FINALIZADO, ORIGEM);
+            case PENDENCIA -> EnumSet.of(FINALIZADO, COMITE);
+            case FINALIZADO -> EnumSet.of(COMITE);
         };
     }
 
@@ -49,7 +51,7 @@ public enum EtapaLiberacao {
         return destinos().contains(destino);
     }
 
-    /** Saídas do Comitê que dependem de todos os pareceres registrados. Devolver não depende. */
+    /** Saídas do Comitê que pedem parecer registrado. Devolver não pede. */
     public static boolean decisaoDoComite(EtapaLiberacao de, EtapaLiberacao para) {
         return de == COMITE && para != ORIGEM;
     }

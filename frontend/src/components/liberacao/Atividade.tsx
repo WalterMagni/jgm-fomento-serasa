@@ -19,6 +19,7 @@ const ROTULO_CAMPO: Record<string, string> = {
   sacados: "os sacados",
   etiquetas: "as etiquetas",
   cor: "a cor",
+  posicaoOrigem: "a posição da origem",
 };
 
 const ICONE_EVENTO: Record<EventoLiberacao["tipo"], string> = {
@@ -29,6 +30,8 @@ const ICONE_EVENTO: Record<EventoLiberacao["tipo"], string> = {
   PARECER: "gavel",
   PENDENCIA_ABERTA: "hourglass_top",
   PENDENCIA_RESPONDIDA: "reply",
+  ANEXO_ADICIONADO: "attach_file",
+  ANEXO_REMOVIDO: "attach_file",
   EXCLUSAO: "delete",
 };
 
@@ -39,6 +42,13 @@ function descrever(evento: EventoLiberacao): ReactNode {
     case "EDICAO":
       if (evento.campo === "parecerOrigem") return "editou o parecer da origem";
       if (evento.campo === "sacados") return <>alterou os sacados: <span className="text-slate-500">{evento.texto}</span></>;
+      if (evento.campo === "situacaoSacado")
+        return (
+          <>
+            decidiu <span className="text-slate-500">{evento.texto}</span>:{" "}
+            <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
+          </>
+        );
       return (
         <>
           alterou {ROTULO_CAMPO[evento.campo ?? ""] ?? evento.campo}:{" "}
@@ -51,6 +61,7 @@ function descrever(evento: EventoLiberacao): ReactNode {
         <>
           moveu de <strong className="font-semibold">{evento.etapaDe ? ROTULO_ETAPA_CURTO[evento.etapaDe] : "?"}</strong> para{" "}
           <strong className="font-semibold">{evento.etapaPara ? ROTULO_ETAPA_CURTO[evento.etapaPara] : "?"}</strong>
+          {evento.campo === "resultado" && evento.valorDepois && <> · <strong className="font-semibold">{evento.valorDepois}</strong></>}
         </>
       );
     case "REABERTURA":
@@ -65,6 +76,10 @@ function descrever(evento: EventoLiberacao): ReactNode {
     case "PENDENCIA_ABERTA":
     case "PENDENCIA_RESPONDIDA":
       return <TextoRico texto={evento.texto} />;
+    case "ANEXO_ADICIONADO":
+      return <>anexou <strong className="font-semibold">{evento.texto}</strong></>;
+    case "ANEXO_REMOVIDO":
+      return <>removeu o anexo <span className="text-slate-400 line-through">{evento.texto}</span></>;
     case "EXCLUSAO":
       return "apagou o card";
   }

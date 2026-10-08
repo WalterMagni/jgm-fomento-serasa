@@ -17,5 +17,14 @@ public record LiberacaoTransicaoRequest(
         @NotNull EtapaLiberacao de,
         @NotNull EtapaLiberacao para,
         @Valid @Size(max = 20) List<LiberacaoPendenciaRequest> pendencias,
-        @Size(max = 5000) String observacao) {
+        @Size(max = 5000) String observacao,
+        /** Ao finalizar: situação de cada sacado. */
+        @Valid @Size(max = 200) List<DecisaoSacado> decisoes,
+        /** Ao finalizar card sem sacados: APROVADO ou REPROVADO. */
+        com.portal.serasa.domain.model.liberacao.ResultadoLiberacao resultado) {
+
+    public record DecisaoSacado(@jakarta.validation.constraints.NotBlank String documento,
+                                com.portal.serasa.domain.model.liberacao.ResultadoLiberacao situacao,
+                                @jakarta.validation.constraints.DecimalMin("0.00") java.math.BigDecimal valorAprovado) {
+    }
 }

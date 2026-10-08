@@ -2,9 +2,9 @@
 # Cria cenários da esteira de liberação para validar a tela /liberacao.
 #
 # Monta três usuários de cenário (uma auxiliar e duas analistas do Comitê) e oito cards que
-# cobrem o que a tela precisa mostrar: card novo, prazo vencido, Comitê esperando os dois
-# pareceres, Comitê com um parecer e uma menção, pendência aberta, aprovado, reprovado e
-# reaberto em rodada nova. Nada aqui chama API externa paga.
+# cobrem o que a tela precisa mostrar: card novo, prazo vencido, Comitê esperando os pareceres,
+# Comitê com um parecer e uma menção, pendência aberta, finalizado aprovado, finalizado
+# parcialmente aprovado e reaberto em rodada nova. Nada aqui chama API externa paga.
 #
 # Os usuários de cenário entram no Comitê. Enquanto existirem, todo card que entrar no Comitê
 # neste banco espera o parecer deles também — rode só em ambiente local e limpe depois.
@@ -31,8 +31,8 @@ CNPJS=(
   "20000000000303" # 3. Comitê esperando os dois
   "20000000000404" # 4. Comitê com um parecer
   "20000000000505" # 5. pendência aberta
-  "20000000000606" # 6. aprovado
-  "20000000000707" # 7. reprovado
+  "20000000000606" # 6. finalizado aprovado
+  "20000000000707" # 7. finalizado parcial
   "20000000000808" # 8. reaberto
 )
 
@@ -85,7 +85,7 @@ criar() { # cnpj, nome, tipo, valor, prazo(ISO ou vazio) -> id
   [[ -n "${5:-}" ]] && prazo="\"$5\""
   chamar "$AUX" POST /liberacao "{\"cedenteCnpj\":\"$1\",\"cedenteNome\":\"$2\",\"tipoOperacao\":\"$3\",\"valor\":$4,\"prazo\":$prazo,
     \"parecerOrigem\":\"Cedente com histórico regular. Cenário de validação.\",
-    \"sacados\":[{\"documento\":\"11222333000181\",\"valor\":$4}]}" | campo id
+    \"sacados\":[{\"documento\":\"11222333000181\",\"valor\":$4},{\"documento\":\"11444777000161\",\"valor\":1000}]}" | campo id
 }
 mover() { # token, id, de, para, [json extra]
   chamar "$1" PATCH "/liberacao/$2/etapa" "{\"de\":\"$3\",\"para\":\"$4\"${5:+,$5}}" >/dev/null
@@ -132,27 +132,28 @@ parecer "$AN1" "$ID5" FAVORAVEL "Ok."
 parecer "$AN2" "$ID5" COM_RESSALVAS "Falta aceite."
 mover "$AN1" "$ID5" COMITE PENDENCIA "\"pendencias\":[{\"destinatarioId\":\"$AUX_ID\",\"texto\":\"Confirmar aceite das duplicatas com o sacado.\"}]"
 
-echo "→ 6/8 aprovado"
+APROVA_TUDO='"decisoes":[{"documento":"11222333000181","situacao":"APROVADO"},{"documento":"11444777000161","situacao":"APROVADO"}]'
+
+echo "→ 6/8 finalizado aprovado"
 ID6=$(criar "${CNPJS[5]}" "ZETA CENARIO CONFECCOES LTDA" DUPLICATA 210000 "")
 mover "$AUX" "$ID6" ORIGEM COMITE
 parecer "$AN1" "$ID6" FAVORAVEL "Ok."
 parecer "$AN2" "$ID6" FAVORAVEL "Ok."
-mover "$AN2" "$ID6" COMITE APROVADO '"observacao":"Liberado."'
+mover "$AN2" "$ID6" COMITE FINALIZADO "$APROVA_TUDO"',"observacao":"Liberado."'
 
-echo "→ 7/8 reprovado"
-ID7=$(criar "${CNPJS[6]}" "ETA CENARIO ATACADISTA LTDA" OUTROS 39000 "")
+echo "→ 7/8 finalizado parcial: só um parecer, um sacado reprovado e um parcial"
+ID7=$(criar "${CNPJS[6]}" "ETA CENARIO ATACADISTA LTDA" CHEQUE 39000 "")
 mover "$AUX" "$ID7" ORIGEM COMITE
-parecer "$AN1" "$ID7" DESFAVORAVEL "Restrições recentes."
-parecer "$AN2" "$ID7" DESFAVORAVEL "Concordo."
-mover "$AN1" "$ID7" COMITE REPROVADO '"observacao":"Restrições recentes no Serasa."'
+parecer "$AN1" "$ID7" COM_RESSALVAS "Um sacado com restrição recente."
+mover "$AN1" "$ID7" COMITE FINALIZADO '"decisoes":[{"documento":"11222333000181","situacao":"PARCIAL","valorAprovado":20000},{"documento":"11444777000161","situacao":"REPROVADO"}],"observacao":"Sem o parecer da Mychelly, em férias."'
 
 echo "→ 8/8 aprovado e reaberto: rodada 2 no Comitê"
 ID8=$(criar "${CNPJS[7]}" "TETA CENARIO METAIS LTDA" COMISSARIA 150000 "")
 mover "$AUX" "$ID8" ORIGEM COMITE
 parecer "$AN1" "$ID8" FAVORAVEL "Ok."
 parecer "$AN2" "$ID8" FAVORAVEL "Ok."
-mover "$AN1" "$ID8" COMITE APROVADO
-mover "$AN1" "$ID8" APROVADO COMITE '"observacao":"Cliente pediu aumento de limite."'
+mover "$AN1" "$ID8" COMITE FINALIZADO "$APROVA_TUDO"
+mover "$AN1" "$ID8" FINALIZADO COMITE '"observacao":"Cliente pediu aumento de limite."'
 
 echo
 echo "Pronto. Entre com cenario-auxiliar@$DOMINIO, cenario-andressa@$DOMINIO ou"

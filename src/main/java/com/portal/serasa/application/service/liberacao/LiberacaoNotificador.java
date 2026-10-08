@@ -45,6 +45,17 @@ public class LiberacaoNotificador {
     private final LiberacaoMembroJpaRepository membroRepository;
     private final LiberacaoParecerJpaRepository parecerRepository;
     private final UserRepository userRepository;
+    private final com.portal.serasa.infrastructure.email.LiberacaoEmail email;
+
+    /**
+     * O que também vai por e-mail: avisos dirigidos à pessoa, que pedem ação dela ou dizem o
+     * destino do card dela. Comentário e parecer de outra pessoa ficam só no sino — por e-mail
+     * virariam ruído e o time pararia de ler.
+     */
+    static final java.util.Set<TipoNotificacao> POR_EMAIL = java.util.EnumSet.of(
+            TipoNotificacao.CARD_CRIADO, TipoNotificacao.PARECER_ESPERADO, TipoNotificacao.COMITE_COMPLETO,
+            TipoNotificacao.PENDENCIA_ABERTA, TipoNotificacao.PENDENCIA_RESPONDIDA, TipoNotificacao.MENCAO,
+            TipoNotificacao.DECISAO);
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void aoAcontecer(LiberacaoEvento evento) {
@@ -52,13 +63,34 @@ public class LiberacaoNotificador {
             List<Nova> novas = destinatarios(evento);
             UserEntity autor = evento.autor();
             if (!novas.isEmpty()) {
-                notificacaoService.entregar(notificacaoService.notificar(novas, autor.getId(), autor.getName()));
+                var entregas = notificacaoService.notificar(novas, autor.getId(), autor.getName());
+                notificacaoService.entregar(entregas);
+                enviarEmails(entregas);
             }
         } catch (RuntimeException erro) {
             // A ação já foi gravada; falhar o aviso não pode virar erro para quem agiu.
             log.error("Falha ao notificar evento {} do card {}", evento.getClass().getSimpleName(), evento.card().getId(), erro);
         }
         hub.enviarTodos(EVENTO_QUADRO, Map.of("cardId", evento.card().getId()));
+    }
+
+    private void enviarEmails(List<NotificacaoService.Entrega> entregas) {
+        List<NotificacaoService.Entrega> porEmail = entregas.stream()
+                .filter(entrega -> POR_EMAIL.contains(entrega.notificacao().tipo()))
+                .toList();
+        if (porEmail.isEmpty()) {
+            return;
+        }
+        Map<UUID, UserEntity> pessoas = new java.util.HashMap<>();
+        userRepository.findAllById(porEmail.stream().map(NotificacaoService.Entrega::destinatarioId).toList())
+                .forEach(user -> pessoas.put(user.getId(), user));
+        for (NotificacaoService.Entrega entrega : porEmail) {
+            UserEntity pessoa = pessoas.get(entrega.destinatarioId());
+            if (pessoa != null && pessoa.isEmailLiberacao()) {
+                email.enviar(pessoa.getEmail(), pessoa.getName(), entrega.notificacao().titulo(),
+                        entrega.notificacao().resumo(), entrega.notificacao().link());
+            }
+        }
     }
 
     List<Nova> destinatarios(LiberacaoEvento evento) {
@@ -111,8 +143,7 @@ public class LiberacaoNotificador {
             return novas;
         }
         String acao = switch (para) {
-            case APROVADO -> "aprovado";
-            case REPROVADO -> "reprovado";
+            case FINALIZADO -> "finalizado" + (card.getResultado() == null ? "" : " (" + card.getResultado().rotulo().toLowerCase() + ")");
             case ORIGEM -> "devolvido à Origem";
             default -> null;
         };

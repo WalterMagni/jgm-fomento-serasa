@@ -5,8 +5,9 @@ import { useMarcarLidasDoLink } from "@/hooks/useNotificacoes";
 import Icon from "@/components/ui/Icon";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
-import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, type LiberacaoCard } from "@/types/liberacao";
+import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard } from "@/types/liberacao";
 import CardForm from "./CardForm";
+import Anexos from "./Anexos";
 import Atividade from "./Atividade";
 import OrganizacaoCard from "./OrganizacaoCard";
 import { PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
@@ -14,6 +15,10 @@ import Dialogo from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
 import {
   COR_ETAPA,
+  COR_POSICAO,
+  COR_RESULTADO,
+  ICONE_POSICAO,
+  ICONE_RESULTADO,
   ICONE_ETAPA,
   confirmar,
   formatDataHora,
@@ -95,6 +100,11 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
   const subtitulo = (
     <span className="flex flex-wrap items-center gap-2">
       <span className="font-mono">{formatDocumento(card.cedenteCnpj)}</span>
+      {card.cedentePraca && (
+        <span className="inline-flex items-center gap-1">
+          <Icon name="map" size={11} /> {card.cedentePraca}
+        </span>
+      )}
       {card.cedenteCadastrado ? (
         <a
           href={`/clients/${card.cedenteCnpj}`}
@@ -131,12 +141,14 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
         <div className="min-w-0">
           {editando ? (
             <CardForm
+              sacadosTravados={card.etapa === "FINALIZADO"}
               inicial={{
                 cedente: { cnpj: card.cedenteCnpj, nome: card.cedenteNome, cadastrado: card.cedenteCadastrado },
                 tipoOperacao: card.tipoOperacao,
                 valor: card.valor,
                 prazo: card.prazo,
                 parecerOrigem: card.parecerOrigem,
+                posicaoOrigem: card.posicaoOrigem,
                 sacados: data.sacados,
               }}
               enviando={editar.isPending}
@@ -169,6 +181,19 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                     <span className="font-display text-xl font-semibold tracking-tight">{formatMoeda(card.valor)}</span>
                   </Dado>
                   <Dado rotulo="Tipo">{card.tipoOperacao ?? "—"}</Dado>
+                  {card.resultado && (
+                    <Dado rotulo="Resultado">
+                      <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${COR_RESULTADO[card.resultado]}`}>
+                        <Icon name={ICONE_RESULTADO[card.resultado]} size={12} />
+                        {ROTULO_RESULTADO[card.resultado]}
+                      </span>
+                      {card.resultado === "PARCIAL" && card.valorAprovado != null && (
+                        <span className="mt-1 block text-xs tabular-nums text-slate-500">
+                          {formatMoeda(card.valorAprovado)} aprovados{card.valor != null && ` de ${formatMoeda(card.valor)}`}
+                        </span>
+                      )}
+                    </Dado>
+                  )}
                   <Dado rotulo="Prazo">
                     {card.prazo ? (
                       <span
@@ -191,10 +216,26 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
               </Secao>
 
               <Secao titulo={`Sacados (${data.sacados.length})`} icone="people">
-                <SacadosLista sacados={data.sacados} valorOperacao={card.valor} />
+                <SacadosLista
+                  cardId={card.id}
+                  sacados={data.sacados}
+                  valorOperacao={card.valor}
+                  podeDecidir={ehAnalista && (card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
+                />
               </Secao>
 
-              <Secao titulo="Parecer da origem" icone="description">
+              <Secao
+                titulo="Parecer da origem"
+                icone="description"
+                acao={
+                  card.posicaoOrigem && (
+                    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ${COR_POSICAO[card.posicaoOrigem]}`}>
+                      <Icon name={ICONE_POSICAO[card.posicaoOrigem]} size={11} />
+                      {ROTULO_POSICAO[card.posicaoOrigem]}
+                    </span>
+                  )
+                }
+              >
                 {card.parecerOrigem ? (
                   <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                     <TextoRico texto={card.parecerOrigem} />
@@ -231,6 +272,10 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   <PendenciasLista cardId={card.id} pendencias={data.pendencias} />
                 </Secao>
               )}
+
+              <Secao titulo={`Anexos${data.anexos.length ? ` (${data.anexos.length})` : ""}`} icone="attach_file">
+                <Anexos cardId={card.id} anexos={data.anexos} />
+              </Secao>
 
               <Secao titulo="Atividade" icone="chat">
                 <Atividade cardId={card.id} eventos={data.eventos} comentarios={data.comentarios} euId={euId} />
@@ -271,9 +316,11 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${destino.permitido ? corDestino.faixa : "bg-slate-300 dark:bg-slate-600"}`} />
                       {card.etapa === "COMITE" && destino.etapa === "ORIGEM"
                         ? "Devolver à Origem"
-                        : (card.etapa === "APROVADO" || card.etapa === "REPROVADO") && destino.etapa === "COMITE"
+                        : card.etapa === "FINALIZADO" && destino.etapa === "COMITE"
                           ? "Reabrir no Comitê"
-                          : ROTULO_ETAPA_CURTO[destino.etapa]}
+                          : destino.etapa === "FINALIZADO"
+                            ? "Finalizar"
+                            : ROTULO_ETAPA_CURTO[destino.etapa]}
                       {destino.permitido ? (
                         <Icon name="arrow_forward" size={14} className="ml-auto text-slate-300 transition-colors group-hover:text-slate-600" />
                       ) : (

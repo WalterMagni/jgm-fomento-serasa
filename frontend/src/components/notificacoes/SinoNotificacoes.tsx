@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
-import { useDefinirSom, useMarcarLida, useMarcarTodasLidas, useNotificacoes } from "@/hooks/useNotificacoes";
+import { useDefinirPreferencia, useMarcarLida, useMarcarTodasLidas, useNotificacoes } from "@/hooks/useNotificacoes";
 import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import type { Notificacao, TipoNotificacao } from "@/types/notificacao";
 import { tempoRelativo } from "@/components/liberacao/formatters";
@@ -21,6 +21,45 @@ const VISUAL: Record<TipoNotificacao, { icone: string; cor: string }> = {
   COMENTARIO: { icone: "chat", cor: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200" },
   DECISAO: { icone: "fact_check", cor: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
 };
+
+function Interruptor({
+  rotulo,
+  dica,
+  ligado,
+  desabilitado,
+  onMudar,
+  extra,
+}: {
+  rotulo: string;
+  dica?: string;
+  ligado: boolean;
+  desabilitado: boolean;
+  onMudar: (valor: boolean) => void;
+  extra?: ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3" title={dica}>
+      <span className="text-slate-600 dark:text-slate-300">{rotulo}</span>
+      <span className="flex items-center gap-2">
+        {extra}
+        <input
+          type="checkbox"
+          role="switch"
+          checked={ligado}
+          disabled={desabilitado}
+          onChange={event => onMudar(event.target.checked)}
+          className="peer sr-only"
+        />
+        <span
+          aria-hidden
+          className="relative h-5 w-9 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4
+            after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-[#612035] peer-checked:after:translate-x-4
+            peer-focus-visible:ring-2 peer-focus-visible:ring-[#612035] peer-focus-visible:ring-offset-1 dark:bg-slate-600"
+        />
+      </span>
+    </label>
+  );
+}
 
 /** Falso no servidor e na hidratação, verdadeiro depois: o contador só existe no navegador. */
 function useMontado() {
@@ -64,7 +103,7 @@ function Item({ notificacao, onAbrir }: { notificacao: Notificacao; onAbrir: () 
  * Sino da barra do topo.
  *
  * <p>Contador vermelho com as não lidas; o painel lista as 20 últimas, leva ao card ao clicar e
- * guarda a preferência de som.</p>
+ * guarda as preferências de som e de e-mail.</p>
  */
 export default function SinoNotificacoes() {
   const montado = useMontado();
@@ -74,7 +113,7 @@ export default function SinoNotificacoes() {
   const { data: eu } = useUsuarioAtual();
   const marcarLida = useMarcarLida();
   const marcarTodas = useMarcarTodasLidas();
-  const definirSom = useDefinirSom();
+  const definir = useDefinirPreferencia();
   const [aberto, setAberto] = useState(false);
   const painel = useRef<HTMLDivElement>(null);
 
@@ -166,31 +205,27 @@ export default function SinoNotificacoes() {
             )}
           </ul>
 
-          <footer className="border-t border-slate-100 bg-slate-50/80 px-4 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
-            <label className="flex cursor-pointer items-center justify-between gap-3">
-              <span className="text-slate-600 dark:text-slate-300">Som de notificação</span>
-              <span className="flex items-center gap-2">
-                {som && (
+          <footer className="space-y-2.5 border-t border-slate-100 bg-slate-50/80 px-4 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+            <Interruptor
+              rotulo="Som de notificação"
+              ligado={som}
+              desabilitado={definir.isPending || !eu}
+              onMudar={valor => definir.mutate({ somNotificacao: valor })}
+              extra={
+                som && (
                   <button type="button" onClick={tocarSino} className="cursor-pointer text-[11px] text-slate-400 hover:text-slate-700 hover:underline">
                     testar
                   </button>
-                )}
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={som}
-                  disabled={definirSom.isPending || !eu}
-                  onChange={event => definirSom.mutate(event.target.checked)}
-                  className="peer sr-only"
-                />
-                <span
-                  aria-hidden
-                  className="relative h-5 w-9 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4
-                    after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-[#612035] peer-checked:after:translate-x-4
-                    peer-focus-visible:ring-2 peer-focus-visible:ring-[#612035] peer-focus-visible:ring-offset-1 dark:bg-slate-600"
-                />
-              </span>
-            </label>
+                )
+              }
+            />
+            <Interruptor
+              rotulo="Receber por e-mail"
+              dica="Card no Comitê, menção, pendência e decisão chegam também no seu e-mail, com link para o card."
+              ligado={eu?.emailLiberacao ?? true}
+              desabilitado={definir.isPending || !eu}
+              onMudar={valor => definir.mutate({ emailLiberacao: valor })}
+            />
           </footer>
         </div>
       )}

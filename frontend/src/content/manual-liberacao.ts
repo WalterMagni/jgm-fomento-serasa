@@ -10,22 +10,21 @@ Para quem abre, analisa e decide a liberação de operações: auxiliares, anali
 Diretoria.
 
 A esteira substitui a planilha de liberação. Cada operação vira um card, e o card anda da
-**Origem da análise** até **Aprovado** ou **Reprovado**. Tudo o que acontece com ele fica
-registrado com nome, data e hora.
+**Origem da análise** até **Finalizados**. Tudo o que acontece com ele fica registrado com
+nome, data e hora.
 
 A tela está marcada como **beta**: o fluxo ainda pode mudar conforme o time usar.
 
 ---
 
-## As cinco colunas
+## As quatro colunas
 
 | Coluna | O que significa |
 |---|---|
 | **Origem da análise** | A auxiliar abriu o card e está preenchendo. |
-| **Comitê** | Esperando o parecer de cada membro do Comitê. |
+| **Comitê** | Esperando o parecer do Comitê. |
 | **Pendência** | Quem é analista pediu algo a alguém antes de decidir. |
-| **Aprovado** | Operação liberada. |
-| **Reprovado** | Operação recusada. |
+| **Finalizados** | Decidido. O card mostra o resultado: **Aprovado**, **Reprovado** ou **Parcialmente aprovado**. |
 
 No topo de cada coluna aparecem quantos cards ela tem e a soma dos valores.
 
@@ -58,7 +57,13 @@ Botão **Nova análise** (ou o **+** na coluna Origem).
    todo mundo. O prazo pode ser digitado (dd/mm/aaaa hh:mm) ou escolhido no calendário.
 3. **Sacados**: um CNPJ ou CPF por linha, com valor opcional. **Dá para colar vários de
    uma vez** — copie a lista do e-mail ou da planilha e cole na primeira linha.
-4. **Parecer da origem**: o que a análise encontrou e o que recomenda.
+4. **Parecer da origem**: a posição (**Favorável**, **Com ressalvas** ou **Desfavorável**) e o
+   que a análise encontrou.
+
+Ao terminar de digitar o CNPJ do sacado, aparecem o nome e a praça (cidade/UF), como no
+cedente. Se o sacado já foi **reprovado** ou **parcialmente aprovado** em outro card, aparece
+um aviso com o número do card — clique para abrir. Sacado que não está no portal pode ser
+cadastrado ali mesmo, pelo CNPJ Já.
 
 Se a soma dos sacados não bater com o valor da operação, a tela avisa em amarelo.
 
@@ -73,8 +78,9 @@ Para dar seu parecer, abra o card: escolha **Favorável**, **Com ressalvas** ou
 **Desfavorável** e escreva o porquê. Dá para rever o parecer enquanto o card estiver no
 Comitê.
 
-**O card só sai do Comitê depois que todos deram parecer.** Quem dá o último parecer recebe o
-aviso de que o card está liberado para decidir. A exceção é **Devolver à Origem**, para corrigir um
+**Para sair do Comitê basta um parecer.** Se faltar o de alguém (férias, ausência), a tela
+avisa de quem e pede confirmação, e o histórico registra que o card saiu sem aquele parecer.
+Quem dá o último parecer recebe o aviso de que o card está liberado para decidir. A exceção é **Devolver à Origem**, para corrigir um
 card mal preenchido — aí os pareceres que faltavam deixam de ser esperados, e o Comitê
 começa uma rodada nova quando o card voltar.
 
@@ -86,8 +92,24 @@ Ao mover para **Pendência**, quem é analista diz **para quem** e **o que falta
 várias pessoas de uma vez. A pessoa recebe um aviso, responde dentro do card, e quem
 pediu é avisado.
 
-Da Pendência, quem é analista aprova, reprova ou devolve ao Comitê. Aprovar com pendência ainda
-sem resposta é possível, mas a tela pede confirmação.
+Da Pendência, quem é analista finaliza ou devolve ao Comitê.
+
+---
+
+## Decisão por sacado e Finalizados
+
+Cada sacado recebe uma decisão: **Aprovado**, **Reprovado** ou **Parcial** — no parcial, com o
+valor aprovado. A analista decide na lista de sacados do card, com ele no Comitê ou em
+Pendência, ou tudo de uma vez ao **Finalizar** (arrastando para Finalizados ou pelo botão).
+
+O resultado do card sai das decisões dos sacados:
+
+- todos aprovados → **Aprovado**;
+- todos reprovados → **Reprovado**;
+- qualquer mistura ou parcial → **Parcialmente aprovado**, com o total aprovado.
+
+Card sem sacados pede o resultado direto. Para mudar uma decisão depois de finalizado, reabra
+o card no Comitê.
 
 ---
 
@@ -126,11 +148,24 @@ as últimas e ir direto ao card. Você recebe aviso quando:
 
 Quem faz a ação nunca é avisado da própria ação.
 
-No painel do sino dá para **desligar o som**. O som só funciona depois do primeiro clique na
-página — é regra do navegador. Com o portal em segundo plano, o número de notificações
-aparece no título da aba.
+No painel do sino dá para **desligar o som** e **desligar o e-mail**. O som só funciona depois
+do primeiro clique na página — é regra do navegador. Com o portal em segundo plano, o número de
+notificações aparece no título da aba.
+
+**Por e-mail**, com link para o card, chegam: card novo (para analistas), card no Comitê
+esperando seu parecer, Comitê completo, pendência para você ou respondida, menção e decisão.
+Comentário e parecer de outra pessoa ficam só no sino.
 
 O quadro se atualiza sozinho: quando alguém move um card, você vê na hora.
+
+---
+
+## Anexos
+
+Na seção **Anexos** do card: arraste o arquivo ou clique em **Anexar arquivo**. PDF, imagem,
+Word, Excel, texto ou CSV, até 10 MB. O arquivo vai para a pasta do cedente no compartilhamento
+de rede (\`liberacao/<número do card>\`), então também dá para achá-lo fora do portal. Quem
+enviou ou uma analista pode remover: some do card, mas continua na pasta.
 
 ---
 
@@ -153,8 +188,9 @@ Dentro do card, na coluna da direita:
 - **Só os meus**: cards que você criou, acompanha ou em que dá parecer.
 - **Filtros**: membro, etiqueta, tipo, prazo (vencido, hoje, próximos 7 dias), quem criou e
   período de criação.
-- **Finalizados**: por padrão aparecem os aprovados e reprovados dos últimos 30 dias. Dá para
-  ver 90 dias, o último ano ou **ocultar** as duas colunas.
+- **Resultado**: aprovado, reprovado ou parcialmente aprovado.
+- **Finalizados**: por padrão aparecem os finalizados dos últimos 30 dias. Dá para ver 90 dias,
+  o último ano ou **ocultar** a coluna.
 - **Ordenar**: prazo mais próximo, última atividade, mais recentes, mais antigos, maior valor
   ou nome do cedente.
 
@@ -186,7 +222,9 @@ Comentários. A aba Cards traz também quanto tempo cada card passou em cada eta
 **Não consigo mover para o Comitê.** Ninguém está marcado como Comitê nas Configurações.
 Peça ao admin.
 
-**O card não sai do Comitê.** Falta parecer de alguém — o card mostra de quem.
+**O card não sai do Comitê.** Ninguém deu parecer ainda — é preciso pelo menos um.
+
+**Não consigo finalizar.** Algum sacado está sem decisão; a tela diz qual.
 
 **Alguém salvou antes de mim.** Se duas pessoas editam o mesmo card ao mesmo tempo, a
 segunda a salvar recebe um aviso para recarregar, em vez de apagar o que a outra fez.

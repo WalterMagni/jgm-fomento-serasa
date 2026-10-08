@@ -27,6 +27,8 @@ services:
       - "8081:8080"   # 8081 no host para não conflitar com outra app
     environment:
       SPRING_PROFILES_ACTIVE: "prod"
+      # Mesmo fuso do Dockerfile, para logs e qualquer chamada de sistema do container.
+      TZ: "America/Sao_Paulo"
       # Nome explicito do container do banco principal para evitar colisao
       # com o service "postgres" do cnpj-data-pipeline na rede externa.
       DB_HOST: portal-serasa-db
@@ -48,6 +50,9 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-jgmempresarial@jgmempresarial.com}
       EMAIL_COMERCIAL: ${EMAIL_COMERCIAL:-comercial@jgmfomento.com}
       EMAIL_CEDENTE_ENABLED: ${EMAIL_CEDENTE_ENABLED:-true}
+      # Aviso por e-mail da esteira de liberação, com link para o card.
+      EMAIL_LIBERACAO_ENABLED: ${EMAIL_LIBERACAO_ENABLED:-true}
+      APP_PORTAL_URL: ${APP_PORTAL_URL:-}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
       APP_USER_MANAGEMENT_ALLOWED_EMAILS: ${APP_USER_MANAGEMENT_ALLOWED_EMAILS:-}
       # Filiais via cópia local da Receita (cnpj-data-pipeline). Postgres SEPARADO,

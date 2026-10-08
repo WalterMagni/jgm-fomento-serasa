@@ -21,10 +21,13 @@ public record LiberacaoCardResponse(
         String cedenteCnpj,
         String cedenteNome,
         boolean cedenteCadastrado,
+        /** Cidade/UF do cedente, quando o portal sabe. */
+        String cedentePraca,
         String tipoOperacao,
         BigDecimal valor,
         LocalDateTime prazo,
         String parecerOrigem,
+        PosicaoParecer posicaoOrigem,
         CorLiberacao cor,
         List<Etiqueta> etiquetas,
         UUID criadoPorId,
@@ -33,6 +36,10 @@ public record LiberacaoCardResponse(
         String atualizadoPorNome,
         LocalDateTime atualizadoEm,
         LocalDateTime finalizadoEm,
+        /** Só em Finalizados: sai das decisões dos sacados. */
+        com.portal.serasa.domain.model.liberacao.ResultadoLiberacao resultado,
+        /** Aprovados inteiros mais o valor aprovado dos parciais; nulo sem nenhuma decisão. */
+        BigDecimal valorAprovado,
         /** O mais recente entre edição, evento e comentário: base de "ordenar por atividade". */
         LocalDateTime ultimaAtividade,
         Long version,
@@ -44,6 +51,7 @@ public record LiberacaoCardResponse(
         List<Parecer> pareceres,
         int pendenciasAbertas,
         int comentarios,
+        int anexos,
         List<Pessoa> membros,
         boolean podeEditar,
         /** Cada etapa de destino possível, com o motivo quando esta pessoa não pode mover. */
@@ -55,13 +63,14 @@ public record LiberacaoCardResponse(
     public record Etiqueta(UUID id, String nome, CorLiberacao cor) {
     }
 
-    public record SacadoCurto(String documento, String nome) {
+    public record SacadoCurto(String documento, String nome, String praca) {
     }
 
     public record Parecer(UUID id, Integer rodada, UUID usuarioId, String usuarioNome, String iniciais,
                           PosicaoParecer posicao, String texto, LocalDateTime registradoEm) {
     }
 
-    public record Destino(EtapaLiberacao etapa, boolean permitido, String motivo) {
+    /** {@code aviso}: pode mover, mas a tela confirma antes (parecer faltando no Comitê). */
+    public record Destino(EtapaLiberacao etapa, boolean permitido, String motivo, String aviso) {
     }
 }

@@ -2,7 +2,7 @@ package com.portal.serasa.api.rest.mapper;
 
 import com.portal.serasa.api.rest.dto.response.LiberacaoCardResponse;
 import com.portal.serasa.api.rest.dto.response.LiberacaoDetalheResponse;
-import com.portal.serasa.application.port.out.CompanyDetailRepository;
+import com.portal.serasa.application.service.liberacao.EmpresaResolver;
 import com.portal.serasa.application.service.liberacao.LiberacaoAutorizacao;
 import com.portal.serasa.application.service.liberacao.LiberacaoComentarioService;
 import com.portal.serasa.application.service.liberacao.MencaoParser;
@@ -66,10 +66,12 @@ public class LiberacaoResponseAssembler {
     private final LiberacaoComentarioJpaRepository comentarioRepository;
     private final LiberacaoComentarioService comentarioService;
     private final LiberacaoCardEtiquetaJpaRepository cardEtiquetaRepository;
+    private final com.portal.serasa.infrastructure.persistence.repository.LiberacaoAnexoJpaRepository anexoRepository;
+    private final com.portal.serasa.application.service.liberacao.LiberacaoAnexoService anexoService;
     private final LiberacaoEtiquetaJpaRepository etiquetaRepository;
     private final LiberacaoEventoJpaRepository eventoRepository;
     private final UserRepository userRepository;
-    private final CompanyDetailRepository companyDetailRepository;
+    private final EmpresaResolver empresaResolver;
     private final LiberacaoAutorizacao autorizacao;
     private final LiberacaoService liberacaoService;
 
@@ -90,6 +92,8 @@ public class LiberacaoResponseAssembler {
                 .collect(Collectors.groupingBy(LiberacaoMembroEntity::getCardId));
         Map<UUID, Long> comentarios = comentarioRepository.contarPorCard(ids).stream()
                 .collect(Collectors.toMap(linha -> (UUID) linha[0], linha -> (Long) linha[1]));
+        Map<UUID, Long> anexos = anexoRepository.contarPorCard(ids).stream()
+                .collect(Collectors.toMap(linha -> (UUID) linha[0], linha -> (Long) linha[1]));
         Map<UUID, LocalDateTime> ultimoEvento = maximos(eventoRepository.ultimoPorCard(ids));
         Map<UUID, LocalDateTime> ultimoComentario = maximos(comentarioRepository.ultimoPorCard(ids));
         Map<UUID, List<LiberacaoCardEtiquetaEntity>> vinculos = cardEtiquetaRepository.findByCardIdIn(ids).stream()
@@ -101,7 +105,9 @@ public class LiberacaoResponseAssembler {
 
         Map<UUID, UserEntity> usuarios = usuarios(membros.values().stream()
                 .flatMap(List::stream).map(LiberacaoMembroEntity::getUsuarioId).toList());
-        Set<String> cadastrados = cadastrados(cards.stream().map(LiberacaoCardEntity::getCedenteCnpj).toList());
+        Map<String, EmpresaResolver.Empresa> empresas = empresaResolver.resolver(Stream.concat(
+                cards.stream().map(LiberacaoCardEntity::getCedenteCnpj),
+                sacados.values().stream().flatMap(List::stream).map(LiberacaoSacadoEntity::getCnpj)).toList());
         boolean comiteVazio = liberacaoService.comiteVazio();
 
         return cards.stream()
@@ -110,16 +116,16 @@ public class LiberacaoResponseAssembler {
                         pareceres.getOrDefault(card.getId(), List.of()),
                         pendenciasAbertas.getOrDefault(card.getId(), 0L).intValue(),
                         comentarios.getOrDefault(card.getId(), 0L).intValue(),
+                        anexos.getOrDefault(card.getId(), 0L).intValue(),
                         membros.getOrDefault(card.getId(), List.of()),
-                        usuarios, cadastrados, comiteVazio, usuario))
-                .map(resposta -> completar(resposta,
-                        vinculos.getOrDefault(resposta.id(), List.of()).stream()
+                        usuarios, empresas, comiteVazio, usuario,
+                        vinculos.getOrDefault(card.getId(), List.of()).stream()
                                 .map(vinculo -> etiquetas.get(vinculo.getEtiquetaId()))
                                 .filter(Objects::nonNull)
                                 .sorted(Comparator.comparing(LiberacaoEtiquetaEntity::getNome))
                                 .map(etiqueta -> new LiberacaoCardResponse.Etiqueta(etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()))
                                 .toList(),
-                        mais(resposta.atualizadoEm(), ultimoEvento.get(resposta.id()), ultimoComentario.get(resposta.id()))))
+                        mais(card.getAtualizadoEm(), ultimoEvento.get(card.getId()), ultimoComentario.get(card.getId()))))
                 .toList();
     }
 
@@ -131,6 +137,11 @@ public class LiberacaoResponseAssembler {
     @Transactional(readOnly = true)
     public LiberacaoDetalheResponse detalhe(LiberacaoCardEntity card, UserEntity usuario) {
         List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(card.getId());
+        Map<String, List<LiberacaoDetalheResponse.DecisaoAnterior>> historico = liberacaoService
+                .decisoesAnteriores(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList()).stream()
+                .filter(decisao -> !decisao.cardId().equals(card.getId()))
+                .collect(Collectors.groupingBy(LiberacaoService.DecisaoAnterior::documento,
+                        Collectors.mapping(LiberacaoResponseAssembler::anterior, Collectors.toList())));
         List<LiberacaoParecerEntity> pareceres = liberacaoService.pareceres(card.getId());
         List<LiberacaoPendenciaEntity> pendencias = liberacaoService.pendencias(card.getId());
         List<LiberacaoEventoEntity> eventos = liberacaoService.timeline(card.getId());
@@ -146,16 +157,21 @@ public class LiberacaoResponseAssembler {
         eventos.forEach(evento -> mencionadas.addAll(MencaoParser.cnpjs(evento.getTexto())));
         comentarios.forEach(comentario -> mencionadas.addAll(MencaoParser.cnpjs(comentario.getTexto())));
 
-        Set<String> cadastrados = cadastrados(Stream.concat(
+        Map<String, EmpresaResolver.Empresa> conhecidas = empresaResolver.resolver(Stream.concat(
                 sacados.stream().map(LiberacaoSacadoEntity::getCnpj), mencionadas.stream()).toList());
         Map<String, Boolean> empresas = new LinkedHashMap<>();
-        mencionadas.forEach(cnpj -> empresas.put(cnpj, cadastrados.contains(cnpj)));
+        mencionadas.forEach(cnpj -> empresas.put(cnpj, conhecidas.containsKey(cnpj)));
 
         return LiberacaoDetalheResponse.builder()
                 .card(card(card, usuario))
                 .sacados(sacados.stream()
-                        .map(sacado -> new LiberacaoDetalheResponse.Sacado(sacado.getCnpj(), sacado.getNome(),
-                                sacado.getValor(), cadastrados.contains(sacado.getCnpj())))
+                        .map(sacado -> {
+                            EmpresaResolver.Empresa empresa = conhecidas.get(sacado.getCnpj());
+                            return new LiberacaoDetalheResponse.Sacado(sacado.getCnpj(), nomeSacado(sacado, empresa),
+                                    sacado.getValor(), empresa != null, empresa == null ? null : empresa.praca(),
+                                    sacado.getSituacao(), sacado.getValorAprovado(), sacado.getSituacaoPorNome(),
+                                    sacado.getSituacaoEm(), historico.getOrDefault(sacado.getCnpj(), List.of()));
+                        })
                         .toList())
                 .pareceres(pareceres.stream().map(this::parecer).toList())
                 .pendencias(pendencias.stream().map(pendencia -> pendencia(pendencia, usuario)).toList())
@@ -166,13 +182,22 @@ public class LiberacaoResponseAssembler {
                                 comentario.getTexto(), comentario.getCriadoEm(), comentario.getEditadoEm()))
                         .toList())
                 .empresas(empresas)
+                .anexos(anexoService.listar(card.getId()).stream()
+                        .map(anexo -> new LiberacaoDetalheResponse.Anexo(anexo.getId(), anexo.getNomeOriginal(), anexo.getMimeType(),
+                                anexo.getTamanhoBytes(), anexo.getEnviadoPorNome(), anexo.getEnviadoEm(),
+                                usuario.getId().equals(anexo.getEnviadoPorId()) || usuario.isAnalista()))
+                        .toList())
                 .build();
     }
 
     private LiberacaoCardResponse card(LiberacaoCardEntity card, List<LiberacaoSacadoEntity> sacados,
                                        List<LiberacaoParecerEntity> pareceres, int pendenciasAbertas,
-                                       int comentarios, List<LiberacaoMembroEntity> membros, Map<UUID, UserEntity> usuarios,
-                                       Set<String> cadastrados, boolean comiteVazio, UserEntity usuario) {
+                                       int comentarios, int anexos, List<LiberacaoMembroEntity> membros, Map<UUID, UserEntity> usuarios,
+                                       Map<String, EmpresaResolver.Empresa> empresas, boolean comiteVazio, UserEntity usuario,
+                                       List<LiberacaoCardResponse.Etiqueta> etiquetas, LocalDateTime ultimaAtividade) {
+        int registrados = (int) pareceres.stream().filter(LiberacaoParecerEntity::registrado).count();
+        BigDecimal valorAprovado = LiberacaoService.valorAprovado(sacados);
+        EmpresaResolver.Empresa cedente = empresas.get(card.getCedenteCnpj());
         List<String> aguardando = LiberacaoService.aguardando(pareceres);
         BigDecimal soma = sacados.stream()
                 .map(LiberacaoSacadoEntity::getValor)
@@ -188,11 +213,13 @@ public class LiberacaoResponseAssembler {
                 .rodada(card.getRodada())
                 .cedenteCnpj(card.getCedenteCnpj())
                 .cedenteNome(card.getCedenteNome())
-                .cedenteCadastrado(cadastrados.contains(card.getCedenteCnpj()))
+                .cedenteCadastrado(cedente != null)
+                .cedentePraca(cedente == null ? null : cedente.praca())
                 .tipoOperacao(card.getTipoOperacao())
                 .valor(card.getValor())
                 .prazo(card.getPrazo())
                 .parecerOrigem(card.getParecerOrigem())
+                .posicaoOrigem(card.getPosicaoOrigem())
                 .cor(card.getCor())
                 .criadoPorId(card.getCriadoPorId())
                 .criadoPorNome(card.getCriadoPorNome())
@@ -200,16 +227,25 @@ public class LiberacaoResponseAssembler {
                 .atualizadoPorNome(card.getAtualizadoPorNome())
                 .atualizadoEm(card.getAtualizadoEm())
                 .finalizadoEm(card.getFinalizadoEm())
+                .resultado(card.getResultado())
+                .valorAprovado(valorAprovado)
+                .etiquetas(etiquetas)
+                .ultimaAtividade(ultimaAtividade)
                 .version(card.getVersion())
                 .sacadosQtd(sacados.size())
                 .sacados(sacados.stream()
                         .sorted(Comparator.comparing(LiberacaoSacadoEntity::getOrdem))
-                        .map(sacado -> new LiberacaoCardResponse.SacadoCurto(sacado.getCnpj(), sacado.getNome()))
+                        .map(sacado -> {
+                            EmpresaResolver.Empresa empresa = empresas.get(sacado.getCnpj());
+                            return new LiberacaoCardResponse.SacadoCurto(sacado.getCnpj(), nomeSacado(sacado, empresa),
+                                    empresa == null ? null : empresa.praca());
+                        })
                         .toList())
                 .somaSacados(algumValor ? soma : null)
                 .pareceres(pareceres.stream().map(this::parecer).toList())
                 .pendenciasAbertas(pendenciasAbertas)
                 .comentarios(comentarios)
+                .anexos(anexos)
                 .membros(membros.stream()
                         .sorted(Comparator.comparing(LiberacaoMembroEntity::getAdicionadoEm))
                         .map(membro -> usuarios.get(membro.getUsuarioId()))
@@ -222,22 +258,17 @@ public class LiberacaoResponseAssembler {
                         .sorted(Comparator.comparing((EtapaLiberacao etapa) -> etapa == EtapaLiberacao.ORIGEM)
                                 .thenComparing(EtapaLiberacao::ordinal))
                         .map(destino -> {
-                            var motivo = autorizacao.motivoBloqueio(card, destino, usuario, aguardando, comiteVazio);
-                            return new LiberacaoCardResponse.Destino(destino, motivo.isEmpty(), motivo.orElse(null));
+                            var motivo = autorizacao.motivoBloqueio(card, destino, usuario, registrados, comiteVazio);
+                            return new LiberacaoCardResponse.Destino(destino, motivo.isEmpty(), motivo.orElse(null),
+                                    autorizacao.aviso(card, destino, aguardando).orElse(null));
                         })
                         .toList())
                 .build();
     }
 
-    /** Etiquetas e última atividade vêm de consultas em lote feitas depois; entram aqui. */
-    private static LiberacaoCardResponse completar(LiberacaoCardResponse base, List<LiberacaoCardResponse.Etiqueta> etiquetas,
-                                                   LocalDateTime ultimaAtividade) {
-        return new LiberacaoCardResponse(base.id(), base.numero(), base.etapa(), base.etapaDesde(), base.rodada(),
-                base.cedenteCnpj(), base.cedenteNome(), base.cedenteCadastrado(), base.tipoOperacao(), base.valor(),
-                base.prazo(), base.parecerOrigem(), base.cor(), etiquetas, base.criadoPorId(), base.criadoPorNome(),
-                base.criadoEm(), base.atualizadoPorNome(), base.atualizadoEm(), base.finalizadoEm(), ultimaAtividade,
-                base.version(), base.sacadosQtd(), base.sacados(), base.somaSacados(), base.pareceres(),
-                base.pendenciasAbertas(), base.comentarios(), base.membros(), base.podeEditar(), base.destinos());
+    public static LiberacaoDetalheResponse.DecisaoAnterior anterior(LiberacaoService.DecisaoAnterior decisao) {
+        return new LiberacaoDetalheResponse.DecisaoAnterior(decisao.cardId(), decisao.numero(), decisao.cedenteNome(),
+                decisao.situacao(), decisao.valorAprovado(), decisao.decididoPor(), decisao.decididoEm());
     }
 
     private static Map<UUID, LocalDateTime> maximos(List<Object[]> linhas) {
@@ -283,18 +314,15 @@ public class LiberacaoResponseAssembler {
                 .collect(Collectors.toMap(UserEntity::getId, Function.identity()));
     }
 
-    /** Quais destes documentos têm página de empresa. CPF nunca tem. */
-    private Set<String> cadastrados(Collection<String> documentos) {
-        List<String> cnpjs = documentos.stream()
-                .filter(documento -> documento != null && documento.length() == 14)
-                .distinct()
-                .toList();
-        if (cnpjs.isEmpty()) {
-            return Set.of();
+    /**
+     * Nome gravado no card, ou o que a base sabe hoje. Sacado que só foi consultado depois de o
+     * card ser criado aparece com nome sem ninguém precisar editar o card.
+     */
+    private static String nomeSacado(LiberacaoSacadoEntity sacado, EmpresaResolver.Empresa empresa) {
+        if (sacado.getNome() != null && !sacado.getNome().isBlank()) {
+            return sacado.getNome();
         }
-        return companyDetailRepository.findByDocumentNumberIn(cnpjs).stream()
-                .map(CompanyDetail::getDocumentNumber)
-                .collect(Collectors.toSet());
+        return empresa == null ? null : empresa.nome();
     }
 
     /** Conectivos de nome que não viram inicial: "Andressa da Silva" é AS, não AD. */

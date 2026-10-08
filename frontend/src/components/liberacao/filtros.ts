@@ -1,5 +1,5 @@
 import { textoPlano } from "@/components/ui/mencao/mencoes";
-import type { LiberacaoCard } from "@/types/liberacao";
+import type { LiberacaoCard, Resultado } from "@/types/liberacao";
 
 /**
  * Filtros e ordenação do quadro.
@@ -19,6 +19,7 @@ export type Filtros = {
   membros: string[];
   etiquetas: string[];
   tipos: string[];
+  resultados: Resultado[];
   criador: string | null;
   de: string | null;
   ate: string | null;
@@ -62,6 +63,7 @@ export function lerFiltros(params: URLSearchParams): Filtros {
     etiquetas: lista(params.get("etiqueta")),
     // Tipo é texto livre e pode ter vírgula; separa por barra vertical.
     tipos: (params.get("tipo") ?? "").split("|").filter(Boolean),
+    resultados: lista(params.get("resultado")).filter((valor): valor is Resultado => ["APROVADO", "REPROVADO", "PARCIAL"].includes(valor)),
     criador: params.get("criador"),
     de: params.get("de"),
     ate: params.get("ate"),
@@ -83,6 +85,7 @@ export function escreverFiltros(atuais: URLSearchParams, filtros: Filtros): URLS
   definir("membro", filtros.membros.join(","));
   definir("etiqueta", filtros.etiquetas.join(","));
   definir("tipo", filtros.tipos.join("|"));
+  definir("resultado", filtros.resultados.join(","));
   definir("criador", filtros.criador);
   definir("de", filtros.de);
   definir("ate", filtros.ate);
@@ -99,6 +102,7 @@ export function contarAtivos(filtros: Filtros) {
     filtros.membros.length +
     filtros.etiquetas.length +
     filtros.tipos.length +
+    filtros.resultados.length +
     (filtros.criador ? 1 : 0) +
     (filtros.de || filtros.ate ? 1 : 0) +
     (filtros.prazo ? 1 : 0)
@@ -130,7 +134,8 @@ export function aplicarFiltros(cards: LiberacaoCard[], filtros: Filtros, euId: s
   const ate = filtros.ate ? new Date(`${filtros.ate}T23:59:59`) : null;
 
   return cards.filter(card => {
-    if (filtros.finalizados === "ocultar" && (card.etapa === "APROVADO" || card.etapa === "REPROVADO")) return false;
+    if (filtros.finalizados === "ocultar" && card.etapa === "FINALIZADO") return false;
+    if (filtros.resultados.length > 0 && (!card.resultado || !filtros.resultados.includes(card.resultado))) return false;
 
     if (termo) {
       const naBusca =

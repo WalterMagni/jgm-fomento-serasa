@@ -2,6 +2,7 @@ package com.portal.serasa.infrastructure.persistence.entity;
 
 import com.portal.serasa.domain.model.liberacao.CorLiberacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
+import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -68,6 +69,11 @@ public class LiberacaoCardEntity {
     @Column(name = "parecer_origem", columnDefinition = "text")
     private String parecerOrigem;
 
+    /** Posição de quem abriu o card. Ver V69. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "posicao_origem", length = 16)
+    private PosicaoParecer posicaoOrigem;
+
     /**
      * Faixa no topo do card. Gravada por consulta própria, fora da trava de versão: trocar a cor
      * não pode derrubar com 409 quem está editando os campos ao mesmo tempo. Ver V67.
@@ -96,6 +102,11 @@ public class LiberacaoCardEntity {
 
     @Column(name = "finalizado_em")
     private LocalDateTime finalizadoEm;
+
+    /** Resultado ao finalizar, calculado das decisões dos sacados. Ver V70. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 12)
+    private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao resultado;
 
     @Column(name = "excluido_em")
     private LocalDateTime excluidoEm;

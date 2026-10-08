@@ -100,6 +100,9 @@ public class AuthController {
         if (body.containsKey("somNotificacao") && body.get("somNotificacao") != null) {
             user.setSomNotificacao(Boolean.parseBoolean(body.get("somNotificacao").toString()));
         }
+        if (body.containsKey("emailLiberacao") && body.get("emailLiberacao") != null) {
+            user.setEmailLiberacao(Boolean.parseBoolean(body.get("emailLiberacao").toString()));
+        }
 
         userRepository.save(user);
 
@@ -210,6 +213,7 @@ public class AuthController {
         perfil.put("analista", user.isAnalista());
         perfil.put("comite", user.isComite());
         perfil.put("somNotificacao", user.isSomNotificacao());
+        perfil.put("emailLiberacao", user.isEmailLiberacao());
         return perfil;
     }
 }

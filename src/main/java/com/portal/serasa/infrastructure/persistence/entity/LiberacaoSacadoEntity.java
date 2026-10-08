@@ -39,4 +39,19 @@ public class LiberacaoSacadoEntity {
 
     @Column(nullable = false)
     private Integer ordem;
+
+    /** Decisão sobre este sacado. Nulo = a decidir. Ver V70. */
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(length = 12)
+    private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao situacao;
+
+    /** Só no parcial: quanto deste sacado foi aprovado. */
+    @Column(name = "valor_aprovado", precision = 15, scale = 2)
+    private BigDecimal valorAprovado;
+
+    @Column(name = "situacao_por_nome", length = 200)
+    private String situacaoPorNome;
+
+    @Column(name = "situacao_em")
+    private java.time.LocalDateTime situacaoEm;
 }

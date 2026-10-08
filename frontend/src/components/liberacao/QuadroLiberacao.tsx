@@ -3,13 +3,16 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  closestCenter,
   DndContext,
+  pointerWithin,
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -28,6 +31,17 @@ import { useMovimento } from "@/components/liberacao/useMovimento";
 import { useTempoReal } from "@/components/notificacoes/NotificacoesProvider";
 import { exportarLiberacao, useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
 import { ETAPAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard } from "@/types/liberacao";
+
+/**
+ * Onde o card cai: na coluna em que está o ponteiro, e não na que a cópia arrastada encosta.
+ *
+ * <p>A cópia que segue o mouse pode ser mais larga que a coluna e encostar na vizinha. Com a
+ * regra padrão (sobreposição de retângulos), um clique com o mouse mexendo poucos pixels movia o
+ * card da Origem para o Comitê sem ninguém ter arrastado de verdade. Pelo teclado não há
+ * ponteiro, e vale a coluna mais próxima.</p>
+ */
+const detectarColisao: CollisionDetection = args =>
+  args.pointerCoordinates ? pointerWithin(args) : closestCenter(args);
 
 const CELULAR = "(max-width: 767px)";
 
@@ -67,6 +81,7 @@ export default function QuadroLiberacao() {
   const [exportando, setExportando] = useState(false);
   const [novoAberto, setNovoAberto] = useState(false);
   const [arrastando, setArrastando] = useState<LiberacaoCard | null>(null);
+  const [larguraArrasto, setLarguraArrasto] = useState<number | null>(null);
   const [abaCelular, setAbaCelular] = useState<EtapaLiberacao>("ORIGEM");
 
   // O card aberto mora na URL: o link do card pode ser mandado para a colega, e a notificação
@@ -91,7 +106,7 @@ export default function QuadroLiberacao() {
 
   const sensors = useSensors(
     // Distância mínima: um clique simples abre o card em vez de começar um arraste.
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     // No toque, segurar um instante: sem isso rolar a coluna com o dedo arrastaria o card.
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
     // Espaço pega e solta; Enter fica para abrir o card.
@@ -100,9 +115,9 @@ export default function QuadroLiberacao() {
 
   const filtrados = useMemo(() => aplicarFiltros(cards, filtros, eu?.id), [cards, filtros, eu?.id]);
 
-  // "Ocultar finalizados" tira as duas colunas de decisão e dá o espaço às três de trabalho.
+  // "Ocultar finalizados" tira a coluna de decididos e dá o espaço às três de trabalho.
   const etapas = useMemo(
-    () => (filtros.finalizados === "ocultar" ? ETAPAS.filter(etapa => etapa !== "APROVADO" && etapa !== "REPROVADO") : ETAPAS),
+    () => (filtros.finalizados === "ocultar" ? ETAPAS.filter(etapa => etapa !== "FINALIZADO") : ETAPAS),
     [filtros.finalizados],
   );
 
@@ -146,6 +161,8 @@ export default function QuadroLiberacao() {
 
   function aoComecar(event: DragStartEvent) {
     setArrastando((event.active.data.current?.card as LiberacaoCard) ?? null);
+    // A cópia tem a largura do card de origem, para não invadir a coluna vizinha.
+    setLarguraArrasto(event.active.rect.current.initial?.width ?? null);
   }
 
   function aoSoltar(event: DragEndEvent) {
@@ -270,7 +287,13 @@ export default function QuadroLiberacao() {
           ))}
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={aoComecar} onDragEnd={aoSoltar} onDragCancel={() => setArrastando(null)}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={detectarColisao}
+          onDragStart={aoComecar}
+          onDragEnd={aoSoltar}
+          onDragCancel={() => setArrastando(null)}
+        >
           {ehCelular ? (
             // Celular: uma coluna por vez. Mover pelo detalhe do card.
             <div className="flex min-h-0 flex-1">
@@ -304,7 +327,7 @@ export default function QuadroLiberacao() {
 
           <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
             {arrastando ? (
-              <div className="w-[15rem] cursor-grabbing">
+              <div className="cursor-grabbing" style={{ width: larguraArrasto ?? 240 }}>
                 <CardFace card={arrastando} sobreposicao />
               </div>
             ) : null}

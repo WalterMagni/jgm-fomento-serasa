@@ -98,6 +98,16 @@ public class ClientRepositoryAdapter implements ClientRepository {
     }
 
     @Override
+    public List<Client> findByDocumentNumberIn(Collection<String> documentNumbers) {
+        if (documentNumbers == null || documentNumbers.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByDocumentNumberIn(documentNumbers).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<Client> findByDocumentNumberStartingWith(String documentRoot) {
         if (documentRoot == null || documentRoot.isBlank()) {
             return List.of();

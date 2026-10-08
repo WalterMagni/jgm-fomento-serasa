@@ -10,6 +10,7 @@ import com.portal.serasa.api.rest.dto.request.LiberacaoTransicaoRequest;
 import com.portal.serasa.api.rest.dto.response.LiberacaoCardResponse;
 import com.portal.serasa.api.rest.dto.response.LiberacaoDetalheResponse;
 import com.portal.serasa.api.rest.mapper.LiberacaoResponseAssembler;
+import com.portal.serasa.application.service.liberacao.EmpresaResolver;
 import com.portal.serasa.application.service.liberacao.LiberacaoComentarioService;
 import com.portal.serasa.application.service.liberacao.LiberacaoExportService;
 import com.portal.serasa.application.service.liberacao.LiberacaoOrganizacaoService;
@@ -60,6 +61,8 @@ public class LiberacaoController {
     private final LiberacaoExportService exportService;
     private final LiberacaoResponseAssembler assembler;
     private final UsuarioLogado usuarioLogado;
+    private final EmpresaResolver empresaResolver;
+    private final com.portal.serasa.application.service.liberacao.LiberacaoAnexoService anexoService;
 
     // ---------------------------------------------------------------- leitura
 
@@ -78,6 +81,34 @@ public class LiberacaoController {
     public ResponseEntity<List<String>> tipos() {
         usuarioLogado.obter();
         return ResponseEntity.ok(liberacaoService.tiposDeOperacao());
+    }
+
+    /** {@code historico}: decisões sobre o documento em cards anteriores, a mais recente primeiro. */
+    public record EmpresaConhecida(String documento, String nome, String praca, boolean cadastrada,
+                                   List<LiberacaoDetalheResponse.DecisaoAnterior> historico) {
+    }
+
+    /**
+     * O que o portal sabe de cada documento, para o formulário mostrar o sacado assim que o CNPJ
+     * termina de ser digitado. Procura no CNPJ Já e nas consultas do Serasa.
+     */
+    @GetMapping("/empresas")
+    public ResponseEntity<List<EmpresaConhecida>> empresas(@RequestParam List<String> documentos) {
+        usuarioLogado.obter();
+        List<String> limpos = documentos.stream().map(documento -> documento.replaceAll("\\D", "")).distinct().limit(200).toList();
+        var conhecidas = empresaResolver.resolver(limpos);
+        var historico = liberacaoService.decisoesAnteriores(limpos).stream()
+                .collect(java.util.stream.Collectors.groupingBy(LiberacaoService.DecisaoAnterior::documento,
+                        java.util.stream.Collectors.mapping(LiberacaoResponseAssembler::anterior, java.util.stream.Collectors.toList())));
+        return ResponseEntity.ok(limpos.stream()
+                .map(documento -> {
+                    var empresa = conhecidas.get(documento);
+                    var anteriores = historico.getOrDefault(documento, List.of());
+                    return empresa == null
+                            ? new EmpresaConhecida(documento, null, null, false, anteriores)
+                            : new EmpresaConhecida(documento, empresa.nome(), empresa.praca(), true, anteriores);
+                })
+                .toList());
     }
 
     /** O que espera por quem pediu. Alimenta o contador do menu. */
@@ -114,8 +145,21 @@ public class LiberacaoController {
         UserEntity autor = usuarioLogado.obter();
         List<NovaPendencia> pendencias = request.pendencias() == null ? List.of()
                 : request.pendencias().stream().map(this::pendencia).toList();
+        List<LiberacaoService.DecisaoSacado> decisoes = request.decisoes() == null ? List.of()
+                : request.decisoes().stream()
+                        .map(decisao -> new LiberacaoService.DecisaoSacado(decisao.documento(), decisao.situacao(), decisao.valorAprovado()))
+                        .toList();
         return ResponseEntity.ok(assembler.card(liberacaoService.transicionar(
-                id, request.de(), request.para(), pendencias, request.observacao(), autor), autor));
+                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, request.resultado(), autor), autor));
+    }
+
+    /** Decide um sacado pela lista do card, sem finalizar. Só analista, no Comitê ou em Pendência. */
+    @PatchMapping("/{id}/sacados/{documento}/situacao")
+    public ResponseEntity<LiberacaoDetalheResponse> decidirSacado(@PathVariable UUID id, @PathVariable String documento,
+                                                                  @Valid @RequestBody LiberacaoTransicaoRequest.DecisaoSacado request) {
+        UserEntity autor = usuarioLogado.obter();
+        liberacaoService.decidirSacado(id, new LiberacaoService.DecisaoSacado(documento, request.situacao(), request.valorAprovado()), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 
     /** Parecer de quem pediu, na rodada vigente. Registrar de novo revê o parecer. */
@@ -165,6 +209,39 @@ public class LiberacaoController {
     public ResponseEntity<LiberacaoDetalheResponse> apagarComentario(@PathVariable UUID id, @PathVariable UUID comentarioId) {
         UserEntity autor = usuarioLogado.obter();
         comentarioService.apagar(id, comentarioId, autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    // ---------------------------------------------------------------- anexos
+
+    @PostMapping(value = "/{id}/anexos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<LiberacaoDetalheResponse> anexar(@PathVariable UUID id,
+                                                           @org.springframework.web.bind.annotation.RequestPart("file")
+                                                           org.springframework.web.multipart.MultipartFile file) {
+        UserEntity autor = usuarioLogado.obter();
+        anexoService.anexar(id, file, autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    /** Download autenticado. O caminho no compartilhamento nunca chega ao navegador. */
+    @GetMapping("/{id}/anexos/{anexoId}")
+    public ResponseEntity<byte[]> baixarAnexo(@PathVariable UUID id, @PathVariable UUID anexoId) {
+        usuarioLogado.obter();
+        var anexo = anexoService.buscar(id, anexoId);
+        byte[] conteudo = anexoService.conteudo(anexo);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                anexo.getMimeType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : anexo.getMimeType()));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(anexo.getNomeOriginal(), java.nio.charset.StandardCharsets.UTF_8)
+                .build());
+        return ResponseEntity.ok().headers(headers).body(conteudo);
+    }
+
+    @DeleteMapping("/{id}/anexos/{anexoId}")
+    public ResponseEntity<LiberacaoDetalheResponse> removerAnexo(@PathVariable UUID id, @PathVariable UUID anexoId) {
+        UserEntity autor = usuarioLogado.obter();
+        anexoService.remover(id, anexoId, autor);
         return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 
@@ -254,7 +331,7 @@ public class LiberacaoController {
                         .map(sacado -> new DadosSacado(sacado.documento(), sacado.nome(), sacado.valor()))
                         .toList();
         return new DadosCard(request.cedenteCnpj(), request.cedenteNome(), request.tipoOperacao(),
-                request.valor(), request.prazo(), request.parecerOrigem(), sacados);
+                request.valor(), request.prazo(), request.parecerOrigem(), request.posicaoOrigem(), sacados);
     }
 
     private NovaPendencia pendencia(LiberacaoPendenciaRequest request) {

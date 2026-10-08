@@ -5,11 +5,14 @@ import Icon from "@/components/ui/Icon";
 import CampoData from "@/components/ui/CampoData";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { normalizar } from "@/components/ui/mencao/mencoes";
-import { useTiposOperacao } from "@/hooks/useLiberacao";
-import type { DadosCard, Sacado, TipoOperacao } from "@/types/liberacao";
+import { useCadastrarEmpresa, useEmpresasConhecidas, useTiposOperacao } from "@/hooks/useLiberacao";
+import { ROTULO_POSICAO, type DadosCard, type EmpresaConhecida, type PosicaoParecer, type Sacado, type TipoOperacao } from "@/types/liberacao";
 import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
+import { HistoricoSacado } from "./DetalheSecoes";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
 import {
+  COR_POSICAO,
+  ICONE_POSICAO,
   formatDocumento,
   formatMoeda,
   isoParaCampoData,
@@ -26,6 +29,7 @@ export type ValoresIniciais = {
   valor: number | null;
   prazo: string | null;
   parecerOrigem: string | null;
+  posicaoOrigem: PosicaoParecer | null;
   sacados: Sacado[];
 };
 
@@ -33,6 +37,8 @@ type Props = {
   inicial?: ValoresIniciais;
   enviando: boolean;
   rotuloEnviar: string;
+  /** Card finalizado: o resultado sai dos sacados, então a lista só muda depois de reabrir. */
+  sacadosTravados?: boolean;
   onEnviar: (dados: DadosCard) => void;
   onCancelar: () => void;
 };
@@ -44,6 +50,57 @@ const novaLinha = (documento = "", nome: string | null = null, valor = ""): Linh
   nome,
   valor,
 });
+
+/**
+ * O que se sabe do sacado da linha: nome e praça da base (CNPJ Já ou Serasa), ou o aviso de que
+ * a empresa não está no portal, com o atalho para cadastrar — o mesmo tratamento do cedente.
+ */
+function InfoSacado({
+  documento,
+  nomeInformado,
+  empresa,
+  cadastrando,
+  onCadastrar,
+}: {
+  documento: string;
+  nomeInformado: string | null;
+  empresa: EmpresaConhecida | undefined;
+  cadastrando: boolean;
+  onCadastrar: (cnpj: string) => void;
+}) {
+  const digitos = documento.replace(/\D/g, "");
+  if (digitos.length !== 14) {
+    return nomeInformado ? <p className="truncate px-2 text-[11px] text-slate-500">{nomeInformado}</p> : null;
+  }
+  if (!empresa) return <p className="px-2 text-[11px] text-slate-400">consultando…</p>;
+  if (!empresa.cadastrada) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1.5 px-2 text-[11px] text-amber-700 dark:text-amber-300">
+        não cadastrada no portal
+        <button
+          type="button"
+          disabled={cadastrando}
+          onClick={() => onCadastrar(digitos)}
+          className="cursor-pointer font-medium text-[#2956E0] hover:underline disabled:opacity-60"
+        >
+          {cadastrando ? "cadastrando…" : "cadastrar via CNPJ Já"}
+        </button>
+      </p>
+    );
+  }
+  const nome = nomeInformado ?? empresa.nome;
+  // Reprovação ou parcial em card anterior: o time pediu para ver na hora de incluir o sacado.
+  const alertas = empresa.historico.filter(decisao => decisao.situacao !== "APROVADO");
+  return (
+    <div className="px-2">
+      <p className="truncate text-[11px] text-slate-500">
+        {nome ?? <span className="italic">consultada, sem razão social na base</span>}
+        {empresa.praca && <span className="text-slate-400"> · {empresa.praca}</span>}
+      </p>
+      {alertas.length > 0 && <HistoricoSacado historico={alertas} compacto />}
+    </div>
+  );
+}
 
 /** Todos os CPFs e CNPJs de um texto colado, na ordem em que aparecem. */
 function documentosColados(texto: string) {
@@ -58,7 +115,7 @@ function documentosColados(texto: string) {
  * <p>Sacados aceitam colar uma lista: a auxiliar costuma ter os CNPJs num e-mail ou planilha, e
  * digitar um a um é onde nasce o erro de dígito.</p>
  */
-export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, onCancelar }: Props) {
+export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTravados = false, onEnviar, onCancelar }: Props) {
   const [cedente, setCedente] = useState<CedenteEscolhido | null>(inicial?.cedente ?? null);
   const [tipo, setTipo] = useState<TipoOperacao | null>(inicial?.tipoOperacao ?? null);
   const { data: tiposSalvos = [] } = useTiposOperacao();
@@ -81,12 +138,16 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
   const [valor, setValor] = useState(moedaParaCampo(inicial?.valor));
   const [prazo, setPrazo] = useState(isoParaCampoData(inicial?.prazo));
   const [parecer, setParecer] = useState(inicial?.parecerOrigem ?? "");
+  const [posicao, setPosicao] = useState<PosicaoParecer | null>(inicial?.posicaoOrigem ?? null);
+  const cadastrar = useCadastrarEmpresa();
   const [linhas, setLinhas] = useState<LinhaSacado[]>(() =>
     inicial?.sacados.length
       ? inicial.sacados.map(sacado => novaLinha(formatDocumento(sacado.documento), sacado.nome, moedaParaCampo(sacado.valor)))
       : [novaLinha()],
   );
   const [erro, setErro] = useState<string | null>(null);
+  const { data: conhecidas = [] } = useEmpresasConhecidas(linhas.map(linha => linha.documento.replace(/\D/g, "")));
+  const conhecida = (documento: string) => conhecidas.find(empresa => empresa.documento === documento.replace(/\D/g, ""));
 
   const valorNumero = parseMoeda(valor);
   const valoresSacados = linhas.map(linha => parseMoeda(linha.valor)).filter((v): v is number => v != null);
@@ -135,6 +196,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
       valor: valorNumero,
       prazo: prazo || null,
       parecerOrigem: parecer.trim() || null,
+      posicaoOrigem: posicao,
       sacados: linhas
         .filter(linha => linha.documento.replace(/\D/g, ""))
         .map(linha => ({ documento: linha.documento.replace(/\D/g, ""), nome: linha.nome, valor: parseMoeda(linha.valor) })),
@@ -234,9 +296,14 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
         <div>
           <div className="mb-1 flex items-end justify-between">
             <span className={ROTULO}>Sacados</span>
-            <span className="text-[11px] text-slate-400">cole vários CNPJs de uma vez</span>
+            <span className="text-[11px] text-slate-400">
+              {sacadosTravados ? "card finalizado: reabra no Comitê para mudar" : "cole vários CNPJs de uma vez"}
+            </span>
           </div>
-          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+          <fieldset
+            disabled={sacadosTravados}
+            className="overflow-hidden rounded-xl border border-slate-200 disabled:opacity-60 dark:border-slate-700"
+          >
             {linhas.map((linha, indice) => (
               <div
                 key={linha.chave}
@@ -261,7 +328,13 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
                     className="w-full rounded-md bg-transparent px-2 py-1.5 font-mono text-sm text-slate-800 placeholder:font-sans
                       placeholder:text-slate-400 focus:bg-slate-50 focus:outline-none dark:text-slate-100 dark:focus:bg-slate-800"
                   />
-                  {linha.nome && <p className="truncate px-2 text-[11px] text-slate-500">{linha.nome}</p>}
+                  <InfoSacado
+                    documento={linha.documento}
+                    nomeInformado={linha.nome}
+                    empresa={conhecida(linha.documento)}
+                    cadastrando={cadastrar.isPending && cadastrar.variables?.cnpj === linha.documento.replace(/\D/g, "")}
+                    onCadastrar={cnpj => cadastrar.mutate({ cnpj })}
+                  />
                 </div>
                 <div className="relative w-32 shrink-0">
                   <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
@@ -296,7 +369,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
             >
               <Icon name="add" size={14} /> adicionar sacado
             </button>
-          </div>
+          </fieldset>
           {valoresSacados.length > 0 && (
             <p className={`mt-1.5 flex items-center gap-1 text-[11px] ${divergente ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
               {divergente && <Icon name="warning" size={12} />}
@@ -310,6 +383,26 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
           <label htmlFor="card-parecer" className={ROTULO}>
             Parecer da origem
           </label>
+          <div role="radiogroup" aria-label="Posição da origem" className="mb-2 grid grid-cols-3 gap-1.5">
+            {(Object.keys(ROTULO_POSICAO) as PosicaoParecer[]).map(opcao => (
+              <button
+                key={opcao}
+                type="button"
+                role="radio"
+                aria-checked={posicao === opcao}
+                onClick={() => setPosicao(atual => (atual === opcao ? null : opcao))}
+                className={`flex min-h-9 cursor-pointer items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                    posicao === opcao
+                      ? `${COR_POSICAO[opcao]} border-transparent`
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  }`}
+              >
+                <Icon name={ICONE_POSICAO[opcao]} size={13} />
+                {ROTULO_POSICAO[opcao]}
+              </button>
+            ))}
+          </div>
           <MentionTextarea
             id="card-parecer"
             value={parecer}
