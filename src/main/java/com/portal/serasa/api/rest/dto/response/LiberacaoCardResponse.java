@@ -28,6 +28,8 @@ public record LiberacaoCardResponse(
         LocalDateTime prazo,
         String parecerOrigem,
         PosicaoParecer posicaoOrigem,
+        /** Números da Análise de Risco (AR) importada do PDF; nulo em card digitado à mão. */
+        com.portal.serasa.domain.model.liberacao.PropostaAr proposta,
         CorLiberacao cor,
         List<Etiqueta> etiquetas,
         UUID criadoPorId,

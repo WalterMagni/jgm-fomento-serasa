@@ -12,9 +12,11 @@ import com.portal.serasa.domain.exception.ConflitoEdicaoException;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.exception.TransicaoInvalidaException;
 import com.portal.serasa.domain.model.CompanyDetail;
+import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
+import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import com.portal.serasa.domain.model.liberacao.ResultadoLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
@@ -1961,6 +1963,354 @@ class LiberacaoServiceTest {
         assertThat(gravados.get(0).getSituacao()).isEqualTo(ResultadoLiberacao.APROVADO);
         assertThat(gravados.get(1).getCnpj()).isEqualTo(SACADO_A);
         assertThat(gravados.get(1).getSituacao()).isNull();
+    }
+
+    // ------------------------------------------------- proposta (AR) importada do PDF
+
+    private static PropostaAr proposta(String emitidaEm) {
+        return new PropostaAr("4821", emitidaEm, null, new BigDecimal("120500.00"), BigDecimal.ZERO,
+                3, new BigDecimal("28.50"), new BigDecimal("21300.00"), new BigDecimal("745.25"), new BigDecimal("20554.75"),
+                4, new BigDecimal("25800.00"), new BigDecimal("547000.00"), new BigDecimal("12000.00"), new BigDecimal("8000.00"),
+                new BigDecimal("3300.00"), new BigDecimal("40000.00"), new BigDecimal("43300.00"),
+                new BigDecimal("35.25"), BigDecimal.ZERO, new BigDecimal("1.10"),
+                new BigDecimal("41.75"), BigDecimal.ZERO, new BigDecimal("1.35"));
+    }
+
+    private static CarteiraSacado carteira(int titulos, String abertos) {
+        return new CarteiraSacado(titulos, BigDecimal.ZERO, new BigDecimal(abertos), new BigDecimal(abertos),
+                new BigDecimal("45500.00"), BigDecimal.ZERO);
+    }
+
+    private LiberacaoSacadoEntity comCarteira(LiberacaoSacadoEntity sacado, CarteiraSacado carteira) {
+        sacado.setCarteira(carteira);
+        return sacado;
+    }
+
+    /** Mesmos campos do card, com a proposta e os sacados informados. */
+    private DadosCard dadosComProposta(LiberacaoCardEntity card, PropostaAr proposta, List<DadosSacado> sacados) {
+        return new DadosCard(card.getCedenteCnpj(), null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, sacados, proposta);
+    }
+
+    private static DadosSacado dadosSacado(String documento, String nome, String valor, CarteiraSacado carteira) {
+        return new DadosSacado(documento, nome, new BigDecimal(valor), carteira);
+    }
+
+    private static List<String> camposDosEventos(List<LiberacaoEventoEntity> eventos) {
+        return eventos.stream().map(LiberacaoEventoEntity::getCampo).toList();
+    }
+
+    @Test
+    @DisplayName("DadosCard e DadosSacado: construtores antigos continuam valendo, sem proposta nem carteira")
+    void shouldKeepOldConstructorsWithoutProposalNorPortfolio() {
+        DadosCard card = new DadosCard(CNPJ, null, "Duplicata", null, null, null, null, null);
+        DadosSacado sacado = new DadosSacado(SACADO_A, "Sacado A", new BigDecimal("1"));
+
+        assertThat(card.proposta()).isNull();
+        assertThat(sacado.carteira()).isNull();
+    }
+
+    @Test
+    @DisplayName("criar: guarda a proposta no card e a carteira em cada sacado (nome vindo da base não a perde)")
+    void shouldStorePropostaAndCarteiraOnCreate() {
+        naBase(CNPJ, "ACME");
+        naBase(SACADO_B, "SACADO B DA BASE");
+        PropostaAr ar = proposta("2026-10-08T15:59:13");
+        CarteiraSacado carteiraA = carteira(1, "7200.00");
+        CarteiraSacado carteiraB = carteira(2, "4100.00");
+        List<DadosSacado> sacados = List.of(
+                dadosSacado(SACADO_A, "Sacado A", "6000", carteiraA),
+                new DadosSacado(SACADO_B, null, new BigDecimal("9300"), carteiraB));
+
+        LiberacaoCardEntity criado = service.criar(new DadosCard(CNPJ, null, "Duplicata", new BigDecimal("15300"),
+                LocalDateTime.of(2026, 11, 1, 10, 0), null, null, sacados, ar), auxiliar);
+
+        assertThat(criado.getProposta()).isEqualTo(ar);
+        List<LiberacaoSacadoEntity> gravados = sacadosGravados();
+        assertThat(gravados).extracting(LiberacaoSacadoEntity::getCnpj).containsExactly(SACADO_A, SACADO_B);
+        assertThat(gravados).extracting(LiberacaoSacadoEntity::getCarteira).containsExactly(carteiraA, carteiraB);
+        assertThat(gravados).extracting(LiberacaoSacadoEntity::getNome).containsExactly("Sacado A", "SACADO B DA BASE");
+        // importar a AR não gera evento próprio na criação: só o "Card criado"
+        assertThat(eventosGravados()).extracting(LiberacaoEventoEntity::getTipo).containsExactly(TipoEventoLiberacao.CRIACAO);
+    }
+
+    @Test
+    @DisplayName("criar: card digitado à mão fica sem proposta e sem carteira")
+    void shouldCreateWithoutProposalWhenTypedByHand() {
+        naBase(CNPJ, "ACME");
+
+        LiberacaoCardEntity criado = service.criar(
+                dadosNovos(CNPJ, null, List.of(new DadosSacado(SACADO_A, "Sacado A", new BigDecimal("10")))), auxiliar);
+
+        assertThat(criado.getProposta()).isNull();
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> assertThat(sacado.getCarteira()).isNull());
+    }
+
+    @Test
+    @DisplayName("editar: proposta nova num card sem AR grava EDICAO 'proposta' com antes nulo e depois 'AR de dd/MM/yyyy HH:mm'")
+    void shouldRecordProposalImportedOnCardWithoutAr() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        PropostaAr ar = proposta("2026-10-08T15:59:13");
+
+        LiberacaoCardEntity editado = service.editar(card.getId(), card.getVersion(), dadosComProposta(card, ar, null), auxiliar);
+
+        assertThat(editado.getProposta()).isEqualTo(ar);
+        List<LiberacaoEventoEntity> eventos = eventosGravados();
+        assertThat(eventos).singleElement().satisfies(evento -> {
+            assertThat(evento.getTipo()).isEqualTo(TipoEventoLiberacao.EDICAO);
+            assertThat(evento.getCampo()).isEqualTo("proposta");
+            assertThat(evento.getValorAntes()).isNull();
+            assertThat(evento.getValorDepois()).isEqualTo("AR de 08/10/2026 15:59");
+            assertThat(evento.getUsuarioId()).isEqualTo(auxiliar.getId());
+            assertThat(evento.getCardId()).isEqualTo(card.getId());
+        });
+        verify(cardRepository).saveAndFlush(card);
+        // sem sacados novos: nenhum evento 'sacados' nem regravação da lista
+        verify(sacadoRepository, never()).apagarDoCard(any());
+    }
+
+    @Test
+    @DisplayName("editar: reimportar outra AR troca a proposta e mostra a anterior em 'antes'")
+    void shouldRecordReplacedProposal() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        card.setProposta(proposta("2026-10-07T10:30:00"));
+
+        LiberacaoCardEntity editado = service.editar(card.getId(), card.getVersion(),
+                dadosComProposta(card, proposta("2026-10-08T15:59:13"), null), auxiliar);
+
+        assertThat(editado.getProposta().emitidaEm()).isEqualTo("2026-10-08T15:59:13");
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getCampo()).isEqualTo("proposta");
+        assertThat(evento.getValorAntes()).isEqualTo("AR de 07/10/2026 10:30");
+        assertThat(evento.getValorDepois()).isEqualTo("AR de 08/10/2026 15:59");
+    }
+
+    @Test
+    @DisplayName("editar: a mesma AR de novo (igual à gravada) não é mudança")
+    void shouldNotRecordSameProposalAgain() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        card.setProposta(proposta("2026-10-08T15:59:13"));
+
+        LiberacaoCardEntity retorno = service.editar(card.getId(), card.getVersion(),
+                dadosComProposta(card, proposta("2026-10-08T15:59:13"), null), auxiliar);
+
+        assertThat(retorno).isSameAs(card);
+        verify(eventoRepository, never()).save(any());
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("editar: proposta nula mantém a que o card já tem e não grava evento 'proposta'")
+    void shouldKeepExistingProposalWhenEditingWithoutOne() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        PropostaAr existente = proposta("2026-10-08T15:59:13");
+        card.setProposta(existente);
+        DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), new BigDecimal("2500.50"), card.getPrazo(),
+                card.getParecerOrigem(), null, null, null);
+
+        LiberacaoCardEntity editado = service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        assertThat(editado.getProposta()).isSameAs(existente);
+        assertThat(camposDosEventos(eventosGravados())).containsExactly("valor");
+    }
+
+    @Test
+    @DisplayName("editar: proposta nula num card sem AR continua sem AR e sem evento")
+    void shouldKeepCardWithoutProposalWhenNoneIsSent() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+
+        service.editar(card.getId(), card.getVersion(), dadosComProposta(card, null, null), auxiliar);
+
+        assertThat(card.getProposta()).isNull();
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("editar: AR sem data de emissão aparece no histórico como 'AR importada'")
+    void shouldLabelProposalWithoutIssueDate() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+
+        service.editar(card.getId(), card.getVersion(), dadosComProposta(card, proposta(null), null), auxiliar);
+
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getCampo()).isEqualTo("proposta");
+        assertThat(evento.getValorDepois()).isEqualTo("AR importada");
+    }
+
+    @Test
+    @DisplayName("rotuloProposta: nulo sem AR, 'AR importada' sem data e 'AR de dd/MM/yyyy HH:mm' (sem segundos) com data")
+    void shouldLabelProposal() {
+        assertThat(LiberacaoService.rotuloProposta(null)).isNull();
+        assertThat(LiberacaoService.rotuloProposta(proposta(null))).isEqualTo("AR importada");
+        // data que não existe (31/02) não derruba a edição: vira "AR importada"
+        assertThat(LiberacaoService.rotuloProposta(proposta("2026-02-31T15:59:13"))).isEqualTo("AR importada");
+        assertThat(LiberacaoService.rotuloProposta(proposta("2026-10-08T15:59:13"))).isEqualTo("AR de 08/10/2026 15:59");
+        assertThat(LiberacaoService.rotuloProposta(proposta("2026-01-02T03:04"))).isEqualTo("AR de 02/01/2026 03:04");
+        assertThat(LiberacaoService.rotuloProposta(proposta("2026-12-31T00:00:00"))).isEqualTo("AR de 31/12/2026 00:00");
+    }
+
+    @Test
+    @DisplayName("editar: sacado que fica na lista sem carteira na edição mantém a carteira que já tinha")
+    void shouldKeepPreviousCarteiraWhenIncomingIsNull() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        CarteiraSacado antiga = carteira(1, "7200.00");
+        CarteiraSacado doNovo = carteira(2, "4100.00");
+        sacadosSao(card,
+                comCarteira(decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null), antiga),
+                comCarteira(sacado(card, CPF, "Pessoa Física", "300", 1), carteira(1, "100.00")));
+        DadosCard dados = dadosComProposta(card, null, List.of(
+                dadosSacado(SACADO_B, "Sacado B", "500", doNovo),
+                dadosSacado(SACADO_A, "Sacado A", "1200", null)));
+
+        service.editar(card.getId(), card.getVersion(), dados, analista);
+
+        verify(sacadoRepository).apagarDoCard(card.getId());
+        List<LiberacaoSacadoEntity> gravados = sacadosGravados();
+        assertThat(gravados).extracting(LiberacaoSacadoEntity::getCnpj).containsExactly(SACADO_B, SACADO_A);
+        assertThat(gravados.get(0).getCarteira()).isEqualTo(doNovo);
+        assertThat(gravados.get(1).getCarteira()).as("carteira antiga preservada").isEqualTo(antiga);
+        assertThat(gravados.get(1).getSituacao()).as("a decisão também").isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(camposDosEventos(eventosGravados())).containsExactly("sacados");
+    }
+
+    @Test
+    @DisplayName("editar: sacado que fica com carteira nova na edição troca a carteira")
+    void shouldReplaceCarteiraWhenIncomingIsPresent() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        sacadosSao(card,
+                comCarteira(sacado(card, SACADO_A, "Sacado A", "1000", 0), carteira(1, "7200.00")),
+                sacado(card, SACADO_B, "Sacado B", "500", 1));
+        CarteiraSacado nova = carteira(3, "9999.00");
+        DadosCard dados = dadosComProposta(card, null, List.of(
+                dadosSacado(SACADO_A, "Sacado A", "1000", nova),
+                dadosSacado(SACADO_B, "Sacado B", "700", null)));
+
+        service.editar(card.getId(), card.getVersion(), dados, analista);
+
+        List<LiberacaoSacadoEntity> gravados = sacadosGravados();
+        assertThat(gravados.get(0).getCarteira()).isEqualTo(nova);
+        assertThat(gravados.get(1).getCarteira()).as("sem carteira antes e sem carteira agora").isNull();
+    }
+
+    @Test
+    @DisplayName("editar: valor do sacado baixou e derrubou a decisão parcial, mas a carteira dele continua")
+    void shouldKeepCarteiraEvenWhenPartialDecisionIsDropped() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        CarteiraSacado antiga = carteira(1, "7200.00");
+        sacadosSao(card, comCarteira(
+                decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.PARCIAL, "400"), antiga));
+        DadosCard dados = dadosComProposta(card, null, List.of(dadosSacado(SACADO_A, "Sacado A", "400", null)));
+
+        service.editar(card.getId(), card.getVersion(), dados, analista);
+
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> {
+            assertThat(sacado.getSituacao()).isNull();
+            assertThat(sacado.getCarteira()).isEqualTo(antiga);
+        });
+    }
+
+    @Test
+    @DisplayName("editar: mesmos sacados e carteira diferente (AR reimportada) regrava a lista, sem evento 'sacados'")
+    void shouldRewriteSacadosWhenOnlyCarteiraChanges() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        card.setProposta(proposta("2026-10-07T10:30:00"));
+        sacadosSao(card, comCarteira(sacado(card, SACADO_A, "Sacado A", "10", 0), carteira(1, "7200.00")));
+        CarteiraSacado nova = carteira(2, "9100.00");
+        DadosCard dados = dadosComProposta(card, proposta("2026-10-08T15:59:13"),
+                List.of(dadosSacado(SACADO_A, "Sacado A", "10.00", nova)));
+
+        service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        verify(sacadoRepository).apagarDoCard(card.getId());
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> {
+            assertThat(sacado.getCnpj()).isEqualTo(SACADO_A);
+            assertThat(sacado.getCarteira()).isEqualTo(nova);
+            assertThat(sacado.getValor()).isEqualByComparingTo("10");
+        });
+        // o histórico registra a reimportação uma vez, como 'proposta'
+        assertThat(camposDosEventos(eventosGravados())).containsExactly("proposta");
+    }
+
+    @Test
+    @DisplayName("editar: só a carteira mudou (proposta igual ou ausente): a lista é regravada e nenhum evento 'sacados' é gravado")
+    void shouldRewriteSacadosWithoutSacadosEventWhenNothingElseChanged() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        sacadosSao(card, comCarteira(sacado(card, SACADO_A, "Sacado A", "10", 0), carteira(1, "7200.00")));
+        CarteiraSacado nova = carteira(2, "9100.00");
+        DadosCard dados = dadosComProposta(card, null, List.of(dadosSacado(SACADO_A, "Sacado A", "10", nova)));
+
+        service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        verify(sacadoRepository).apagarDoCard(card.getId());
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> assertThat(sacado.getCarteira()).isEqualTo(nova));
+        verify(eventoRepository, never()).save(org.mockito.ArgumentMatchers.<LiberacaoEventoEntity>argThat(
+                evento -> "sacados".equals(evento.getCampo())));
+        // mesmo sem evento, o card registra quem mexeu e o quadro dos outros atualiza
+        verify(cardRepository).saveAndFlush(card);
+        verify(eventos).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(evento -> evento instanceof LiberacaoEvento.Editado));
+    }
+
+    @Test
+    @DisplayName("editar: sacado que antes não tinha carteira e agora tem também regrava a lista")
+    void shouldRewriteSacadosWhenCarteiraAppearsForTheFirstTime() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "10", 0));
+        CarteiraSacado nova = carteira(1, "7200.00");
+
+        service.editar(card.getId(), card.getVersion(),
+                dadosComProposta(card, proposta("2026-10-08T15:59:13"), List.of(dadosSacado(SACADO_A, "Sacado A", "10", nova))), auxiliar);
+
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> assertThat(sacado.getCarteira()).isEqualTo(nova));
+    }
+
+    @Test
+    @DisplayName("editar: mesmos sacados e mesma carteira (instância diferente, valores iguais) não regravam nada")
+    void shouldNotRewriteSacadosWhenCarteiraIsEqual() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        sacadosSao(card, comCarteira(sacado(card, SACADO_A, "Sacado A", "10", 0), carteira(1, "7200.00")));
+
+        service.editar(card.getId(), card.getVersion(),
+                dadosComProposta(card, null, List.of(dadosSacado(SACADO_A, "Sacado A", "10", carteira(1, "7200.00")))), auxiliar);
+
+        verify(sacadoRepository, never()).apagarDoCard(any());
+        verify(sacadoRepository, never()).saveAll(anyList());
+        verify(eventoRepository, never()).save(any());
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("editar: sacados sem carteira na edição (formulário sem AR) não regravam a lista nem apagam a carteira")
+    void shouldNotTouchCarteiraWhenIncomingHasNone() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        LiberacaoSacadoEntity existente = comCarteira(sacado(card, SACADO_A, "Sacado A", "10", 0), carteira(1, "7200.00"));
+        sacadosSao(card, existente);
+
+        service.editar(card.getId(), card.getVersion(),
+                dadosComProposta(card, null, List.of(dadosSacado(SACADO_A, "Sacado A", "10", null))), auxiliar);
+
+        verify(sacadoRepository, never()).apagarDoCard(any());
+        assertThat(existente.getCarteira()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("editar: card finalizado aceita reimportar a AR (mesmos sacados) e mantém as decisões")
+    void shouldAllowReimportingArOnFinalizedCardKeepingDecisions() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+        sacadosSao(card, comCarteira(
+                decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null), carteira(1, "7200.00")));
+        CarteiraSacado nova = carteira(2, "9100.00");
+        DadosCard dados = dadosComProposta(card, proposta("2026-10-08T15:59:13"),
+                List.of(dadosSacado(SACADO_A, "Sacado A", "1000", nova)));
+
+        service.editar(card.getId(), card.getVersion(), dados, analista);
+
+        assertThat(card.getProposta()).isNotNull();
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> {
+            assertThat(sacado.getCarteira()).isEqualTo(nova);
+            assertThat(sacado.getSituacao()).isEqualTo(ResultadoLiberacao.APROVADO);
+            assertThat(sacado.getSituacaoPorNome()).isEqualTo("Mychelly");
+        });
+        assertThat(camposDosEventos(eventosGravados())).containsExactly("proposta");
     }
 
     // ------------------------------------------------------------ valorAprovado

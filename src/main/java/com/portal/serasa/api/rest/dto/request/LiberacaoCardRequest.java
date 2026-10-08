@@ -14,6 +14,7 @@ import java.util.List;
  *
  * @param cedenteNome só é usado quando o CNPJ não está na base de empresas
  * @param version     obrigatório na edição: a versão que a tela recebeu ao abrir o card
+ * @param proposta    números da Análise de Risco (AR) lida do PDF; nulo em card digitado à mão
  */
 public record LiberacaoCardRequest(
         @NotBlank String cedenteCnpj,
@@ -24,11 +25,14 @@ public record LiberacaoCardRequest(
         @Size(max = 20000) String parecerOrigem,
         com.portal.serasa.domain.model.liberacao.PosicaoParecer posicaoOrigem,
         @Valid @Size(max = 200) List<Sacado> sacados,
-        Long version) {
+        Long version,
+        com.portal.serasa.domain.model.liberacao.PropostaAr proposta) {
 
+    /** @param carteira linha do sacado na AR, quando veio do PDF */
     public record Sacado(
             String documento,
             @Size(max = 300) String nome,
-            @DecimalMin(value = "0.00", message = "Valor não pode ser negativo") BigDecimal valor) {
+            @DecimalMin(value = "0.00", message = "Valor não pode ser negativo") BigDecimal valor,
+            com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira) {
     }
 }

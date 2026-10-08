@@ -33,7 +33,9 @@ public record LiberacaoDetalheResponse(
                          ResultadoLiberacao situacao, BigDecimal valorAprovado, String situacaoPorNome,
                          LocalDateTime situacaoEm,
                          /** Decisões sobre o mesmo documento em outros cards, a mais recente primeiro. */
-                         List<DecisaoAnterior> historico) {
+                         List<DecisaoAnterior> historico,
+                         /** Linha do sacado na AR, quando o card veio do PDF. */
+                         com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira) {
     }
 
     public record DecisaoAnterior(UUID cardId, Long numero, String cedenteNome, ResultadoLiberacao situacao,

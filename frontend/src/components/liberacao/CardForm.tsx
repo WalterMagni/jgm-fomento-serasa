@@ -6,13 +6,25 @@ import CampoData from "@/components/ui/CampoData";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { normalizar } from "@/components/ui/mencao/mencoes";
 import { useCadastrarEmpresa, useEmpresasConhecidas, useTiposOperacao } from "@/hooks/useLiberacao";
-import { ROTULO_POSICAO, type DadosCard, type EmpresaConhecida, type PosicaoParecer, type Sacado, type TipoOperacao } from "@/types/liberacao";
+import {
+  ROTULO_POSICAO,
+  type CarteiraSacado,
+  type DadosCard,
+  type EmpresaConhecida,
+  type PosicaoParecer,
+  type PropostaAr,
+  type PropostaImportada,
+  type Sacado,
+  type TipoOperacao,
+} from "@/types/liberacao";
 import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
+import { CarteiraLinha, ImportarProposta } from "./PropostaAr";
 import { HistoricoSacado } from "./DetalheSecoes";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
 import {
   COR_POSICAO,
   ICONE_POSICAO,
+  confirmar,
   formatDocumento,
   formatMoeda,
   isoParaCampoData,
@@ -21,7 +33,8 @@ import {
   parseMoeda,
 } from "./formatters";
 
-type LinhaSacado = { chave: number; documento: string; nome: string | null; valor: string };
+/** `carteira`: linha do sacado na AR; cai quando o documento é editado à mão. */
+type LinhaSacado = { chave: number; documento: string; nome: string | null; valor: string; carteira: CarteiraSacado | null };
 
 export type ValoresIniciais = {
   cedente: CedenteEscolhido | null;
@@ -31,6 +44,7 @@ export type ValoresIniciais = {
   parecerOrigem: string | null;
   posicaoOrigem: PosicaoParecer | null;
   sacados: Sacado[];
+  proposta?: PropostaAr | null;
 };
 
 type Props = {
@@ -44,11 +58,12 @@ type Props = {
 };
 
 let proximaChave = 1;
-const novaLinha = (documento = "", nome: string | null = null, valor = ""): LinhaSacado => ({
+const novaLinha = (documento = "", nome: string | null = null, valor = "", carteira: CarteiraSacado | null = null): LinhaSacado => ({
   chave: proximaChave++,
   documento,
   nome,
   valor,
+  carteira,
 });
 
 /**
@@ -76,6 +91,7 @@ function InfoSacado({
   if (!empresa.cadastrada) {
     return (
       <p className="flex flex-wrap items-center gap-x-1.5 px-2 text-[11px] text-amber-700 dark:text-amber-300">
+        {nomeInformado && <span className="max-w-full truncate text-slate-500">{nomeInformado} ·</span>}
         não cadastrada no portal
         <button
           type="button"
@@ -142,9 +158,12 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
   const cadastrar = useCadastrarEmpresa();
   const [linhas, setLinhas] = useState<LinhaSacado[]>(() =>
     inicial?.sacados.length
-      ? inicial.sacados.map(sacado => novaLinha(formatDocumento(sacado.documento), sacado.nome, moedaParaCampo(sacado.valor)))
+      ? inicial.sacados.map(sacado => novaLinha(formatDocumento(sacado.documento), sacado.nome, moedaParaCampo(sacado.valor), sacado.carteira))
       : [novaLinha()],
   );
+  const [proposta, setProposta] = useState<PropostaAr | null>(inicial?.proposta ?? null);
+  /** PDF lido nesta abertura do formulário: a AR vai junto ao salvar e o PDF vira anexo. */
+  const [importacao, setImportacao] = useState<{ arquivo: File; avisos: string[] } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const { data: conhecidas = [] } = useEmpresasConhecidas(linhas.map(linha => linha.documento.replace(/\D/g, "")));
   const conhecida = (documento: string) => conhecidas.find(empresa => empresa.documento === documento.replace(/\D/g, ""));
@@ -155,7 +174,27 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
   const divergente = valorNumero != null && valoresSacados.length > 0 && Math.abs(somaSacados - valorNumero) >= 0.01;
 
   function atualizarLinha(chave: number, campo: "documento" | "valor", texto: string) {
-    setLinhas(atuais => atuais.map(linha => (linha.chave === chave ? { ...linha, [campo]: texto, ...(campo === "documento" ? { nome: null } : {}) } : linha)));
+    setLinhas(atuais =>
+      atuais.map(linha => (linha.chave === chave ? { ...linha, [campo]: texto, ...(campo === "documento" ? { nome: null, carteira: null } : {}) } : linha)),
+    );
+  }
+
+  /** Preenche cedente, valor e sacados com a AR. Sacados digitados antes são trocados, com confirmação. */
+  function aplicarImportacao(resultado: PropostaImportada, arquivo: File) {
+    const digitados = linhas.filter(linha => linha.documento.replace(/\D/g, ""));
+    if (digitados.length > 0 && !importacao && !confirmar("Trocar os sacados já digitados pelos da proposta?")) return;
+    if (resultado.cedenteCnpj) {
+      setCedente({ cnpj: resultado.cedenteCnpj, nome: resultado.cedenteNome ?? resultado.clienteNome ?? "", cadastrado: resultado.cedenteCadastrado });
+    }
+    if (resultado.proposta.faceLiberados != null) setValor(moedaParaCampo(resultado.proposta.faceLiberados));
+    setLinhas(
+      resultado.sacados.length > 0
+        ? resultado.sacados.map(sacado => novaLinha(formatDocumento(sacado.documento), sacado.nome, moedaParaCampo(sacado.valor), sacado.carteira))
+        : [novaLinha()],
+    );
+    setProposta(resultado.proposta);
+    setImportacao({ arquivo, avisos: resultado.avisos });
+    setErro(null);
   }
 
   function colar(chave: number, texto: string) {
@@ -199,13 +238,29 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
       posicaoOrigem: posicao,
       sacados: linhas
         .filter(linha => linha.documento.replace(/\D/g, ""))
-        .map(linha => ({ documento: linha.documento.replace(/\D/g, ""), nome: linha.nome, valor: parseMoeda(linha.valor) })),
+        .map(linha => ({ documento: linha.documento.replace(/\D/g, ""), nome: linha.nome, valor: parseMoeda(linha.valor), carteira: linha.carteira })),
+      // Na edição, sem reimportar, a AR do card fica como está.
+      proposta: importacao ? proposta : undefined,
+      arquivoProposta: importacao?.arquivo ?? null,
     });
   }
 
   return (
     <form onSubmit={enviar} className="flex min-h-0 flex-1 flex-col">
       <div className="space-y-5 px-5 py-5">
+        {!sacadosTravados && (
+          <ImportarProposta
+            proposta={proposta}
+            arquivo={importacao?.arquivo.name ?? null}
+            avisos={importacao?.avisos ?? []}
+            onLida={aplicarImportacao}
+            onRemover={() => {
+              setProposta(inicial?.proposta ?? null);
+              setImportacao(null);
+            }}
+          />
+        )}
+
         <CedentePicker valor={cedente} onMudar={setCedente} />
 
         <fieldset>
@@ -335,6 +390,11 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
                     cadastrando={cadastrar.isPending && cadastrar.variables?.cnpj === linha.documento.replace(/\D/g, "")}
                     onCadastrar={cnpj => cadastrar.mutate({ cnpj })}
                   />
+                  {linha.carteira && (
+                    <div className="px-2">
+                      <CarteiraLinha carteira={linha.carteira} />
+                    </div>
+                  )}
                 </div>
                 <div className="relative w-32 shrink-0">
                   <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>

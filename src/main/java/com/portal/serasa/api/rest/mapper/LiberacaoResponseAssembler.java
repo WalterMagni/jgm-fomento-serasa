@@ -170,7 +170,8 @@ public class LiberacaoResponseAssembler {
                             return new LiberacaoDetalheResponse.Sacado(sacado.getCnpj(), nomeSacado(sacado, empresa),
                                     sacado.getValor(), empresa != null, empresa == null ? null : empresa.praca(),
                                     sacado.getSituacao(), sacado.getValorAprovado(), sacado.getSituacaoPorNome(),
-                                    sacado.getSituacaoEm(), historico.getOrDefault(sacado.getCnpj(), List.of()));
+                                    sacado.getSituacaoEm(), historico.getOrDefault(sacado.getCnpj(), List.of()),
+                                    sacado.getCarteira());
                         })
                         .toList())
                 .pareceres(pareceres.stream().map(this::parecer).toList())
@@ -220,6 +221,7 @@ public class LiberacaoResponseAssembler {
                 .prazo(card.getPrazo())
                 .parecerOrigem(card.getParecerOrigem())
                 .posicaoOrigem(card.getPosicaoOrigem())
+                .proposta(card.getProposta())
                 .cor(card.getCor())
                 .criadoPorId(card.getCriadoPorId())
                 .criadoPorNome(card.getCriadoPorNome())

@@ -18,6 +18,7 @@ import {
   type Sacado,
 } from "@/types/liberacao";
 import Avatar from "./Avatar";
+import { CarteiraLinha } from "./PropostaAr";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./Dialogo";
 import {
   COR_POSICAO,
@@ -179,6 +180,7 @@ export function SacadosLista({
                 <span className="font-mono">{formatDocumento(sacado.documento)}</span>
                 {sacado.praca && <span className="text-slate-400"> · {sacado.praca}</span>}
               </p>
+              <CarteiraLinha carteira={sacado.carteira} />
               <HistoricoSacado historico={sacado.historico} />
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:justify-end">

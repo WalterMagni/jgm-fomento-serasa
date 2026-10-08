@@ -67,6 +67,27 @@ cadastrado ali mesmo, pelo CNPJ Já.
 
 Se a soma dos sacados não bater com o valor da operação, a tela avisa em amarelo.
 
+### Importar a proposta (PDF da AR)
+
+No topo do formulário, **Importar proposta (PDF da AR)**: escolha ou arraste o PDF da Análise
+de Risco gerado pelo sistema de operações. O portal preenche:
+
+- **Cedente**, pelo código do cliente. Se o código ainda não estiver vinculado a uma empresa
+  do portal, a tela avisa: escolha o cedente à mão e, depois, vincule o código na página da
+  empresa (campo "Código do cliente") — da próxima vez ele vem sozinho.
+- **Valor da operação**: a face dos títulos **liberados**.
+- **Sacados**: os que têm título nesta proposta, com o valor de face e a carteira de cada um
+  (a vencer, vencidos, liquidados, recomprados). Sacado que aparece na AR sem título fica de
+  fora, e a tela diz quem.
+
+Confira e salve. O PDF entra sozinho nos **Anexos** do card, e o card ganha o bloco
+**Análise de risco**: comprometimento do limite antes e depois da compra (a régua marca o
+limite; acima dele fica vermelho), concentração, face, desconto, líquido e a carteira do
+cedente. Vencidos aparecem em vermelho e recomprados em âmbar, no cedente e em cada sacado.
+
+Os números são uma foto do relatório: não se atualizam sozinhos. Para trocar, edite o card e
+use **reimportar**. Card finalizado não reimporta — reabra no Comitê antes.
+
 ---
 
 ## Comitê

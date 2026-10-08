@@ -20,6 +20,7 @@ const ROTULO_CAMPO: Record<string, string> = {
   etiquetas: "as etiquetas",
   cor: "a cor",
   posicaoOrigem: "a posição da origem",
+  proposta: "a proposta (AR)",
 };
 
 const ICONE_EVENTO: Record<EventoLiberacao["tipo"], string> = {

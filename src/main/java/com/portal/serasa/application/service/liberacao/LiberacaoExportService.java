@@ -1,6 +1,8 @@
 package com.portal.serasa.application.service.liberacao;
 
+import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
+import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoComentarioEntity;
@@ -169,8 +171,12 @@ public class LiberacaoExportService {
                 "Nº", "Cedente", "CNPJ", "Praça do cedente", "Etapa", "Tipo", "Valor", "Prazo", "Etiquetas", "Criado por", "Criado em",
                 "Última alteração por", "Última alteração em", "Membros", "Pareceres (rodada vigente)",
                 "Pendências abertas", "Comentários", "Resultado", "Valor aprovado", "Decidido por", "Decidido em",
-                "Horas na Origem", "Horas no Comitê", "Horas em Pendência", "Posição da origem", "Parecer da origem"},
-                new int[]{6, 38, 20, 22, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 20, 16, 22, 17, 11, 11, 11, 15, 60});
+                "Horas na Origem", "Horas no Comitê", "Horas em Pendência", "Posição da origem", "Parecer da origem",
+                "AR emitida em", "Limite individual", "Comprometimento atual (%)", "Comprometimento após (%)",
+                "Concentração após (%)", "Prazo médio (dias)", "Face liberados", "Desconto", "Líquido",
+                "Vencidos do cedente", "A vencer do cedente", "Liquidados do cedente", "Recomprados do cedente"},
+                new int[]{6, 38, 20, 22, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 20, 16, 22, 17, 11, 11, 11, 15, 60,
+                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             Row row = aba.createRow(linha++);
@@ -217,15 +223,32 @@ public class LiberacaoExportService {
             horas(row, c++, horas.get(EtapaLiberacao.COMITE), estilos);
             horas(row, c++, horas.get(EtapaLiberacao.PENDENCIA), estilos);
             texto(row, c++, card.getPosicaoOrigem() == null ? "" : LiberacaoService.rotulo(card.getPosicaoOrigem()), estilos.texto);
-            texto(row, c, MencaoParser.textoPlano(card.getParecerOrigem()), estilos.quebra);
+            texto(row, c++, MencaoParser.textoPlano(card.getParecerOrigem()), estilos.quebra);
+
+            // Análise de Risco (AR) importada do PDF; em branco no card digitado à mão.
+            PropostaAr ar = card.getProposta();
+            dataHora(row, c++, ar == null ? null : ar.emitidaEmData(), estilos);
+            moeda(row, c++, ar == null ? null : ar.limiteIndividual(), estilos);
+            numero(row, c++, ar == null ? null : ar.comprometimentoAtual(), estilos.percentual);
+            numero(row, c++, ar == null ? null : ar.comprometimentoApos(), estilos.percentual);
+            numero(row, c++, ar == null ? null : ar.concentracaoApos(), estilos.percentual);
+            numero(row, c++, ar == null ? null : ar.prazoMedio(), estilos.decimal);
+            moeda(row, c++, ar == null ? null : ar.faceLiberados(), estilos);
+            moeda(row, c++, ar == null ? null : ar.desconto(), estilos);
+            moeda(row, c++, ar == null ? null : ar.liquido(), estilos);
+            moeda(row, c++, ar == null ? null : ar.vencidos(), estilos);
+            moeda(row, c++, ar == null ? null : ar.vincendos(), estilos);
+            moeda(row, c++, ar == null ? null : ar.liquidados(), estilos);
+            moeda(row, c, ar == null ? null : ar.recomprados(), estilos);
         }
-        fechar(aba, linha, 25);
+        fechar(aba, linha, 38);
     }
 
     private void abaSacados(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
         Sheet aba = cabecalho(planilha, estilos, "Sacados", new String[]{"Nº card", "Cedente", "Documento", "Sacado", "Praça", "Valor",
-                        "Situação", "Valor aprovado", "Decidido por", "Decidido em"},
-                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17});
+                        "Situação", "Valor aprovado", "Decidido por", "Decidido em",
+                        "Títulos na proposta", "Vencidos", "A vencer", "Abertos", "Liquidados", "Recomprados"},
+                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             for (LiberacaoSacadoEntity sacado : ordenar(dados.sacados().get(card.getId()), Comparator.comparing(LiberacaoSacadoEntity::getOrdem))) {
@@ -246,9 +269,17 @@ public class LiberacaoExportService {
                         }, estilos);
                 texto(row, 8, sacado.getSituacaoPorNome(), estilos.texto);
                 dataHora(row, 9, sacado.getSituacaoEm(), estilos);
+                // Linha do sacado na AR, quando o card veio do PDF.
+                CarteiraSacado carteira = sacado.getCarteira();
+                numero(row, 10, carteira == null ? null : carteira.titulos(), estilos.inteiro);
+                moeda(row, 11, carteira == null ? null : carteira.vencidos(), estilos);
+                moeda(row, 12, carteira == null ? null : carteira.vincendos(), estilos);
+                moeda(row, 13, carteira == null ? null : carteira.abertos(), estilos);
+                moeda(row, 14, carteira == null ? null : carteira.liquidados(), estilos);
+                moeda(row, 15, carteira == null ? null : carteira.recomprados(), estilos);
             }
         }
-        fechar(aba, linha, 9);
+        fechar(aba, linha, 15);
     }
 
     private void abaPareceres(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
@@ -380,6 +411,7 @@ public class LiberacaoExportService {
         final CellStyle dataHora;
         final CellStyle inteiro;
         final CellStyle decimal;
+        final CellStyle percentual;
 
         Estilos(XSSFWorkbook planilha) {
             Font negrito = planilha.createFont();
@@ -413,6 +445,9 @@ public class LiberacaoExportService {
             decimal = planilha.createCellStyle();
             decimal.setDataFormat(formatos.getFormat("0.0"));
             decimal.setVerticalAlignment(VerticalAlignment.TOP);
+            percentual = planilha.createCellStyle();
+            percentual.setDataFormat(formatos.getFormat("0.00"));
+            percentual.setVerticalAlignment(VerticalAlignment.TOP);
         }
     }
 

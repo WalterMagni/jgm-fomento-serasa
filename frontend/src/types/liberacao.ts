@@ -98,6 +98,8 @@ export type LiberacaoCard = {
   prazo: string | null;
   parecerOrigem: string | null;
   posicaoOrigem: PosicaoParecer | null;
+  /** Números da Análise de Risco (AR) importada do PDF; nulo em card digitado à mão. */
+  proposta: PropostaAr | null;
   cor: CorLiberacao | null;
   etiquetas: Etiqueta[];
   criadoPorId: string | null;
@@ -145,6 +147,65 @@ export type Sacado = {
   situacaoPorNome: string | null;
   situacaoEm: string | null;
   historico: DecisaoAnterior[];
+  /** Linha do sacado na AR, quando o card veio do PDF. */
+  carteira: CarteiraSacado | null;
+};
+
+/**
+ * Foto da Análise de Risco (AR) do sistema de operações no momento da importação. "Vincendos" é o
+ * "a vencer" do relatório; percentuais como o relatório imprime (255,8 = 255,8%).
+ */
+export type PropostaAr = {
+  clienteCodigo: string | null;
+  emitidaEm: string | null;
+  grupo: string | null;
+  limiteIndividual: number | null;
+  limiteGrupo: number | null;
+  qtdLiberados: number | null;
+  prazoMedio: number | null;
+  faceLiberados: number | null;
+  desconto: number | null;
+  liquido: number | null;
+  qtdTotal: number | null;
+  valorTotal: number | null;
+  liquidados: number | null;
+  liquidadosEmAtraso: number | null;
+  recomprados: number | null;
+  vencidos: number | null;
+  vincendos: number | null;
+  emAberto: number | null;
+  comprometimentoAtual: number | null;
+  comprometimentoGrupoAtual: number | null;
+  concentracaoAtual: number | null;
+  comprometimentoApos: number | null;
+  comprometimentoGrupoApos: number | null;
+  concentracaoApos: number | null;
+};
+
+/** O que o sacado já tem com o cedente, segundo a AR. `titulos`: quantos entram nesta proposta. */
+export type CarteiraSacado = {
+  titulos: number | null;
+  vencidos: number | null;
+  vincendos: number | null;
+  abertos: number | null;
+  liquidados: number | null;
+  recomprados: number | null;
+};
+
+export type SacadoImportado = { documento: string; nome: string | null; valor: number | null; carteira: CarteiraSacado | null };
+
+/** Resultado da leitura do PDF. Nada foi gravado ainda. `cedenteCnpj` nulo = código sem vínculo. */
+export type PropostaImportada = {
+  cedenteCnpj: string | null;
+  cedenteNome: string | null;
+  /** O CNPJ tem página de empresa no portal. */
+  cedenteCadastrado: boolean;
+  clienteCodigo: string | null;
+  clienteNome: string | null;
+  proposta: PropostaAr;
+  sacados: SacadoImportado[];
+  semTitulo: SacadoImportado[];
+  avisos: string[];
 };
 
 /** O que o portal sabe de um CNPJ (CNPJ Já ou Serasa). */
@@ -238,8 +299,12 @@ export type DadosCard = {
   prazo: string | null;
   parecerOrigem: string | null;
   posicaoOrigem: PosicaoParecer | null;
-  sacados: { documento: string; nome?: string | null; valor?: number | null }[];
+  sacados: { documento: string; nome?: string | null; valor?: number | null; carteira?: CarteiraSacado | null }[];
+  /** Na edição, ausente mantém a AR que o card já tem. */
+  proposta?: PropostaAr | null;
   version?: number;
+  /** Só na tela: o PDF da AR, anexado ao card depois de salvar. Não vai no corpo da API. */
+  arquivoProposta?: File | null;
 };
 
 export type NovaPendencia = { destinatarioId: string; texto: string };

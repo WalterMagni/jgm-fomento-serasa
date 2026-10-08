@@ -54,4 +54,9 @@ public class LiberacaoSacadoEntity {
 
     @Column(name = "situacao_em")
     private java.time.LocalDateTime situacaoEm;
+
+    /** Linha do sacado na Análise de Risco (AR), quando o card veio do PDF. Ver V73. */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira;
 }

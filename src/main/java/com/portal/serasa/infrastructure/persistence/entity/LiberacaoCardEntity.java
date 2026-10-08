@@ -74,6 +74,11 @@ public class LiberacaoCardEntity {
     @Column(name = "posicao_origem", length = 16)
     private PosicaoParecer posicaoOrigem;
 
+    /** Números da Análise de Risco (AR) importada do PDF. Nulo em card criado à mão. Ver V73. */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private com.portal.serasa.domain.model.liberacao.PropostaAr proposta;
+
     /**
      * Faixa no topo do card. Gravada por consulta própria, fora da trava de versão: trocar a cor
      * não pode derrubar com 409 quem está editando os campos ao mesmo tempo. Ver V67.

@@ -63,6 +63,7 @@ public class LiberacaoController {
     private final UsuarioLogado usuarioLogado;
     private final EmpresaResolver empresaResolver;
     private final com.portal.serasa.application.service.liberacao.LiberacaoAnexoService anexoService;
+    private final com.portal.serasa.application.service.liberacao.PropostaArService propostaService;
 
     // ---------------------------------------------------------------- leitura
 
@@ -212,6 +213,20 @@ public class LiberacaoController {
         return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 
+    // ---------------------------------------------------------------- proposta (AR)
+
+    /**
+     * Lê o PDF da Análise de Risco e devolve o que dá para pré-preencher no card. Não grava nada:
+     * a proposta vai junto quando o card é salvo, e o PDF entra como anexo depois.
+     */
+    @PostMapping(value = "/proposta", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<com.portal.serasa.application.service.liberacao.PropostaArService.PropostaImportada> lerProposta(
+            @org.springframework.web.bind.annotation.RequestPart("file") org.springframework.web.multipart.MultipartFile file)
+            throws java.io.IOException {
+        usuarioLogado.obter();
+        return ResponseEntity.ok(propostaService.importar(file.getBytes()));
+    }
+
     // ---------------------------------------------------------------- anexos
 
     @PostMapping(value = "/{id}/anexos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -328,10 +343,11 @@ public class LiberacaoController {
     private DadosCard dados(LiberacaoCardRequest request) {
         List<DadosSacado> sacados = request.sacados() == null ? List.of()
                 : request.sacados().stream()
-                        .map(sacado -> new DadosSacado(sacado.documento(), sacado.nome(), sacado.valor()))
+                        .map(sacado -> new DadosSacado(sacado.documento(), sacado.nome(), sacado.valor(), sacado.carteira()))
                         .toList();
         return new DadosCard(request.cedenteCnpj(), request.cedenteNome(), request.tipoOperacao(),
-                request.valor(), request.prazo(), request.parecerOrigem(), request.posicaoOrigem(), sacados);
+                request.valor(), request.prazo(), request.parecerOrigem(), request.posicaoOrigem(), sacados,
+                request.proposta());
     }
 
     private NovaPendencia pendencia(LiberacaoPendenciaRequest request) {

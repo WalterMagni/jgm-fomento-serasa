@@ -14,6 +14,7 @@ import type {
   NovaPendencia,
   PessoaDiretorio,
   PosicaoParecer,
+  PropostaImportada,
   Resultado,
   UsuarioAtual,
 } from "../types/liberacao";
@@ -161,8 +162,11 @@ export function useCriarCard() {
   const atualizar = useAtualizarCache();
   const queryClient = useQueryClient();
   return useMutation<LiberacaoCard, Error, DadosCard>({
-    mutationFn: body =>
-      pedir(`${API_BASE_URL}/liberacao`, { method: "POST", body: JSON.stringify(body) }, "Falha ao criar o card"),
+    mutationFn: async ({ arquivoProposta, ...body }) => {
+      const card = await pedir<LiberacaoCard>(`${API_BASE_URL}/liberacao`, { method: "POST", body: JSON.stringify(body) }, "Falha ao criar o card");
+      await anexarProposta(card, arquivoProposta);
+      return card;
+    },
     onSuccess: card => {
       atualizar(card);
       toast.success(`Card #${card.numero} criado`);
@@ -176,8 +180,11 @@ export function useEditarCard() {
   const atualizar = useAtualizarCache();
   const queryClient = useQueryClient();
   return useMutation<LiberacaoCard, Error, { id: string; dados: DadosCard }>({
-    mutationFn: ({ id, dados }) =>
-      pedir(`${API_BASE_URL}/liberacao/${id}`, { method: "PUT", body: JSON.stringify(dados) }, "Falha ao salvar"),
+    mutationFn: async ({ id, dados: { arquivoProposta, ...dados } }) => {
+      const card = await pedir<LiberacaoCard>(`${API_BASE_URL}/liberacao/${id}`, { method: "PUT", body: JSON.stringify(dados) }, "Falha ao salvar");
+      await anexarProposta(card, arquivoProposta);
+      return card;
+    },
     onSuccess: card => {
       atualizar(card);
       toast.success("Card salvo");
@@ -259,6 +266,36 @@ export function useRegistrarParecer() {
 }
 
 /** Anexa um arquivo ao card. Multipart: o navegador define o Content-Type com o boundary. */
+/**
+ * O PDF da AR entra como anexo do card logo depois de salvar. Falha aqui não desfaz o card: avisa
+ * e a pessoa anexa à mão.
+ */
+async function anexarProposta(card: LiberacaoCard, arquivo: File | null | undefined) {
+  if (!arquivo) return;
+  const corpo = new FormData();
+  corpo.append("file", arquivo);
+  try {
+    const res = await fetch(`${API_BASE_URL}/liberacao/${card.id}/anexos`, { method: "POST", headers: headers(false), body: corpo });
+    if (!res.ok) await falha(res, "Falha ao anexar o PDF");
+  } catch (erro) {
+    toast.warning(`Card #${card.numero} salvo, mas o PDF não foi anexado: ${erro instanceof Error ? erro.message : "erro"}. Anexe pelo card.`);
+  }
+}
+
+/** Lê o PDF da Análise de Risco (AR) e devolve o que pré-preenche o card. Não grava nada. */
+export function useLerProposta() {
+  return useMutation<PropostaImportada, Error, File>({
+    mutationFn: async arquivo => {
+      const corpo = new FormData();
+      corpo.append("file", arquivo);
+      const res = await fetch(`${API_BASE_URL}/liberacao/proposta`, { method: "POST", headers: headers(false), body: corpo });
+      if (!res.ok) return falha(res, "Falha ao ler o PDF");
+      return res.json();
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useAnexar() {
   const atualizar = useAtualizarDetalhe();
   return useMutation<LiberacaoDetalhe, Error, { id: string; arquivo: File }>({

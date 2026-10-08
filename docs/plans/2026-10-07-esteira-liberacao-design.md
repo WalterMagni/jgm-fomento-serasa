@@ -306,5 +306,17 @@ Pedidos do time, com as decisões do Walter. Onde contradizem as seções acima,
 - **Fuso**: backend passa a rodar em America/Sao_Paulo; `scripts/ajuste-fuso-esteiras.sql`
   corrige uma vez os horários já gravados em UTC.
 - **Arrasto**: o card cai na coluna do ponteiro, não na que a cópia arrastada encosta.
-- **Pendente**: importar a proposta da operação a partir do PDF (CNPJ, razão social, valor, a
-  vencer, vencido, liquidado) — aguardando um PDF de exemplo.
+- **Importar a proposta (PDF da AR)** (V73). O relatório "Análise de Risco - AR" do sistema de
+  operações é texto; o PDFBox lê linha a linha com estado de seção (`PropostaArParser`).
+  - `POST /liberacao/proposta` só lê e devolve; nada é gravado até o card ser salvo. O PDF
+    entra como anexo logo depois.
+  - O relatório não traz o CNPJ do cedente, só o código do cliente: a ponte é
+    `clients.client_code`, a mesma da Praça de Pagamento. Código sem vínculo vira aviso e o
+    cedente é escolhido à mão.
+  - Valor da operação = face dos títulos **liberados** (bate com a tabela de sacados). Sacado
+    sem título na proposta fica de fora, com aviso. A linha TOTAL confere a leitura.
+  - Fica no card como foto (`liberacao_card.proposta`, JSONB): limites, comprometimento e
+    concentração antes e depois, prazo médio, face, desconto, líquido, carteira do cedente.
+    Cada sacado guarda a sua linha (`liberacao_sacado.carteira`). Os dois saem no XLSX.
+  - A AR vem da tela e não é revalidada contra o PDF no servidor: é informação de apoio, como
+    o resto do card que a origem digita.

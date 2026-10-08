@@ -10,6 +10,7 @@ import CardForm from "./CardForm";
 import Anexos from "./Anexos";
 import Atividade from "./Atividade";
 import OrganizacaoCard from "./OrganizacaoCard";
+import { ResumoProposta, rotuloProposta } from "./PropostaAr";
 import { PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
 import Dialogo from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
@@ -150,6 +151,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                 parecerOrigem: card.parecerOrigem,
                 posicaoOrigem: card.posicaoOrigem,
                 sacados: data.sacados,
+                proposta: card.proposta,
               }}
               enviando={editar.isPending}
               rotuloEnviar="Salvar alterações"
@@ -214,6 +216,16 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   </Dado>
                 </dl>
               </Secao>
+
+              {card.proposta && (
+                <Secao
+                  titulo="Análise de risco"
+                  icone="analytics"
+                  acao={<span className="text-[11px] text-slate-400">{rotuloProposta(card.proposta)}</span>}
+                >
+                  <ResumoProposta proposta={card.proposta} />
+                </Secao>
+              )}
 
               <Secao titulo={`Sacados (${data.sacados.length})`} icone="people">
                 <SacadosLista

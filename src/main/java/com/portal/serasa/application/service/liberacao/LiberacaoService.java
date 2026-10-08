@@ -3,9 +3,11 @@ package com.portal.serasa.application.service.liberacao;
 import com.portal.serasa.domain.exception.ConflitoEdicaoException;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.exception.TransicaoInvalidaException;
+import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
+import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import com.portal.serasa.domain.model.liberacao.ResultadoLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
 import com.portal.serasa.domain.model.liberacao.TipoOperacao;
@@ -34,6 +36,7 @@ import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -73,13 +76,27 @@ public class LiberacaoService {
     private final LiberacaoAutorizacao autorizacao;
     private final ApplicationEventPublisher eventos;
 
-    /** Dados editáveis do card. Os mesmos na criação e na edição. */
+    /**
+     * Dados editáveis do card. Os mesmos na criação e na edição.
+     *
+     * @param proposta números da AR importada do PDF; na edição, nulo mantém a que o card já tem
+     */
     public record DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao,
                             BigDecimal valor, LocalDateTime prazo, String parecerOrigem,
-                            PosicaoParecer posicaoOrigem, List<DadosSacado> sacados) {
+                            PosicaoParecer posicaoOrigem, List<DadosSacado> sacados, PropostaAr proposta) {
+
+        public DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao, BigDecimal valor,
+                         LocalDateTime prazo, String parecerOrigem, PosicaoParecer posicaoOrigem, List<DadosSacado> sacados) {
+            this(cedenteCnpj, cedenteNome, tipoOperacao, valor, prazo, parecerOrigem, posicaoOrigem, sacados, null);
+        }
     }
 
-    public record DadosSacado(String documento, String nome, BigDecimal valor) {
+    /** @param carteira linha do sacado na AR; na edição, nulo mantém a que o sacado já tem */
+    public record DadosSacado(String documento, String nome, BigDecimal valor, CarteiraSacado carteira) {
+
+        public DadosSacado(String documento, String nome, BigDecimal valor) {
+            this(documento, nome, valor, null);
+        }
     }
 
     public record NovaPendencia(UUID destinatarioId, String texto) {
@@ -196,6 +213,7 @@ public class LiberacaoService {
                 .prazo(dados.prazo())
                 .parecerOrigem(textoOuNulo(dados.parecerOrigem()))
                 .posicaoOrigem(dados.posicaoOrigem())
+                .proposta(dados.proposta())
                 .criadoPorId(autor.getId())
                 .criadoPorNome(autor.getName())
                 .criadoEm(agora)
@@ -268,16 +286,28 @@ public class LiberacaoService {
             card.setPosicaoOrigem(dados.posicaoOrigem());
         }
 
+        if (dados.proposta() != null && !dados.proposta().equals(card.getProposta())) {
+            mudancas.add(new String[]{"proposta", rotuloProposta(card.getProposta()), rotuloProposta(dados.proposta())});
+            card.setProposta(dados.proposta());
+        }
+
         List<DadosSacado> novos = normalizarSacados(dados.sacados());
-        String diferencaSacados = diferencaSacados(sacadoRepository.findByCardIdOrderByOrdem(id), novos);
+        List<LiberacaoSacadoEntity> atuais = sacadoRepository.findByCardIdOrderByOrdem(id);
+        String diferencaSacados = diferencaSacados(atuais, novos);
         if (diferencaSacados != null) {
             if (card.getEtapa() == EtapaLiberacao.FINALIZADO) {
                 throw new TransicaoInvalidaException("Card finalizado: reabra no Comitê para mudar os sacados.");
             }
             gravarSacados(id, novos);
         }
+        // AR reimportada com os mesmos sacados: só os números da carteira mudam, sem evento próprio
+        // (o evento "proposta" já registra a reimportação).
+        boolean carteiraAtualizada = diferencaSacados == null && carteiraMudou(atuais, novos);
+        if (carteiraAtualizada) {
+            gravarSacados(id, novos);
+        }
 
-        if (mudancas.isEmpty() && diferencaSacados == null) {
+        if (mudancas.isEmpty() && diferencaSacados == null && !carteiraAtualizada) {
             return card;
         }
 
@@ -711,15 +741,14 @@ public class LiberacaoService {
         List<LiberacaoSacadoEntity> linhas = new ArrayList<>();
         for (int i = 0; i < sacados.size(); i++) {
             DadosSacado sacado = sacados.get(i);
-            LiberacaoSacadoEntity anterior = anteriores.get(sacado.documento());
-            if (anterior != null && !decisaoCabe(anterior, sacado.valor())) {
-                anterior = null;
-            }
+            LiberacaoSacadoEntity mesmo = anteriores.get(sacado.documento());
+            LiberacaoSacadoEntity anterior = mesmo != null && decisaoCabe(mesmo, sacado.valor()) ? mesmo : null;
             linhas.add(LiberacaoSacadoEntity.builder()
                     .cardId(cardId)
                     .cnpj(sacado.documento())
                     .nome(sacado.nome())
                     .valor(sacado.valor())
+                    .carteira(sacado.carteira() != null ? sacado.carteira() : mesmo == null ? null : mesmo.getCarteira())
                     .ordem(i)
                     .situacao(anterior == null ? null : anterior.getSituacao())
                     .valorAprovado(anterior == null ? null : anterior.getValorAprovado())
@@ -728,6 +757,12 @@ public class LiberacaoService {
                     .build());
         }
         sacadoRepository.saveAll(linhas);
+    }
+
+    private static boolean carteiraMudou(List<LiberacaoSacadoEntity> atuais, List<DadosSacado> novos) {
+        Map<String, CarteiraSacado> antes = new HashMap<>();
+        atuais.forEach(sacado -> antes.put(sacado.getCnpj(), sacado.getCarteira()));
+        return novos.stream().anyMatch(sacado -> sacado.carteira() != null && !sacado.carteira().equals(antes.get(sacado.documento())));
     }
 
     /** Parcial só vale abaixo do valor do sacado; se o valor baixou até ele, a decisão cai. */
@@ -760,7 +795,7 @@ public class LiberacaoService {
             if (porDocumento.containsKey(documento)) {
                 throw new IllegalArgumentException("Sacado repetido: " + formatarDocumento(documento));
             }
-            porDocumento.put(documento, new DadosSacado(documento, textoOuNulo(sacado.nome()), sacado.valor()));
+            porDocumento.put(documento, new DadosSacado(documento, textoOuNulo(sacado.nome()), sacado.valor(), sacado.carteira()));
         }
         if (porDocumento.isEmpty()) {
             return List.of();
@@ -773,7 +808,7 @@ public class LiberacaoService {
         Map<String, EmpresaResolver.Empresa> daBase = semNome.isEmpty() ? Map.of() : empresaResolver.resolver(semNome);
         return porDocumento.values().stream()
                 .map(sacado -> sacado.nome() != null || !daBase.containsKey(sacado.documento()) ? sacado
-                        : new DadosSacado(sacado.documento(), daBase.get(sacado.documento()).nome(), sacado.valor()))
+                        : new DadosSacado(sacado.documento(), daBase.get(sacado.documento()).nome(), sacado.valor(), sacado.carteira()))
                 .toList();
     }
 
@@ -904,6 +939,15 @@ public class LiberacaoService {
 
     private static String rotulo(String tipo) {
         return tipo == null ? "—" : tipo;
+    }
+
+    /** "AR de 08/10/2026 15:59" para o histórico; nulo quando o card não tinha proposta. */
+    static String rotuloProposta(PropostaAr proposta) {
+        if (proposta == null) {
+            return null;
+        }
+        LocalDateTime emitida = proposta.emitidaEmData();
+        return emitida == null ? "AR importada" : "AR de " + emitida.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
     private static String rotuloPosicao(PosicaoParecer posicao) {
