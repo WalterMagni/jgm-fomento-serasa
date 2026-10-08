@@ -1,6 +1,7 @@
 package com.portal.serasa.api.rest.controller;
 
 import com.portal.serasa.api.rest.dto.request.LiberacaoCardRequest;
+import com.portal.serasa.api.rest.dto.request.LiberacaoComentarioRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoParecerRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoPendenciaRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoRespostaRequest;
@@ -8,6 +9,7 @@ import com.portal.serasa.api.rest.dto.request.LiberacaoTransicaoRequest;
 import com.portal.serasa.api.rest.dto.response.LiberacaoCardResponse;
 import com.portal.serasa.api.rest.dto.response.LiberacaoDetalheResponse;
 import com.portal.serasa.api.rest.mapper.LiberacaoResponseAssembler;
+import com.portal.serasa.application.service.liberacao.LiberacaoComentarioService;
 import com.portal.serasa.application.service.liberacao.LiberacaoService;
 import com.portal.serasa.application.service.liberacao.LiberacaoService.DadosCard;
 import com.portal.serasa.application.service.liberacao.LiberacaoService.DadosSacado;
@@ -47,6 +49,7 @@ import java.util.UUID;
 public class LiberacaoController {
 
     private final LiberacaoService liberacaoService;
+    private final LiberacaoComentarioService comentarioService;
     private final LiberacaoResponseAssembler assembler;
     private final UsuarioLogado usuarioLogado;
 
@@ -122,6 +125,31 @@ public class LiberacaoController {
                                                               @Valid @RequestBody LiberacaoRespostaRequest request) {
         UserEntity autor = usuarioLogado.obter();
         liberacaoService.responderPendencia(id, pendenciaId, request.resposta(), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    // ------------------------------------------------------------ comentários
+
+    @PostMapping("/{id}/comentarios")
+    public ResponseEntity<LiberacaoDetalheResponse> comentar(@PathVariable UUID id,
+                                                             @Valid @RequestBody LiberacaoComentarioRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        comentarioService.comentar(id, request.texto(), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    @PatchMapping("/{id}/comentarios/{comentarioId}")
+    public ResponseEntity<LiberacaoDetalheResponse> editarComentario(@PathVariable UUID id, @PathVariable UUID comentarioId,
+                                                                     @Valid @RequestBody LiberacaoComentarioRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        comentarioService.editar(id, comentarioId, request.texto(), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    @DeleteMapping("/{id}/comentarios/{comentarioId}")
+    public ResponseEntity<LiberacaoDetalheResponse> apagarComentario(@PathVariable UUID id, @PathVariable UUID comentarioId) {
+        UserEntity autor = usuarioLogado.obter();
+        comentarioService.apagar(id, comentarioId, autor);
         return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
 import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, ROTULO_TIPO, type LiberacaoCard } from "@/types/liberacao";
 import Avatar from "./Avatar";
 import CardForm from "./CardForm";
-import { Historico, PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
+import Atividade from "./Atividade";
+import { PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
 import Dialogo from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
 import {
@@ -113,6 +115,8 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
   );
 
   return (
+    // O contexto atravessa o portal do Dialogo: os textos lá dentro sabem quais empresas existem.
+    <MencoesProvider empresas={data.empresas} cardId={card.id}>
     <Dialogo titulo={titulo} subtitulo={subtitulo} rotulo={`Card ${card.numero}: ${card.cedenteNome}`} onFechar={onFechar} largura="xl">
       <div className="grid min-h-full lg:grid-cols-[minmax(0,1fr)_17rem]">
         {/* ---------------------------------------------------------------- conteúdo */}
@@ -184,7 +188,9 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
 
               <Secao titulo="Parecer da origem" icone="description">
                 {card.parecerOrigem ? (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{card.parecerOrigem}</p>
+                  <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                    <TextoRico texto={card.parecerOrigem} />
+                  </p>
                 ) : (
                   <p className="text-sm text-slate-400">Sem parecer.</p>
                 )}
@@ -218,8 +224,8 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                 </Secao>
               )}
 
-              <Secao titulo="Histórico" icone="history">
-                <Historico eventos={data.eventos} />
+              <Secao titulo="Atividade" icone="chat">
+                <Atividade cardId={card.id} eventos={data.eventos} comentarios={data.comentarios} euId={euId} />
               </Secao>
             </div>
           )}
@@ -336,5 +342,6 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
         />
       )}
     </Dialogo>
+    </MencoesProvider>
   );
 }

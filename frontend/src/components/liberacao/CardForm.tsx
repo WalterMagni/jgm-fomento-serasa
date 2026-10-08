@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Icon from "@/components/ui/Icon";
+import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { ROTULO_TIPO, TIPOS_OPERACAO, type DadosCard, type Sacado, type TipoOperacao } from "@/types/liberacao";
 import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
@@ -258,13 +259,12 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, on
           <label htmlFor="card-parecer" className={ROTULO}>
             Parecer da origem
           </label>
-          <textarea
+          <MentionTextarea
             id="card-parecer"
             value={parecer}
-            onChange={event => setParecer(event.target.value)}
+            onChange={setParecer}
             rows={5}
-            placeholder="O que a análise encontrou, o que recomenda e por quê."
-            className={`${CAMPO} resize-y leading-relaxed`}
+            placeholder="O que a análise encontrou, o que recomenda e por quê. Use @ para marcar pessoas ou empresas."
           />
         </div>
 

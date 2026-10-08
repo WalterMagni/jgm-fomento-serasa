@@ -114,6 +114,12 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
               {card.sacadosQtd}
             </span>
           )}
+          {card.comentarios > 0 && (
+            <span className="inline-flex items-center gap-0.5" title={`${card.comentarios} comentário(s)`}>
+              <Icon name="chat" size={12} />
+              {card.comentarios}
+            </span>
+          )}
           {card.pendenciasAbertas > 0 && (
             <span
               className="inline-flex items-center gap-0.5 rounded-md bg-[#D1732C]/12 px-1.5 py-0.5 font-medium text-[#a8551a] dark:text-[#f0a46b]"

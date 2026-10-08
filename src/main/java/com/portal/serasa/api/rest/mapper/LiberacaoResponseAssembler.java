@@ -4,16 +4,20 @@ import com.portal.serasa.api.rest.dto.response.LiberacaoCardResponse;
 import com.portal.serasa.api.rest.dto.response.LiberacaoDetalheResponse;
 import com.portal.serasa.application.port.out.CompanyDetailRepository;
 import com.portal.serasa.application.service.liberacao.LiberacaoAutorizacao;
+import com.portal.serasa.application.service.liberacao.LiberacaoComentarioService;
+import com.portal.serasa.application.service.liberacao.MencaoParser;
 import com.portal.serasa.application.service.liberacao.LiberacaoService;
 import com.portal.serasa.domain.model.CompanyDetail;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
+import com.portal.serasa.infrastructure.persistence.entity.LiberacaoComentarioEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoEventoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoMembroEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoParecerEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoPendenciaEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoSacadoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
+import com.portal.serasa.infrastructure.persistence.repository.LiberacaoComentarioJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoMembroJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoParecerJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoPendenciaJpaRepository;
@@ -27,6 +31,8 @@ import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,6 +57,8 @@ public class LiberacaoResponseAssembler {
     private final LiberacaoParecerJpaRepository parecerRepository;
     private final LiberacaoPendenciaJpaRepository pendenciaRepository;
     private final LiberacaoMembroJpaRepository membroRepository;
+    private final LiberacaoComentarioJpaRepository comentarioRepository;
+    private final LiberacaoComentarioService comentarioService;
     private final UserRepository userRepository;
     private final CompanyDetailRepository companyDetailRepository;
     private final LiberacaoAutorizacao autorizacao;
@@ -71,6 +79,8 @@ public class LiberacaoResponseAssembler {
                 .collect(Collectors.groupingBy(LiberacaoPendenciaEntity::getCardId, Collectors.counting()));
         Map<UUID, List<LiberacaoMembroEntity>> membros = membroRepository.findByCardIdIn(ids).stream()
                 .collect(Collectors.groupingBy(LiberacaoMembroEntity::getCardId));
+        Map<UUID, Long> comentarios = comentarioRepository.contarPorCard(ids).stream()
+                .collect(Collectors.toMap(linha -> (UUID) linha[0], linha -> (Long) linha[1]));
 
         Map<UUID, UserEntity> usuarios = usuarios(membros.values().stream()
                 .flatMap(List::stream).map(LiberacaoMembroEntity::getUsuarioId).toList());
@@ -82,6 +92,7 @@ public class LiberacaoResponseAssembler {
                         sacados.getOrDefault(card.getId(), List.of()),
                         pareceres.getOrDefault(card.getId(), List.of()),
                         pendenciasAbertas.getOrDefault(card.getId(), 0L).intValue(),
+                        comentarios.getOrDefault(card.getId(), 0L).intValue(),
                         membros.getOrDefault(card.getId(), List.of()),
                         usuarios, cadastrados, comiteVazio, usuario))
                 .toList();
@@ -95,7 +106,25 @@ public class LiberacaoResponseAssembler {
     @Transactional(readOnly = true)
     public LiberacaoDetalheResponse detalhe(LiberacaoCardEntity card, UserEntity usuario) {
         List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(card.getId());
-        Set<String> cadastrados = cadastrados(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList());
+        List<LiberacaoParecerEntity> pareceres = liberacaoService.pareceres(card.getId());
+        List<LiberacaoPendenciaEntity> pendencias = liberacaoService.pendencias(card.getId());
+        List<LiberacaoEventoEntity> eventos = liberacaoService.timeline(card.getId());
+        List<LiberacaoComentarioEntity> comentarios = comentarioService.listar(card.getId());
+
+        // Toda empresa citada em qualquer texto do card, numa consulta só.
+        Set<String> mencionadas = new LinkedHashSet<>(MencaoParser.cnpjs(card.getParecerOrigem()));
+        pareceres.forEach(parecer -> mencionadas.addAll(MencaoParser.cnpjs(parecer.getTexto())));
+        pendencias.forEach(pendencia -> {
+            mencionadas.addAll(MencaoParser.cnpjs(pendencia.getTexto()));
+            mencionadas.addAll(MencaoParser.cnpjs(pendencia.getResposta()));
+        });
+        eventos.forEach(evento -> mencionadas.addAll(MencaoParser.cnpjs(evento.getTexto())));
+        comentarios.forEach(comentario -> mencionadas.addAll(MencaoParser.cnpjs(comentario.getTexto())));
+
+        Set<String> cadastrados = cadastrados(Stream.concat(
+                sacados.stream().map(LiberacaoSacadoEntity::getCnpj), mencionadas.stream()).toList());
+        Map<String, Boolean> empresas = new LinkedHashMap<>();
+        mencionadas.forEach(cnpj -> empresas.put(cnpj, cadastrados.contains(cnpj)));
 
         return LiberacaoDetalheResponse.builder()
                 .card(card(card, usuario))
@@ -103,17 +132,21 @@ public class LiberacaoResponseAssembler {
                         .map(sacado -> new LiberacaoDetalheResponse.Sacado(sacado.getCnpj(), sacado.getNome(),
                                 sacado.getValor(), cadastrados.contains(sacado.getCnpj())))
                         .toList())
-                .pareceres(liberacaoService.pareceres(card.getId()).stream().map(this::parecer).toList())
-                .pendencias(liberacaoService.pendencias(card.getId()).stream()
-                        .map(pendencia -> pendencia(pendencia, usuario))
+                .pareceres(pareceres.stream().map(this::parecer).toList())
+                .pendencias(pendencias.stream().map(pendencia -> pendencia(pendencia, usuario)).toList())
+                .eventos(eventos.stream().map(this::evento).toList())
+                .comentarios(comentarios.stream()
+                        .map(comentario -> new LiberacaoDetalheResponse.Comentario(comentario.getId(),
+                                comentario.getAutorId(), comentario.getAutorNome(), iniciais(comentario.getAutorNome()),
+                                comentario.getTexto(), comentario.getCriadoEm(), comentario.getEditadoEm()))
                         .toList())
-                .eventos(liberacaoService.timeline(card.getId()).stream().map(this::evento).toList())
+                .empresas(empresas)
                 .build();
     }
 
     private LiberacaoCardResponse card(LiberacaoCardEntity card, List<LiberacaoSacadoEntity> sacados,
                                        List<LiberacaoParecerEntity> pareceres, int pendenciasAbertas,
-                                       List<LiberacaoMembroEntity> membros, Map<UUID, UserEntity> usuarios,
+                                       int comentarios, List<LiberacaoMembroEntity> membros, Map<UUID, UserEntity> usuarios,
                                        Set<String> cadastrados, boolean comiteVazio, UserEntity usuario) {
         List<String> aguardando = LiberacaoService.aguardando(pareceres);
         BigDecimal soma = sacados.stream()
@@ -145,6 +178,7 @@ public class LiberacaoResponseAssembler {
                 .somaSacados(algumValor ? soma : null)
                 .pareceres(pareceres.stream().map(this::parecer).toList())
                 .pendenciasAbertas(pendenciasAbertas)
+                .comentarios(comentarios)
                 .membros(membros.stream()
                         .sorted(Comparator.comparing(LiberacaoMembroEntity::getAdicionadoEm))
                         .map(membro -> usuarios.get(membro.getUsuarioId()))

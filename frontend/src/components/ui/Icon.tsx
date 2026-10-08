@@ -13,7 +13,7 @@ import {
   Settings, Shield, ShieldAlert, ShieldCheck, Sparkles, StickyNote, Store, Sun, Table, Tag, ThumbsUp, Trash2,
   TrendingUp, Undo2, Unlink, Upload, UploadCloud, User, UserCheck, Users, UserSearch, Wallet, X, ZoomIn,
   Ban, BellOff, CirclePlus, FolderCheck, Flag, Megaphone, MinusCircle, RotateCw, EyeOff, Workflow, CircleCheckBig,
-  BookOpen,
+  BookOpen, MessageSquare, AtSign,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +66,8 @@ const ICONS: Record<string, LucideIcon> = {
   block: Ban, visibility_off: EyeOff, notifications_off: BellOff, campaign: Megaphone,
   add_circle: CirclePlus, remove_circle: MinusCircle, restart_alt: RotateCw,
   help: HelpCircle, help_outline: HelpCircle, menu_book: BookOpen,
+  // esteira de liberação
+  chat: MessageSquare, alternate_email: AtSign,
 };
 
 type Props = {

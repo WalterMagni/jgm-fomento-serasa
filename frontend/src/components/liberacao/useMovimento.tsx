@@ -2,9 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
+import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { useMoverCard } from "@/hooks/useLiberacao";
 import { ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard, type NovaPendencia } from "@/types/liberacao";
-import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
+import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, ROTULO } from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
 
 type Confirmacao = {
@@ -154,13 +155,7 @@ export function useMovimento(euId?: string) {
               <label htmlFor="mov-obs" className={ROTULO}>
                 Observação <span className="font-normal text-slate-400">(vai para o histórico)</span>
               </label>
-              <textarea
-                id="mov-obs"
-                value={observacao}
-                onChange={event => setObservacao(event.target.value)}
-                rows={3}
-                className={`${CAMPO} resize-y`}
-              />
+              <MentionTextarea id="mov-obs" value={observacao} onChange={setObservacao} rows={3} />
             </div>
           </div>
         </Dialogo>

@@ -2,11 +2,11 @@
 
 import { useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
+import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
+import TextoRico from "@/components/ui/mencao/TextoRico";
 import { useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
 import {
-  ROTULO_ETAPA_CURTO,
   ROTULO_POSICAO,
-  type EventoLiberacao,
   type LiberacaoCard,
   type Parecer,
   type Pendencia,
@@ -14,7 +14,7 @@ import {
   type Sacado,
 } from "@/types/liberacao";
 import Avatar from "./Avatar";
-import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO } from "./Dialogo";
+import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./Dialogo";
 import { COR_POSICAO, ICONE_POSICAO, formatDataHora, formatDocumento, formatMoeda, tempoRelativo } from "./formatters";
 
 export function Secao({ titulo, icone, acao, children }: { titulo: string; icone: string; acao?: ReactNode; children: ReactNode }) {
@@ -122,14 +122,15 @@ function FormParecer({ card, atual, onCancelar }: { card: LiberacaoCard; atual?:
           </button>
         ))}
       </div>
-      <textarea
-        value={texto}
-        onChange={event => setTexto(event.target.value)}
-        rows={3}
-        placeholder="Fundamente: o que pesou a favor, o que preocupa."
-        aria-label="Texto do parecer"
-        className={`${CAMPO} mt-2 resize-y`}
-      />
+      <div className="mt-2">
+        <MentionTextarea
+          value={texto}
+          onChange={setTexto}
+          rows={3}
+          placeholder="Fundamente: o que pesou a favor, o que preocupa. Use @ para marcar."
+          aria-label="Texto do parecer"
+        />
+      </div>
       <div className="mt-2 flex justify-end gap-2">
         {onCancelar && (
           <button type="button" onClick={onCancelar} className={BOTAO_SECUNDARIO}>
@@ -174,7 +175,9 @@ function LinhaParecer({ parecer }: { parecer: Parecer }) {
           )}
         </div>
         {parecer.texto && (
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{parecer.texto}</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+            <TextoRico texto={parecer.texto} />
+          </p>
         )}
       </div>
     </li>
@@ -275,27 +278,26 @@ function ItemPendencia({ cardId, pendencia }: { cardId: string; pendencia: Pende
           {aberta ? "aberta" : "respondida"}
         </span>
       </div>
-      <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-800 dark:text-slate-100">{pendencia.texto}</p>
+      <p className="mt-1.5 text-sm text-slate-800 dark:text-slate-100">
+        <TextoRico texto={pendencia.texto} />
+      </p>
 
       {pendencia.resposta && (
         <div className="mt-2 rounded-lg border-l-2 border-emerald-500 bg-white px-3 py-2 dark:bg-slate-900">
           <p className="text-[11px] text-slate-500">
             {pendencia.respondidaPorNome} respondeu {tempoRelativo(pendencia.respondidaEm)}
           </p>
-          <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{pendencia.resposta}</p>
+          <p className="mt-0.5 text-sm text-slate-700 dark:text-slate-200">
+            <TextoRico texto={pendencia.resposta} />
+          </p>
         </div>
       )}
 
       {pendencia.podeResponder && (
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
-          <textarea
-            value={resposta}
-            onChange={event => setResposta(event.target.value)}
-            rows={2}
-            placeholder="Responder a pendência"
-            aria-label="Resposta da pendência"
-            className={`${CAMPO} resize-y`}
-          />
+          <div className="min-w-0 flex-1">
+            <MentionTextarea value={resposta} onChange={setResposta} rows={2} placeholder="Responder a pendência" aria-label="Resposta da pendência" />
+          </div>
           <button
             type="button"
             disabled={!resposta.trim() || responder.isPending}
@@ -321,102 +323,5 @@ export function PendenciasLista({ cardId, pendencias }: { cardId: string; penden
         <ItemPendencia key={pendencia.id} cardId={cardId} pendencia={pendencia} />
       ))}
     </ul>
-  );
-}
-
-// ------------------------------------------------------------------ histórico
-
-const ROTULO_CAMPO: Record<string, string> = {
-  cedente: "o cedente",
-  tipoOperacao: "o tipo",
-  valor: "o valor",
-  prazo: "o prazo",
-  parecerOrigem: "o parecer da origem",
-  sacados: "os sacados",
-};
-
-const ICONE_EVENTO: Record<EventoLiberacao["tipo"], string> = {
-  CRIACAO: "add_circle",
-  EDICAO: "edit",
-  TRANSICAO: "arrow_forward",
-  REABERTURA: "restart_alt",
-  PARECER: "gavel",
-  PENDENCIA_ABERTA: "hourglass_top",
-  PENDENCIA_RESPONDIDA: "reply",
-  EXCLUSAO: "delete",
-};
-
-function descrever(evento: EventoLiberacao): ReactNode {
-  switch (evento.tipo) {
-    case "CRIACAO":
-      return "criou o card";
-    case "EDICAO":
-      if (evento.campo === "parecerOrigem") return "editou o parecer da origem";
-      if (evento.campo === "sacados") return <>alterou os sacados: <span className="text-slate-500">{evento.texto}</span></>;
-      return (
-        <>
-          alterou {ROTULO_CAMPO[evento.campo ?? ""] ?? evento.campo}:{" "}
-          <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
-        </>
-      );
-    case "TRANSICAO":
-      return (
-        <>
-          moveu de <strong className="font-semibold">{evento.etapaDe ? ROTULO_ETAPA_CURTO[evento.etapaDe] : "?"}</strong> para{" "}
-          <strong className="font-semibold">{evento.etapaPara ? ROTULO_ETAPA_CURTO[evento.etapaPara] : "?"}</strong>
-        </>
-      );
-    case "REABERTURA":
-      return <>reabriu o card no <strong className="font-semibold">Comitê</strong></>;
-    case "PARECER":
-      return (
-        <>
-          {evento.texto === "Parecer revisto" ? "reviu o parecer" : "deu parecer"}: <strong className="font-semibold">{evento.valorDepois}</strong>
-        </>
-      );
-    case "PENDENCIA_ABERTA":
-    case "PENDENCIA_RESPONDIDA":
-      return evento.texto;
-    case "EXCLUSAO":
-      return "apagou o card";
-  }
-}
-
-export function Historico({ eventos }: { eventos: EventoLiberacao[] }) {
-  const [todos, setTodos] = useState(false);
-  const visiveis = todos ? eventos : eventos.slice(0, 8);
-  return (
-    <div>
-      <ol className="relative space-y-3 before:absolute before:bottom-2 before:left-[11px] before:top-2 before:w-px before:bg-slate-200 dark:before:bg-slate-700">
-        {visiveis.map(evento => (
-          <li key={evento.id} className="relative flex gap-3">
-            <span className="relative z-[1] flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-slate-500 ring-1 ring-slate-200
-              dark:bg-slate-900 dark:ring-slate-700">
-              <Icon name={ICONE_EVENTO[evento.tipo]} size={12} />
-            </span>
-            <div className="min-w-0 flex-1 pt-0.5 text-[13px] leading-snug text-slate-700 dark:text-slate-300">
-              <strong className="font-semibold text-slate-900 dark:text-white">{evento.usuarioNome}</strong> {descrever(evento)}
-              {evento.tipo === "TRANSICAO" && evento.texto && (
-                <p className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {evento.texto}
-                </p>
-              )}
-              <p className="mt-0.5 text-[11px] text-slate-400" title={formatDataHora(evento.criadoEm)}>
-                {formatDataHora(evento.criadoEm)}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ol>
-      {eventos.length > 8 && (
-        <button
-          type="button"
-          onClick={() => setTodos(atual => !atual)}
-          className="mt-3 cursor-pointer text-xs font-medium text-[#612035] hover:underline dark:text-[#e8a3b6]"
-        >
-          {todos ? "mostrar menos" : `ver todo o histórico (${eventos.length})`}
-        </button>
-      )}
-    </div>
   );
 }

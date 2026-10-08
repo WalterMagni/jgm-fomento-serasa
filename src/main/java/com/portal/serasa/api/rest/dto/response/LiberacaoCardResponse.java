@@ -36,6 +36,7 @@ public record LiberacaoCardResponse(
         /** Rodada vigente. */
         List<Parecer> pareceres,
         int pendenciasAbertas,
+        int comentarios,
         List<Pessoa> membros,
         boolean podeEditar,
         /** Cada etapa de destino possível, com o motivo quando esta pessoa não pode mover. */

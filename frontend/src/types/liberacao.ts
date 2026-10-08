@@ -91,6 +91,7 @@ export type LiberacaoCard = {
   somaSacados: number | null;
   pareceres: Parecer[];
   pendenciasAbertas: number;
+  comentarios: number;
   membros: Pessoa[];
   podeEditar: boolean;
   destinos: Destino[];
@@ -124,12 +125,26 @@ export type EventoLiberacao = {
   criadoEm: string;
 };
 
+export type Comentario = {
+  id: string;
+  autorId: string | null;
+  autorNome: string;
+  iniciais: string;
+  /** Com marcação de menção. */
+  texto: string;
+  criadoEm: string;
+  editadoEm: string | null;
+};
+
 export type LiberacaoDetalhe = {
   card: LiberacaoCard;
   sacados: Sacado[];
   pareceres: Parecer[];
   pendencias: Pendencia[];
   eventos: EventoLiberacao[];
+  comentarios: Comentario[];
+  /** CNPJ citado em algum texto do card → tem página de empresa. */
+  empresas: Record<string, boolean>;
 };
 
 export type LiberacaoResumo = { pareceresAguardando: number; pendenciasParaMim: number; total: number };

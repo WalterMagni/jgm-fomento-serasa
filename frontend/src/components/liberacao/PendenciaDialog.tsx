@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import type { NovaPendencia } from "@/types/liberacao";
-import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
+import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, ROTULO } from "./Dialogo";
 import PessoaSelect from "./PessoaSelect";
 
 type Linha = { chave: number; destinatarioId: string | null; texto: string };
@@ -78,15 +79,12 @@ export default function PendenciaDialog({ titulo, subtitulo, multiplas = false, 
             <label className={`${ROTULO} mt-3`} htmlFor={`pend-texto-${linha.chave}`}>
               O que falta
             </label>
-            <textarea
+            <MentionTextarea
               id={`pend-texto-${linha.chave}`}
               value={linha.texto}
-              onChange={event =>
-                setLinhas(atuais => atuais.map(item => (item.chave === linha.chave ? { ...item, texto: event.target.value } : item)))
-              }
+              onChange={texto => setLinhas(atuais => atuais.map(item => (item.chave === linha.chave ? { ...item, texto } : item)))}
               rows={3}
               placeholder="Ex.: confirmar com o sacado o aceite das duplicatas 1042 a 1048"
-              className={`${CAMPO} resize-y`}
             />
           </div>
         ))}

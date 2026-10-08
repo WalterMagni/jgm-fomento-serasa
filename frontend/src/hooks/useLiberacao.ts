@@ -269,6 +269,43 @@ export function useResponderPendencia() {
   });
 }
 
+export function useComentar() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; texto: string }>({
+    mutationFn: ({ id, texto }) =>
+      pedir(`${API_BASE_URL}/liberacao/${id}/comentarios`, { method: "POST", body: JSON.stringify({ texto }) }, "Falha ao comentar"),
+    onSuccess: atualizar,
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useEditarComentario() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; comentarioId: string; texto: string }>({
+    mutationFn: ({ id, comentarioId, texto }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/${id}/comentarios/${comentarioId}`,
+        { method: "PATCH", body: JSON.stringify({ texto }) },
+        "Falha ao editar o comentário",
+      ),
+    onSuccess: atualizar,
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useApagarComentario() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; comentarioId: string }>({
+    mutationFn: ({ id, comentarioId }) =>
+      pedir(`${API_BASE_URL}/liberacao/${id}/comentarios/${comentarioId}`, { method: "DELETE" }, "Falha ao apagar o comentário"),
+    onSuccess: detalhe => {
+      atualizar(detalhe);
+      toast.success("Comentário apagado");
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useExcluirCard() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, { id: string; numero: number }>({

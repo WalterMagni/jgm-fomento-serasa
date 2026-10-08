@@ -18,6 +18,12 @@ type Props = {
 const LARGURA = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl", xl: "max-w-6xl" };
 
 /**
+ * Diálogos abertos, do mais antigo ao mais novo. Esc fecha só o do topo: a confirmação de mover
+ * abre por cima do detalhe do card, e um Esc não pode fechar os dois.
+ */
+const pilha: symbol[] = [];
+
+/**
  * Casca dos diálogos da esteira: fundo, Esc, foco.
  *
  * <p>Vai por portal para o body: o {@code <main>} do layout cria contexto de empilhamento
@@ -29,32 +35,40 @@ const LARGURA = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl", xl: "max-w-6x
  */
 export default function Dialogo({ titulo, subtitulo, onFechar, children, rodape, largura = "md", rotulo }: Props) {
   const painel = useRef<HTMLDivElement>(null);
+  // Quem abre costuma passar uma função nova a cada render. Guardada num ref, o efeito abaixo
+  // roda só ao montar — senão cada refetch do quadro tiraria o foco de quem está digitando.
+  const fechar = useRef(onFechar);
+  useEffect(() => {
+    fechar.current = onFechar;
+  }, [onFechar]);
 
   useEffect(() => {
+    const eu = Symbol("dialogo");
+    pilha.push(eu);
     const anterior = document.activeElement as HTMLElement | null;
     const primeiro =
       painel.current?.querySelector<HTMLElement>("[data-autofocus]") ??
       painel.current?.querySelector<HTMLElement>("input, textarea, select, button");
     primeiro?.focus();
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onFechar();
+      if (event.key === "Escape" && pilha[pilha.length - 1] === eu) {
+        fechar.current();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      pilha.splice(pilha.indexOf(eu), 1);
       anterior?.focus?.();
     };
-  }, [onFechar]);
+  }, []);
 
   return createPortal(
     <div
       // z-50 é o topo da escala do projeto (10 fundo de menu, 20 menu suspenso, 50 diálogo).
       className="esteira-fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 backdrop-blur-[2px] sm:items-center sm:p-4"
       onMouseDown={event => {
-        if (event.target === event.currentTarget) onFechar();
+        if (event.target === event.currentTarget) fechar.current();
       }}
     >
       <div
