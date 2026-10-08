@@ -156,6 +156,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     ? 'Informações Comerciais'
     : pathname === '/praca-pagamento'
     ? 'Praça de Pagamento'
+    : pathname.startsWith('/liberacao')
+    ? 'Esteira de Liberação'
+    : pathname.startsWith('/prospeccao')
+    ? 'Esteira de Prospecção'
     : pathname === '/settings'
     ? 'Configurações'
     : pathname.startsWith('/administracao')

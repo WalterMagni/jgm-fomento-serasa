@@ -50,4 +50,14 @@ public class UserEntity {
     @Column(name = "email_notificacao_cedente", nullable = false)
     @Builder.Default
     private boolean emailNotificacaoCedente = true;
+
+    /** Edita e move cards da esteira de liberação a partir do Comitê. Ver V63. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean analista = false;
+
+    /** Parecer obrigatório no Comitê. Exige {@link #analista} — restrição no banco. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean comite = false;
 }

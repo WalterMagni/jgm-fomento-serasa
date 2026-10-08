@@ -18,8 +18,8 @@ export type NavItem = {
   /** Marca o item como ativo a partir do pathname. */
   isActive: (pathname: string) => boolean;
   /**
-   * Contador vermelho ao lado do rótulo, para o que exige ação hoje.
-   * Só a esteira usa: é a única tela com prazo correndo contra o usuário.
+   * Contador vermelho ao lado do rótulo, para o que exige ação hoje: cards atrasados na
+   * prospecção, e na liberação o parecer e a pendência que esperam pelo usuário.
    */
   badge?: number;
   /** Marca a área como em avaliação, para o time saber que o fluxo ainda pode mudar. */
@@ -55,6 +55,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Esteira de Prospecção",
     beta: true,
     isActive: p => p.startsWith("/prospeccao"),
+  },
+  {
+    href: "/liberacao",
+    icon: "fact_check",
+    label: "Esteira de Liberação",
+    beta: true,
+    isActive: p => p.startsWith("/liberacao"),
   },
   {
     href: "/reports/visao-cedente",

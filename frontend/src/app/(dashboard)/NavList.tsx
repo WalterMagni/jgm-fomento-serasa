@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import { useLiberacaoResumo } from "@/hooks/useLiberacao";
 import { useProspeccaoResumo } from "@/hooks/useProspeccao";
 import { NAV_ITEMS, NavLink, type NavItem } from "./NavItems";
 
@@ -28,6 +29,8 @@ export default function NavList({
 }) {
   const { data: resumo } = useProspeccaoResumo();
   const precisamAtencao = resumo?.precisamAtencao ?? 0;
+  const { data: liberacao } = useLiberacaoResumo();
+  const esperandoPorMim = liberacao?.total ?? 0;
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -50,7 +53,13 @@ export default function NavList({
           <li key={item.href}>
             <div className="relative">
               <NavLink
-                item={item.href === "/prospeccao" ? { ...item, badge: precisamAtencao } : item}
+                item={
+                  item.href === "/prospeccao"
+                    ? { ...item, badge: precisamAtencao }
+                    : item.href === "/liberacao"
+                      ? { ...item, badge: esperandoPorMim }
+                      : item
+                }
                 pathname={pathname}
                 showLabel={showLabel}
                 onNavigate={onNavigate}

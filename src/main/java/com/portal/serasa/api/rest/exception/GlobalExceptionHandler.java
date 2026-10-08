@@ -189,6 +189,35 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
+    @ExceptionHandler(com.portal.serasa.domain.exception.ConflitoEdicaoException.class)
+    public ResponseEntity<ErrorResponse> handleConflitoEdicao(
+            com.portal.serasa.domain.exception.ConflitoEdicaoException ex,
+            HttpServletRequest request) {
+        return conflito(ex.getMessage(), request);
+    }
+
+    /**
+     * A trava otimista do JPA disparou: duas gravações do mesmo card na mesma janela de
+     * milissegundos. A checagem de versão do serviço pega quase tudo antes; esta é a rede.
+     */
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLock(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex,
+            HttpServletRequest request) {
+        return conflito("Outra pessoa salvou este registro ao mesmo tempo. Recarregue e tente de novo.", request);
+    }
+
+    private ResponseEntity<ErrorResponse> conflito(String message, HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .message(message)
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(com.portal.serasa.domain.exception.DocumentacaoIncompletaException.class)
     public ResponseEntity<ErrorResponse> handleDocumentacaoIncompleta(
             com.portal.serasa.domain.exception.DocumentacaoIncompletaException ex,

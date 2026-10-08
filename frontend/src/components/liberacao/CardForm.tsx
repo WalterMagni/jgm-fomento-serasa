@@ -1,0 +1,291 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import Icon from "@/components/ui/Icon";
+import { ROTULO_TIPO, TIPOS_OPERACAO, type DadosCard, type Sacado, type TipoOperacao } from "@/types/liberacao";
+import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
+import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
+import {
+  formatDocumento,
+  formatMoeda,
+  isoParaCampoData,
+  mascararDocumento,
+  moedaParaCampo,
+  parseMoeda,
+} from "./formatters";
+
+type LinhaSacado = { chave: number; documento: string; nome: string | null; valor: string };
+
+export type ValoresIniciais = {
+  cedente: CedenteEscolhido | null;
+  tipoOperacao: TipoOperacao | null;
+  valor: number | null;
+  prazo: string | null;
+  parecerOrigem: string | null;
+  sacados: Sacado[];
+};
+
+type Props = {
+  inicial?: ValoresIniciais;
+  enviando: boolean;
+  rotuloEnviar: string;
+  onEnviar: (dados: DadosCard) => void;
+  onCancelar: () => void;
+};
+
+let proximaChave = 1;
+const novaLinha = (documento = "", nome: string | null = null, valor = ""): LinhaSacado => ({
+  chave: proximaChave++,
+  documento,
+  nome,
+  valor,
+});
+
+/** Todos os CPFs e CNPJs de um texto colado, na ordem em que aparecem. */
+function documentosColados(texto: string) {
+  return (texto.match(/\d[\d./-]{9,17}\d/g) ?? [])
+    .map(trecho => trecho.replace(/\D/g, ""))
+    .filter(digitos => digitos.length === 11 || digitos.length === 14);
+}
+
+/**
+ * Campos do card, iguais na criação e na edição.
+ *
+ * <p>Sacados aceitam colar uma lista: a auxiliar costuma ter os CNPJs num e-mail ou planilha, e
+ * digitar um a um é onde nasce o erro de dígito.</p>
+ */
+export default function CardForm({ inicial, enviando, rotuloEnviar, onEnviar, onCancelar }: Props) {
+  const [cedente, setCedente] = useState<CedenteEscolhido | null>(inicial?.cedente ?? null);
+  const [tipo, setTipo] = useState<TipoOperacao | null>(inicial?.tipoOperacao ?? null);
+  const [valor, setValor] = useState(moedaParaCampo(inicial?.valor));
+  const [prazo, setPrazo] = useState(isoParaCampoData(inicial?.prazo));
+  const [parecer, setParecer] = useState(inicial?.parecerOrigem ?? "");
+  const [linhas, setLinhas] = useState<LinhaSacado[]>(() =>
+    inicial?.sacados.length
+      ? inicial.sacados.map(sacado => novaLinha(formatDocumento(sacado.documento), sacado.nome, moedaParaCampo(sacado.valor)))
+      : [novaLinha()],
+  );
+  const [erro, setErro] = useState<string | null>(null);
+
+  const valorNumero = parseMoeda(valor);
+  const valoresSacados = linhas.map(linha => parseMoeda(linha.valor)).filter((v): v is number => v != null);
+  const somaSacados = valoresSacados.reduce((total, v) => total + v, 0);
+  const divergente = valorNumero != null && valoresSacados.length > 0 && Math.abs(somaSacados - valorNumero) >= 0.01;
+
+  function atualizarLinha(chave: number, campo: "documento" | "valor", texto: string) {
+    setLinhas(atuais => atuais.map(linha => (linha.chave === chave ? { ...linha, [campo]: texto, ...(campo === "documento" ? { nome: null } : {}) } : linha)));
+  }
+
+  function colar(chave: number, texto: string) {
+    const documentos = documentosColados(texto);
+    if (documentos.length < 2) return false;
+    setLinhas(atuais => {
+      const semVazias = atuais.filter(linha => linha.chave !== chave && linha.documento.trim());
+      const existentes = new Set(semVazias.map(linha => linha.documento.replace(/\D/g, "")));
+      const novas = documentos.filter(doc => !existentes.has(doc)).map(doc => novaLinha(formatDocumento(doc)));
+      return [...semVazias, ...novas];
+    });
+    return true;
+  }
+
+  function enviar(event: FormEvent) {
+    event.preventDefault();
+    if (!cedente) {
+      setErro("Escolha o cedente.");
+      return;
+    }
+    if (!cedente.cadastrado && !cedente.nome.trim()) {
+      setErro("Empresa não cadastrada: informe a razão social.");
+      return;
+    }
+    const invalida = linhas.find(linha => {
+      const d = linha.documento.replace(/\D/g, "");
+      return d.length > 0 && d.length !== 11 && d.length !== 14;
+    });
+    if (invalida) {
+      setErro(`Documento de sacado incompleto: ${invalida.documento}`);
+      return;
+    }
+    setErro(null);
+    onEnviar({
+      cedenteCnpj: cedente.cnpj,
+      cedenteNome: cedente.cadastrado ? null : cedente.nome.trim(),
+      tipoOperacao: tipo,
+      valor: valorNumero,
+      prazo: prazo || null,
+      parecerOrigem: parecer.trim() || null,
+      sacados: linhas
+        .filter(linha => linha.documento.replace(/\D/g, ""))
+        .map(linha => ({ documento: linha.documento.replace(/\D/g, ""), nome: linha.nome, valor: parseMoeda(linha.valor) })),
+    });
+  }
+
+  return (
+    <form onSubmit={enviar} className="flex min-h-0 flex-1 flex-col">
+      <div className="space-y-5 px-5 py-5">
+        <CedentePicker valor={cedente} onMudar={setCedente} />
+
+        <fieldset>
+          <legend className={ROTULO}>Tipo de operação</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {TIPOS_OPERACAO.map(opcao => (
+              <button
+                key={opcao}
+                type="button"
+                aria-pressed={tipo === opcao}
+                onClick={() => setTipo(atual => (atual === opcao ? null : opcao))}
+                className={`min-h-9 cursor-pointer rounded-lg border px-3 text-xs font-medium transition-colors focus:outline-none
+                  focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                    tipo === opcao
+                      ? "border-[#612035] bg-[#612035] text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  }`}
+              >
+                {ROTULO_TIPO[opcao]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="card-valor" className={ROTULO}>
+              Valor da operação
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
+              <input
+                id="card-valor"
+                inputMode="decimal"
+                value={valor}
+                onChange={event => setValor(event.target.value)}
+                onBlur={() => setValor(moedaParaCampo(parseMoeda(valor)))}
+                placeholder="0,00"
+                className={`${CAMPO} pl-9 text-right tabular-nums`}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="card-prazo" className={ROTULO}>
+              Prazo para decisão <span className="font-normal text-slate-400">(opcional)</span>
+            </label>
+            <input
+              id="card-prazo"
+              type="datetime-local"
+              value={prazo}
+              onChange={event => setPrazo(event.target.value)}
+              className={CAMPO}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-1 flex items-end justify-between">
+            <span className={ROTULO}>Sacados</span>
+            <span className="text-[11px] text-slate-400">cole vários CNPJs de uma vez</span>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+            {linhas.map((linha, indice) => (
+              <div
+                key={linha.chave}
+                className="flex items-center gap-2 border-b border-slate-100 px-2 py-1.5 last:border-b-0 dark:border-slate-800"
+              >
+                <span className="w-5 shrink-0 text-center text-[11px] text-slate-400">{indice + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <input
+                    value={linha.documento}
+                    onChange={event => atualizarLinha(linha.chave, "documento", mascararDocumento(event.target.value))}
+                    onPaste={event => {
+                      if (colar(linha.chave, event.clipboardData.getData("text"))) event.preventDefault();
+                    }}
+                    onKeyDown={event => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        setLinhas(atuais => [...atuais, novaLinha()]);
+                      }
+                    }}
+                    placeholder="CNPJ ou CPF do sacado"
+                    aria-label={`Documento do sacado ${indice + 1}`}
+                    className="w-full rounded-md bg-transparent px-2 py-1.5 font-mono text-sm text-slate-800 placeholder:font-sans
+                      placeholder:text-slate-400 focus:bg-slate-50 focus:outline-none dark:text-slate-100 dark:focus:bg-slate-800"
+                  />
+                  {linha.nome && <p className="truncate px-2 text-[11px] text-slate-500">{linha.nome}</p>}
+                </div>
+                <div className="relative w-32 shrink-0">
+                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
+                  <input
+                    inputMode="decimal"
+                    value={linha.valor}
+                    onChange={event => atualizarLinha(linha.chave, "valor", event.target.value)}
+                    onBlur={() => atualizarLinha(linha.chave, "valor", moedaParaCampo(parseMoeda(linha.valor)))}
+                    placeholder="valor"
+                    aria-label={`Valor do sacado ${indice + 1}`}
+                    className="w-full rounded-md bg-transparent py-1.5 pl-7 pr-2 text-right text-sm tabular-nums text-slate-800
+                      placeholder:text-slate-400 focus:bg-slate-50 focus:outline-none dark:text-slate-100 dark:focus:bg-slate-800"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLinhas(atuais => (atuais.length > 1 ? atuais.filter(item => item.chave !== linha.chave) : [novaLinha()]))}
+                  aria-label={`Remover sacado ${indice + 1}`}
+                  className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-400
+                    hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:hover:bg-rose-900/30"
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setLinhas(atuais => [...atuais, novaLinha()])}
+              className="flex min-h-10 w-full cursor-pointer items-center justify-center gap-1 bg-slate-50 text-xs font-medium text-slate-600
+                hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#612035]
+                dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <Icon name="add" size={14} /> adicionar sacado
+            </button>
+          </div>
+          {valoresSacados.length > 0 && (
+            <p className={`mt-1.5 flex items-center gap-1 text-[11px] ${divergente ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
+              {divergente && <Icon name="warning" size={12} />}
+              Soma dos sacados: <strong className="tabular-nums">{formatMoeda(somaSacados)}</strong>
+              {divergente && <> · diferente do valor da operação ({formatMoeda(valorNumero)})</>}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="card-parecer" className={ROTULO}>
+            Parecer da origem
+          </label>
+          <textarea
+            id="card-parecer"
+            value={parecer}
+            onChange={event => setParecer(event.target.value)}
+            rows={5}
+            placeholder="O que a análise encontrou, o que recomenda e por quê."
+            className={`${CAMPO} resize-y leading-relaxed`}
+          />
+        </div>
+
+        {erro && (
+          <p role="alert" className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-200">
+            <Icon name="error" size={16} />
+            {erro}
+          </p>
+        )}
+      </div>
+
+      <div className="sticky bottom-0 mt-auto flex justify-end gap-2 border-t border-slate-100 bg-white/95 px-5 py-3 backdrop-blur
+        dark:border-slate-800 dark:bg-slate-900/95">
+        <button type="button" onClick={onCancelar} className={BOTAO_SECUNDARIO}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={enviando} className={BOTAO_PRIMARIO}>
+          {enviando && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+          {rotuloEnviar}
+        </button>
+      </div>
+    </form>
+  );
+}

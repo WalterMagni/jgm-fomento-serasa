@@ -1,20 +1,19 @@
 package com.portal.serasa.api.rest.controller;
 
+import com.portal.serasa.application.service.usuario.UsuarioPapelService;
+import com.portal.serasa.infrastructure.security.AdminAllowList;
 import com.portal.serasa.infrastructure.security.JwtUtil;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,8 +26,8 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    @Value("${app.user-management.allowed-emails:}")
-    private String userManagementAllowedEmails;
+    private final AdminAllowList adminAllowList;
+    private final UsuarioPapelService usuarioPapelService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
@@ -41,12 +40,9 @@ public class AuthController {
         }
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "emailNotificacaoCedente", user.isEmailNotificacaoCedente(),
-                "canManageUsers", canManageUsers(user.getEmail())));
+        Map<String, Object> resposta = perfil(user);
+        resposta.put("token", token);
+        return ResponseEntity.ok(resposta);
     }
 
     @PostMapping("/register")
@@ -77,11 +73,9 @@ public class AuthController {
         if (auth == null || !(auth.getPrincipal() instanceof UserEntity user)) {
             return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
         }
-        return ResponseEntity.ok(Map.of(
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "emailNotificacaoCedente", user.isEmailNotificacaoCedente(),
-                "canManageUsers", canManageUsers(user.getEmail())));
+        // O principal vem do filtro desta mesma requisição, mas relido do banco: as marcas de
+        // analista podem ter mudado desde o login.
+        return ResponseEntity.ok(perfil(userRepository.findByEmail(user.getEmail()).orElse(user)));
     }
 
     @PatchMapping("/profile")
@@ -106,11 +100,7 @@ public class AuthController {
 
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of(
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "emailNotificacaoCedente", user.isEmailNotificacaoCedente(),
-                "canManageUsers", canManageUsers(user.getEmail())));
+        return ResponseEntity.ok(perfil(user));
     }
 
     @GetMapping("/users")
@@ -119,7 +109,7 @@ public class AuthController {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
         }
-        if (!canManageUsers(currentUser.getEmail())) {
+        if (!adminAllowList.contem(currentUser.getEmail())) {
             return ResponseEntity.status(403).body(Map.of("error", "Sem permissão para gerenciar usuários"));
         }
 
@@ -137,6 +127,8 @@ public class AuthController {
                     item.put("email", user.getEmail());
                     item.put("role", user.getRole());
                     item.put("emailNotificacaoCedente", user.isEmailNotificacaoCedente());
+                    item.put("analista", user.isAnalista());
+                    item.put("comite", user.isComite());
                     item.put("createdAt", user.getCreatedAt());
                     return item;
                 })
@@ -151,7 +143,7 @@ public class AuthController {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
         }
-        if (!canManageUsers(currentUser.getEmail())) {
+        if (!adminAllowList.contem(currentUser.getEmail())) {
             return ResponseEntity.status(403).body(Map.of("error", "Sem permissão para apagar usuários"));
         }
 
@@ -182,14 +174,38 @@ public class AuthController {
         return userRepository.findByEmail(user.getEmail()).orElse(null);
     }
 
-    private boolean canManageUsers(String email) {
-        if (email == null || email.isBlank()) {
-            return false;
+    /**
+     * Marcas da esteira de liberação. Só admin.
+     *
+     * <p>Admin pode marcar a si mesmo: o dono da empresa é admin e também analista.</p>
+     */
+    @PatchMapping("/users/{id}/papeis")
+    public ResponseEntity<?> updateRoles(@PathVariable UUID id, @RequestBody Map<String, Boolean> body) {
+        UserEntity currentUser = getAuthenticatedUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Não autenticado"));
         }
-        return Arrays.stream(userManagementAllowedEmails.split("[,;]"))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .anyMatch(value -> value.equals(email.trim().toLowerCase(Locale.ROOT)));
+        if (!adminAllowList.contem(currentUser.getEmail())) {
+            return ResponseEntity.status(403).body(Map.of("error", "Sem permissão para alterar papéis"));
+        }
+        boolean analista = Boolean.TRUE.equals(body.get("analista"));
+        boolean comite = Boolean.TRUE.equals(body.get("comite"));
+        UserEntity user = usuarioPapelService.definir(id, analista, comite, currentUser);
+        return ResponseEntity.ok(Map.of(
+                "id", user.getId(),
+                "analista", user.isAnalista(),
+                "comite", user.isComite()));
+    }
+
+    private Map<String, Object> perfil(UserEntity user) {
+        Map<String, Object> perfil = new LinkedHashMap<>();
+        perfil.put("id", user.getId());
+        perfil.put("name", user.getName());
+        perfil.put("email", user.getEmail());
+        perfil.put("emailNotificacaoCedente", user.isEmailNotificacaoCedente());
+        perfil.put("canManageUsers", adminAllowList.contem(user.getEmail()));
+        perfil.put("analista", user.isAnalista());
+        perfil.put("comite", user.isComite());
+        return perfil;
     }
 }

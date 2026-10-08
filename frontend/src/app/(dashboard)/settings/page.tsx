@@ -6,6 +6,7 @@ import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
 import { useImportClientCodes } from "@/hooks/useImportClientCodes";
 import { Loader2 } from "lucide-react";
+import PapeisUsuario from "@/components/liberacao/PapeisUsuario";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -42,6 +43,8 @@ export default function SettingsPage() {
     email: string;
     role: string;
     emailNotificacaoCedente: boolean;
+    analista: boolean;
+    comite: boolean;
     createdAt?: string | null;
   }>>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -467,6 +470,9 @@ export default function SettingsPage() {
                           <tr>
                             <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">Nome</th>
                             <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">E-mail</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">
+                              Esteira de Liberação
+                            </th>
                             <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">Criado em</th>
                             <th className="px-4 py-3 text-right text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">Ações</th>
                           </tr>
@@ -474,7 +480,7 @@ export default function SettingsPage() {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
                           {managedUsers.length === 0 && !isLoadingUsers ? (
                             <tr>
-                              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                              <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
                                 Nenhum usuário disponível para gerenciamento.
                               </td>
                             </tr>
@@ -483,6 +489,16 @@ export default function SettingsPage() {
                               <tr key={user.id}>
                                 <td className="px-4 py-3 text-grafite dark:text-gray-200">{user.name}</td>
                                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{user.email}</td>
+                                <td className="px-4 py-3">
+                                  <PapeisUsuario
+                                    usuarioId={user.id}
+                                    analista={user.analista}
+                                    comite={user.comite}
+                                    onMudou={papeis =>
+                                      setManagedUsers(atuais => atuais.map(item => (item.id === user.id ? { ...item, ...papeis } : item)))
+                                    }
+                                  />
+                                </td>
                                 <td className="px-4 py-3 text-gray-500">
                                   {user.createdAt ? new Date(user.createdAt).toLocaleDateString("pt-BR") : "—"}
                                 </td>
