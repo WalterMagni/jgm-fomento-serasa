@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import Icon from "@/components/ui/Icon";
 import Segmentos from "@/components/ui/Segmentos";
 import { BOTAO } from "@/components/ui/botao";
-import { useNovoVisual } from "@/hooks/useNovoVisual";
 import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
 import { useImportClientCodes } from "@/hooks/useImportClientCodes";
@@ -39,7 +38,6 @@ export default function SettingsPage() {
     return true;
   });
   const [canManageUsers, setCanManageUsers] = useState(false);
-  const [novoVisual, setNovoVisual] = useNovoVisual();
   const [managedUsers, setManagedUsers] = useState<Array<{
     id: string;
     name: string;
@@ -316,45 +314,25 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <div className="flex flex-col gap-6">
-            <section className={`${CARTAO} flex flex-col gap-4 animate-subir motion-reduce:animate-none`} style={{ animationDelay: "120ms" }}>
-              <h2 className={TITULO}>
-                <Icon name="account_balance_wallet" className="text-lg" /> Custos das consultas
-                {isLoadingBillingSettings && <Icon name="progress_activity" size={16} weight="bold" className="ml-auto animate-spin text-primary" />}
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  { rotulo: "Consulta PJ", valor: settings?.serasaCostPerQuery ?? 0, apoio: "Cada consulta de empresa no Serasa" },
-                  { rotulo: "Consulta PF", valor: settings?.serasaPfCostPerQuery ?? 0, apoio: "Cada consulta de pessoa física no Serasa" },
-                ].map((custo) => (
-                  <div key={custo.rotulo} className="rounded-2xl border border-linha bg-[#FBFAF7] px-4 py-3.5">
-                    <p className={ROTULO}>{custo.rotulo}</p>
-                    <p className="mt-1.5 font-display text-[28px] font-semibold leading-none tracking-[-0.015em] text-grafite">{moeda(custo.valor)}</p>
-                    <p className="mt-1.5 text-xs text-suave">{custo.apoio}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-suave">Valores definidos na configuração do servidor.</p>
-            </section>
-
-            <section className={`${CARTAO} flex items-start justify-between gap-4 animate-subir motion-reduce:animate-none`} style={{ animationDelay: "180ms" }}>
-              <div className="min-w-0">
-                <h2 id="novo-visual-titulo" className={TITULO}>
-                  <Icon name="palette" className="text-lg" /> Novo visual
-                </h2>
-                <p id="novo-visual-descricao" className="mt-1.5 text-sm text-suave">
-                  Visual repaginado do portal. Vale só para você, neste navegador. Desligado, volta ao visual antigo.
-                </p>
-              </div>
-              <Interruptor
-                ligado={novoVisual}
-                onAlternar={() => setNovoVisual(!novoVisual)}
-                rotuloId="novo-visual-titulo"
-                descricaoId="novo-visual-descricao"
-                grande
-              />
-            </section>
-          </div>
+          <section className={`${CARTAO} flex flex-col gap-4 animate-subir motion-reduce:animate-none`} style={{ animationDelay: "120ms" }}>
+            <h2 className={TITULO}>
+              <Icon name="account_balance_wallet" className="text-lg" /> Custos das consultas
+              {isLoadingBillingSettings && <Icon name="progress_activity" size={16} weight="bold" className="ml-auto animate-spin text-primary" />}
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { rotulo: "Consulta PJ", valor: settings?.serasaCostPerQuery ?? 0, apoio: "Cada consulta de empresa no Serasa" },
+                { rotulo: "Consulta PF", valor: settings?.serasaPfCostPerQuery ?? 0, apoio: "Cada consulta de pessoa física no Serasa" },
+              ].map((custo) => (
+                <div key={custo.rotulo} className="rounded-2xl border border-linha bg-[#FBFAF7] px-4 py-3.5">
+                  <p className={ROTULO}>{custo.rotulo}</p>
+                  <p className="mt-1.5 font-display text-[28px] font-semibold leading-none tracking-[-0.015em] text-grafite">{moeda(custo.valor)}</p>
+                  <p className="mt-1.5 text-xs text-suave">{custo.apoio}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-suave">Valores definidos na configuração do servidor.</p>
+          </section>
 
           {canManageUsers && (
             <section className={`${CARTAO} lg:col-span-2`}>
@@ -655,35 +633,22 @@ export default function SettingsPage() {
 }
 
 /** Chave liga/desliga das preferências. */
-function Interruptor({
-  ligado,
-  onAlternar,
-  rotuloId,
-  descricaoId,
-  grande = false,
-}: {
-  ligado: boolean;
-  onAlternar: () => void;
-  rotuloId: string;
-  descricaoId?: string;
-  grande?: boolean;
-}) {
+function Interruptor({ ligado, onAlternar, rotuloId }: { ligado: boolean; onAlternar: () => void; rotuloId: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={ligado}
       aria-labelledby={rotuloId}
-      aria-describedby={descricaoId}
       onClick={onAlternar}
-      className={`relative shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-        grande ? "h-8 w-14" : "h-7 w-12"
-      } ${ligado ? "bg-primary" : "bg-[#D6D2C8]"}`}
+      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+        ligado ? "bg-primary" : "bg-[#D6D2C8]"
+      }`}
     >
       <span
-        className={`absolute left-1 top-1 rounded-full bg-white shadow transition-transform duration-200 ${
-          grande ? "h-6 w-6" : "h-5 w-5"
-        } ${ligado ? (grande ? "translate-x-6" : "translate-x-5") : ""}`}
+        className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+          ligado ? "translate-x-5" : ""
+        }`}
       />
     </button>
   );

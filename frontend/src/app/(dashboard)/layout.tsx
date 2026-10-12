@@ -5,8 +5,6 @@ import { ReactNode, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import NotificacoesProvider from "@/components/notificacoes/NotificacoesProvider";
-import { useNovoVisual } from "@/hooks/useNovoVisual";
-import CascaAntiga from "./CascaAntiga";
 import CascaNova from "./CascaNova";
 
 /** Decodifica o JWT e diz se já expirou (ou é inválido). */
@@ -22,13 +20,11 @@ function isTokenExpired(token: string | null): boolean {
 }
 
 /**
- * Sessão, dados e notificações de todas as páginas logadas. A moldura em volta (menu e topo)
- * é a casca antiga ou a nova, conforme o interruptor "Novo visual" de cada usuário.
+ * Sessão, dados e notificações de todas as páginas logadas, dentro da casca (menu e topo).
  */
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [novoVisual] = useNovoVisual();
 
   const [userName, setUserName] = useState<string>("Usuário");
   const [userInitials, setUserInitials] = useState<string>("US");
@@ -76,17 +72,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
-  const Casca = novoVisual ? CascaNova : CascaAntiga;
-
   return (
     // O provider envolve a casca inteira, não só o conteúdo: o menu também consulta a API,
     // para o contador das esteiras aparecer.
     <QueryClientProvider client={queryClient}>
     {/* Canal de notificações aberto enquanto o portal estiver aberto, em qualquer página. */}
     <NotificacoesProvider>
-      <Casca pathname={pathname} userName={userName} userInitials={userInitials} onSair={logout}>
+      <CascaNova pathname={pathname} userName={userName} userInitials={userInitials} onSair={logout}>
         {children}
-      </Casca>
+      </CascaNova>
       {/* Fora do <main> (z-0 + overflow) para a notificação não ficar presa atrás do topo. */}
       <Toaster richColors position="top-right" offset={80} toastOptions={{ style: { zIndex: 9999 } }} />
     </NotificacoesProvider>
