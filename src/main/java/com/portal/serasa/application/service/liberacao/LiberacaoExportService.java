@@ -174,18 +174,18 @@ public class LiberacaoExportService {
                 "Horas na Origem", "Horas no Comitê", "Horas em Pendência", "Posição da origem", "Parecer da origem",
                 "AR emitida em", "Limite individual", "Comprometimento atual (%)", "Comprometimento após (%)",
                 "Concentração após (%)", "Prazo médio (dias)", "Face liberados", "Desconto", "Líquido",
-                "Vencidos do cedente", "A vencer do cedente", "Liquidados do cedente", "Recomprados do cedente"},
+                "Vencidos do cedente", "A vencer do cedente", "Liquidados do cedente", "Recomprados do cedente",
+                "Horas em Assinatura", "Taxa (%)", "TAC", "Tranche"},
                 new int[]{6, 38, 20, 22, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 20, 16, 22, 17, 11, 11, 11, 15, 60,
-                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18});
+                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18, 11, 10, 14, 16});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             Row row = aba.createRow(linha++);
             List<LiberacaoEventoEntity> eventos = dados.eventos().getOrDefault(card.getId(), List.of());
             LiberacaoEventoEntity decisao = eventos.stream()
-                    .filter(evento -> evento.getTipo() == TipoEventoLiberacao.TRANSICAO && evento.getEtapaPara() != null
-                            && evento.getEtapaPara().terminal())
+                    .filter(evento -> evento.getTipo() == TipoEventoLiberacao.TRANSICAO && ehDecisao(evento))
                     .reduce((primeiro, segundo) -> segundo)
-                    .filter(evento -> card.getEtapa().terminal())
+                    .filter(evento -> card.getEtapa().decidida())
                     .orElse(null);
             Map<EtapaLiberacao, Double> horas = horasPorEtapa(card, eventos, LocalDateTime.now());
             String pareceres = dados.pareceres().getOrDefault(card.getId(), List.of()).stream()
@@ -239,16 +239,22 @@ public class LiberacaoExportService {
             moeda(row, c++, ar == null ? null : ar.vencidos(), estilos);
             moeda(row, c++, ar == null ? null : ar.vincendos(), estilos);
             moeda(row, c++, ar == null ? null : ar.liquidados(), estilos);
-            moeda(row, c, ar == null ? null : ar.recomprados(), estilos);
+            moeda(row, c++, ar == null ? null : ar.recomprados(), estilos);
+            horas(row, c++, horas.get(EtapaLiberacao.ASSINATURA), estilos);
+            numero(row, c++, card.getTaxa(), estilos.taxa);
+            moeda(row, c++, card.getTac(), estilos);
+            moeda(row, c, card.getTranche(), estilos);
         }
-        fechar(aba, linha, 38);
+        fechar(aba, linha, 42);
     }
 
     private void abaSacados(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
         Sheet aba = cabecalho(planilha, estilos, "Sacados", new String[]{"Nº card", "Cedente", "Documento", "Sacado", "Praça", "Valor",
                         "Situação", "Valor aprovado", "Decidido por", "Decidido em",
-                        "Títulos na proposta", "Vencidos", "A vencer", "Abertos", "Liquidados", "Recomprados"},
-                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16});
+                        "Títulos na proposta", "Vencidos", "A vencer", "Abertos", "Liquidados", "Recomprados",
+                        "Opinião da Origem", "Opinião do Comitê",
+                        "Parecer da Origem", "Parecer do Comitê", "Parecer da Diretoria"},
+                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16, 18, 18, 50, 50, 50});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             for (LiberacaoSacadoEntity sacado : ordenar(dados.sacados().get(card.getId()), Comparator.comparing(LiberacaoSacadoEntity::getOrdem))) {
@@ -277,9 +283,14 @@ public class LiberacaoExportService {
                 moeda(row, 13, carteira == null ? null : carteira.abertos(), estilos);
                 moeda(row, 14, carteira == null ? null : carteira.liquidados(), estilos);
                 moeda(row, 15, carteira == null ? null : carteira.recomprados(), estilos);
+                texto(row, 16, sacado.getOpiniaoOrigem() == null ? "" : sacado.getOpiniaoOrigem().rotulo(), estilos.texto);
+                texto(row, 17, sacado.getOpiniaoComite() == null ? "" : sacado.getOpiniaoComite().rotulo(), estilos.texto);
+                texto(row, 18, MencaoParser.textoPlano(sacado.getParecerOrigem()), estilos.quebra);
+                texto(row, 19, MencaoParser.textoPlano(sacado.getParecerComite()), estilos.quebra);
+                texto(row, 20, MencaoParser.textoPlano(sacado.getParecerDiretoria()), estilos.quebra);
             }
         }
-        fechar(aba, linha, 15);
+        fechar(aba, linha, 20);
     }
 
     private void abaPareceres(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
@@ -371,10 +382,21 @@ public class LiberacaoExportService {
     }
 
     /**
+     * A transição que decidiu o card: para Aprovado ou Reprovado. Antes da V79 a decisão levava
+     * direto a Finalizados, vindo do Comitê ou da Pendência.
+     */
+    static boolean ehDecisao(LiberacaoEventoEntity evento) {
+        EtapaLiberacao para = evento.getEtapaPara();
+        EtapaLiberacao de = evento.getEtapaDe();
+        return para != null && (para.decisao()
+                || (para == EtapaLiberacao.FINALIZADO && (de == EtapaLiberacao.COMITE || de == EtapaLiberacao.PENDENCIA)));
+    }
+
+    /**
      * Horas corridas que o card passou em cada etapa, somando idas e voltas.
      *
-     * <p>Começa na Origem na criação e troca de etapa a cada transição. Tempo depois da decisão
-     * não conta: card aprovado há um mês não ficou um mês "em" algum lugar.</p>
+     * <p>Começa na Origem na criação e troca de etapa a cada transição. Tempo em Finalizados não
+     * conta: card finalizado há um mês não ficou um mês "em" algum lugar.</p>
      */
     static Map<EtapaLiberacao, Double> horasPorEtapa(LiberacaoCardEntity card, List<LiberacaoEventoEntity> eventos, LocalDateTime agora) {
         Map<EtapaLiberacao, Duration> soma = new EnumMap<>(EtapaLiberacao.class);
@@ -412,6 +434,8 @@ public class LiberacaoExportService {
         final CellStyle inteiro;
         final CellStyle decimal;
         final CellStyle percentual;
+        /** Taxa da operação: 2 casas, até 4 quando tem (1,875). */
+        final CellStyle taxa;
 
         Estilos(XSSFWorkbook planilha) {
             Font negrito = planilha.createFont();
@@ -448,6 +472,9 @@ public class LiberacaoExportService {
             percentual = planilha.createCellStyle();
             percentual.setDataFormat(formatos.getFormat("0.00"));
             percentual.setVerticalAlignment(VerticalAlignment.TOP);
+            taxa = planilha.createCellStyle();
+            taxa.setDataFormat(formatos.getFormat("0.00##"));
+            taxa.setVerticalAlignment(VerticalAlignment.TOP);
         }
     }
 

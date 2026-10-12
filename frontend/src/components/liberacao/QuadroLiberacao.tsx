@@ -21,15 +21,15 @@ import Icon from "@/components/ui/Icon";
 import ManualDrawer from "@/components/prospeccao/ManualDrawer";
 import { MANUAL_LIBERACAO } from "@/content/manual-liberacao";
 import BarraFiltros from "@/components/liberacao/BarraFiltros";
-import { aplicarFiltros, escreverFiltros, finalizadosDesde, lerFiltros, ordenarCards, type Filtros } from "@/components/liberacao/filtros";
+import { aplicarFiltros, escreverFiltros, incluirArquivados, lerFiltros, ordenarCards, type Filtros } from "@/components/liberacao/filtros";
 import CardDetalheModal from "@/components/liberacao/CardDetalheModal";
 import LiberacaoColumn from "@/components/liberacao/LiberacaoColumn";
 import { CardFace } from "@/components/liberacao/LiberacaoCardItem";
 import NovoCardDialog from "@/components/liberacao/NovoCardDialog";
-import { COR_ETAPA, aguardando } from "@/components/liberacao/formatters";
+import { COR_ETAPA, aguardando, confirmar } from "@/components/liberacao/formatters";
 import { useMovimento } from "@/components/liberacao/useMovimento";
 import { useTempoReal } from "@/components/notificacoes/NotificacoesProvider";
-import { exportarLiberacao, useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
+import { exportarLiberacao, useArquivarFinalizados, useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
 import { ETAPAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard } from "@/types/liberacao";
 
 /**
@@ -72,9 +72,10 @@ export default function QuadroLiberacao() {
   const { data: eu } = useUsuarioAtual();
   const tempoReal = useTempoReal();
   const filtros = useMemo(() => lerFiltros(new URLSearchParams(params.toString())), [params]);
-  const { data: cards = [], isLoading, error } = useLiberacaoCards(finalizadosDesde(filtros.finalizados), tempoReal);
+  const { data: cards = [], isLoading, error } = useLiberacaoCards(incluirArquivados(filtros.finalizados), tempoReal);
   const { data: resumo } = useLiberacaoResumo();
   const movimento = useMovimento(eu?.id);
+  const arquivarFinalizados = useArquivarFinalizados();
   const ehCelular = useEhCelular();
 
   const [manualAberto, setManualAberto] = useState(false);
@@ -130,6 +131,13 @@ export default function QuadroLiberacao() {
     ETAPAS.forEach(etapa => mapa.set(etapa, ordenarCards(mapa.get(etapa) ?? [], filtros.ordem)));
     return mapa;
   }, [filtrados, filtros.ordem]);
+
+  function arquivarTodos() {
+    const quantos = (porEtapa.get("FINALIZADO") ?? []).filter(card => !card.arquivadoEm).length;
+    if (confirmar(`Arquivar ${quantos === 1 ? "o card finalizado" : `os ${quantos} cards finalizados`}? Eles saem do quadro, mas continuam no relatório e voltam com o filtro "com arquivados".`)) {
+      arquivarFinalizados.mutate();
+    }
+  }
 
   async function exportar() {
     setExportando(true);
@@ -303,11 +311,12 @@ export default function QuadroLiberacao() {
                 alvo={null}
                 onAbrir={abrir}
                 onNovo={abaVisivel === "ORIGEM" ? () => setNovoAberto(true) : undefined}
+                onArquivarTodos={abaVisivel === "FINALIZADO" && eu?.analista ? arquivarTodos : undefined}
                 larguraTotal
               />
             </div>
           ) : (
-            // Desktop/tablet: as cinco colunas lado a lado, rolando na horizontal se faltar espaço.
+            // Desktop/tablet: as sete colunas lado a lado, rolando na horizontal se faltar espaço.
             <div
               className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto pb-2
                 [background-image:radial-gradient(circle,rgb(148_163_184/0.25)_1px,transparent_1px)] [background-size:18px_18px]"
@@ -320,6 +329,7 @@ export default function QuadroLiberacao() {
                   alvo={alvo(etapa)}
                   onAbrir={abrir}
                   onNovo={etapa === "ORIGEM" ? () => setNovoAberto(true) : undefined}
+                  onArquivarTodos={etapa === "FINALIZADO" && eu?.analista ? arquivarTodos : undefined}
                 />
               ))}
             </div>

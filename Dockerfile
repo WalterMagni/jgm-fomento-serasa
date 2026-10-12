@@ -13,6 +13,8 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 RUN addgroup -S spring && adduser -S spring -G spring
+# Arquivos das esteiras (anexos e documentos). O volume nomeado herda este dono na primeira subida.
+RUN mkdir -p /app/dados/esteiras && chown -R spring:spring /app/dados
 USER spring:spring
 
 COPY --from=build /app/target/*.jar app.jar

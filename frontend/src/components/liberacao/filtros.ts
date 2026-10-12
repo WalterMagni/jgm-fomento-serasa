@@ -11,8 +11,11 @@ import type { LiberacaoCard, Resultado } from "@/types/liberacao";
 
 export type Ordem = "prazo" | "atividade" | "recentes" | "antigos" | "valor" | "nome";
 export type FiltroPrazo = "vencido" | "hoje" | "semana";
-/** Quanto tempo de finalizados aparece. "ocultar" tira Aprovado e Reprovado do quadro. */
-export type Finalizados = "30" | "90" | "365" | "ocultar";
+/**
+ * O que a coluna Finalizados mostra. Finalizado fica até alguém arquivar; "arquivados" traz os
+ * arquivados de volta para consulta, e "ocultar" tira a coluna.
+ */
+export type Finalizados = "ativos" | "arquivados" | "ocultar";
 
 export type Filtros = {
   busca: string;
@@ -39,9 +42,8 @@ export const ROTULO_ORDEM: Record<Ordem, string> = {
 };
 
 export const ROTULO_FINALIZADOS: Record<Finalizados, string> = {
-  "30": "últimos 30 dias",
-  "90": "últimos 90 dias",
-  "365": "último ano",
+  ativos: "não arquivados",
+  arquivados: "com arquivados",
   ocultar: "ocultos",
 };
 
@@ -69,7 +71,7 @@ export function lerFiltros(params: URLSearchParams): Filtros {
     ate: params.get("ate"),
     prazo: prazo && prazo in ROTULO_PRAZO ? prazo : null,
     meus: params.get("meus") === "1",
-    finalizados: finalizados && finalizados in ROTULO_FINALIZADOS ? finalizados : "30",
+    finalizados: finalizados && finalizados in ROTULO_FINALIZADOS ? finalizados : "ativos",
     ordem: ordem && ordem in ROTULO_ORDEM ? ordem : "prazo",
   };
 }
@@ -91,7 +93,7 @@ export function escreverFiltros(atuais: URLSearchParams, filtros: Filtros): URLS
   definir("ate", filtros.ate);
   definir("prazo", filtros.prazo);
   definir("meus", filtros.meus ? "1" : null);
-  definir("fin", filtros.finalizados === "30" ? null : filtros.finalizados);
+  definir("fin", filtros.finalizados === "ativos" ? null : filtros.finalizados);
   definir("ordem", filtros.ordem === "prazo" ? null : filtros.ordem);
   return novos;
 }
@@ -109,12 +111,9 @@ export function contarAtivos(filtros: Filtros) {
   );
 }
 
-/** Data para a API trazer finalizados mais antigos que o padrão de 30 dias. */
-export function finalizadosDesde(finalizados: Finalizados): string | undefined {
-  if (finalizados === "30" || finalizados === "ocultar") return undefined;
-  const data = new Date();
-  data.setDate(data.getDate() - Number(finalizados));
-  return data.toISOString().slice(0, 10);
+/** A API só manda arquivados quando a pessoa pede. */
+export function incluirArquivados(finalizados: Finalizados) {
+  return finalizados === "arquivados";
 }
 
 function inicioDoDia(data: Date) {

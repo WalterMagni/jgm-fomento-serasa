@@ -1,6 +1,6 @@
 package com.portal.serasa.application.service.prospeccao;
 
-import com.portal.serasa.application.service.SystemSettingService;
+import com.portal.serasa.application.service.documento.ArmazenamentoEsteiras;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.model.prospeccao.EscopoDocumento;
 import com.portal.serasa.domain.model.prospeccao.StatusDocumento;
@@ -65,7 +65,7 @@ public class ProspeccaoArquivoService {
     private final ProspeccaoArquivoJpaRepository arquivoRepository;
     private final ProspeccaoDocumentoJpaRepository documentoRepository;
     private final ProspeccaoService prospeccaoService;
-    private final SystemSettingService systemSettingService;
+    private final ArmazenamentoEsteiras armazenamento;
 
     /**
      * Sobe um arquivo e marca o item do checklist como recebido.
@@ -313,12 +313,7 @@ public class ProspeccaoArquivoService {
     }
 
     private Path baseDeDocumentos() {
-        try {
-            return systemSettingService.requireDocumentStorageBasePath();
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException(
-                    "Compartilhamento de documentos indisponível: " + ex.getMessage());
-        }
+        return armazenamento.base();
     }
 
     /**

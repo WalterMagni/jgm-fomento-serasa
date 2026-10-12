@@ -23,8 +23,16 @@ public record LiberacaoCardResponse(
         boolean cedenteCadastrado,
         /** Cidade/UF do cedente, quando o portal sabe. */
         String cedentePraca,
+        /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
+        Praca pracaPagamento,
         String tipoOperacao,
         BigDecimal valor,
+        /** Taxa da operação, em %. */
+        BigDecimal taxa,
+        /** TAC, em R$. */
+        BigDecimal tac,
+        /** Em aberto não confirmado do cedente, em R$. */
+        BigDecimal tranche,
         LocalDateTime prazo,
         String parecerOrigem,
         PosicaoParecer posicaoOrigem,
@@ -37,7 +45,11 @@ public record LiberacaoCardResponse(
         LocalDateTime criadoEm,
         String atualizadoPorNome,
         LocalDateTime atualizadoEm,
+        /** Quando foi decidido (Aprovado ou Reprovado); nulo antes da decisão. */
         LocalDateTime finalizadoEm,
+        /** Finalizado arquivado: só aparece no quadro com o filtro. */
+        LocalDateTime arquivadoEm,
+        String arquivadoPorNome,
         /** Só em Finalizados: sai das decisões dos sacados. */
         com.portal.serasa.domain.model.liberacao.ResultadoLiberacao resultado,
         /** Aprovados inteiros mais o valor aprovado dos parciais; nulo sem nenhuma decisão. */
@@ -74,5 +86,9 @@ public record LiberacaoCardResponse(
 
     /** {@code aviso}: pode mover, mas a tela confirma antes (parecer faltando no Comitê). */
     public record Destino(EtapaLiberacao etapa, boolean permitido, String motivo, String aviso) {
+    }
+
+    /** Títulos decididos como CEDENTE na Praça de Pagamento em que o documento aparece, e o valor pago. */
+    public record Praca(int titulos, BigDecimal valor) {
     }
 }

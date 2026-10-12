@@ -138,36 +138,81 @@ class LiberacaoNotificadorTest {
     }
 
     @Test
-    @DisplayName("finalizado aprovado: criador e membros recebem a decisão, com o resultado no título")
+    @DisplayName("aprovado: criador e membros recebem a decisão; resultado APROVADO vira '#N aprovado por X'")
     void shouldNotifyDecision() {
+        card.setEtapa(EtapaLiberacao.APROVADO);
+        card.setResultado(ResultadoLiberacao.APROVADO);
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO, andressa, Set.of(), null));
+        assertThat(porPessoa(novas)).containsKeys(aline.getId(), mychelly.getId());
+        assertThat(novas.get(0).titulo()).isEqualTo("#42 aprovado por Andressa");
+        assertThat(novas).allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO);
+    }
+
+    @Test
+    @DisplayName("aprovado parcial: título usa o rótulo do resultado em minúsculas")
+    void shouldNotifyPartialDecision() {
+        card.setEtapa(EtapaLiberacao.APROVADO);
+        card.setResultado(ResultadoLiberacao.PARCIAL);
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO, andressa, Set.of(), null));
+        assertThat(novas.get(0).titulo()).isEqualTo("#42 parcialmente aprovado por Andressa");
+    }
+
+    @Test
+    @DisplayName("aprovado sem resultado gravado: '#N aprovado por X'")
+    void shouldNotifyAprovadoWithoutResultado() {
+        card.setEtapa(EtapaLiberacao.APROVADO);
+        card.setResultado(null);
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.PENDENCIA, EtapaLiberacao.APROVADO, andressa, Set.of(), null));
+        assertThat(novas.get(0).titulo()).isEqualTo("#42 aprovado por Andressa");
+    }
+
+    @Test
+    @DisplayName("reprovado: criador e membros recebem '#N reprovado por X' como DECISAO")
+    void shouldNotifyRejectedDecision() {
+        card.setEtapa(EtapaLiberacao.REPROVADO);
+        card.setResultado(ResultadoLiberacao.REPROVADO);
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.PENDENCIA, EtapaLiberacao.REPROVADO, andressa, Set.of(), null));
+        assertThat(porPessoa(novas)).containsKeys(aline.getId(), mychelly.getId());
+        assertThat(novas).isNotEmpty()
+                .allMatch(nova -> nova.titulo().equals("#42 reprovado por Andressa"))
+                .allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO);
+    }
+
+    @Test
+    @DisplayName("assinatura: criador e membros recebem '#N enviado para assinatura por X'")
+    void shouldNotifySentToSignature() {
+        card.setEtapa(EtapaLiberacao.ASSINATURA);
+        card.setResultado(ResultadoLiberacao.APROVADO);
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, andressa, Set.of(), null));
+        assertThat(porPessoa(novas)).containsKeys(aline.getId(), mychelly.getId());
+        assertThat(novas).allMatch(nova -> nova.titulo().equals("#42 enviado para assinatura por Andressa"))
+                .allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO);
+    }
+
+    @Test
+    @DisplayName("finalizado aprovado: título traz '(aprovado)'")
+    void shouldNotifyFinalizadoWithResultado() {
         card.setEtapa(EtapaLiberacao.FINALIZADO);
         card.setResultado(ResultadoLiberacao.APROVADO);
         List<Nova> novas = notificador.destinatarios(
-                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
-        assertThat(porPessoa(novas)).containsKeys(aline.getId(), mychelly.getId());
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
         assertThat(novas.get(0).titulo()).isEqualTo("#42 finalizado (aprovado) por Andressa");
         assertThat(novas).allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO);
     }
 
     @Test
     @DisplayName("finalizado reprovado: título traz '(reprovado)'")
-    void shouldNotifyRejectedDecision() {
+    void shouldNotifyFinalizadoRejected() {
         card.setEtapa(EtapaLiberacao.FINALIZADO);
         card.setResultado(ResultadoLiberacao.REPROVADO);
         List<Nova> novas = notificador.destinatarios(
-                new LiberacaoEvento.Movido(card, EtapaLiberacao.PENDENCIA, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
-        assertThat(novas).isNotEmpty()
-                .allMatch(nova -> nova.titulo().equals("#42 finalizado (reprovado) por Andressa"));
-    }
-
-    @Test
-    @DisplayName("finalizado parcial: título traz '(parcialmente aprovado)'")
-    void shouldNotifyPartialDecision() {
-        card.setEtapa(EtapaLiberacao.FINALIZADO);
-        card.setResultado(ResultadoLiberacao.PARCIAL);
-        List<Nova> novas = notificador.destinatarios(
-                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
-        assertThat(novas.get(0).titulo()).isEqualTo("#42 finalizado (parcialmente aprovado) por Andressa");
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.REPROVADO, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
+        assertThat(novas.get(0).titulo()).isEqualTo("#42 finalizado (reprovado) por Andressa");
     }
 
     @Test
@@ -176,7 +221,7 @@ class LiberacaoNotificadorTest {
         card.setEtapa(EtapaLiberacao.FINALIZADO);
         card.setResultado(null);
         List<Nova> novas = notificador.destinatarios(
-                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
         assertThat(novas.get(0).titulo()).isEqualTo("#42 finalizado por Andressa");
     }
 
@@ -190,12 +235,15 @@ class LiberacaoNotificadorTest {
     }
 
     @Test
-    @DisplayName("reaberto de Finalizado para o Comitê: o Comitê da rodada é chamado de novo")
+    @DisplayName("reaberto de etapa decidida para o Comitê: o Comitê da rodada é chamado de novo")
     void shouldAskComiteAgainWhenReopened() {
-        List<Nova> novas = notificador.destinatarios(
-                new LiberacaoEvento.Movido(card, EtapaLiberacao.FINALIZADO, EtapaLiberacao.COMITE, andressa, Set.of(), null));
-        assertThat(porPessoa(novas)).containsOnlyKeys(andressa.getId(), mychelly.getId());
-        assertThat(novas).allMatch(nova -> nova.tipo() == TipoNotificacao.PARECER_ESPERADO);
+        for (EtapaLiberacao de : List.of(EtapaLiberacao.APROVADO, EtapaLiberacao.REPROVADO,
+                EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO)) {
+            List<Nova> novas = notificador.destinatarios(
+                    new LiberacaoEvento.Movido(card, de, EtapaLiberacao.COMITE, andressa, Set.of(), null));
+            assertThat(porPessoa(novas)).containsOnlyKeys(andressa.getId(), mychelly.getId());
+            assertThat(novas).allMatch(nova -> nova.tipo() == TipoNotificacao.PARECER_ESPERADO);
+        }
     }
 
     @Test
@@ -304,16 +352,16 @@ class LiberacaoNotificadorTest {
     }
 
     @Test
-    @DisplayName("e-mail: decisão (finalizado) vai para o criador do card que tem o e-mail ligado")
+    @DisplayName("e-mail: decisão (reprovado) vai para o criador do card que tem o e-mail ligado")
     void shouldEmailDecisionToCreator() {
-        card.setEtapa(EtapaLiberacao.FINALIZADO);
+        card.setEtapa(EtapaLiberacao.REPROVADO);
         card.setResultado(ResultadoLiberacao.REPROVADO);
 
         notificador.aoAcontecer(
-                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO, andressa, Set.of(), null));
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO, andressa, Set.of(), null));
 
         verify(email).enviar(eq("aline@jgm.com"), eq("Aline Souza"),
-                eq("#42 finalizado (reprovado) por Andressa"), any(), any());
+                eq("#42 reprovado por Andressa"), any(), any());
         // o autor da decisão nunca é avisado do que ele mesmo fez
         verify(email, never()).enviar(eq("andressa@jgm.com"), any(), any(), any(), any());
     }

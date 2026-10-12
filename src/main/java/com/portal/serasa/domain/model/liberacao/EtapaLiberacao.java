@@ -10,8 +10,10 @@ import java.util.Set;
  * de uma vez só. Quem pode disparar cada transição — e a regra do parecer do Comitê — mora em
  * {@code LiberacaoAutorizacao} e {@code LiberacaoService}; o enum só diz o que é caminho válido.</p>
  *
- * <p>Até a V70 havia Aprovado e Reprovado como colunas separadas. Viraram Finalizados: a decisão
- * é por sacado, e o resultado do card (aprovado, reprovado, parcial) sai deles.</p>
+ * <p>Histórico: até a V70 havia Aprovado e Reprovado como fim de linha; a V70 juntou os dois em
+ * Finalizados. Em 2026-10-12 o time pediu as colunas de volta, agora como passos: a analista
+ * decide Aprovado ou Reprovado; o aprovado segue para Assinatura e o reprovado é finalizado.
+ * O resultado (aprovado, reprovado, parcial) continua saindo das decisões dos sacados.</p>
  */
 public enum EtapaLiberacao {
 
@@ -24,8 +26,27 @@ public enum EtapaLiberacao {
     /** A analista pediu algo a alguém antes de decidir. */
     PENDENCIA,
 
-    /** Decidido. O resultado está no card e a decisão de cada sacado, no sacado. */
+    /** Decidido a favor, inteiro ou em parte. Segue para a assinatura do contrato. */
+    APROVADO,
+
+    /** Decidido contra. Só falta finalizar. */
+    REPROVADO,
+
+    /** Aprovado, aguardando a assinatura do contrato. */
+    ASSINATURA,
+
+    /** Fim de linha. Sai do quadro quando arquivado. */
     FINALIZADO;
+
+    /** A decisão do Comitê: é aqui que o resultado do card é calculado. */
+    public boolean decisao() {
+        return this == APROVADO || this == REPROVADO;
+    }
+
+    /** Já decidido: o prazo de decisão para de correr e os sacados não mudam sem reabrir. */
+    public boolean decidida() {
+        return this == APROVADO || this == REPROVADO || this == ASSINATURA || this == FINALIZADO;
+    }
 
     public boolean terminal() {
         return this == FINALIZADO;
@@ -35,14 +56,17 @@ public enum EtapaLiberacao {
      * Destinos válidos.
      *
      * <p>Os retrocessos são deliberados: devolver para a Origem corrige card mal preenchido, e
-     * voltar da Pendência ao Comitê pede reanálise. Finalizado só volta ao Comitê, e isso é
-     * reabertura — abre rodada nova de pareceres.</p>
+     * voltar da Pendência ao Comitê pede reanálise. De qualquer etapa já decidida o card só volta
+     * ao Comitê, e isso é reabertura — abre rodada nova de pareceres.</p>
      */
     public Set<EtapaLiberacao> destinos() {
         return switch (this) {
             case ORIGEM -> EnumSet.of(COMITE);
-            case COMITE -> EnumSet.of(PENDENCIA, FINALIZADO, ORIGEM);
-            case PENDENCIA -> EnumSet.of(FINALIZADO, COMITE);
+            case COMITE -> EnumSet.of(PENDENCIA, APROVADO, REPROVADO, ORIGEM);
+            case PENDENCIA -> EnumSet.of(APROVADO, REPROVADO, COMITE);
+            case APROVADO -> EnumSet.of(ASSINATURA, COMITE);
+            case REPROVADO -> EnumSet.of(FINALIZADO, COMITE);
+            case ASSINATURA -> EnumSet.of(FINALIZADO, COMITE);
             case FINALIZADO -> EnumSet.of(COMITE);
         };
     }
@@ -54,5 +78,10 @@ public enum EtapaLiberacao {
     /** Saídas do Comitê que pedem parecer registrado. Devolver não pede. */
     public static boolean decisaoDoComite(EtapaLiberacao de, EtapaLiberacao para) {
         return de == COMITE && para != ORIGEM;
+    }
+
+    /** Voltar de etapa decidida para o Comitê: rodada nova, resultado desfeito. */
+    public static boolean reabertura(EtapaLiberacao de, EtapaLiberacao para) {
+        return de.decidida() && para == COMITE;
     }
 }

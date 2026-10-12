@@ -55,6 +55,38 @@ public class LiberacaoSacadoEntity {
     @Column(name = "situacao_em")
     private java.time.LocalDateTime situacaoEm;
 
+    /** Quadrado O: opinião da Origem. Ver V82. */
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "opiniao_origem", length = 12)
+    private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao opiniaoOrigem;
+
+    @Column(name = "opiniao_origem_por_nome", length = 200)
+    private String opiniaoOrigemPorNome;
+
+    @Column(name = "opiniao_origem_em")
+    private java.time.LocalDateTime opiniaoOrigemEm;
+
+    /** Quadrado C: opinião do Comitê. O quadrado D é a {@code situacao}. Ver V82. */
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "opiniao_comite", length = 12)
+    private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao opiniaoComite;
+
+    @Column(name = "opiniao_comite_por_nome", length = 200)
+    private String opiniaoComitePorNome;
+
+    @Column(name = "opiniao_comite_em")
+    private java.time.LocalDateTime opiniaoComiteEm;
+
+    /** Parecer de cada quadrado (O, C, D), com @menções. Ver V83. */
+    @Column(name = "parecer_origem", columnDefinition = "text")
+    private String parecerOrigem;
+
+    @Column(name = "parecer_comite", columnDefinition = "text")
+    private String parecerComite;
+
+    @Column(name = "parecer_diretoria", columnDefinition = "text")
+    private String parecerDiretoria;
+
     /** Linha do sacado na Análise de Risco (AR), quando o card veio do PDF. Ver V73. */
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

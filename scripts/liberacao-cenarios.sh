@@ -3,8 +3,9 @@
 #
 # Monta três usuários de cenário (uma auxiliar e duas analistas do Comitê) e oito cards que
 # cobrem o que a tela precisa mostrar: card novo, prazo vencido, Comitê esperando os pareceres,
-# Comitê com um parecer e uma menção, pendência aberta, finalizado aprovado, finalizado
-# parcialmente aprovado e reaberto em rodada nova. Nada aqui chama API externa paga.
+# Comitê com um parecer e uma menção, pendência aberta, aprovado e finalizado depois da
+# assinatura, parcialmente aprovado aguardando assinatura e reprovado reaberto em rodada nova.
+# Nada aqui chama API externa paga.
 #
 # Os usuários de cenário entram no Comitê. Enquanto existirem, todo card que entrar no Comitê
 # neste banco espera o parecer deles também — rode só em ambiente local e limpe depois.
@@ -31,9 +32,9 @@ CNPJS=(
   "20000000000303" # 3. Comitê esperando os dois
   "20000000000404" # 4. Comitê com um parecer
   "20000000000505" # 5. pendência aberta
-  "20000000000606" # 6. finalizado aprovado
-  "20000000000707" # 7. finalizado parcial
-  "20000000000808" # 8. reaberto
+  "20000000000606" # 6. aprovado, assinado e finalizado
+  "20000000000707" # 7. parcial na assinatura
+  "20000000000808" # 8. reprovado e reaberto
 )
 
 sql() { $PSQL -v ON_ERROR_STOP=1 -qtA; }
@@ -134,26 +135,29 @@ mover "$AN1" "$ID5" COMITE PENDENCIA "\"pendencias\":[{\"destinatarioId\":\"$AUX
 
 APROVA_TUDO='"decisoes":[{"documento":"11222333000181","situacao":"APROVADO"},{"documento":"11444777000161","situacao":"APROVADO"}]'
 
-echo "→ 6/8 finalizado aprovado"
+echo "→ 6/8 aprovado, assinado e finalizado"
 ID6=$(criar "${CNPJS[5]}" "ZETA CENARIO CONFECCOES LTDA" DUPLICATA 210000 "")
 mover "$AUX" "$ID6" ORIGEM COMITE
 parecer "$AN1" "$ID6" FAVORAVEL "Ok."
 parecer "$AN2" "$ID6" FAVORAVEL "Ok."
-mover "$AN2" "$ID6" COMITE FINALIZADO "$APROVA_TUDO"',"observacao":"Liberado."'
+mover "$AN2" "$ID6" COMITE APROVADO "$APROVA_TUDO"',"observacao":"Liberado."'
+mover "$AN2" "$ID6" APROVADO ASSINATURA
+mover "$AN2" "$ID6" ASSINATURA FINALIZADO
 
-echo "→ 7/8 finalizado parcial: só um parecer, um sacado reprovado e um parcial"
+echo "→ 7/8 parcial na assinatura: só um parecer, um sacado reprovado e um parcial"
 ID7=$(criar "${CNPJS[6]}" "ETA CENARIO ATACADISTA LTDA" CHEQUE 39000 "")
 mover "$AUX" "$ID7" ORIGEM COMITE
 parecer "$AN1" "$ID7" COM_RESSALVAS "Um sacado com restrição recente."
-mover "$AN1" "$ID7" COMITE FINALIZADO '"decisoes":[{"documento":"11222333000181","situacao":"PARCIAL","valorAprovado":20000},{"documento":"11444777000161","situacao":"REPROVADO"}],"observacao":"Sem o parecer da Mychelly, em férias."'
+mover "$AN1" "$ID7" COMITE APROVADO '"decisoes":[{"documento":"11222333000181","situacao":"PARCIAL","valorAprovado":20000},{"documento":"11444777000161","situacao":"REPROVADO"}],"observacao":"Sem o parecer da Mychelly, em férias."'
+mover "$AN1" "$ID7" APROVADO ASSINATURA
 
-echo "→ 8/8 aprovado e reaberto: rodada 2 no Comitê"
+echo "→ 8/8 reprovado e reaberto: rodada 2 no Comitê"
 ID8=$(criar "${CNPJS[7]}" "TETA CENARIO METAIS LTDA" COMISSARIA 150000 "")
 mover "$AUX" "$ID8" ORIGEM COMITE
 parecer "$AN1" "$ID8" FAVORAVEL "Ok."
 parecer "$AN2" "$ID8" FAVORAVEL "Ok."
-mover "$AN1" "$ID8" COMITE FINALIZADO "$APROVA_TUDO"
-mover "$AN1" "$ID8" FINALIZADO COMITE '"observacao":"Cliente pediu aumento de limite."'
+mover "$AN1" "$ID8" COMITE REPROVADO '"observacao":"Concentração alta."'
+mover "$AN1" "$ID8" REPROVADO COMITE '"observacao":"Cliente trouxe garantia nova."'
 
 echo
 echo "Pronto. Entre com cenario-auxiliar@$DOMINIO, cenario-andressa@$DOMINIO ou"

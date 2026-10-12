@@ -13,6 +13,7 @@ import {
   aguardando,
   formatDocumento,
   formatMoeda,
+  formatMoedaCurta,
   situacaoPrazo,
   textoPrazo,
 } from "./formatters";
@@ -102,6 +103,17 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
       {card.valor != null && (
         <p className="font-display mt-2 text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">
           {formatMoeda(card.valor)}
+        </p>
+      )}
+
+      {card.pracaPagamento && (
+        <p
+          title={`Praça de Pagamento: ${card.pracaPagamento.titulos} título(s) apontado(s) do cedente, ${formatMoeda(card.pracaPagamento.valor)}`}
+          className="mt-2 mr-1 inline-flex items-center gap-1 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-rose-800
+            dark:bg-rose-900/40 dark:text-rose-200"
+        >
+          <Icon name="alt_route" size={11} />
+          praça {formatMoedaCurta(card.pracaPagamento.valor)}
         </p>
       )}
 

@@ -320,3 +320,52 @@ Pedidos do time, com as decisões do Walter. Onde contradizem as seções acima,
     Cada sacado guarda a sua linha (`liberacao_sacado.carteira`). Os dois saem no XLSX.
   - A AR vem da tela e não é revalidada contra o PDF no servidor: é informação de apoio, como
     o resto do card que a origem digita.
+
+## Sete colunas e arquivo (2026-10-12)
+
+Segunda rodada de pedidos do time. Onde contradiz o que está acima, vale esta.
+
+- **Colunas**: Origem, Comitê, Pendência, Aprovado, Reprovado, Assinatura, Finalizados. O
+  Finalizados único da V70 continua sendo o fim de linha; Aprovado e Reprovado voltam como
+  passos de decisão, e Assinatura é o contrato do aprovado.
+- **Caminho**: Comitê/Pendência → Aprovado ou Reprovado (decisão da analista). Aprovado →
+  Assinatura → Finalizados. Reprovado → Finalizados. De qualquer etapa decidida, só volta ao
+  Comitê, como reabertura (rodada nova, resultado desfeito).
+- **Resultado**: continua saindo dos sacados. Aprovar pede todos decididos e pelo menos um
+  aprovado ou parcial; reprovar reprova todos. Card sem sacados fica com o resultado da coluna.
+  Assinatura e Finalizados herdam o resultado.
+- **`finalizado_em`** passa a ser "decidido em": marca a entrada em Aprovado ou Reprovado e vale
+  até reabrir. É o que para o prazo e tira o card dos atrasados.
+- **Arquivo** (V79): finalizado fica no quadro até uma analista arquivar, um a um ou a coluna
+  inteira. Substitui o corte automático de 30 dias. Arquivado continua no relatório e volta ao
+  quadro com o filtro "com arquivados". Os cards que já estavam em Finalizados ficam lá.
+- Quem move: como antes, do Comitê em diante só analista — incluindo enviar para assinatura,
+  finalizar e arquivar.
+- **Taxa e TAC** (V80): `taxa` em % (até 4 casas) e `tac` em R$, opcionais, no formulário e no
+  bloco Operação (Valor, Tipo, Taxa, TAC; Prazo e Resultado na linha de baixo). Mudanças entram
+  no histórico; o XLSX ganhou as colunas "Taxa (%)" e "TAC" no fim da aba Cards.
+- **Fora da tela** (2026-10-12): comprometimento do limite e concentração saíram do bloco Análise
+  de risco; continuam lidos da AR e no XLSX. "Criado por / Última alteração" saiu da lateral
+  (está no histórico) e Membros virou uma linha de iniciais.
+- **Tranche** (V81): em aberto não confirmado do cedente = "a confirmar" + "não confirmados" da
+  linha TOTAL EM ABERTO da AR. Preenchida pela importação, editável, no bloco Operação, no
+  histórico e no XLSX (coluna "Tranche").
+- **Quadrados O, C e D por sacado** (V82): O = opinião da Origem (qualquer pessoa, card na
+  Origem), C = opinião do Comitê (analista, Comitê ou Pendência), D = decisão da Diretoria
+  (analista, Comitê ou Pendência) — D é a antiga "situação" do sacado e continua calculando o
+  resultado. O e C não têm valor (parcial é só a opinião), ficam com o sacado na edição, entram
+  no histórico e no XLSX (aba Sacados). Endpoint `PATCH /{id}/sacados/{doc}/opiniao`.
+- **Parecer por sacado** (V83): um texto por quadrado (`parecer_origem`, `parecer_comite`,
+  `parecer_diretoria`), escrito por quem pode marcar aquele quadrado, com @menção (menção vira
+  membro e aviso). Aparece embaixo do sacado e no XLSX (aba Sacados, três colunas no fim).
+  Endpoint `PATCH /{id}/sacados/{doc}/parecer`.
+- **Arquivos das esteiras no próprio portal** (2026-10-12): anexos da liberação e documentos da
+  prospecção deixam de ir para a pasta de rede das empresas (nunca foi montada em produção, e o
+  anexo dava "pasta base não está acessível"). `ArmazenamentoEsteiras` grava em
+  `app.documentos.esteiras` (`./dados/esteiras`; no Docker, volume nomeado
+  `esteiras_arquivos` em `/app/dados/esteiras`). Mesma estrutura de pastas por CNPJ; download
+  só pelo portal. A página de documentos da empresa continua usando a pasta base do Sistema.
+- **Praça de Pagamento no card**: cedente e sacados mostram os apontamentos da Visão Cedente
+  (títulos decididos como CEDENTE em que o CNPJ aparece como cedente ou sacado, valor pago) —
+  a mesma regra da página da empresa, em lote (`apontamentosPorDocumento`). Aviso na Operação,
+  chip no quadro e no sacado. Sem migração: lê `payment_place_entries`.

@@ -31,6 +31,8 @@ import {
   mascararDocumento,
   moedaParaCampo,
   parseMoeda,
+  parseTaxa,
+  taxaParaCampo,
 } from "./formatters";
 
 /** `carteira`: linha do sacado na AR; cai quando o documento é editado à mão. */
@@ -40,6 +42,9 @@ export type ValoresIniciais = {
   cedente: CedenteEscolhido | null;
   tipoOperacao: TipoOperacao | null;
   valor: number | null;
+  taxa?: number | null;
+  tac?: number | null;
+  tranche?: number | null;
   prazo: string | null;
   parecerOrigem: string | null;
   posicaoOrigem: PosicaoParecer | null;
@@ -152,6 +157,9 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
     setCriandoTipo(false);
   }
   const [valor, setValor] = useState(moedaParaCampo(inicial?.valor));
+  const [taxa, setTaxa] = useState(taxaParaCampo(inicial?.taxa));
+  const [tac, setTac] = useState(moedaParaCampo(inicial?.tac));
+  const [tranche, setTranche] = useState(moedaParaCampo(inicial?.tranche));
   const [prazo, setPrazo] = useState(isoParaCampoData(inicial?.prazo));
   const [parecer, setParecer] = useState(inicial?.parecerOrigem ?? "");
   const [posicao, setPosicao] = useState<PosicaoParecer | null>(inicial?.posicaoOrigem ?? null);
@@ -187,6 +195,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
       setCedente({ cnpj: resultado.cedenteCnpj, nome: resultado.cedenteNome ?? resultado.clienteNome ?? "", cadastrado: resultado.cedenteCadastrado });
     }
     if (resultado.proposta.faceLiberados != null) setValor(moedaParaCampo(resultado.proposta.faceLiberados));
+    if (resultado.proposta.tranche != null) setTranche(moedaParaCampo(resultado.proposta.tranche));
     setLinhas(
       resultado.sacados.length > 0
         ? resultado.sacados.map(sacado => novaLinha(formatDocumento(sacado.documento), sacado.nome, moedaParaCampo(sacado.valor), sacado.carteira))
@@ -233,6 +242,9 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
       cedenteNome: cedente.cadastrado ? null : cedente.nome.trim(),
       tipoOperacao: tipo,
       valor: valorNumero,
+      taxa: parseTaxa(taxa),
+      tac: parseMoeda(tac),
+      tranche: parseMoeda(tranche),
       prazo: prazo || null,
       parecerOrigem: parecer.trim() || null,
       posicaoOrigem: posicao,
@@ -322,7 +334,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
           <p className="mt-1 text-[11px] text-slate-400">Opcional. Tipo novo fica disponível para todos.</p>
         </fieldset>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-[1.4fr_1fr_1fr]">
           <div>
             <label htmlFor="card-valor" className={ROTULO}>
               Valor da operação <span className="font-normal text-slate-400">(opcional)</span>
@@ -335,6 +347,60 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
                 value={valor}
                 onChange={event => setValor(event.target.value)}
                 onBlur={() => setValor(moedaParaCampo(parseMoeda(valor)))}
+                placeholder="0,00"
+                className={`${CAMPO} pl-9 text-right tabular-nums`}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="card-taxa" className={ROTULO}>
+              Taxa <span className="font-normal text-slate-400">(opcional)</span>
+            </label>
+            <div className="relative">
+              <input
+                id="card-taxa"
+                inputMode="decimal"
+                value={taxa}
+                onChange={event => setTaxa(event.target.value)}
+                onBlur={() => setTaxa(taxaParaCampo(parseTaxa(taxa)))}
+                placeholder="0,00"
+                className={`${CAMPO} pr-8 text-right tabular-nums`}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="card-tac" className={ROTULO}>
+              TAC <span className="font-normal text-slate-400">(opcional)</span>
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
+              <input
+                id="card-tac"
+                inputMode="decimal"
+                value={tac}
+                onChange={event => setTac(event.target.value)}
+                onBlur={() => setTac(moedaParaCampo(parseMoeda(tac)))}
+                placeholder="0,00"
+                className={`${CAMPO} pl-9 text-right tabular-nums`}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="card-tranche" className={ROTULO}>
+              Tranche <span className="font-normal text-slate-400">(a confirmar + não confirmados)</span>
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
+              <input
+                id="card-tranche"
+                inputMode="decimal"
+                value={tranche}
+                onChange={event => setTranche(event.target.value)}
+                onBlur={() => setTranche(moedaParaCampo(parseMoeda(tranche)))}
                 placeholder="0,00"
                 className={`${CAMPO} pl-9 text-right tabular-nums`}
               />

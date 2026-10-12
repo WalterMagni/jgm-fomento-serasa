@@ -73,6 +73,9 @@ services:
       # Em produção/WSL, garanta que o compartilhamento esteja montado no host em:
       # /mnt/jgm/FM/Cadastro e Comercial/CLIENTES
       - "${DOCUMENTS_BASE_HOST_PATH:-/mnt/jgm/FM/Cadastro e Comercial/CLIENTES}:/mnt/clientes"
+      # Arquivos das esteiras (anexos da liberação, documentos da prospecção): ficam no próprio
+      # portal, neste volume. Sobrevive a deploy e a "docker compose down" — só "down -v" apaga.
+      - esteiras_arquivos:/app/dados/esteiras
     networks:
       - serasa-net
       - cnpj-net
@@ -140,6 +143,7 @@ services:
 
 volumes:
   postgres_data:
+  esteiras_arquivos:
 
 networks:
   serasa-net:

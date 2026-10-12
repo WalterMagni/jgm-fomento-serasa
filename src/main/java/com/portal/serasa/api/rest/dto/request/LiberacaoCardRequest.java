@@ -26,7 +26,14 @@ public record LiberacaoCardRequest(
         com.portal.serasa.domain.model.liberacao.PosicaoParecer posicaoOrigem,
         @Valid @Size(max = 200) List<Sacado> sacados,
         Long version,
-        com.portal.serasa.domain.model.liberacao.PropostaAr proposta) {
+        com.portal.serasa.domain.model.liberacao.PropostaAr proposta,
+        /** Taxa da operação em % (2,5 = 2,5%). */
+        @DecimalMin(value = "0.0000", message = "Taxa não pode ser negativa")
+        @jakarta.validation.constraints.DecimalMax(value = "100.0000", message = "Taxa acima de 100%") BigDecimal taxa,
+        /** TAC em R$. */
+        @DecimalMin(value = "0.00", message = "TAC não pode ser negativa") BigDecimal tac,
+        /** Em aberto não confirmado do cedente, em R$. */
+        @DecimalMin(value = "0.00", message = "Tranche não pode ser negativa") BigDecimal tranche) {
 
     /** @param carteira linha do sacado na AR, quando veio do PDF */
     public record Sacado(

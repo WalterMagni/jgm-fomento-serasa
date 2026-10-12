@@ -1,6 +1,5 @@
 package com.portal.serasa.application.service.documento;
 
-import com.portal.serasa.application.service.SystemSettingService;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,15 +27,15 @@ import static org.mockito.Mockito.when;
 class CompartilhamentoDocumentosTest {
 
     @TempDir Path base;
-    @Mock private SystemSettingService systemSettingService;
+    @Mock private ArmazenamentoEsteiras armazenamento;
 
     private CompartilhamentoDocumentos documentos;
 
     @BeforeEach
     void setUp() throws IOException {
         base = base.toRealPath();
-        documentos = new CompartilhamentoDocumentos(systemSettingService);
-        when(systemSettingService.requireDocumentStorageBasePath()).thenReturn(base);
+        documentos = new CompartilhamentoDocumentos(armazenamento);
+        when(armazenamento.base()).thenReturn(base);
     }
 
     private static MockMultipartFile arquivo(String nome, String mime, byte[] conteudo) {
@@ -139,14 +138,14 @@ class CompartilhamentoDocumentosTest {
     }
 
     @Test
-    @DisplayName("base não configurada vira 'Compartilhamento de documentos indisponível'")
+    @DisplayName("pasta das esteiras indisponível chega como erro de uso, com a mensagem do armazenamento")
     void shouldExplainUnavailableShare() {
-        when(systemSettingService.requireDocumentStorageBasePath())
-                .thenThrow(new IllegalArgumentException("Configure a pasta base dos documentos em Sistema"));
+        when(armazenamento.base())
+                .thenThrow(new IllegalArgumentException("Pasta de arquivos das esteiras indisponível (/app/dados/esteiras)"));
 
         assertThatThrownBy(() -> documentos.ler("a/b.pdf"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageStartingWith("Compartilhamento de documentos indisponível");
+                .hasMessageStartingWith("Pasta de arquivos das esteiras indisponível");
     }
 
     // -------------------------------------------------------- segurança de caminho

@@ -71,3 +71,5 @@ response.json
 gcp-bq-key.json
 *-bq-key.json
 jgm-fomento-*.json
+# Arquivos das esteiras quando o backend roda fora do Docker
+dados/

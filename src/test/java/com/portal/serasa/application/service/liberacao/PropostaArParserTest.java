@@ -85,7 +85,9 @@ class PropostaArParserTest {
                 // carteira: liquidados, liquidados em atraso, recomprados, vencidos, a vencer, em aberto
                 n("547000.00"), n("12000.00"), n("8000.00"), n("3300.00"), n("40000.00"), n("43300.00"),
                 // risco: atual (indiv., grupo, concentração) e após a compra (indiv., grupo, concentração)
-                n("35.2500"), n("0.0000"), n("1.1000"), n("41.7500"), n("0.0000"), n("1.3500"));
+                n("35.2500"), n("0.0000"), n("1.1000"), n("41.7500"), n("0.0000"), n("1.3500"),
+                // tranche: a confirmar + não confirmados do TOTAL EM ABERTO
+                n("16100.00"));
 
         assertThatRecursivo(parser.lerTexto(ar()).resumo()).isEqualTo(esperado);
     }
@@ -100,9 +102,23 @@ class PropostaArParserTest {
         assertThat(resumo.vencidos()).isEqualByComparingTo("3300.00");
         assertThat(resumo.vincendos()).isEqualByComparingTo("40000.00");
         assertThat(resumo.emAberto()).isEqualByComparingTo("43300.00");
+        // tranche: "a confirmar" + "não confirmados" do TOTAL EM ABERTO (16.100,00 + 0,00)
+        assertThat(resumo.tranche()).isEqualByComparingTo("16100.00");
         // "TOTAL LIQUIDADO" (liquidados + recomprados) e "TOTAL EM ABERTO" não sobrescrevem o TOTAL da seção
         assertThat(resumo.liquidados()).isNotEqualByComparingTo("555000.00");
         assertThat(resumo.vincendos()).isNotEqualByComparingTo(resumo.emAberto());
+    }
+
+    @Test
+    @DisplayName("lerTexto: tranche soma 'a confirmar' e 'não confirmados' do TOTAL EM ABERTO (linha do relatório real)")
+    void shouldReadTrancheFromTotalEmAberto() {
+        String texto = ar().replace("TOTAL EM ABERTO 16.100,00 27.200,00 0,00 43.300,00",
+                "TOTAL EM ABERTO 359.023,31 795.335,67 2.767.243,70 3.921.602,68");
+
+        PropostaAr resumo = parser.lerTexto(texto).resumo();
+
+        assertThat(resumo.tranche()).isEqualByComparingTo("3126267.01");
+        assertThat(resumo.emAberto()).isEqualByComparingTo("3921602.68");
     }
 
     @Test

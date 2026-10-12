@@ -15,6 +15,7 @@ import type {
   PessoaDiretorio,
   PosicaoParecer,
   PropostaImportada,
+  QuadroOpiniao,
   Resultado,
   UsuarioAtual,
 } from "../types/liberacao";
@@ -70,11 +71,14 @@ async function pedir<T>(url: string, init: RequestInit, fallback: string): Promi
 
 // ------------------------------------------------------------------ leitura
 
-/** @param tempoReal canal de notificações ligado: o quadro se atualiza por evento, sem polling. */
-export function useLiberacaoCards(finalizadosDesde?: string, tempoReal = false) {
-  const query = finalizadosDesde ? `?finalizadosDesde=${finalizadosDesde}` : "";
+/**
+ * @param arquivados traz também os finalizados arquivados
+ * @param tempoReal  canal de notificações ligado: o quadro se atualiza por evento, sem polling.
+ */
+export function useLiberacaoCards(arquivados = false, tempoReal = false) {
+  const query = arquivados ? "?arquivados=true" : "";
   return useQuery<LiberacaoCard[]>({
-    queryKey: [...LISTA_KEY, finalizadosDesde ?? ""],
+    queryKey: [...LISTA_KEY, arquivados ? "arquivados" : ""],
     queryFn: () => pedir(`${API_BASE_URL}/liberacao${query}`, {}, "Falha ao carregar a esteira"),
     staleTime: 15 * 1000,
     // Com o canal ligado, cada mudança chega como evento. Sem ele (reconectando), o quadro volta
@@ -204,10 +208,8 @@ type Mover = {
   para: EtapaLiberacao;
   pendencias?: NovaPendencia[];
   observacao?: string;
-  /** Ao finalizar: decisão de cada sacado. */
+  /** Ao aprovar: decisão de cada sacado. */
   decisoes?: DecisaoSacado[];
-  /** Ao finalizar card sem sacados. */
-  resultado?: Resultado;
 };
 
 /**
@@ -237,6 +239,34 @@ export function useMoverCard() {
       queryClient.invalidateQueries({ queryKey: LISTA_KEY });
     },
     onSuccess: card => atualizar(card),
+  });
+}
+
+/** Arquiva ou desarquiva um finalizado. O quadro recarrega: arquivado sai da lista. */
+export function useArquivarCard() {
+  const queryClient = useQueryClient();
+  return useMutation<LiberacaoCard, Error, { id: string; arquivado: boolean }>({
+    mutationFn: ({ id, arquivado }) =>
+      pedir(`${API_BASE_URL}/liberacao/${id}/arquivo?arquivado=${arquivado}`, { method: "PATCH" }, "Falha ao arquivar"),
+    onSuccess: (card, { arquivado }) => {
+      queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+      queryClient.invalidateQueries({ queryKey: detalheKey(card.id) });
+      toast.success(arquivado ? `#${card.numero} arquivado` : `#${card.numero} de volta ao quadro`);
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** "Arquivar todos" da coluna Finalizados. */
+export function useArquivarFinalizados() {
+  const queryClient = useQueryClient();
+  return useMutation<{ arquivados: number }, Error, void>({
+    mutationFn: () => pedir(`${API_BASE_URL}/liberacao/finalizados/arquivar`, { method: "POST" }, "Falha ao arquivar"),
+    onSuccess: ({ arquivados }) => {
+      queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+      toast.success(arquivados === 1 ? "1 card arquivado" : `${arquivados} cards arquivados`);
+    },
+    onError: error => toast.error(error.message),
   });
 }
 
@@ -352,6 +382,39 @@ export function useDecidirSacado() {
         "Falha ao decidir o sacado",
       ),
     onSuccess: atualizar,
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** Quadrado O (Origem) ou C (Comitê) de um sacado. Situação nula limpa. */
+export function useOpinarSacado() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; documento: string; quadro: QuadroOpiniao; situacao: Resultado | null }>({
+    mutationFn: ({ id, documento, ...body }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/${id}/sacados/${documento}/opiniao`,
+        { method: "PATCH", body: JSON.stringify(body) },
+        "Falha ao marcar a opinião",
+      ),
+    onSuccess: atualizar,
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** Parecer em texto de um quadrado do sacado (O, C ou D). Vazio apaga. */
+export function useParecerSacado() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<LiberacaoDetalhe, Error, { id: string; documento: string; quadro: QuadroOpiniao; texto: string }>({
+    mutationFn: ({ id, documento, ...body }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/${id}/sacados/${documento}/parecer`,
+        { method: "PATCH", body: JSON.stringify(body) },
+        "Falha ao salvar o parecer",
+      ),
+    onSuccess: detalhe => {
+      atualizar(detalhe);
+      toast.success("Parecer salvo");
+    },
     onError: error => toast.error(error.message),
   });
 }

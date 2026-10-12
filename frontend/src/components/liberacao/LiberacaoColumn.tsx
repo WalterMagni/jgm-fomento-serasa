@@ -17,11 +17,13 @@ type Props = {
   alvo: { permitido: boolean; motivo: string | null; origem: boolean } | null;
   onAbrir: (id: string) => void;
   onNovo?: () => void;
+  /** Finalizados: tira do quadro todos os cards da coluna. */
+  onArquivarTodos?: () => void;
   /** No celular a coluna ocupa a largura toda. */
   larguraTotal?: boolean;
 };
 
-export default function LiberacaoColumn({ etapa, cards, alvo, onAbrir, onNovo, larguraTotal = false }: Props) {
+export default function LiberacaoColumn({ etapa, cards, alvo, onAbrir, onNovo, onArquivarTodos, larguraTotal = false }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: etapa, disabled: !alvo?.permitido });
   const cor = COR_ETAPA[etapa];
   const soma = cards.reduce((total, card) => total + (card.valor ?? 0), 0);
@@ -59,6 +61,18 @@ export default function LiberacaoColumn({ etapa, cards, alvo, onAbrir, onNovo, l
                 dark:hover:bg-slate-800 dark:hover:text-[#e8a3b6]"
             >
               <Icon name="add" size={16} />
+            </button>
+          )}
+          {onArquivarTodos && cards.some(card => !card.arquivadoEm) && (
+            <button
+              type="button"
+              onClick={onArquivarTodos}
+              title="Arquivar todos os finalizados"
+              className="-my-1 inline-flex h-7 cursor-pointer items-center gap-1 rounded-lg px-1.5 text-[11px] font-medium text-slate-500
+                transition-colors hover:bg-white hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+                dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              <Icon name="inventory_2" size={14} /> arquivar todos
             </button>
           )}
         </div>

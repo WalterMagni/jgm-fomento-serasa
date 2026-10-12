@@ -1,6 +1,6 @@
 /** Esteira de liberação de operações. Espelha os DTOs de /api/v1/liberacao. */
 
-export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "FINALIZADO";
+export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "APROVADO" | "REPROVADO" | "ASSINATURA" | "FINALIZADO";
 
 /** Decisão de um sacado e resultado do card, que sai das decisões dos sacados. */
 export type Resultado = "APROVADO" | "REPROVADO" | "PARCIAL";
@@ -41,12 +41,18 @@ export type TipoEventoLiberacao =
   | "ANEXO_REMOVIDO"
   | "EXCLUSAO";
 
-export const ETAPAS: EtapaLiberacao[] = ["ORIGEM", "COMITE", "PENDENCIA", "FINALIZADO"];
+export const ETAPAS: EtapaLiberacao[] = ["ORIGEM", "COMITE", "PENDENCIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"];
+
+/** Já decidido: o prazo para de correr e os sacados não mudam sem reabrir. Igual ao backend. */
+export const ETAPAS_DECIDIDAS: EtapaLiberacao[] = ["APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"];
 
 export const ROTULO_ETAPA: Record<EtapaLiberacao, string> = {
   ORIGEM: "Origem da análise",
   COMITE: "Comitê",
   PENDENCIA: "Pendência",
+  APROVADO: "Aprovado",
+  REPROVADO: "Reprovado",
+  ASSINATURA: "Assinatura",
   FINALIZADO: "Finalizados",
 };
 
@@ -55,6 +61,9 @@ export const ROTULO_ETAPA_CURTO: Record<EtapaLiberacao, string> = {
   ORIGEM: "Origem",
   COMITE: "Comitê",
   PENDENCIA: "Pendência",
+  APROVADO: "Aprovado",
+  REPROVADO: "Reprovado",
+  ASSINATURA: "Assinatura",
   FINALIZADO: "Finalizados",
 };
 
@@ -93,8 +102,16 @@ export type LiberacaoCard = {
   cedenteCadastrado: boolean;
   /** Cidade/UF do cedente. */
   cedentePraca: string | null;
+  /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
+  pracaPagamento: PracaPagamento | null;
   tipoOperacao: TipoOperacao | null;
   valor: number | null;
+  /** Taxa da operação, em % (2,5 = 2,5%). */
+  taxa: number | null;
+  /** TAC, em R$. */
+  tac: number | null;
+  /** Em aberto não confirmado do cedente, em R$ (vem da AR; editável). */
+  tranche: number | null;
   prazo: string | null;
   parecerOrigem: string | null;
   posicaoOrigem: PosicaoParecer | null;
@@ -107,7 +124,11 @@ export type LiberacaoCard = {
   criadoEm: string;
   atualizadoPorNome: string;
   atualizadoEm: string;
+  /** Quando foi decidido (Aprovado ou Reprovado); nulo antes da decisão. */
   finalizadoEm: string | null;
+  /** Finalizado arquivado: só vem com o filtro de arquivados. */
+  arquivadoEm: string | null;
+  arquivadoPorNome: string | null;
   resultado: Resultado | null;
   /** Aprovados inteiros mais o aprovado dos parciais; nulo sem nenhuma decisão. */
   valorAprovado: number | null;
@@ -149,7 +170,27 @@ export type Sacado = {
   historico: DecisaoAnterior[];
   /** Linha do sacado na AR, quando o card veio do PDF. */
   carteira: CarteiraSacado | null;
+  /** Quadrado O: opinião da Origem. */
+  opiniaoOrigem: Resultado | null;
+  opiniaoOrigemPorNome: string | null;
+  opiniaoOrigemEm: string | null;
+  /** Quadrado C: opinião do Comitê. O quadrado D é a situação (decisão). */
+  opiniaoComite: Resultado | null;
+  opiniaoComitePorNome: string | null;
+  opiniaoComiteEm: string | null;
+  /** Parecer em texto de cada quadrado, com @menções. */
+  parecerOrigem: string | null;
+  parecerComite: string | null;
+  parecerDiretoria: string | null;
+  /** Apontamentos da Praça de Pagamento do sacado; nulo sem nenhum. */
+  pracaPagamento: PracaPagamento | null;
 };
+
+/** Títulos decididos como CEDENTE na Praça de Pagamento em que a empresa aparece, e o valor pago. */
+export type PracaPagamento = { titulos: number; valor: number };
+
+/** Quadrados do sacado: O (Origem), C (Comitê), D (Diretoria, a decisão). */
+export type QuadroOpiniao = "ORIGEM" | "COMITE" | "DIRETORIA";
 
 /**
  * Foto da Análise de Risco (AR) do sistema de operações no momento da importação. "Vincendos" é o
@@ -180,6 +221,8 @@ export type PropostaAr = {
   comprometimentoApos: number | null;
   comprometimentoGrupoApos: number | null;
   concentracaoApos: number | null;
+  /** "A confirmar" + "não confirmados" da linha TOTAL EM ABERTO. */
+  tranche: number | null;
 };
 
 /** O que o sacado já tem com o cedente, segundo a AR. `titulos`: quantos entram nesta proposta. */
@@ -296,6 +339,9 @@ export type DadosCard = {
   cedenteNome?: string | null;
   tipoOperacao: TipoOperacao | null;
   valor: number | null;
+  taxa: number | null;
+  tac: number | null;
+  tranche: number | null;
   prazo: string | null;
   parecerOrigem: string | null;
   posicaoOrigem: PosicaoParecer | null;

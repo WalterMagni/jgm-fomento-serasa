@@ -10,23 +10,28 @@ Para quem abre, analisa e decide a liberação de operações: auxiliares, anali
 Diretoria.
 
 A esteira substitui a planilha de liberação. Cada operação vira um card, e o card anda da
-**Origem da análise** até **Finalizados**. Tudo o que acontece com ele fica registrado com
+**Origem da análise** até **Finalizados**, passando pelo Comitê, pela decisão e, se aprovado,
+pela assinatura do contrato. Tudo o que acontece com ele fica registrado com
 nome, data e hora.
 
 A tela está marcada como **beta**: o fluxo ainda pode mudar conforme o time usar.
 
 ---
 
-## As quatro colunas
+## As sete colunas
 
 | Coluna | O que significa |
 |---|---|
 | **Origem da análise** | A auxiliar abriu o card e está preenchendo. |
 | **Comitê** | Esperando o parecer do Comitê. |
 | **Pendência** | Quem é analista pediu algo a alguém antes de decidir. |
-| **Finalizados** | Decidido. O card mostra o resultado: **Aprovado**, **Reprovado** ou **Parcialmente aprovado**. |
+| **Aprovado** | A analista aprovou, inteiro ou em parte. Próximo passo: **Enviar para assinatura**. |
+| **Reprovado** | A analista reprovou. Próximo passo: **Finalizar**. |
+| **Assinatura** | Aguardando a assinatura do contrato. Assinado, **Finalizar**. |
+| **Finalizados** | Fim de linha, com o resultado: **Aprovado**, **Reprovado** ou **Parcialmente aprovado**. Fica até alguém **arquivar**. |
 
-No topo de cada coluna aparecem quantos cards ela tem e a soma dos valores.
+No topo de cada coluna aparecem quantos cards ela tem e a soma dos valores. Com sete colunas,
+o quadro rola para o lado (no trackpad, ou com Shift + roda do mouse).
 
 ---
 
@@ -52,7 +57,8 @@ Botão **Nova análise** (ou o **+** na coluna Origem).
 
 1. **Cedente**: digite o nome ou o CNPJ. Se a empresa já está no portal, escolha na lista.
    Se não está, digite o CNPJ completo e informe a razão social.
-2. **Tipo de operação**, **valor** e **prazo para decisão** — os três são opcionais. Se o
+2. **Tipo de operação**, **valor**, **taxa** (em %), **TAC** (em R$), **tranche** (em R$) e
+   **prazo para decisão** — todos opcionais. Se o
    tipo que você precisa não está na lista, use **+ Novo tipo**: ele passa a aparecer para
    todo mundo. O prazo pode ser digitado (dd/mm/aaaa hh:mm) ou escolhido no calendário.
 3. **Sacados**: um CNPJ ou CPF por linha, com valor opcional. **Dá para colar vários de
@@ -76,17 +82,20 @@ de Risco gerado pelo sistema de operações. O portal preenche:
   do portal, a tela avisa: escolha o cedente à mão e, depois, vincule o código na página da
   empresa (campo "Código do cliente") — da próxima vez ele vem sozinho.
 - **Valor da operação**: a face dos títulos **liberados**.
+- **Tranche**: o "a confirmar" mais o "não confirmados" da linha **TOTAL EM ABERTO**. Dá para
+  corrigir à mão no formulário.
 - **Sacados**: os que têm título nesta proposta, com o valor de face e a carteira de cada um
   (a vencer, vencidos, liquidados, recomprados). Sacado que aparece na AR sem título fica de
   fora, e a tela diz quem.
 
 Confira e salve. O PDF entra sozinho nos **Anexos** do card, e o card ganha o bloco
-**Análise de risco**: comprometimento do limite antes e depois da compra (a régua marca o
-limite; acima dele fica vermelho), concentração, face, desconto, líquido e a carteira do
-cedente. Vencidos aparecem em vermelho e recomprados em âmbar, no cedente e em cada sacado.
+**Análise de risco**: títulos liberados, prazo médio, face, desconto e líquido da operação; do
+cedente, o limite e a carteira (a vencer, vencidos, liquidados, recomprados). Vencidos aparecem
+em vermelho e recomprados em âmbar, no cedente e em cada sacado. Comprometimento e concentração
+não aparecem na tela, mas estão no relatório XLSX.
 
 Os números são uma foto do relatório: não se atualizam sozinhos. Para trocar, edite o card e
-use **reimportar**. Card finalizado não reimporta — reabra no Comitê antes.
+use **reimportar**. Card já decidido não reimporta — reabra no Comitê antes.
 
 ---
 
@@ -113,24 +122,65 @@ Ao mover para **Pendência**, quem é analista diz **para quem** e **o que falta
 várias pessoas de uma vez. A pessoa recebe um aviso, responde dentro do card, e quem
 pediu é avisado.
 
-Da Pendência, quem é analista finaliza ou devolve ao Comitê.
+Da Pendência, quem é analista aprova, reprova ou devolve ao Comitê.
 
 ---
 
-## Decisão por sacado e Finalizados
+## Praça de Pagamento
 
-Cada sacado recebe uma decisão: **Aprovado**, **Reprovado** ou **Parcial** — no parcial, com o
-valor aprovado. A analista decide na lista de sacados do card, com ele no Comitê ou em
-Pendência, ou tudo de uma vez ao **Finalizar** (arrastando para Finalizados ou pelo botão).
+Se o cedente tem títulos apontados na **Praça de Pagamento** (decididos como pagos pelo
+cedente), o card avisa em vermelho: no quadro aparece **praça R$ …**, e dentro do card, na
+Operação, quantos títulos e o valor total — com o link para os detalhes na página da empresa.
+Sacado da operação que também aparece em apontamentos ganha a etiqueta **praça de pagamento**
+com os números dele. A conta é a mesma da página da empresa.
+
+## Os quadrados O, C e D de cada sacado
+
+Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprovado,
+**amarelo** = parcial, **vermelho** = reprovado. Quadrado tracejado ainda não foi marcado.
+
+| Quadrado | De quem | Quem marca e quando |
+|---|---|---|
+| **O** | Origem | Qualquer pessoa, com o card na Origem. |
+| **C** | Comitê | Quem é analista, com o card no Comitê ou em Pendência. |
+| **D** | Diretoria | Quem é analista, com o card no Comitê ou em Pendência. No parcial, pede o valor aprovado. |
+
+Clique no quadrado para escolher; clique de novo na mesma opção (ou em **Limpar**) para
+desmarcar. No mesmo menu fica o **parecer** daquele quadrado: escreva o porquê da decisão e
+clique em **Salvar parecer** — dá para marcar pessoas e empresas com @, e quem for marcado
+recebe aviso. Os pareceres aparecem embaixo do sacado, cada um com a letra na cor da decisão. Passando o mouse, aparece quem marcou e quando. **O D é a decisão que vale**: é dele
+que sai o resultado do card. O e C ficam como registro da opinião de cada um. Nas demais colunas
+os três aparecem, mas só para consulta.
+
+## Aprovar, reprovar, assinatura e Finalizados
+
+Quem decide é a analista, movendo o card do Comitê (ou da Pendência) para **Aprovado** ou
+**Reprovado** — arrastando ou pelo botão no card.
+
+- **Aprovar** abre a decisão (D) de cada sacado: **Aprovado**, **Reprovado** ou **Parcial** (no
+  parcial, com o valor aprovado). O que já foi marcado no quadrado D vem preenchido.
+  Basta um sacado aprovado ou parcial; se todos forem reprovados, use **Reprovar**.
+- **Reprovar** reprova todos os sacados de uma vez e pede só a observação.
 
 O resultado do card sai das decisões dos sacados:
 
 - todos aprovados → **Aprovado**;
-- todos reprovados → **Reprovado**;
-- qualquer mistura ou parcial → **Parcialmente aprovado**, com o total aprovado.
+- qualquer mistura ou parcial → **Parcialmente aprovado**, com o total aprovado;
+- todos reprovados → **Reprovado**.
 
-Card sem sacados pede o resultado direto. Para mudar uma decisão depois de finalizado, reabra
-o card no Comitê.
+Card sem sacados aprovado fica **Aprovado** inteiro.
+
+Depois da decisão o card segue sozinho pelos botões: do Aprovado, **Enviar para assinatura**;
+da Assinatura e do Reprovado, **Finalizar**. Em qualquer uma dessas colunas dá para
+**Reabrir no Comitê** — o card volta com rodada nova de pareceres, e o resultado é refeito na
+nova decisão. O prazo para de correr assim que o card é decidido.
+
+### Arquivar
+
+Em Finalizados, quem é analista **arquiva** o card (botão no card) ou a coluna inteira
+(**arquivar todos**, no topo da coluna). Arquivado sai do quadro, mas continua no relatório.
+Para ver de novo, use **Finalizados: com arquivados** na barra de filtros; dentro do card,
+**Desarquivar** devolve ao quadro.
 
 ---
 
@@ -152,7 +202,8 @@ CNPJ Já. CNPJ colado no texto sem @ também vira link.
 Na seção **Atividade** do card. Todo mundo comenta, em qualquer coluna. **Ctrl + Enter**
 envia. Só quem escreveu pode editar ou apagar o próprio comentário.
 
-A Atividade junta comentários e histórico. O botão **Comentários** mostra só a conversa.
+A Atividade abre em **Comentários**, só com a conversa. Para ver também o histórico (quem
+moveu, editou, decidiu), clique em **Tudo**.
 
 ---
 
@@ -184,9 +235,8 @@ O quadro se atualiza sozinho: quando alguém move um card, você vê na hora.
 ## Anexos
 
 Na seção **Anexos** do card: arraste o arquivo ou clique em **Anexar arquivo**. PDF, imagem,
-Word, Excel, texto ou CSV, até 10 MB. O arquivo vai para a pasta do cedente no compartilhamento
-de rede (\`liberacao/<número do card>\`), então também dá para achá-lo fora do portal. Quem
-enviou ou uma analista pode remover: some do card, mas continua na pasta.
+Word, Excel, texto ou CSV, até 10 MB. O arquivo fica guardado no próprio portal — baixe pelo
+card. Quem enviou ou uma analista pode remover: some do card, mas o arquivo continua guardado.
 
 ---
 
@@ -210,8 +260,8 @@ Dentro do card, na coluna da direita:
 - **Filtros**: membro, etiqueta, tipo, prazo (vencido, hoje, próximos 7 dias), quem criou e
   período de criação.
 - **Resultado**: aprovado, reprovado ou parcialmente aprovado.
-- **Finalizados**: por padrão aparecem os finalizados dos últimos 30 dias. Dá para ver 90 dias,
-  o último ano ou **ocultar** a coluna.
+- **Finalizados**: por padrão aparecem os não arquivados. **Com arquivados** traz os arquivados
+  de volta para consulta; **ocultos** tira a coluna do quadro.
 - **Ordenar**: prazo mais próximo, última atividade, mais recentes, mais antigos, maior valor
   ou nome do cedente.
 
@@ -245,7 +295,11 @@ Peça ao admin.
 
 **O card não sai do Comitê.** Ninguém deu parecer ainda — é preciso pelo menos um.
 
-**Não consigo finalizar.** Algum sacado está sem decisão; a tela diz qual.
+**Não consigo aprovar.** Algum sacado está sem decisão; a tela diz qual. Se todos foram
+reprovados, use **Reprovar**.
+
+**Não consigo finalizar um card aprovado.** Aprovado passa pela **Assinatura** antes de
+finalizar.
 
 **Alguém salvou antes de mim.** Se duas pessoas editam o mesmo card ao mesmo tempo, a
 segunda a salvar recebe um aviso para recarregar, em vez de apagar o que a outra fez.

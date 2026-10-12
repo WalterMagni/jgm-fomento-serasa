@@ -17,17 +17,22 @@ public interface LiberacaoCardJpaRepository extends JpaRepository<LiberacaoCardE
     Optional<LiberacaoCardEntity> findByIdAndExcluidoEmIsNull(UUID id);
 
     /**
-     * Cards do quadro: todo card aberto e os finalizados a partir de uma data.
-     *
-     * <p>Sem o corte, Aprovado e Reprovado cresceriam para sempre e o quadro inteiro ficaria
-     * lento só para desenhar colunas que ninguém rola.</p>
+     * Cards do quadro. Arquivado só com o filtro: é o arquivamento que impede Finalizados de
+     * crescer para sempre e deixar o quadro lento.
      */
     @Query("""
             select c from LiberacaoCardEntity c
             where c.excluidoEm is null
-              and (c.finalizadoEm is null or c.finalizadoEm >= :finalizadosDesde)
+              and (:incluirArquivados = true or c.arquivadoEm is null)
             """)
-    List<LiberacaoCardEntity> listarQuadro(@Param("finalizadosDesde") LocalDateTime finalizadosDesde);
+    List<LiberacaoCardEntity> listarQuadro(@Param("incluirArquivados") boolean incluirArquivados);
+
+    @Query("""
+            select c from LiberacaoCardEntity c
+            where c.excluidoEm is null and c.arquivadoEm is null
+              and c.etapa = com.portal.serasa.domain.model.liberacao.EtapaLiberacao.FINALIZADO
+            """)
+    List<LiberacaoCardEntity> finalizadosNaoArquivados();
 
     /**
      * Cor e etiquetas mudam por consulta direta, sem passar pela versão do card: são ações

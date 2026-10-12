@@ -22,7 +22,6 @@ import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.security.UsuarioLogado;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -67,14 +66,11 @@ public class LiberacaoController {
 
     // ---------------------------------------------------------------- leitura
 
-    /** Cards do quadro. Finalizados só a partir de {@code finalizadosDesde} (padrão: 30 dias). */
+    /** Cards do quadro. Arquivados só com {@code arquivados=true}. */
     @GetMapping
-    public ResponseEntity<List<LiberacaoCardResponse>> listar(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate finalizadosDesde) {
+    public ResponseEntity<List<LiberacaoCardResponse>> listar(@RequestParam(defaultValue = "false") boolean arquivados) {
         UserEntity usuario = usuarioLogado.obter();
-        return ResponseEntity.ok(assembler.cards(
-                liberacaoService.listarQuadro(finalizadosDesde != null ? finalizadosDesde.atStartOfDay() : null),
-                usuario));
+        return ResponseEntity.ok(assembler.cards(liberacaoService.listarQuadro(arquivados), usuario));
     }
 
     /** Tipos de operação para o formulário e o filtro: padrões e os criados pelo time. */
@@ -151,7 +147,20 @@ public class LiberacaoController {
                         .map(decisao -> new LiberacaoService.DecisaoSacado(decisao.documento(), decisao.situacao(), decisao.valorAprovado()))
                         .toList();
         return ResponseEntity.ok(assembler.card(liberacaoService.transicionar(
-                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, request.resultado(), autor), autor));
+                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, autor), autor));
+    }
+
+    /** Arquiva ou desarquiva um card finalizado. */
+    @PatchMapping("/{id}/arquivo")
+    public ResponseEntity<LiberacaoCardResponse> arquivar(@PathVariable UUID id, @RequestParam boolean arquivado) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(liberacaoService.arquivar(id, arquivado, autor), autor));
+    }
+
+    /** "Arquivar todos" da coluna Finalizados. */
+    @PostMapping("/finalizados/arquivar")
+    public ResponseEntity<java.util.Map<String, Integer>> arquivarFinalizados() {
+        return ResponseEntity.ok(java.util.Map.of("arquivados", liberacaoService.arquivarFinalizados(usuarioLogado.obter())));
     }
 
     /** Decide um sacado pela lista do card, sem finalizar. Só analista, no Comitê ou em Pendência. */
@@ -160,6 +169,24 @@ public class LiberacaoController {
                                                                   @Valid @RequestBody LiberacaoTransicaoRequest.DecisaoSacado request) {
         UserEntity autor = usuarioLogado.obter();
         liberacaoService.decidirSacado(id, new LiberacaoService.DecisaoSacado(documento, request.situacao(), request.valorAprovado()), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    /** Quadrado O (Origem) ou C (Comitê) de um sacado. Situação nula limpa. */
+    @PatchMapping("/{id}/sacados/{documento}/opiniao")
+    public ResponseEntity<LiberacaoDetalheResponse> opinarSacado(@PathVariable UUID id, @PathVariable String documento,
+                                                                 @Valid @RequestBody com.portal.serasa.api.rest.dto.request.LiberacaoOpiniaoRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        liberacaoService.opinarSacado(id, documento, request.quadro(), request.situacao(), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
+    /** Parecer em texto de um quadrado do sacado (O, C ou D). */
+    @PatchMapping("/{id}/sacados/{documento}/parecer")
+    public ResponseEntity<LiberacaoDetalheResponse> parecerSacado(@PathVariable UUID id, @PathVariable String documento,
+                                                                  @Valid @RequestBody com.portal.serasa.api.rest.dto.request.LiberacaoParecerSacadoRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        liberacaoService.parecerSacado(id, documento, request.quadro(), request.texto(), autor);
         return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 
@@ -347,7 +374,7 @@ public class LiberacaoController {
                         .toList();
         return new DadosCard(request.cedenteCnpj(), request.cedenteNome(), request.tipoOperacao(),
                 request.valor(), request.prazo(), request.parecerOrigem(), request.posicaoOrigem(), sacados,
-                request.proposta());
+                request.proposta(), request.taxa(), request.tac(), request.tranche());
     }
 
     private NovaPendencia pendencia(LiberacaoPendenciaRequest request) {

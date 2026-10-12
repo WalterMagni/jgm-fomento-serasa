@@ -1,6 +1,6 @@
 package com.portal.serasa.application.service.prospeccao;
 
-import com.portal.serasa.application.service.SystemSettingService;
+import com.portal.serasa.application.service.documento.ArmazenamentoEsteiras;
 import com.portal.serasa.domain.model.prospeccao.EscopoDocumento;
 import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
 import com.portal.serasa.domain.model.prospeccao.StatusDocumento;
@@ -42,7 +42,7 @@ class ProspeccaoArquivoServiceTest {
     @Mock private ProspeccaoArquivoJpaRepository arquivoRepository;
     @Mock private ProspeccaoDocumentoJpaRepository documentoRepository;
     @Mock private ProspeccaoService prospeccaoService;
-    @Mock private SystemSettingService systemSettingService;
+    @Mock private ArmazenamentoEsteiras armazenamento;
 
     private ProspeccaoArquivoService service;
 
@@ -56,7 +56,7 @@ class ProspeccaoArquivoServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         service = new ProspeccaoArquivoService(
-                arquivoRepository, documentoRepository, prospeccaoService, systemSettingService);
+                arquivoRepository, documentoRepository, prospeccaoService, armazenamento);
 
         card = ProspeccaoEntity.builder()
                 .id(UUID.randomUUID())
@@ -80,7 +80,7 @@ class ProspeccaoArquivoServiceTest {
                 .atualizadoEm(LocalDateTime.now())
                 .build();
 
-        when(systemSettingService.requireDocumentStorageBasePath()).thenReturn(base.toRealPath());
+        when(armazenamento.base()).thenReturn(base.toRealPath());
         when(prospeccaoService.buscar(card.getId())).thenReturn(card);
         when(documentoRepository.findById(documento.getId())).thenReturn(Optional.of(documento));
         when(documentoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -251,12 +251,12 @@ class ProspeccaoArquivoServiceTest {
     @Test
     @DisplayName("compartilhamento indisponível não estoura erro genérico")
     void shouldDegradeGracefullyWithoutShare() {
-        when(systemSettingService.requireDocumentStorageBasePath())
-                .thenThrow(new IllegalArgumentException("A pasta base configurada não está acessível"));
+        when(armazenamento.base())
+                .thenThrow(new IllegalArgumentException("Pasta de arquivos das esteiras indisponível (/app/dados/esteiras)"));
 
         assertThatThrownBy(() -> service.enviar(card.getId(), documento.getId(), pdf("x.pdf"), autor))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Compartilhamento de documentos indisponível");
+                .hasMessageContaining("Pasta de arquivos das esteiras indisponível");
     }
 
     @ParameterizedTest

@@ -29,8 +29,7 @@ precisa de atenção hoje — atrasado ou sem resposta do cliente.
 
 **Você mesmo abre.** Botão **Nova prospecção** no topo da esteira, ou **Abrir prospecção**
 na página da empresa (lá o CNPJ e o nome já vêm preenchidos). O CNPJ é obrigatório: é por ele
-que a esteira conversa com a análise de crédito, com as filiais e com a pasta de documentos
-no compartilhamento.
+que a esteira conversa com a análise de crédito, com as filiais e com os documentos da empresa.
 
 O **comercial** é opcional: escolha da lista, digite o nome de quem ainda não tem acesso ao
 portal, ou deixe "sem comercial" para cliente direto. Os **dados comerciais** (faturamento,
@@ -241,8 +240,8 @@ para Habilitado, quando for preciso rever o limite.
 **Card criado por engano ou fila para limpar.** Dentro do card, **Apagar**. Para vários de
 uma vez, botão **selecionar** no topo: clique nos cards (ou no ícone do cabeçalho para marcar
 a coluna inteira) e **Apagar** na barra de baixo. Só entra o que está visível no filtro
-atual. Apagar não tem volta: checklist e histórico somem junto, os arquivos ficam na pasta
-\`CLIENTES\`. Se a empresa só não vai seguir, prefira **Reprovar** ou **Mover para inerte**,
+atual. Apagar não tem volta: checklist e histórico somem junto, os arquivos ficam guardados
+no portal. Se a empresa só não vai seguir, prefira **Reprovar** ou **Mover para inerte**,
 que guardam o motivo. Card que veio da visão cedente volta a aparecer em **puxar visão
 cedente** depois de apagado.
 
@@ -256,6 +255,7 @@ comitê e concluir o contrato. O **parecer** é de quem foi convocado ao comitê
 comitê** é da dona ou de um membro do comitê. Os catálogos (documentos e produtos) só o
 administrador altera. Toda ação fica registrada no histórico com autor e data.
 
-**Anexo não sobe.** Se a mensagem falar em compartilhamento indisponível, a pasta de rede
-não está acessível — o mesmo problema que afeta a pasta de documentos da empresa.
+**Anexo não sobe.** Os arquivos ficam guardados no próprio portal. Se a mensagem falar em
+"pasta de arquivos das esteiras indisponível", o servidor não conseguiu gravar — avise o
+responsável pelo portal.
 `;

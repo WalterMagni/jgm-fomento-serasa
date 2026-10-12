@@ -11,14 +11,6 @@ import { formatDataHora, formatMoeda, formatMoedaCurta } from "./formatters";
  * linha de carteira de cada sacado. Os números são foto do relatório, não se recalculam.
  */
 
-const UMA_CASA = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const DUAS_CASAS = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** Comprometimento com uma casa ("255,8%"); concentração, que fica perto de zero, com duas. */
-export function formatPercentual(valor: number | null | undefined, casas: 1 | 2 = 1) {
-  return valor == null ? "—" : `${(casas === 2 ? DUAS_CASAS : UMA_CASA).format(valor)}%`;
-}
-
 function rotuloAr(proposta: PropostaAr) {
   return proposta.emitidaEm ? `AR de ${formatDataHora(proposta.emitidaEm)}` : "AR importada";
 }
@@ -118,8 +110,8 @@ export function ImportarProposta({ proposta, arquivo, avisos, onLida, onRemover 
             {arquivo && <span className="font-normal text-slate-400"> · {arquivo}</span>}
           </p>
           <p className="truncate text-[11px] text-slate-500">
-            {proposta.qtdLiberados ?? "—"} título{proposta.qtdLiberados === 1 ? "" : "s"} · {formatMoeda(proposta.faceLiberados)} · comprometimento{" "}
-            {formatPercentual(proposta.comprometimentoAtual)} → {formatPercentual(proposta.comprometimentoApos)}
+            {proposta.qtdLiberados ?? "—"} título{proposta.qtdLiberados === 1 ? "" : "s"} · face {formatMoeda(proposta.faceLiberados)} · líquido{" "}
+            {formatMoeda(proposta.liquido)}
           </p>
         </div>
         <button
@@ -169,56 +161,14 @@ function Numero({ rotulo, valor, detalhe, tom = "neutro" }: { rotulo: string; va
   );
 }
 
-/**
- * Comprometimento do limite antes e depois da compra, numa régua com o 100% marcado: passar do
- * limite é o que o Comitê olha primeiro.
- */
-function ReguaComprometimento({ atual, apos }: { atual: number | null; apos: number | null }) {
-  if (atual == null && apos == null) return null;
-  const topo = Math.max(atual ?? 0, apos ?? 0, 100) * 1.08;
-  const pos = (valor: number) => `${Math.min(100, (valor / topo) * 100)}%`;
-  const estourou = (apos ?? atual ?? 0) > 100;
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[10.5px] font-medium uppercase tracking-wide text-slate-400">Comprometimento do limite</p>
-        <p className={`font-display text-[15px] font-semibold tabular-nums ${estourou ? "text-rose-700 dark:text-rose-300" : "text-slate-800 dark:text-slate-100"}`}>
-          {formatPercentual(atual)} <span className="text-slate-400">→</span> {formatPercentual(apos)}
-        </p>
-      </div>
-      <div className="relative mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-slate-800" role="img"
-        aria-label={`Comprometimento de ${formatPercentual(atual)} hoje e ${formatPercentual(apos)} após a compra`}>
-        {apos != null && (
-          <div className={`absolute inset-y-0 left-0 rounded-full ${estourou ? "bg-rose-400/70" : "bg-[#612035]/40"}`} style={{ width: pos(apos) }} />
-        )}
-        {atual != null && (
-          <div className={`absolute inset-y-0 left-0 rounded-full ${atual > 100 ? "bg-rose-600" : "bg-[#612035]"}`} style={{ width: pos(atual) }} />
-        )}
-        <div className="absolute -inset-y-1 w-px bg-slate-500 dark:bg-slate-300" style={{ left: pos(100) }} />
-      </div>
-      <div className="relative mt-0.5 h-3 text-[10px] text-slate-400">
-        <span className="absolute -translate-x-1/2" style={{ left: pos(100) }}>limite</span>
-      </div>
-    </div>
-  );
-}
-
 export function ResumoProposta({ proposta }: { proposta: PropostaAr }) {
   const parcialDosTitulos = proposta.qtdTotal != null && proposta.qtdLiberados != null && proposta.qtdTotal !== proposta.qtdLiberados;
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
-      <div className="grid gap-4 px-4 py-3.5 sm:grid-cols-[1.4fr_1fr]">
-        <ReguaComprometimento atual={proposta.comprometimentoAtual} apos={proposta.comprometimentoApos} />
-        <div className="grid grid-cols-2 gap-3">
-          <Numero rotulo="Limite individual" valor={formatMoeda(proposta.limiteIndividual)}
-            detalhe={proposta.limiteGrupo ? `grupo ${formatMoeda(proposta.limiteGrupo)}` : proposta.grupo ?? undefined} />
-          <Numero rotulo="Concentração" valor={`${formatPercentual(proposta.concentracaoAtual, 2)} → ${formatPercentual(proposta.concentracaoApos, 2)}`} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 border-t border-slate-100 px-4 py-3.5 sm:grid-cols-4 dark:border-slate-800">
-        <Numero rotulo="Títulos liberados" valor={`${proposta.qtdLiberados ?? "—"}${parcialDosTitulos ? ` de ${proposta.qtdTotal}` : ""}`}
-          detalhe={proposta.prazoMedio != null ? `prazo médio ${Math.round(proposta.prazoMedio)} dias` : undefined} />
+      {/* Comprometimento e concentração ficam no relatório, fora da tela (pedido do time em 2026-10-12). */}
+      <div className="grid grid-cols-2 gap-3 px-4 py-3.5 sm:grid-cols-5">
+        <Numero rotulo="Títulos liberados" valor={`${proposta.qtdLiberados ?? "—"}${parcialDosTitulos ? ` de ${proposta.qtdTotal}` : ""}`} />
+        <Numero rotulo="Prazo médio" valor={proposta.prazoMedio != null ? `${Math.round(proposta.prazoMedio)} dias` : "—"} />
         <Numero rotulo="Face" valor={formatMoeda(proposta.faceLiberados)}
           detalhe={parcialDosTitulos ? `proposta ${formatMoeda(proposta.valorTotal)}` : undefined} />
         <Numero rotulo="Desconto" valor={formatMoeda(proposta.desconto)} />
@@ -226,8 +176,10 @@ export function ResumoProposta({ proposta }: { proposta: PropostaAr }) {
       </div>
 
       <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-3.5 dark:border-slate-800 dark:bg-slate-800/30">
-        <p className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.08em] text-slate-500">Carteira do cedente</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <p className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.08em] text-slate-500">Cedente</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <Numero rotulo="Limite individual" valor={formatMoeda(proposta.limiteIndividual)}
+            detalhe={proposta.limiteGrupo ? `grupo ${formatMoeda(proposta.limiteGrupo)}` : proposta.grupo ?? undefined} />
           <Numero rotulo="A vencer" valor={formatMoeda(proposta.vincendos)} />
           <Numero rotulo="Vencidos" valor={formatMoeda(proposta.vencidos)} tom={(proposta.vencidos ?? 0) > 0 ? "risco" : "neutro"} />
           <Numero rotulo="Liquidados" valor={formatMoeda(proposta.liquidados)}

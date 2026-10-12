@@ -19,6 +19,7 @@ import java.time.format.DateTimeParseException;
  *
  * @param emitidaEm data e hora do relatório, ISO ("2026-10-08T15:59:13"); nula se inválida
  * @param grupo     nome do grupo econômico no relatório, ou nulo quando vem em branco
+ * @param tranche   "a confirmar" + "não confirmados" da linha TOTAL EM ABERTO
  */
 public record PropostaAr(
         String clienteCodigo,
@@ -44,7 +45,22 @@ public record PropostaAr(
         BigDecimal concentracaoAtual,
         BigDecimal comprometimentoApos,
         BigDecimal comprometimentoGrupoApos,
-        BigDecimal concentracaoApos) {
+        BigDecimal concentracaoApos,
+        BigDecimal tranche) {
+
+    /** AR lida antes da tranche existir (cards de antes da V81 e testes). */
+    public PropostaAr(String clienteCodigo, String emitidaEm, String grupo, BigDecimal limiteIndividual,
+                      BigDecimal limiteGrupo, Integer qtdLiberados, BigDecimal prazoMedio, BigDecimal faceLiberados,
+                      BigDecimal desconto, BigDecimal liquido, Integer qtdTotal, BigDecimal valorTotal,
+                      BigDecimal liquidados, BigDecimal liquidadosEmAtraso, BigDecimal recomprados, BigDecimal vencidos,
+                      BigDecimal vincendos, BigDecimal emAberto, BigDecimal comprometimentoAtual,
+                      BigDecimal comprometimentoGrupoAtual, BigDecimal concentracaoAtual, BigDecimal comprometimentoApos,
+                      BigDecimal comprometimentoGrupoApos, BigDecimal concentracaoApos) {
+        this(clienteCodigo, emitidaEm, grupo, limiteIndividual, limiteGrupo, qtdLiberados, prazoMedio, faceLiberados,
+                desconto, liquido, qtdTotal, valorTotal, liquidados, liquidadosEmAtraso, recomprados, vencidos, vincendos,
+                emAberto, comprometimentoAtual, comprometimentoGrupoAtual, concentracaoAtual, comprometimentoApos,
+                comprometimentoGrupoApos, concentracaoApos, null);
+    }
 
     public PropostaAr {
         emitidaEm = dataValida(emitidaEm);
@@ -67,6 +83,7 @@ public record PropostaAr(
         comprometimentoApos = escala(comprometimentoApos, 4);
         comprometimentoGrupoApos = escala(comprometimentoGrupoApos, 4);
         concentracaoApos = escala(concentracaoApos, 4);
+        tranche = escala(tranche, 2);
     }
 
     /** {@link #emitidaEm()} já interpretada; nula quando o relatório não trouxe data. */

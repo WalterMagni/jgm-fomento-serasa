@@ -35,7 +35,15 @@ public record LiberacaoDetalheResponse(
                          /** Decisões sobre o mesmo documento em outros cards, a mais recente primeiro. */
                          List<DecisaoAnterior> historico,
                          /** Linha do sacado na AR, quando o card veio do PDF. */
-                         com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira) {
+                         com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira,
+                         /** Quadrado O: opinião da Origem. */
+                         ResultadoLiberacao opiniaoOrigem, String opiniaoOrigemPorNome, LocalDateTime opiniaoOrigemEm,
+                         /** Quadrado C: opinião do Comitê. O quadrado D é a situação. */
+                         ResultadoLiberacao opiniaoComite, String opiniaoComitePorNome, LocalDateTime opiniaoComiteEm,
+                         /** Parecer em texto de cada quadrado. */
+                         String parecerOrigem, String parecerComite, String parecerDiretoria,
+                         /** Apontamentos da Praça de Pagamento do sacado; nulo sem nenhum. */
+                         LiberacaoCardResponse.Praca pracaPagamento) {
     }
 
     public record DecisaoAnterior(UUID cardId, Long numero, String cedenteNome, ResultadoLiberacao situacao,

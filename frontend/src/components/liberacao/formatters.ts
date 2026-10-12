@@ -1,4 +1,4 @@
-import type { EtapaLiberacao, LiberacaoCard, PosicaoParecer } from "@/types/liberacao";
+import { ETAPAS_DECIDIDAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard, type PosicaoParecer } from "@/types/liberacao";
 
 export function formatDocumento(documento: string | null | undefined) {
   if (!documento) return "";
@@ -27,6 +27,18 @@ export function mascararDocumento(valor: string) {
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const MOEDA_CURTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 });
 
+const TAXA = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+/** Taxa da operação: "2,50%", "1,875%". */
+export function formatTaxa(taxa: number | null | undefined) {
+  return taxa == null ? "—" : `${TAXA.format(taxa)}%`;
+}
+
+/** Número para o campo de taxa, no formato que o parseMoeda lê de volta. */
+export function taxaParaCampo(taxa: number | null | undefined) {
+  return taxa == null ? "" : TAXA.format(taxa);
+}
+
 export function formatMoeda(valor: number | null | undefined) {
   return valor == null ? "—" : MOEDA.format(valor);
 }
@@ -43,6 +55,17 @@ export function parseMoeda(texto: string): number | null {
   const normalizado = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo.replace(/\.(?=\d{3}(\D|$))/g, "");
   const numero = Number(normalizado);
   return Number.isFinite(numero) ? Math.round(numero * 100) / 100 : null;
+}
+
+/**
+ * Taxa digitada ("2,5", "2.5", "1,875%") para número, com até 4 casas. Ponto aqui é sempre
+ * decimal: taxa não tem milhar, e "1.875" é 1,875%, não 1875%.
+ */
+export function parseTaxa(texto: string): number | null {
+  const limpo = texto.replace(/[^\d,.]/g, "").replace(",", ".");
+  if (!limpo) return null;
+  const numero = Number(limpo);
+  return Number.isFinite(numero) ? Math.round(numero * 10000) / 10000 : null;
 }
 
 /** Número para o campo de edição, no formato que o próprio parseMoeda lê de volta. */
@@ -77,7 +100,7 @@ export function isoParaCampoData(iso: string | null | undefined) {
 
 export type SituacaoPrazo = "ok" | "perto" | "vencido";
 
-/** Âmbar faltando menos de 24 h, vermelho depois do vencimento. Finalizado não corre prazo. */
+/** Âmbar faltando menos de 24 h, vermelho depois do vencimento. Depois da decisão o prazo não corre. */
 export function situacaoPrazo(card: Pick<LiberacaoCard, "prazo" | "finalizadoEm">): SituacaoPrazo | null {
   if (!card.prazo || card.finalizadoEm) return null;
   const restante = new Date(card.prazo).getTime() - Date.now();
@@ -123,6 +146,27 @@ export const COR_ETAPA: Record<EtapaLiberacao, { faixa: string; texto: string; f
     anel: "ring-[#D1732C]/40",
     hex: "#D1732C",
   },
+  APROVADO: {
+    faixa: "bg-emerald-600",
+    texto: "text-emerald-700 dark:text-emerald-300",
+    fundo: "bg-emerald-50 dark:bg-emerald-900/30",
+    anel: "ring-emerald-500/40",
+    hex: "#059669",
+  },
+  REPROVADO: {
+    faixa: "bg-rose-600",
+    texto: "text-rose-700 dark:text-rose-300",
+    fundo: "bg-rose-50 dark:bg-rose-900/30",
+    anel: "ring-rose-500/40",
+    hex: "#e11d48",
+  },
+  ASSINATURA: {
+    faixa: "bg-indigo-600",
+    texto: "text-indigo-700 dark:text-indigo-300",
+    fundo: "bg-indigo-50 dark:bg-indigo-900/30",
+    anel: "ring-indigo-500/40",
+    hex: "#4f46e5",
+  },
   FINALIZADO: {
     faixa: "bg-slate-700 dark:bg-slate-300",
     texto: "text-slate-700 dark:text-slate-200",
@@ -136,8 +180,30 @@ export const ICONE_ETAPA: Record<EtapaLiberacao, string> = {
   ORIGEM: "inbox",
   COMITE: "gavel",
   PENDENCIA: "hourglass_top",
+  APROVADO: "check_circle",
+  REPROVADO: "cancel",
+  ASSINATURA: "edit_note",
   FINALIZADO: "task_alt",
 };
+
+/** Texto do botão de mover, pela ação: "Aprovar", "Enviar para assinatura", "Reabrir no Comitê". */
+export function rotuloMover(de: EtapaLiberacao, para: EtapaLiberacao) {
+  if (para === "COMITE" && ETAPAS_DECIDIDAS.includes(de)) return "Reabrir no Comitê";
+  if (para === "COMITE" && de === "PENDENCIA") return "Voltar ao Comitê";
+  if (para === "ORIGEM") return "Devolver à Origem";
+  switch (para) {
+    case "APROVADO":
+      return "Aprovar";
+    case "REPROVADO":
+      return "Reprovar";
+    case "ASSINATURA":
+      return "Enviar para assinatura";
+    case "FINALIZADO":
+      return "Finalizar";
+    default:
+      return ROTULO_ETAPA_CURTO[para];
+  }
+}
 
 /** Resultado e decisão de sacado: verde, vermelho e âmbar, nos dois temas. */
 export const COR_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL", string> = {

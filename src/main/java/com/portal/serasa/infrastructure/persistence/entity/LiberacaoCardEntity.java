@@ -69,6 +69,18 @@ public class LiberacaoCardEntity {
     @Column(name = "parecer_origem", columnDefinition = "text")
     private String parecerOrigem;
 
+    /** Taxa da operação, em %. Ver V80. */
+    @Column(precision = 9, scale = 4)
+    private BigDecimal taxa;
+
+    /** Tarifa de abertura de crédito, em R$. Ver V80. */
+    @Column(precision = 15, scale = 2)
+    private BigDecimal tac;
+
+    /** Em aberto não confirmado do cedente (a confirmar + não confirmados da AR). Ver V81. */
+    @Column(precision = 15, scale = 2)
+    private BigDecimal tranche;
+
     /** Posição de quem abriu o card. Ver V69. */
     @Enumerated(EnumType.STRING)
     @Column(name = "posicao_origem", length = 16)
@@ -105,8 +117,16 @@ public class LiberacaoCardEntity {
     @Column(name = "atualizado_em", nullable = false)
     private LocalDateTime atualizadoEm;
 
+    /** Quando foi decidido (Aprovado ou Reprovado). Vale até reabrir no Comitê. */
     @Column(name = "finalizado_em")
     private LocalDateTime finalizadoEm;
+
+    /** Finalizado tirado do quadro. Ver V79. */
+    @Column(name = "arquivado_em")
+    private LocalDateTime arquivadoEm;
+
+    @Column(name = "arquivado_por_nome", length = 200)
+    private String arquivadoPorNome;
 
     /** Resultado ao finalizar, calculado das decisões dos sacados. Ver V70. */
     @Enumerated(EnumType.STRING)

@@ -92,6 +92,7 @@ public class PropostaArParser {
         BigDecimal vencidos = null;
         BigDecimal vincendos = null;
         BigDecimal emAberto = null;
+        BigDecimal tranche = null;
         BigDecimal[] risco = null;
         List<SacadoLido> sacados = new ArrayList<>();
         Integer totalTitulos = null;
@@ -194,6 +195,8 @@ public class PropostaArParser {
                 BigDecimal total = numero(m.group(5));
                 if (nome.equals("TOTAL EM ABERTO")) {
                     emAberto = total;
+                    // Tranche: o que está em aberto e não é confirmado — "a confirmar" + "não confirmados".
+                    tranche = numero(m.group(2)).add(numero(m.group(4)));
                 } else if (nome.equals("TOTAL")) {
                     switch (secao) {
                         case LIQUIDADOS -> liquidados = total;
@@ -218,7 +221,8 @@ public class PropostaArParser {
                 qtdLiberados, prazoMedio, faceLiberados, desconto, liquido, qtdTotal, valorTotal,
                 liquidados, liquidadosEmAtraso, recomprados, vencidos, vincendos, emAberto,
                 risco == null ? null : risco[0], risco == null ? null : risco[1], risco == null ? null : risco[2],
-                risco == null ? null : risco[3], risco == null ? null : risco[4], risco == null ? null : risco[5]);
+                risco == null ? null : risco[3], risco == null ? null : risco[4], risco == null ? null : risco[5],
+                tranche);
         return new Leitura(clienteCodigo, clienteNome, resumo, List.copyOf(sacados), totalTitulos, totalFace);
     }
 

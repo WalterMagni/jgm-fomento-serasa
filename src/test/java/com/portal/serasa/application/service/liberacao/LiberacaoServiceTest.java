@@ -13,6 +13,7 @@ import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.exception.TransicaoInvalidaException;
 import com.portal.serasa.domain.model.CompanyDetail;
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
+import com.portal.serasa.domain.model.liberacao.QuadroOpiniao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
@@ -462,6 +463,229 @@ class LiberacaoServiceTest {
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
+    // ------------------------------------------------------------- opiniões O e C
+
+    @Test
+    @DisplayName("opinarSacado: O é marcado por qualquer pessoa com o card na Origem; grava quem, quando e o evento")
+    void shouldMarkOriginOpinion() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        service.opinarSacado(card.getId(), "45.723.174/0001-10", QuadroOpiniao.ORIGEM, ResultadoLiberacao.PARCIAL, auxiliar);
+
+        assertThat(a.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.PARCIAL);
+        assertThat(a.getOpiniaoOrigemPorNome()).isEqualTo("Auxiliar");
+        assertThat(a.getOpiniaoOrigemEm()).isNotNull();
+        assertThat(a.getSituacao()).as("D não muda").isNull();
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getCampo()).isEqualTo("opiniaoOrigem");
+        assertThat(evento.getValorDepois()).isEqualTo("Parcial");
+        verify(cardRepository).tocarSemVersao(eq(card.getId()), any(LocalDateTime.class), eq(auxiliar.getId()), eq("Auxiliar"));
+    }
+
+    @Test
+    @DisplayName("opinarSacado: O fora da Origem é recusado")
+    void shouldRejectOriginOpinionOutsideOrigin() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
+
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("na Origem");
+    }
+
+    @Test
+    @DisplayName("opinarSacado: C é de analista, no Comitê ou em Pendência")
+    void shouldMarkCommitteeOpinionOnlyAsAnalystInCommittee() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.COMITE, ResultadoLiberacao.APROVADO, auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.COMITE, ResultadoLiberacao.REPROVADO, analista);
+        assertThat(a.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(a.getOpiniaoComitePorNome()).isEqualTo("Andressa");
+
+        LiberacaoCardEntity naOrigem = card(EtapaLiberacao.ORIGEM);
+        sacadosSao(naOrigem, sacado(naOrigem, SACADO_A, "Sacado A", "1000", 0));
+        assertThatThrownBy(() -> service.opinarSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.COMITE, ResultadoLiberacao.APROVADO, analista))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("Comitê");
+    }
+
+    @Test
+    @DisplayName("opinarSacado: repetir não grava; situação nula limpa quem e quando")
+    void shouldIgnoreRepeatedOpinionAndClear() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        a.setOpiniaoComite(ResultadoLiberacao.APROVADO);
+        a.setOpiniaoComitePorNome("Mychelly");
+        sacadosSao(card, a);
+
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.COMITE, ResultadoLiberacao.APROVADO, analista);
+        verify(sacadoRepository, never()).save(any());
+
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.COMITE, null, analista);
+        assertThat(a.getOpiniaoComite()).isNull();
+        assertThat(a.getOpiniaoComitePorNome()).isNull();
+        assertThat(a.getOpiniaoComiteEm()).isNull();
+    }
+
+    @Test
+    @DisplayName("opinarSacado: documento que não é sacado do card é EntityNotFound")
+    void shouldRejectUnknownSacadoOpinion() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
+
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_B, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, auxiliar))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("parecerSacado: grava o texto do quadrado, registra evento com a letra e avisa quem foi marcado")
+    void shouldWriteSacadoParecerAndNotifyMentions() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+        UUID mychelly = UUID.randomUUID();
+        when(userRepository.findAllById(any())).thenReturn(List.of(UserEntity.builder().id(mychelly).name("Mychelly").build()));
+
+        service.parecerSacado(card.getId(), SACADO_A, QuadroOpiniao.DIRETORIA,
+                "  Parcial. @[Mychelly](user:" + mychelly + ") confirma?  ", analista);
+
+        assertThat(a.getParecerDiretoria()).isEqualTo("Parcial. @[Mychelly](user:" + mychelly + ") confirma?");
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getCampo()).isEqualTo("parecerSacado");
+        assertThat(evento.getValorDepois()).isEqualTo("D");
+        ArgumentCaptor<Object> publicado = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(publicado.capture());
+        assertThat(publicado.getValue()).isInstanceOfSatisfying(LiberacaoEvento.Editado.class,
+                editado -> assertThat(editado.mencionados()).containsExactly(mychelly));
+    }
+
+    @Test
+    @DisplayName("parecerSacado: mesmas regras de quem marca o quadrado; texto igual não grava; vazio apaga")
+    void shouldApplySquareRulesToSacadoParecer() {
+        LiberacaoCardEntity naOrigem = card(EtapaLiberacao.ORIGEM);
+        LiberacaoSacadoEntity a = sacado(naOrigem, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(naOrigem, a);
+        service.parecerSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "Cliente antigo.", auxiliar);
+        assertThat(a.getParecerOrigem()).isEqualTo("Cliente antigo.");
+        assertThatThrownBy(() -> service.parecerSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.COMITE, "x", analista))
+                .isInstanceOf(TransicaoInvalidaException.class);
+
+        LiberacaoCardEntity noComite = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity b = sacado(noComite, SACADO_A, "Sacado A", "1000", 0);
+        b.setParecerComite("Ok.");
+        sacadosSao(noComite, b);
+        assertThatThrownBy(() -> service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.COMITE, "x", auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "x", auxiliar))
+                .isInstanceOf(TransicaoInvalidaException.class);
+
+        service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.COMITE, " Ok. ", analista);
+        verify(sacadoRepository, times(1)).save(any());
+        service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.COMITE, "   ", analista);
+        assertThat(b.getParecerComite()).isNull();
+    }
+
+    @Test
+    @DisplayName("opinarSacado: D não é opinião — vai pela decisão do sacado")
+    void shouldRejectDiretoriaAsOpinion() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.DIRETORIA, ResultadoLiberacao.APROVADO, analista))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("editar: opiniões O e C ficam com o sacado mesmo quando o valor muda")
+    void shouldKeepOpinionsWhenEditingSacados() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        a.setOpiniaoOrigem(ResultadoLiberacao.APROVADO);
+        a.setOpiniaoComite(ResultadoLiberacao.REPROVADO);
+        a.setParecerDiretoria("Limite curto.");
+        sacadosSao(card, a);
+        DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, List.of(new DadosSacado(SACADO_A, "Sacado A", new BigDecimal("800"))));
+
+        service.editar(card.getId(), card.getVersion(), dados, analista);
+
+        assertThat(sacadosGravados()).singleElement().satisfies(sacado -> {
+            assertThat(sacado.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.APROVADO);
+            assertThat(sacado.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.REPROVADO);
+            assertThat(sacado.getParecerDiretoria()).isEqualTo("Limite curto.");
+        });
+    }
+
+    @Test
+    @DisplayName("criar: grava taxa (%) e TAC (R$), opcionais")
+    void shouldStoreTaxaAndTacOnCreate() {
+        naBase(CNPJ, "ACME DA BASE S/A");
+        DadosCard dados = new DadosCard(CNPJ, null, "Duplicata", new BigDecimal("5000"), null, null, null, null, null,
+                new BigDecimal("2.35"), new BigDecimal("350"));
+
+        LiberacaoCardEntity criado = service.criar(dados, auxiliar);
+
+        assertThat(criado.getTaxa()).isEqualByComparingTo("2.35");
+        assertThat(criado.getTac()).isEqualByComparingTo("350");
+        // sem taxa e TAC também cria
+        assertThat(service.criar(dadosNovos(CNPJ, null, null), auxiliar).getTaxa()).isNull();
+    }
+
+    @Test
+    @DisplayName("editar: mudar taxa e TAC grava um evento de cada, taxa em % e TAC em reais")
+    void shouldRecordTaxaAndTacChanges() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        card.setTaxa(new BigDecimal("2.35"));
+        DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, null, null, new BigDecimal("1.875"), new BigDecimal("420"));
+
+        service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        List<LiberacaoEventoEntity> eventos = eventosGravados();
+        assertThat(eventos).extracting(LiberacaoEventoEntity::getCampo).containsExactlyInAnyOrder("taxa", "tac");
+        LiberacaoEventoEntity taxa = eventos.stream().filter(evento -> "taxa".equals(evento.getCampo())).findFirst().orElseThrow();
+        assertThat(taxa.getValorAntes()).isEqualTo("2,35%");
+        assertThat(taxa.getValorDepois()).isEqualTo("1,875%");
+        LiberacaoEventoEntity tac = eventos.stream().filter(evento -> "tac".equals(evento.getCampo())).findFirst().orElseThrow();
+        assertThat(tac.getValorAntes()).isEqualTo("—");
+        assertThat(semEspacoInsecavel(tac.getValorDepois())).isEqualTo("R$ 420,00");
+    }
+
+    @Test
+    @DisplayName("criar e editar: tranche grava e a mudança entra no histórico em reais")
+    void shouldStoreAndRecordTranche() {
+        naBase(CNPJ, "ACME DA BASE S/A");
+        DadosCard nova = new DadosCard(CNPJ, null, "Duplicata", new BigDecimal("5000"), null, null, null, null, null,
+                null, null, new BigDecimal("3126267.01"));
+        assertThat(service.criar(nova, auxiliar).getTranche()).isEqualByComparingTo("3126267.01");
+
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, null, null, null, null, new BigDecimal("2931563.41"));
+        service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        LiberacaoEventoEntity evento = eventosGravados().stream().filter(e -> "tranche".equals(e.getCampo())).findFirst().orElseThrow();
+        assertThat(evento.getValorAntes()).isEqualTo("—");
+        assertThat(semEspacoInsecavel(evento.getValorDepois())).isEqualTo("R$ 2.931.563,41");
+    }
+
+    @Test
+    @DisplayName("editar: mesma taxa com escala diferente (2.5 e 2.5000) não é mudança")
+    void shouldIgnoreTaxaScaleChange() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        card.setTaxa(new BigDecimal("2.5000"));
+        DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, null, null, new BigDecimal("2.5"), null);
+
+        service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        verify(eventoRepository, never()).save(any());
+    }
+
     @Test
     @DisplayName("editar: mudar o valor grava evento EDICAO do campo 'valor' com antes/depois em reais")
     void shouldRecordValueChangeWithFormattedBeforeAndAfter() {
@@ -756,8 +980,8 @@ class LiberacaoServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "FINALIZADO"})
-    @DisplayName("transicionar Comitê→Pendência/Finalizado: sem nenhum parecer registrado é TransicaoInvalida e nada é gravado")
+    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "APROVADO", "REPROVADO"})
+    @DisplayName("transicionar Comitê→Pendência/Aprovado/Reprovado: sem nenhum parecer registrado é TransicaoInvalida e nada é gravado")
     void shouldBlockLeavingComiteWithoutAnyParecer(EtapaLiberacao destino) {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         rodadaTem(card, parecer(card, usuario("Bruna"), null), parecer(card, usuario("Mychelly"), null));
@@ -773,52 +997,52 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("transicionar Comitê→Finalizado: rodada sem nenhuma linha de parecer também é bloqueada")
+    @DisplayName("transicionar Comitê→Aprovado: rodada sem nenhuma linha de parecer também é bloqueada")
     void shouldBlockLeavingComiteWhenRodadaHasNoRows() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(), ResultadoLiberacao.APROVADO, analista))
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(), analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessage("Precisa de pelo menos um parecer do Comitê.");
     }
 
     @Test
-    @DisplayName("transicionar Comitê→Finalizado: com 1 de 2 pareceres libera e o histórico diz quem faltou")
+    @DisplayName("transicionar Comitê→Aprovado: com 1 de 2 pareceres libera e o histórico diz quem faltou")
     void shouldLeaveComiteWithOneOfTwoPareceresAndRecordWhoWasMissing() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL),
                 parecer(card, usuario("Mychelly"), null));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, List.of(), ResultadoLiberacao.APROVADO, analista);
+                EtapaLiberacao.APROVADO, null, null, List.of(), analista);
 
-        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
         assertThat(ultimoEvento().getTexto()).isEqualTo("Movido sem o parecer de Mychelly.");
     }
 
     @Test
-    @DisplayName("transicionar Comitê→Finalizado: vários pareceres faltando são unidos por ' e '")
+    @DisplayName("transicionar Comitê→Aprovado: vários pareceres faltando são unidos por ' e '")
     void shouldListEveryMissingParecerInTheHistory() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL),
                 parecer(card, usuario("Mychelly"), null), parecer(card, usuario("Carla"), null));
 
-        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(), ResultadoLiberacao.REPROVADO, analista);
+        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(), analista);
 
         assertThat(ultimoEvento().getTexto()).isEqualTo("Movido sem o parecer de Mychelly e Carla.");
     }
 
     @Test
-    @DisplayName("transicionar Comitê→Finalizado: o aviso de parecer faltando vem depois da observação")
+    @DisplayName("transicionar Comitê→Aprovado: o aviso de parecer faltando vem depois da observação")
     void shouldAppendMissingParecerNoticeAfterObservation() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL),
                 parecer(card, usuario("Mychelly"), null));
 
-        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, "  Cliente com urgência  ", List.of(), ResultadoLiberacao.APROVADO, analista);
+        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, "  Cliente com urgência  ", List.of(), analista);
 
         assertThat(ultimoEvento().getTexto())
                 .isEqualTo("Cliente com urgência\n\nMovido sem o parecer de Mychelly.");
@@ -840,41 +1064,41 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("transicionar Comitê→Finalizado: com todos os pareceres registrados não há aviso")
+    @DisplayName("transicionar Comitê→Aprovado: com todos os pareceres registrados não há aviso")
     void shouldNotRecordNoticeWhenAllPareceresAreIn() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL),
                 parecer(card, usuario("Mychelly"), PosicaoParecer.COM_RESSALVAS));
 
-        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(), ResultadoLiberacao.APROVADO, analista);
+        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(), analista);
 
         assertThat(ultimoEvento().getTexto()).isNull();
     }
 
     @Test
-    @DisplayName("transicionar Comitê→Finalizado: parecer de usuário removido (usuarioId nulo) não conta como faltando")
+    @DisplayName("transicionar Comitê→Aprovado: parecer de usuário removido (usuarioId nulo) não conta como faltando")
     void shouldNotCountParecerOfRemovedUserAsMissing() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         rodadaTem(card, parecer(card, null, null), parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, List.of(), ResultadoLiberacao.APROVADO, analista);
+                EtapaLiberacao.APROVADO, null, null, List.of(), analista);
 
-        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
         assertThat(ultimoEvento().getTexto()).isNull();
     }
 
     @Test
-    @DisplayName("transicionar Pendência→Finalizado: não pede parecer nem avisa de parecer faltando")
+    @DisplayName("transicionar Pendência→Aprovado: não pede parecer nem avisa de parecer faltando")
     void shouldFinalizeFromPendenciaWithoutPareceres() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
         rodadaTem(card, parecer(card, usuario("Mychelly"), null));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,
-                EtapaLiberacao.FINALIZADO, null, null, List.of(), ResultadoLiberacao.APROVADO, analista);
+                EtapaLiberacao.APROVADO, null, null, List.of(), analista);
 
-        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
         assertThat(movido.getFinalizadoEm()).isNotNull();
         assertThat(ultimoEvento().getTexto()).isNull();
     }
@@ -890,8 +1114,8 @@ class LiberacaoServiceTest {
         assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.ORIGEM,
                 null, null, auxiliar))
                 .isInstanceOf(AcessoNegadoException.class);
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), null, auxiliar))
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), auxiliar))
                 .isInstanceOf(AcessoNegadoException.class);
         verify(parecerRepository, never()).apagarAguardando(any(), anyInt());
         verify(sacadoRepository, never()).save(any());
@@ -950,7 +1174,7 @@ class LiberacaoServiceTest {
     // ----------------------------------------------------------- Finalizados
 
     @Test
-    @DisplayName("finalizar: sacado sem decisão bloqueia, a mensagem lista quem falta e nada é gravado")
+    @DisplayName("aprovar: sacado sem decisão bloqueia, a mensagem lista quem falta e nada é gravado")
     void shouldBlockFinalizeWhileASacadoIsUndecided() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -958,10 +1182,10 @@ class LiberacaoServiceTest {
                 decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null),
                 decidido(card, SACADO_B, "Sacado B", "500", 1, null, null));
 
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
                 null, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
-                .hasMessage("Decida todos os sacados antes de finalizar. Falta: Sacado B (00.360.305/0001-04).");
+                .hasMessage("Decida todos os sacados antes de aprovar. Falta: Sacado B (00.360.305/0001-04).");
         verify(cardRepository, never()).saveAndFlush(any());
         assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.COMITE);
         assertThat(card.getResultado()).isNull();
@@ -969,7 +1193,7 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("finalizar: vários sacados sem decisão são listados, e o sem nome aparece só pelo documento")
+    @DisplayName("aprovar: vários sacados sem decisão são listados, e o sem nome aparece só pelo documento")
     void shouldListEveryUndecidedSacado() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -978,82 +1202,64 @@ class LiberacaoServiceTest {
                 decidido(card, SACADO_B, null, "500", 1, null, null),
                 decidido(card, CPF, "Pessoa Física", "300", 2, ResultadoLiberacao.REPROVADO, null));
 
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
                 null, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
-                .hasMessage("Decida todos os sacados antes de finalizar. Falta: "
+                .hasMessage("Decida todos os sacados antes de aprovar. Falta: "
                         + "Sacado A (45.723.174/0001-10), 00.360.305/0001-04.");
     }
 
     @Test
-    @DisplayName("finalizar: decisão do pedido que cobre o sacado que faltava libera a finalização")
+    @DisplayName("aprovar: decisão do pedido que cobre o sacado que faltava libera a finalização")
     void shouldFinalizeWhenRequestDecidesTheMissingSacado() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         LiberacaoSacadoEntity b = decidido(card, SACADO_B, "Sacado B", "500", 1, null, null);
         sacadosSao(card, decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null), b);
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(new DecisaoSacado(SACADO_B, ResultadoLiberacao.APROVADO, null)), null, analista);
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_B, ResultadoLiberacao.APROVADO, null)), analista);
 
         assertThat(b.getSituacao()).isEqualTo(ResultadoLiberacao.APROVADO);
-        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
     }
 
     @Test
-    @DisplayName("finalizar: card sem sacados exige APROVADO ou REPROVADO; ausente ou PARCIAL é recusado")
-    void shouldRequireAprovadoOrReprovadoForSacadoLessCard() {
+    @DisplayName("aprovar: card sem sacados é aprovado direto, sem decisão, com resultado APROVADO")
+    void shouldApproveSacadoLessCardWithoutDecisions() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         sacadosSao(card);
 
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, analista))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Card sem sacados: informe se foi aprovado ou reprovado.");
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(), null, analista))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Card sem sacados: informe se foi aprovado ou reprovado.");
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(), ResultadoLiberacao.PARCIAL, analista))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Card sem sacados: informe se foi aprovado ou reprovado.");
-        verify(cardRepository, never()).saveAndFlush(any());
-        assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.COMITE);
-    }
-
-    @ParameterizedTest
-    @EnumSource(value = ResultadoLiberacao.class, names = {"APROVADO", "REPROVADO"})
-    @DisplayName("finalizar: card sem sacados usa o resultado informado")
-    void shouldUseInformedResultadoForSacadoLessCard(ResultadoLiberacao informado) {
-        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
-        comUmParecer(card);
-
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, List.of(), informado, analista);
+                EtapaLiberacao.APROVADO, null, null, List.of(), analista);
 
-        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
-        assertThat(movido.getResultado()).isEqualTo(informado);
-        assertThat(ultimoEvento().getValorDepois()).isEqualTo(informado.rotulo());
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
+        assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(movido.getFinalizadoEm()).isNotNull();
+        assertThat(ultimoEvento().getValorDepois()).isEqualTo(ResultadoLiberacao.APROVADO.rotulo());
     }
 
     @Test
-    @DisplayName("finalizar: com sacados, o resultado vem deles e o informado para card sem sacados é ignorado")
-    void shouldIgnoreInformedResultadoWhenThereAreSacados() {
+    @DisplayName("reprovar: card sem sacados é reprovado com resultado REPROVADO e sem eventos de sacado")
+    void shouldRejectSacadoLessCard() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
-        sacadosSao(card, decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.REPROVADO, null));
+        sacadosSao(card);
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, List.of(), ResultadoLiberacao.APROVADO, analista);
+                EtapaLiberacao.REPROVADO, null, null, analista);
 
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.REPROVADO);
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(eventosGravados()).extracting(LiberacaoEventoEntity::getTipo)
+                .containsExactly(TipoEventoLiberacao.TRANSICAO);
+        assertThat(ultimoEvento().getValorDepois()).isEqualTo(ResultadoLiberacao.REPROVADO.rotulo());
     }
 
     @Test
-    @DisplayName("finalizar: todos os sacados aprovados = APROVADO")
+    @DisplayName("aprovar: todos os sacados aprovados = APROVADO")
     void shouldComputeAprovadoWhenEverySacadoIsApproved() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -1062,28 +1268,122 @@ class LiberacaoServiceTest {
                 decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.APROVADO, null));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, analista);
+                EtapaLiberacao.APROVADO, null, null, analista);
 
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
     }
 
     @Test
-    @DisplayName("finalizar: todos os sacados reprovados = REPROVADO")
-    void shouldComputeReprovadoWhenEverySacadoIsRejected() {
+    @DisplayName("aprovar: todos os sacados reprovados é recusado e manda mover para Reprovado; nada é gravado")
+    void shouldRejectApprovingWhenEverySacadoIsRejected() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         sacadosSao(card,
                 decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.REPROVADO, null),
                 decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.REPROVADO, null));
 
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE,
+                EtapaLiberacao.APROVADO, null, null, analista))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessage("Todos os sacados estão reprovados: mova o card para Reprovado.");
+        verify(cardRepository, never()).saveAndFlush(any());
+        assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.COMITE);
+        assertThat(card.getResultado()).isNull();
+        assertThat(card.getFinalizadoEm()).isNull();
+    }
+
+    @Test
+    @DisplayName("aprovar: decisões do pedido que reprovam todos também são recusadas")
+    void shouldRejectApprovingWhenRequestRejectsEverySacado() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.REPROVADO, null)), analista))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("Todos os sacados estão reprovados");
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("reprovar: todos os sacados viram REPROVADO, cada mudança gera evento e o card fica REPROVADO")
+    void shouldRejectEverySacadoWhenMovingToReprovado() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        LiberacaoSacadoEntity b = decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.APROVADO, null);
+        sacadosSao(card, a, b);
+
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, analista);
+                EtapaLiberacao.REPROVADO, null, null, analista);
+
+        assertThat(a.getSituacao()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(b.getSituacao()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(a.getSituacaoPorNome()).isEqualTo("Andressa");
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.REPROVADO);
+        assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(movido.getFinalizadoEm()).isNotNull();
+        List<LiberacaoEventoEntity> eventos = eventosGravados();
+        assertThat(eventos).extracting(LiberacaoEventoEntity::getTipo)
+                .containsExactly(TipoEventoLiberacao.EDICAO, TipoEventoLiberacao.EDICAO, TipoEventoLiberacao.TRANSICAO);
+        assertThat(eventos.get(0).getCampo()).isEqualTo("situacaoSacado");
+        assertThat(eventos.get(0).getValorAntes()).isEqualTo("a decidir");
+        assertThat(eventos.get(0).getValorDepois()).isEqualTo("Reprovado");
+        assertThat(eventos.get(1).getValorAntes()).isEqualTo("Aprovado");
+        assertThat(eventos.get(2).getCampo()).isEqualTo("resultado");
+        assertThat(eventos.get(2).getValorDepois()).isEqualTo(ResultadoLiberacao.REPROVADO.rotulo());
+    }
+
+    @Test
+    @DisplayName("reprovar: sacado que já estava reprovado não gera evento; só os que mudaram")
+    void shouldOnlyRecordEventsForSacadosThatChangedOnReject() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        LiberacaoSacadoEntity a = decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.REPROVADO, null);
+        LiberacaoSacadoEntity b = sacado(card, SACADO_B, "Sacado B", "500", 1);
+        sacadosSao(card, a, b);
+
+        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO, null, null, analista);
+
+        List<LiberacaoEventoEntity> eventos = eventosGravados();
+        assertThat(eventos).extracting(LiberacaoEventoEntity::getTipo)
+                .containsExactly(TipoEventoLiberacao.EDICAO, TipoEventoLiberacao.TRANSICAO);
+        assertThat(eventos.get(0).getTexto()).isEqualTo("Sacado B (00.360.305/0001-04)");
+        assertThat(a.getSituacaoPorNome()).isEqualTo("Mychelly");
+        assertThat(b.getSituacao()).isEqualTo(ResultadoLiberacao.REPROVADO);
+    }
+
+    @Test
+    @DisplayName("reprovar: não precisa de decisão nenhuma, mesmo com sacados a decidir")
+    void shouldNotRequireDecisionsToReject() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0), sacado(card, SACADO_B, "Sacado B", "500", 1));
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,
+                EtapaLiberacao.REPROVADO, null, null, analista);
 
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);
     }
 
     @Test
-    @DisplayName("finalizar: aprovado e reprovado misturados = PARCIAL")
+    @DisplayName("reprovar: decisões enviadas junto com REPROVADO são recusadas e nada é gravado")
+    void shouldRejectDecisionsSentWithReprovado() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), analista))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Decisão de sacado só ao aprovar");
+        verify(cardRepository, never()).saveAndFlush(any());
+        assertThat(a.getSituacao()).isNull();
+    }
+
+    @Test
+    @DisplayName("aprovar: aprovado e reprovado misturados = PARCIAL")
     void shouldComputeParcialWhenSacadosAreMixed() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -1092,13 +1392,13 @@ class LiberacaoServiceTest {
                 decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.REPROVADO, null));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, analista);
+                EtapaLiberacao.APROVADO, null, null, analista);
 
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
     }
 
     @Test
-    @DisplayName("finalizar: um sacado parcial faz o card ser PARCIAL, mesmo com os outros aprovados")
+    @DisplayName("aprovar: um sacado parcial faz o card ser PARCIAL, mesmo com os outros aprovados")
     void shouldComputeParcialWhenASacadoIsPartial() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -1107,13 +1407,13 @@ class LiberacaoServiceTest {
                 decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.PARCIAL, "200"));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, analista);
+                EtapaLiberacao.APROVADO, null, null, analista);
 
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
     }
 
     @Test
-    @DisplayName("finalizar: as decisões do pedido são aplicadas antes de calcular o resultado, uma por sacado, com quem e quando")
+    @DisplayName("aprovar: as decisões do pedido são aplicadas antes de calcular o resultado, uma por sacado, com quem e quando")
     void shouldApplyRequestDecisionsBeforeComputingResultado() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -1127,7 +1427,7 @@ class LiberacaoServiceTest {
         LocalDateTime antes = LocalDateTime.now();
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, decisoes, null, analista);
+                EtapaLiberacao.APROVADO, null, null, decisoes, analista);
 
         assertThat(a.getSituacao()).isEqualTo(ResultadoLiberacao.APROVADO);
         assertThat(b.getSituacao()).isEqualTo(ResultadoLiberacao.REPROVADO);
@@ -1149,15 +1449,15 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("finalizar: o pedido pode mudar uma decisão que já existia")
+    @DisplayName("aprovar: o pedido pode mudar uma decisão que já existia")
     void shouldLetRequestOverrideAnExistingDecision() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         LiberacaoSacadoEntity a = decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.REPROVADO, null);
         sacadosSao(card, a);
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), null, analista);
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), analista);
 
         assertThat(a.getSituacao()).isEqualTo(ResultadoLiberacao.APROVADO);
         assertThat(a.getSituacaoPorNome()).isEqualTo("Andressa");
@@ -1166,16 +1466,15 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("finalizar: decisão parcial no pedido guarda o valor aprovado e o evento mostra o valor")
+    @DisplayName("aprovar: decisão parcial no pedido guarda o valor aprovado e o evento mostra o valor")
     void shouldStorePartialValueFromRequest() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(card, a);
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.PARCIAL, new BigDecimal("400"))),
-                null, analista);
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.PARCIAL, new BigDecimal("400"))), analista);
 
         assertThat(a.getValorAprovado()).isEqualByComparingTo("400");
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
@@ -1183,35 +1482,35 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("finalizar: decisão parcial inválida no pedido derruba a finalização inteira")
+    @DisplayName("aprovar: decisão parcial inválida no pedido derruba a finalização inteira")
     void shouldRejectInvalidPartialInRequest() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.PARCIAL, null)), null, analista))
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.PARCIAL, null)), analista))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Parcial: informe o valor aprovado");
         verify(cardRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    @DisplayName("finalizar: decisão para documento que não é sacado do card é EntityNotFound")
+    @DisplayName("aprovar: decisão para documento que não é sacado do card é EntityNotFound")
     void shouldRejectDecisionForUnknownSacado() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO,
-                null, null, List.of(new DecisaoSacado(SACADO_B, ResultadoLiberacao.APROVADO, null)), null, analista))
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(new DecisaoSacado(SACADO_B, ResultadoLiberacao.APROVADO, null)), analista))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Sacado 00.360.305/0001-04 não está neste card.");
         verify(cardRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    @DisplayName("finalizar: o evento de transição tem campo 'resultado' e o rótulo do resultado em valorDepois")
+    @DisplayName("aprovar: o evento de transição tem campo 'resultado' e o rótulo do resultado em valorDepois")
     void shouldRecordResultadoInTransitionEvent() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -1219,19 +1518,19 @@ class LiberacaoServiceTest {
                 decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null),
                 decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.REPROVADO, null));
 
-        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO, null, null, analista);
+        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO, null, null, analista);
 
         LiberacaoEventoEntity evento = ultimoEvento();
         assertThat(evento.getTipo()).isEqualTo(TipoEventoLiberacao.TRANSICAO);
         assertThat(evento.getEtapaDe()).isEqualTo(EtapaLiberacao.COMITE);
-        assertThat(evento.getEtapaPara()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(evento.getEtapaPara()).isEqualTo(EtapaLiberacao.APROVADO);
         assertThat(evento.getCampo()).isEqualTo("resultado");
         assertThat(evento.getValorAntes()).isNull();
         assertThat(evento.getValorDepois()).isEqualTo("Parcialmente aprovado");
     }
 
     @Test
-    @DisplayName("finalizar: marca finalizadoEm, grava o resultado no card e publica o evento já com o resultado")
+    @DisplayName("aprovar: marca finalizadoEm, grava o resultado no card e publica o evento já com o resultado")
     void shouldSetFinalizadoEmAndPublishMovidoWithResultado() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
@@ -1239,9 +1538,9 @@ class LiberacaoServiceTest {
         LocalDateTime antes = LocalDateTime.now();
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.FINALIZADO, null, null, analista);
+                EtapaLiberacao.APROVADO, null, null, analista);
 
-        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
         assertThat(movido.getFinalizadoEm()).isNotNull().isAfterOrEqualTo(antes);
         assertThat(movido.getEtapaDesde()).isEqualTo(movido.getFinalizadoEm());
         assertThat(movido.getRodada()).isEqualTo(1);
@@ -1249,14 +1548,14 @@ class LiberacaoServiceTest {
         ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
         verify(eventos).publishEvent(evento.capture());
         assertThat(evento.getValue()).isInstanceOfSatisfying(LiberacaoEvento.Movido.class, movidoEvento -> {
-            assertThat(movidoEvento.para()).isEqualTo(EtapaLiberacao.FINALIZADO);
+            assertThat(movidoEvento.para()).isEqualTo(EtapaLiberacao.APROVADO);
             assertThat(movidoEvento.card().getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
         });
     }
 
     @Test
-    @DisplayName("transicionar: decisão de sacado ou resultado só são aceitos quando o destino é Finalizado")
-    void shouldRejectDecisionsWhenDestinationIsNotFinalizado() {
+    @DisplayName("transicionar: decisão de sacado só é aceita quando o destino é Aprovado")
+    void shouldRejectDecisionsWhenDestinationIsNotAprovado() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         comUmParecer(card);
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
@@ -1264,15 +1563,11 @@ class LiberacaoServiceTest {
         when(pendenciaRepository.countByCardIdAndRespondidaEmIsNull(card.getId())).thenReturn(1L);
 
         assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.PENDENCIA,
-                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), null, analista))
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), analista))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Decisão de sacado só ao finalizar");
-        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.PENDENCIA,
-                null, null, List.of(), ResultadoLiberacao.APROVADO, analista))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Decisão de sacado só ao finalizar");
+                .hasMessageContaining("Decisão de sacado só ao aprovar");
         assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.ORIGEM,
-                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.REPROVADO, null)), null, analista))
+                null, null, List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.REPROVADO, null)), analista))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(cardRepository, never()).saveAndFlush(any());
         verify(sacadoRepository, never()).save(any());
@@ -1281,15 +1576,15 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("transicionar: lista de decisões vazia e resultado ausente valem para qualquer destino")
+    @DisplayName("transicionar: lista de decisões vazia ou ausente vale para qualquer destino")
     void shouldAcceptEmptyDecisionsForAnyDestination() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         when(userRepository.findByComiteTrueOrderByNameAsc()).thenReturn(List.of(usuario("Bruna")));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.ORIGEM, null, null, List.of(), null, analista);
+                EtapaLiberacao.ORIGEM, null, null, List.of(), analista);
         LiberacaoCardEntity semLista = service.transicionar(card.getId(), EtapaLiberacao.ORIGEM,
-                EtapaLiberacao.COMITE, null, null, null, null, auxiliar);
+                EtapaLiberacao.COMITE, null, null, (List<DecisaoSacado>) null, auxiliar);
 
         assertThat(movido.getResultado()).isNull();
         assertThat(semLista.getResultado()).isNull();
@@ -1604,16 +1899,17 @@ class LiberacaoServiceTest {
         verify(cardRepository, never()).tocarSemVersao(any(), any(), any(), any());
     }
 
-    @Test
-    @DisplayName("decidirSacado: card finalizado pede reabertura antes de mudar a decisão")
-    void shouldRejectDecidingSacadoOfFinalizedCard() {
-        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("decidirSacado: card já decidido (aprovado, reprovado, assinatura, finalizado) pede reabertura")
+    void shouldRejectDecidingSacadoOfDecidedCard(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
         assertThatThrownBy(() -> service.decidirSacado(card.getId(),
                 decisao(SACADO_A, ResultadoLiberacao.APROVADO, null), analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
-                .hasMessage("Card finalizado: reabra no Comitê para mudar a decisão.");
+                .hasMessage("Card já decidido: reabra no Comitê para mudar a decisão.");
         verify(sacadoRepository, never()).save(any());
     }
 
@@ -1915,10 +2211,11 @@ class LiberacaoServiceTest {
         assertThat(gravados.get(1).getValorAprovado()).isEqualByComparingTo("200");
     }
 
-    @Test
-    @DisplayName("editar: card finalizado não troca sacados — o resultado sairia dos sacados antigos")
-    void shouldRejectSacadoChangesOnFinalizedCard() {
-        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("editar: card decidido não troca sacados — o resultado sairia dos sacados antigos")
+    void shouldRejectSacadoChangesOnDecidedCard(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
         sacadosSao(card, decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null));
         DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
                 card.getParecerOrigem(), null,
@@ -1927,7 +2224,7 @@ class LiberacaoServiceTest {
 
         assertThatThrownBy(() -> service.editar(card.getId(), card.getVersion(), dados, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
-                .hasMessageContaining("reabra no Comitê");
+                .hasMessage("Card já decidido: reabra no Comitê para mudar os sacados.");
         verify(sacadoRepository, never()).apagarDoCard(any());
     }
 
@@ -2715,19 +3012,295 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("listarQuadro usa o corte informado, ou 30 dias para trás quando ausente")
-    void shouldUseGivenOrDefaultCutoffForBoard() {
-        LocalDateTime corte = LocalDateTime.of(2026, 9, 1, 0, 0);
-        service.listarQuadro(corte);
-        verify(cardRepository).listarQuadro(corte);
+    @DisplayName("listarQuadro repassa a opção de incluir arquivados ao repositório")
+    void shouldPassArchivedFlagToBoardQuery() {
+        service.listarQuadro(false);
+        service.listarQuadro(true);
 
-        LocalDateTime antes = LocalDateTime.now().minusDays(LiberacaoService.DIAS_FINALIZADOS_NO_QUADRO);
-        service.listarQuadro(null);
-        ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(cardRepository, times(2)).listarQuadro(captor.capture());
-        assertThat(captor.getAllValues().get(1))
-                .isAfterOrEqualTo(antes)
-                .isBeforeOrEqualTo(LocalDateTime.now().minusDays(LiberacaoService.DIAS_FINALIZADOS_NO_QUADRO));
+        verify(cardRepository).listarQuadro(false);
+        verify(cardRepository).listarQuadro(true);
+    }
+
+    // ------------------------------------------- decisão, assinatura e reabertura (esteira nova)
+
+    private void comiteTem(UserEntity... membros) {
+        when(userRepository.findByComiteTrueOrderByNameAsc()).thenReturn(List.of(membros));
+    }
+
+    @Test
+    @DisplayName("transicionar Comitê→Aprovado→Assinatura→Finalizado: resultado e finalizadoEm herdados ao longo do caminho")
+    void shouldInheritResultadoAndDecidedAtThroughAssinaturaAndFinalizado() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        sacadosSao(card,
+                decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null),
+                decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.REPROVADO, null));
+
+        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO, null, null, analista);
+        LocalDateTime decididoEm = card.getFinalizadoEm();
+        assertThat(decididoEm).isNotNull();
+        assertThat(card.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
+
+        service.transicionar(card.getId(), EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, null, null, analista);
+        assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.ASSINATURA);
+        assertThat(card.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
+        assertThat(card.getFinalizadoEm()).isEqualTo(decididoEm);
+
+        service.transicionar(card.getId(), EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO, null, null, analista);
+        assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(card.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
+        assertThat(card.getFinalizadoEm()).isEqualTo(decididoEm);
+        assertThat(card.getRodada()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("transicionar Aprovado→Assinatura: o evento não tem campo 'resultado' (só a decisão grava)")
+    void shouldNotRecordResultadoOnTransitionsThatAreNotDecisions() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.APROVADO);
+        card.setResultado(ResultadoLiberacao.APROVADO);
+        card.setFinalizadoEm(LocalDateTime.now().minusHours(3));
+
+        service.transicionar(card.getId(), EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, null, null, analista);
+
+        LiberacaoEventoEntity evento = ultimoEvento();
+        assertThat(evento.getTipo()).isEqualTo(TipoEventoLiberacao.TRANSICAO);
+        assertThat(evento.getCampo()).isNull();
+        assertThat(evento.getValorDepois()).isNull();
+    }
+
+    @Test
+    @DisplayName("transicionar Reprovado→Finalizado: mantém o resultado REPROVADO e a data da decisão")
+    void shouldFinalizeReprovadoKeepingResultado() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.REPROVADO);
+        LocalDateTime decididoEm = LocalDateTime.now().minusHours(5);
+        card.setResultado(ResultadoLiberacao.REPROVADO);
+        card.setFinalizadoEm(decididoEm);
+
+        service.transicionar(card.getId(), EtapaLiberacao.REPROVADO, EtapaLiberacao.FINALIZADO, null, null, analista);
+
+        assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(card.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(card.getFinalizadoEm()).isEqualTo(decididoEm);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("reabertura: de qualquer etapa decidida volta ao Comitê com rodada+1, sem resultado nem data de decisão, e evento REABERTURA")
+    void shouldReopenFromAnyDecidedStage(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
+        card.setResultado(ResultadoLiberacao.APROVADO);
+        card.setFinalizadoEm(LocalDateTime.now().minusDays(1));
+        UserEntity bruna = usuario("Bruna");
+        comiteTem(bruna);
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), etapa, EtapaLiberacao.COMITE,
+                null, "Fato novo", analista);
+
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.COMITE);
+        assertThat(movido.getRodada()).isEqualTo(2);
+        assertThat(movido.getResultado()).isNull();
+        assertThat(movido.getFinalizadoEm()).isNull();
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getTipo()).isEqualTo(TipoEventoLiberacao.REABERTURA);
+        assertThat(evento.getEtapaDe()).isEqualTo(etapa);
+        assertThat(evento.getEtapaPara()).isEqualTo(EtapaLiberacao.COMITE);
+        assertThat(evento.getCampo()).isNull();
+        assertThat(evento.getTexto()).isEqualTo("Fato novo");
+        ArgumentCaptor<LiberacaoParecerEntity> pareceres = ArgumentCaptor.forClass(LiberacaoParecerEntity.class);
+        verify(parecerRepository).save(pareceres.capture());
+        assertThat(pareceres.getValue().getRodada()).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("reabertura: quem não é analista não reabre de nenhuma etapa decidida")
+    void shouldDenyNonAnalystReopeningFromAnyDecidedStage(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
+        comiteTem(usuario("Bruna"));
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), etapa, EtapaLiberacao.COMITE,
+                null, null, auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("transicionar Pendência→Comitê e Comitê→Origem não são reabertura e limpam resultado e data de decisão")
+    void shouldNotTreatBackwardMovesBeforeDecisionAsReopening() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        card.setFinalizadoEm(LocalDateTime.now());
+        comiteTem(usuario("Bruna"));
+
+        service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA, EtapaLiberacao.COMITE, null, null, analista);
+
+        assertThat(card.getRodada()).isEqualTo(1);
+        assertThat(card.getFinalizadoEm()).isNull();
+        assertThat(card.getResultado()).isNull();
+        assertThat(eventosGravados().get(0).getTipo()).isEqualTo(TipoEventoLiberacao.TRANSICAO);
+    }
+
+    @Test
+    @DisplayName("aprovar: com o Comitê sem decisão registrada na Pendência, decisões do pedido valem e Pendência→Aprovado calcula o resultado")
+    void shouldApproveFromPendenciaUsingRequestDecisions() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,
+                EtapaLiberacao.APROVADO, null, null,
+                List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.PARCIAL, new BigDecimal("300"))), analista);
+
+        assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.PARCIAL);
+        assertThat(movido.getFinalizadoEm()).isNotNull();
+        assertThat(ultimoEvento().getValorDepois()).isEqualTo("Parcialmente aprovado");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"ASSINATURA", "FINALIZADO", "ORIGEM", "PENDENCIA"})
+    @DisplayName("transicionar: decisão de sacado só aceita com destino Aprovado (Assinatura, Finalizado, Origem e Pendência recusam)")
+    void shouldRejectDecisionsForNonAprovadoDestinations(EtapaLiberacao destino) {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, destino, null, null,
+                List.of(new DecisaoSacado(SACADO_A, ResultadoLiberacao.APROVADO, null)), analista))
+                .isInstanceOf(RuntimeException.class);
+        verify(sacadoRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("transicionar: qualquer movimento limpa arquivadoEm e arquivadoPorNome")
+    void shouldClearArchiveMarksOnAnyTransition(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
+        card.setArquivadoEm(LocalDateTime.now().minusDays(1));
+        card.setArquivadoPorNome("Andressa");
+        comiteTem(usuario("Bruna"));
+
+        service.transicionar(card.getId(), etapa, EtapaLiberacao.COMITE, null, null, analista);
+
+        assertThat(card.getArquivadoEm()).isNull();
+        assertThat(card.getArquivadoPorNome()).isNull();
+    }
+
+    // ------------------------------------------------------------- arquivamento
+
+    @Test
+    @DisplayName("arquivar: card finalizado recebe arquivadoEm/PorNome, evento EDICAO 'arquivado' e publica Editado")
+    void shouldArchiveFinalizedCard() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+        LocalDateTime antes = LocalDateTime.now();
+
+        LiberacaoCardEntity salvo = service.arquivar(card.getId(), true, analista);
+
+        assertThat(salvo.getArquivadoEm()).isNotNull().isAfterOrEqualTo(antes);
+        assertThat(salvo.getArquivadoPorNome()).isEqualTo("Andressa");
+        assertThat(salvo.getAtualizadoPorNome()).isEqualTo("Andressa");
+        LiberacaoEventoEntity evento = ultimoEvento();
+        assertThat(evento.getTipo()).isEqualTo(TipoEventoLiberacao.EDICAO);
+        assertThat(evento.getCampo()).isEqualTo("arquivado");
+        assertThat(evento.getValorDepois()).isEqualTo("Arquivado");
+        ArgumentCaptor<Object> publicado = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(publicado.capture());
+        assertThat(publicado.getValue()).isInstanceOf(LiberacaoEvento.Editado.class);
+    }
+
+    @Test
+    @DisplayName("arquivar(false): desarquivar limpa as marcas e grava o evento 'Desarquivado'")
+    void shouldUnarchiveCard() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+        card.setArquivadoEm(LocalDateTime.now().minusDays(2));
+        card.setArquivadoPorNome("Beatriz");
+
+        LiberacaoCardEntity salvo = service.arquivar(card.getId(), false, analista);
+
+        assertThat(salvo.getArquivadoEm()).isNull();
+        assertThat(salvo.getArquivadoPorNome()).isNull();
+        assertThat(ultimoEvento().getValorDepois()).isEqualTo("Desarquivado");
+    }
+
+    @Test
+    @DisplayName("arquivar: idempotente — arquivar o já arquivado e desarquivar o não arquivado não gravam nada")
+    void shouldBeIdempotentWhenArchiving() {
+        LiberacaoCardEntity arquivado = card(EtapaLiberacao.FINALIZADO);
+        LocalDateTime quando = LocalDateTime.now().minusDays(2);
+        arquivado.setArquivadoEm(quando);
+        arquivado.setArquivadoPorNome("Beatriz");
+        LiberacaoCardEntity solto = card(EtapaLiberacao.FINALIZADO);
+
+        assertThat(service.arquivar(arquivado.getId(), true, analista).getArquivadoEm()).isEqualTo(quando);
+        assertThat(service.arquivar(solto.getId(), false, analista).getArquivadoEm()).isNull();
+
+        verify(cardRepository, never()).saveAndFlush(any());
+        verify(eventoRepository, never()).save(any());
+        verify(eventos, never()).publishEvent(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "COMITE", "PENDENCIA", "APROVADO", "REPROVADO", "ASSINATURA"})
+    @DisplayName("arquivar: só card finalizado é arquivado")
+    void shouldOnlyArchiveFinalizedCards(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
+
+        assertThatThrownBy(() -> service.arquivar(card.getId(), true, analista))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessage("Só card finalizado é arquivado.");
+        assertThat(card.getArquivadoEm()).isNull();
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("arquivar: só analista arquiva ou desarquiva; usuário ausente também é negado")
+    void shouldRestrictArchivingToAnalysts() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+
+        assertThatThrownBy(() -> service.arquivar(card.getId(), true, auxiliar)).isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> service.arquivar(card.getId(), false, auxiliar)).isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> service.arquivar(card.getId(), true, null)).isInstanceOf(AcessoNegadoException.class);
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("arquivar: card inexistente é EntityNotFound")
+    void shouldFailArchivingUnknownCard() {
+        assertThatThrownBy(() -> service.arquivar(UUID.randomUUID(), true, analista))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("arquivarFinalizados: arquiva todos os finalizados não arquivados e devolve a contagem")
+    void shouldArchiveAllFinalizedAndReturnCount() {
+        LiberacaoCardEntity um = card(EtapaLiberacao.FINALIZADO);
+        LiberacaoCardEntity dois = card(EtapaLiberacao.FINALIZADO);
+        LiberacaoCardEntity tres = card(EtapaLiberacao.FINALIZADO);
+        when(cardRepository.finalizadosNaoArquivados()).thenReturn(List.of(um, dois, tres));
+
+        int arquivados = service.arquivarFinalizados(analista);
+
+        assertThat(arquivados).isEqualTo(3);
+        assertThat(List.of(um, dois, tres)).allSatisfy(card -> {
+            assertThat(card.getArquivadoEm()).isNotNull();
+            assertThat(card.getArquivadoPorNome()).isEqualTo("Andressa");
+        });
+        assertThat(eventosGravados()).hasSize(3).extracting(LiberacaoEventoEntity::getCampo).containsOnly("arquivado");
+        verify(eventos, times(3)).publishEvent(any(LiberacaoEvento.Editado.class));
+    }
+
+    @Test
+    @DisplayName("arquivarFinalizados: coluna vazia devolve 0 e não grava nada")
+    void shouldReturnZeroWhenNothingToArchive() {
+        when(cardRepository.finalizadosNaoArquivados()).thenReturn(List.of());
+
+        assertThat(service.arquivarFinalizados(analista)).isZero();
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("arquivarFinalizados: só analista")
+    void shouldRestrictArchiveAllToAnalysts() {
+        assertThatThrownBy(() -> service.arquivarFinalizados(auxiliar)).isInstanceOf(AcessoNegadoException.class);
+        verify(cardRepository, never()).finalizadosNaoArquivados();
     }
 
     // ----------------------------------------------------------- diferencaSacados

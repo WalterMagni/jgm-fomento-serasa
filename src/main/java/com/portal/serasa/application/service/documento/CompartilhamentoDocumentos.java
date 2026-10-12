@@ -1,6 +1,5 @@
 package com.portal.serasa.application.service.documento;
 
-import com.portal.serasa.application.service.SystemSettingService;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +43,7 @@ public class CompartilhamentoDocumentos {
             "text/plain",
             "text/csv");
 
-    private final SystemSettingService systemSettingService;
+    private final ArmazenamentoEsteiras armazenamento;
 
     /** Valida tipo, tamanho e nome. Devolve o nome original, que é o que o banco guarda. */
     public String validar(MultipartFile file) {
@@ -124,11 +123,7 @@ public class CompartilhamentoDocumentos {
     }
 
     private Path base() {
-        try {
-            return systemSettingService.requireDocumentStorageBasePath();
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Compartilhamento de documentos indisponível: " + ex.getMessage());
-        }
+        return armazenamento.base();
     }
 
     /**

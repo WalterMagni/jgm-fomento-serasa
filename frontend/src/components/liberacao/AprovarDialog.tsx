@@ -16,6 +16,8 @@ import { COR_RESULTADO, ICONE_RESULTADO, formatDocumento, formatMoeda, moedaPara
 
 const OPCOES: Resultado[] = ["APROVADO", "PARCIAL", "REPROVADO"];
 
+const BOTAO_APROVAR = BOTAO_PRIMARIO.replace("bg-[#612035]", "bg-emerald-700").replace("hover:bg-[#4e1a2a]", "hover:bg-emerald-800");
+
 type Escolha = { situacao: Resultado | null; valorAprovado: string };
 
 /** Mesmo cálculo do servidor (ResultadoLiberacao.doCard), para mostrar antes de confirmar. */
@@ -31,21 +33,20 @@ type Props = {
   /** Aviso de parecer faltando no Comitê, quando houver. */
   aviso: string | null;
   enviando: boolean;
-  onConfirmar: (dados: { decisoes: DecisaoSacado[]; resultado?: Resultado; observacao?: string }) => void;
+  onConfirmar: (dados: { decisoes: DecisaoSacado[]; observacao?: string }) => void;
   onFechar: () => void;
 };
 
 /**
- * Finalizar é decidir cada sacado. O resultado do card sai das decisões — todos aprovados,
- * todos reprovados ou parcialmente aprovado — e aparece aqui antes de confirmar.
+ * Aprovar é decidir cada sacado. O resultado do card sai das decisões — todos aprovados ou
+ * parcialmente aprovado — e aparece aqui antes de confirmar. Todos reprovados é Reprovar.
  *
  * <p>Vem preenchido com o que já foi decidido na lista do card; só falta o resto.</p>
  */
-export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, onFechar }: Props) {
+export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFechar }: Props) {
   const { data, isLoading } = useLiberacaoDetalhe(card.id);
   const sacados = data?.sacados ?? [];
   const [escolhas, setEscolhas] = useState<Record<string, Escolha>>({});
-  const [semSacados, setSemSacados] = useState<Resultado | null>(null);
   const [observacao, setObservacao] = useState("");
 
   const escolha = (documento: string): Escolha => {
@@ -56,7 +57,8 @@ export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, on
   const mudar = (documento: string, parcial: Partial<Escolha>) =>
     setEscolhas(atuais => ({ ...atuais, [documento]: { ...escolha(documento), ...parcial } }));
 
-  const resultado = sacados.length === 0 ? semSacados : resultadoDe(sacados.map(sacado => escolha(sacado.documento).situacao));
+  const resultado: Resultado | null = sacados.length === 0 ? "APROVADO" : resultadoDe(sacados.map(sacado => escolha(sacado.documento).situacao));
+  const todosReprovados = resultado === "REPROVADO";
   const parcialSemValor = sacados.find(sacado => {
     const atual = escolha(sacado.documento);
     return atual.situacao === "PARCIAL" && !(parseMoeda(atual.valorAprovado) ?? 0);
@@ -67,7 +69,7 @@ export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, on
     if (atual.situacao === "PARCIAL") return total + (parseMoeda(atual.valorAprovado) ?? 0);
     return total;
   }, 0);
-  const pronto = !!resultado && !parcialSemValor && !isLoading;
+  const pronto = !!resultado && !todosReprovados && !parcialSemValor && !isLoading;
 
   function confirmar() {
     if (!pronto) return;
@@ -80,14 +82,13 @@ export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, on
           valorAprovado: atual.situacao === "PARCIAL" ? parseMoeda(atual.valorAprovado) : null,
         };
       }),
-      resultado: sacados.length === 0 ? semSacados ?? undefined : undefined,
       observacao: observacao.trim() || undefined,
     });
   }
 
   return (
     <Dialogo
-      titulo={`Finalizar #${card.numero}`}
+      titulo={`Aprovar #${card.numero}`}
       subtitulo={card.cedenteNome}
       onFechar={onFechar}
       largura="lg"
@@ -96,9 +97,9 @@ export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, on
           <button type="button" onClick={onFechar} className={BOTAO_SECUNDARIO}>
             Cancelar
           </button>
-          <button type="button" disabled={!pronto || enviando} onClick={confirmar} className={BOTAO_PRIMARIO}>
+          <button type="button" disabled={!pronto || enviando} onClick={confirmar} className={BOTAO_APROVAR}>
             {enviando && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-            {resultado ? `Finalizar: ${ROTULO_RESULTADO[resultado]}` : "Finalizar"}
+            {resultado === "PARCIAL" ? "Aprovar parcialmente" : "Aprovar"}
           </button>
         </>
       }
@@ -120,24 +121,7 @@ export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, on
         {isLoading ? (
           <p className="text-sm text-slate-500">Carregando os sacados…</p>
         ) : sacados.length === 0 ? (
-          <div>
-            <span className={ROTULO}>Card sem sacados: qual o resultado?</span>
-            <div className="flex gap-2">
-              {(["APROVADO", "REPROVADO"] as Resultado[]).map(opcao => (
-                <button
-                  key={opcao}
-                  type="button"
-                  aria-pressed={semSacados === opcao}
-                  onClick={() => setSemSacados(opcao)}
-                  className={`flex min-h-10 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border text-sm font-medium ${
-                    semSacados === opcao ? `${COR_RESULTADO[opcao]} border-transparent` : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"
-                  }`}
-                >
-                  <Icon name={ICONE_RESULTADO[opcao]} size={15} /> {ROTULO_RESULTADO[opcao]}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-300">Card sem sacados: a operação inteira fica aprovada.</p>
         ) : (
           <div>
             <span className={ROTULO}>Decisão de cada sacado</span>
@@ -195,7 +179,12 @@ export default function FinalizarDialog({ card, aviso, enviando, onConfirmar, on
           </div>
         )}
 
-        {resultado && (
+        {todosReprovados ? (
+          <p className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:bg-rose-900/30 dark:text-rose-200">
+            <Icon name="cancel" size={16} />
+            Todos os sacados reprovados: use <strong>Reprovar</strong> no lugar de Aprovar.
+          </p>
+        ) : resultado && (
           <p className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${COR_RESULTADO[resultado]}`}>
             <Icon name={ICONE_RESULTADO[resultado]} size={16} />
             Resultado: {ROTULO_RESULTADO[resultado]}

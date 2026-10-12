@@ -146,6 +146,9 @@ public class LiberacaoAutorizacao {
             case ORIGEM -> "Origem";
             case COMITE -> "Comitê";
             case PENDENCIA -> "Pendência";
+            case APROVADO -> "Aprovado";
+            case REPROVADO -> "Reprovado";
+            case ASSINATURA -> "Assinatura";
             case FINALIZADO -> "Finalizados";
         };
     }

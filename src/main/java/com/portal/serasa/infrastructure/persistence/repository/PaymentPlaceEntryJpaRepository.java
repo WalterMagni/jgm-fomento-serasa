@@ -88,6 +88,13 @@ public interface PaymentPlaceEntryJpaRepository extends JpaRepository<PaymentPla
             + "ORDER BY e.decided_at DESC NULLS LAST", nativeQuery = true)
     List<PaymentPlaceEntryEntity> findCedenteDecidedForCompany(@Param("doc") String doc);
 
+    /** {@link #findCedenteDecidedForCompany} para vários CNPJs de uma vez (quadro da liberação). */
+    @Query(value = "SELECT * FROM payment_place_entries e "
+            + "WHERE e.analyst_decision = 'CEDENTE' "
+            + "AND (regexp_replace(COALESCE(e.client_document, ''), '\\D', '', 'g') IN (:docs) "
+            + "OR regexp_replace(COALESCE(e.payer_document, ''), '\\D', '', 'g') IN (:docs))", nativeQuery = true)
+    List<PaymentPlaceEntryEntity> findCedenteDecidedForCompanies(@Param("docs") java.util.Collection<String> docs);
+
     /**
      * Lançamentos ainda sem cedente resolvido (client_document nulo) cujo código,
      * normalizado (só dígitos, sem zeros à esquerda), bate com :code. Usado para

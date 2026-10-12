@@ -14,6 +14,9 @@ const ROTULO_CAMPO: Record<string, string> = {
   cedente: "o cedente",
   tipoOperacao: "o tipo",
   valor: "o valor",
+  taxa: "a taxa",
+  tac: "a TAC",
+  tranche: "a tranche",
   prazo: "o prazo",
   parecerOrigem: "o parecer da origem",
   sacados: "os sacados",
@@ -41,12 +44,26 @@ function descrever(evento: EventoLiberacao): ReactNode {
     case "CRIACAO":
       return "criou o card";
     case "EDICAO":
+      if (evento.campo === "arquivado") return evento.valorDepois === "Arquivado" ? "arquivou o card" : "tirou o card do arquivo";
       if (evento.campo === "parecerOrigem") return "editou o parecer da origem";
       if (evento.campo === "sacados") return <>alterou os sacados: <span className="text-slate-500">{evento.texto}</span></>;
+      if (evento.campo === "parecerSacado")
+        return (
+          <>
+            escreveu o parecer {evento.valorDepois} de <span className="text-slate-500">{evento.texto}</span>
+          </>
+        );
+      if (evento.campo === "opiniaoOrigem" || evento.campo === "opiniaoComite")
+        return (
+          <>
+            marcou {evento.campo === "opiniaoOrigem" ? "O (Origem)" : "C (Comitê)"} de <span className="text-slate-500">{evento.texto}</span>:{" "}
+            <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
+          </>
+        );
       if (evento.campo === "situacaoSacado")
         return (
           <>
-            decidiu <span className="text-slate-500">{evento.texto}</span>:{" "}
+            decidiu (D) <span className="text-slate-500">{evento.texto}</span>:{" "}
             <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
           </>
         );
@@ -201,7 +218,8 @@ export default function Atividade({
 }) {
   const comentar = useComentar();
   const [texto, setTexto] = useState("");
-  const [filtro, setFiltro] = useState<"tudo" | "comentarios">("tudo");
+  // Comentários por padrão (pedido do time): os eventos automáticos ficam a um clique, em "Tudo".
+  const [filtro, setFiltro] = useState<"tudo" | "comentarios">("comentarios");
   const [todos, setTodos] = useState(false);
 
   const itens: Item[] = [
@@ -238,8 +256,8 @@ export default function Atividade({
       <div className="mb-3 mt-5 flex gap-1" role="tablist" aria-label="Filtrar atividade">
         {(
           [
-            ["tudo", "Tudo"],
             ["comentarios", `Comentários${comentarios.length ? ` (${comentarios.length})` : ""}`],
+            ["tudo", "Tudo"],
           ] as const
         ).map(([valor, rotulo]) => (
           <button

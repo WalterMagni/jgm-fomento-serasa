@@ -273,27 +273,34 @@ function Membros({ card, euId }: { card: LiberacaoCard; euId?: string }) {
           </button>
         </span>
       </h3>
-      <ul className="space-y-1">
-        {card.membros.map(membro => (
-          <li key={membro.id} className="group flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-            <Avatar nome={membro.nome} iniciais={membro.iniciais} tamanho="xs" />
-            <span className="min-w-0 flex-1 truncate">{membro.nome}</span>
-            {membro.id === euId && <span className="text-[10px] text-slate-400">você</span>}
-            {card.podeEditar && membro.id !== euId && (
-              <button
-                type="button"
-                aria-label={`Remover ${membro.nome}`}
-                onClick={() => remover.mutate({ id: card.id, usuarioId: membro.id })}
-                className="invisible flex h-6 w-6 cursor-pointer items-center justify-center rounded text-slate-400 hover:bg-slate-200
-                  hover:text-slate-700 group-hover:visible focus:visible dark:hover:bg-slate-700"
-              >
-                <Icon name="close" size={12} />
-              </button>
-            )}
-          </li>
-        ))}
+      {/* Uma linha de iniciais: o nome aparece ao passar o mouse; o × tira quem pode ser tirado. */}
+      <ul className="flex flex-wrap gap-1.5" aria-label="Membros (recebem aviso quando o card muda de coluna ou é comentado)">
+        {card.membros.map(membro => {
+          const removivel = card.podeEditar && membro.id !== euId;
+          return (
+            <li key={membro.id} className="group relative" title={membro.id === euId ? `${membro.nome} (você)` : membro.nome}>
+              <Avatar
+                nome={membro.nome}
+                iniciais={membro.iniciais}
+                tamanho="sm"
+                className={membro.id === euId ? "ring-2 ring-[#612035]/40 ring-offset-1 dark:ring-[#e8a3b6]/50" : ""}
+              />
+              {removivel && (
+                <button
+                  type="button"
+                  aria-label={`Remover ${membro.nome}`}
+                  onClick={() => remover.mutate({ id: card.id, usuarioId: membro.id })}
+                  className="invisible absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-slate-700
+                    text-white group-hover:visible focus:visible dark:bg-slate-200 dark:text-slate-800"
+                >
+                  <Icon name="close" size={9} />
+                </button>
+              )}
+            </li>
+          );
+        })}
+        {card.membros.length === 0 && <li className="text-xs text-slate-400">ninguém</li>}
       </ul>
-      <p className="mt-1.5 text-[10.5px] leading-snug text-slate-400">Membros recebem aviso quando o card muda de coluna ou é comentado.</p>
 
       {aberto && (
         <div className={PAINEL} role="dialog" aria-label="Adicionar membro">

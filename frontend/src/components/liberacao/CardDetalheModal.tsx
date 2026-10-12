@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useMarcarLidasDoLink } from "@/hooks/useNotificacoes";
 import Icon from "@/components/ui/Icon";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
-import { useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
-import { ROTULO_ETAPA, ROTULO_ETAPA_CURTO, ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard } from "@/types/liberacao";
+import { useArquivarCard, useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
+import { ETAPAS_DECIDIDAS, ROTULO_ETAPA, ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard } from "@/types/liberacao";
 import CardForm from "./CardForm";
 import Anexos from "./Anexos";
 import Atividade from "./Atividade";
@@ -25,8 +25,9 @@ import {
   formatDataHora,
   formatDocumento,
   formatMoeda,
+  formatTaxa,
+  rotuloMover,
   situacaoPrazo,
-  tempoRelativo,
 } from "./formatters";
 
 type Props = {
@@ -49,6 +50,7 @@ function Dado({ rotulo, children }: { rotulo: string; children: React.ReactNode 
 export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, onMover }: Props) {
   const { data, isLoading, error } = useLiberacaoDetalhe(cardId);
   const editar = useEditarCard();
+  const arquivar = useArquivarCard();
   const excluir = useExcluirCard();
   const novaPendencia = useNovaPendencia();
   const cadastrar = useCadastrarEmpresa();
@@ -92,6 +94,11 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
           {ROTULO_ETAPA[card.etapa]}
         </span>
         <span className="font-mono text-slate-400">#{card.numero}</span>
+        {card.arquivadoEm && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800">
+            <Icon name="inventory_2" size={11} /> arquivado
+          </span>
+        )}
         {card.rodada > 1 && <span className="text-slate-400">· rodada {card.rodada}</span>}
       </span>
       <span className="leading-tight">{card.cedenteNome}</span>
@@ -142,11 +149,14 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
         <div className="min-w-0">
           {editando ? (
             <CardForm
-              sacadosTravados={card.etapa === "FINALIZADO"}
+              sacadosTravados={ETAPAS_DECIDIDAS.includes(card.etapa)}
               inicial={{
                 cedente: { cnpj: card.cedenteCnpj, nome: card.cedenteNome, cadastrado: card.cedenteCadastrado },
                 tipoOperacao: card.tipoOperacao,
                 valor: card.valor,
+                taxa: card.taxa,
+                tac: card.tac,
+                tranche: card.tranche,
                 prazo: card.prazo,
                 parecerOrigem: card.parecerOrigem,
                 posicaoOrigem: card.posicaoOrigem,
@@ -178,24 +188,20 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   )
                 }
               >
-                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <Dado rotulo="Valor">
                     <span className="font-display text-xl font-semibold tracking-tight">{formatMoeda(card.valor)}</span>
                   </Dado>
                   <Dado rotulo="Tipo">{card.tipoOperacao ?? "—"}</Dado>
-                  {card.resultado && (
-                    <Dado rotulo="Resultado">
-                      <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${COR_RESULTADO[card.resultado]}`}>
-                        <Icon name={ICONE_RESULTADO[card.resultado]} size={12} />
-                        {ROTULO_RESULTADO[card.resultado]}
-                      </span>
-                      {card.resultado === "PARCIAL" && card.valorAprovado != null && (
-                        <span className="mt-1 block text-xs tabular-nums text-slate-500">
-                          {formatMoeda(card.valorAprovado)} aprovados{card.valor != null && ` de ${formatMoeda(card.valor)}`}
-                        </span>
-                      )}
-                    </Dado>
-                  )}
+                  <Dado rotulo="Taxa">
+                    <span className="font-display text-xl font-semibold tabular-nums tracking-tight">{formatTaxa(card.taxa)}</span>
+                  </Dado>
+                  <Dado rotulo="TAC">
+                    <span className="font-display text-xl font-semibold tabular-nums tracking-tight">{formatMoeda(card.tac)}</span>
+                  </Dado>
+                  <Dado rotulo="Tranche">
+                    <span className="font-display text-xl font-semibold tabular-nums tracking-tight">{formatMoeda(card.tranche)}</span>
+                  </Dado>
                   <Dado rotulo="Prazo">
                     {card.prazo ? (
                       <span
@@ -214,7 +220,38 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                       "—"
                     )}
                   </Dado>
+                  {card.resultado && (
+                    <Dado rotulo="Resultado">
+                      <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${COR_RESULTADO[card.resultado]}`}>
+                        <Icon name={ICONE_RESULTADO[card.resultado]} size={12} />
+                        {ROTULO_RESULTADO[card.resultado]}
+                      </span>
+                      {card.resultado === "PARCIAL" && card.valorAprovado != null && (
+                        <span className="mt-1 block text-xs tabular-nums text-slate-500">
+                          {formatMoeda(card.valorAprovado)} aprovados{card.valor != null && ` de ${formatMoeda(card.valor)}`}
+                        </span>
+                      )}
+                    </Dado>
+                  )}
                 </dl>
+                {card.pracaPagamento && (
+                  <a
+                    href={`/clients/${card.cedenteCnpj}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm text-rose-900
+                      transition-colors hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100 dark:hover:bg-rose-950/50"
+                  >
+                    <Icon name="alt_route" size={17} className="mt-0.5 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <strong className="font-semibold">Praça de Pagamento:</strong> o cedente tem{" "}
+                      <strong className="tabular-nums">{card.pracaPagamento.titulos}</strong> título{card.pracaPagamento.titulos === 1 ? "" : "s"} apontado
+                      {card.pracaPagamento.titulos === 1 ? "" : "s"}, somando{" "}
+                      <strong className="tabular-nums">{formatMoeda(card.pracaPagamento.valor)}</strong>.
+                      <span className="block text-xs text-rose-700/80 dark:text-rose-200/80">Detalhes na página da empresa ↗</span>
+                    </span>
+                  </a>
+                )}
               </Secao>
 
               {card.proposta && (
@@ -232,7 +269,8 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   cardId={card.id}
                   sacados={data.sacados}
                   valorOperacao={card.valor}
-                  podeDecidir={ehAnalista && (card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
+                  podeOrigem={card.etapa === "ORIGEM"}
+                  podeComite={ehAnalista && (card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
                 />
               </Secao>
 
@@ -326,13 +364,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                         }`}
                     >
                       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${destino.permitido ? corDestino.faixa : "bg-slate-300 dark:bg-slate-600"}`} />
-                      {card.etapa === "COMITE" && destino.etapa === "ORIGEM"
-                        ? "Devolver à Origem"
-                        : card.etapa === "FINALIZADO" && destino.etapa === "COMITE"
-                          ? "Reabrir no Comitê"
-                          : destino.etapa === "FINALIZADO"
-                            ? "Finalizar"
-                            : ROTULO_ETAPA_CURTO[destino.etapa]}
+                      {rotuloMover(card.etapa, destino.etapa)}
                       {destino.permitido ? (
                         <Icon name="arrow_forward" size={14} className="ml-auto text-slate-300 transition-colors group-hover:text-slate-600" />
                       ) : (
@@ -347,24 +379,28 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
               })}
               {card.destinos.length === 0 && <p className="text-xs text-slate-400">Sem movimentos a partir daqui.</p>}
             </div>
+            {card.etapa === "FINALIZADO" && ehAnalista && (
+              <button
+                type="button"
+                disabled={arquivar.isPending}
+                onClick={() => arquivar.mutate({ id: card.id, arquivado: !card.arquivadoEm }, { onSuccess: () => !card.arquivadoEm && onFechar() })}
+                className="mt-1.5 flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 text-left
+                  text-sm font-medium text-slate-600 transition-colors hover:border-slate-400 hover:bg-white focus:outline-none focus-visible:ring-2
+                  focus-visible:ring-[#612035] disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Icon name={card.arquivadoEm ? "unarchive" : "inventory_2"} size={15} />
+                {card.arquivadoEm ? "Desarquivar" : "Arquivar"}
+                <span className="ml-auto text-[11px] font-normal text-slate-400">{card.arquivadoEm ? "volta ao quadro" : "sai do quadro"}</span>
+              </button>
+            )}
+            {card.arquivadoEm && (
+              <p className="mt-1.5 px-1 text-[11px] text-slate-500">
+                Arquivado{card.arquivadoPorNome && <> por {card.arquivadoPorNome}</>} em {formatDataHora(card.arquivadoEm)}
+              </p>
+            )}
           </div>
 
           <OrganizacaoCard card={card} euId={euId} ehAnalista={ehAnalista} />
-
-          <div className="space-y-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <p>
-              Criado por <strong className="font-semibold text-slate-700 dark:text-slate-200">{card.criadoPorNome}</strong>
-              <br />
-              {formatDataHora(card.criadoEm)}
-            </p>
-            <p>
-              Última alteração por <strong className="font-semibold text-slate-700 dark:text-slate-200">{card.atualizadoPorNome}</strong>
-              <br />
-              <span title={formatDataHora(card.atualizadoEm)}>
-                {formatDataHora(card.atualizadoEm)} · {tempoRelativo(card.atualizadoEm)}
-              </span>
-            </p>
-          </div>
 
           {card.podeEditar && (
             <button

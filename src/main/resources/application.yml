@@ -57,6 +57,9 @@ app:
     allowed-emails: ${APP_USER_MANAGEMENT_ALLOWED_EMAILS:}
   # Endereço do portal no navegador, para links em e-mail. Ex.: http://10.0.0.5:3001
   portal-url: ${APP_PORTAL_URL:}
+  # Arquivos das esteiras. No Docker: volume em /app/dados/esteiras (ver docker-compose.yml).
+  documentos:
+    esteiras: ${ESTEIRAS_DOCUMENTOS_PATH:./dados/esteiras}
 
 api:
   security:

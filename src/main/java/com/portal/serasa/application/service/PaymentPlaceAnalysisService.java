@@ -580,6 +580,42 @@ public class PaymentPlaceAnalysisService {
                 pageItems, safePage, safeSize, totalPages, totalFiltered);
     }
 
+    /** Totais da Visão Cedente de um documento: títulos e valor pago. */
+    public record ApontamentoPraca(int titulos, BigDecimal valor) {
+    }
+
+    /**
+     * Visão Cedente de vários CNPJs numa consulta só — a mesma regra de {@link #getCompanySummary}:
+     * títulos decididos como CEDENTE em que o documento aparece como cedente ou como sacado.
+     * Documento sem apontamento não entra no mapa.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, ApontamentoPraca> apontamentosPorDocumento(java.util.Collection<String> documentos) {
+        java.util.Set<String> docs = documentos.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(documento -> documento.replaceAll("\\D", ""))
+                .filter(documento -> documento.length() == 14)
+                .collect(java.util.stream.Collectors.toSet());
+        if (docs.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<String, Integer> titulos = new java.util.HashMap<>();
+        java.util.Map<String, BigDecimal> valores = new java.util.HashMap<>();
+        for (PaymentPlaceEntryEntity entrada : entryRepository.findCedenteDecidedForCompanies(docs)) {
+            java.util.Set<String> partes = new java.util.HashSet<>();
+            partes.add(entrada.getClientDocument() == null ? "" : entrada.getClientDocument().replaceAll("\\D", ""));
+            partes.add(entrada.getPayerDocument() == null ? "" : entrada.getPayerDocument().replaceAll("\\D", ""));
+            partes.retainAll(docs);
+            for (String parte : partes) {
+                titulos.merge(parte, 1, Integer::sum);
+                valores.merge(parte, parseBrlValue(entrada.getPaidValue()), BigDecimal::add);
+            }
+        }
+        java.util.Map<String, ApontamentoPraca> resultado = new java.util.HashMap<>();
+        titulos.forEach((doc, quantos) -> resultado.put(doc, new ApontamentoPraca(quantos, valores.get(doc))));
+        return resultado;
+    }
+
     /** Lista paginada dos lançamentos INCONCLUSIVO (todos os lotes), filtrada pela data da decisão. */
     public org.springframework.data.domain.Page<PaymentPlaceEntryEntity> listInconclusivos(
             java.time.LocalDate from, java.time.LocalDate to, int page, int size) {

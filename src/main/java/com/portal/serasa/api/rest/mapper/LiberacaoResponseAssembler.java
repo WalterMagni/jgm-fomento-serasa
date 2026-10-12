@@ -74,6 +74,7 @@ public class LiberacaoResponseAssembler {
     private final EmpresaResolver empresaResolver;
     private final LiberacaoAutorizacao autorizacao;
     private final LiberacaoService liberacaoService;
+    private final com.portal.serasa.application.service.PaymentPlaceAnalysisService pracaService;
 
     @Transactional(readOnly = true)
     public List<LiberacaoCardResponse> cards(List<LiberacaoCardEntity> cards, UserEntity usuario) {
@@ -109,9 +110,10 @@ public class LiberacaoResponseAssembler {
                 cards.stream().map(LiberacaoCardEntity::getCedenteCnpj),
                 sacados.values().stream().flatMap(List::stream).map(LiberacaoSacadoEntity::getCnpj)).toList());
         boolean comiteVazio = liberacaoService.comiteVazio();
+        var praca = pracaService.apontamentosPorDocumento(cards.stream().map(LiberacaoCardEntity::getCedenteCnpj).toList());
 
         return cards.stream()
-                .map(card -> card(card,
+                .map(card -> card(card, praca.get(card.getCedenteCnpj()),
                         sacados.getOrDefault(card.getId(), List.of()),
                         pareceres.getOrDefault(card.getId(), List.of()),
                         pendenciasAbertas.getOrDefault(card.getId(), 0L).intValue(),
@@ -156,11 +158,17 @@ public class LiberacaoResponseAssembler {
         });
         eventos.forEach(evento -> mencionadas.addAll(MencaoParser.cnpjs(evento.getTexto())));
         comentarios.forEach(comentario -> mencionadas.addAll(MencaoParser.cnpjs(comentario.getTexto())));
+        sacados.forEach(sacado -> {
+            mencionadas.addAll(MencaoParser.cnpjs(sacado.getParecerOrigem()));
+            mencionadas.addAll(MencaoParser.cnpjs(sacado.getParecerComite()));
+            mencionadas.addAll(MencaoParser.cnpjs(sacado.getParecerDiretoria()));
+        });
 
         Map<String, EmpresaResolver.Empresa> conhecidas = empresaResolver.resolver(Stream.concat(
                 sacados.stream().map(LiberacaoSacadoEntity::getCnpj), mencionadas.stream()).toList());
         Map<String, Boolean> empresas = new LinkedHashMap<>();
         mencionadas.forEach(cnpj -> empresas.put(cnpj, conhecidas.containsKey(cnpj)));
+        var pracaSacados = pracaService.apontamentosPorDocumento(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList());
 
         return LiberacaoDetalheResponse.builder()
                 .card(card(card, usuario))
@@ -171,7 +179,11 @@ public class LiberacaoResponseAssembler {
                                     sacado.getValor(), empresa != null, empresa == null ? null : empresa.praca(),
                                     sacado.getSituacao(), sacado.getValorAprovado(), sacado.getSituacaoPorNome(),
                                     sacado.getSituacaoEm(), historico.getOrDefault(sacado.getCnpj(), List.of()),
-                                    sacado.getCarteira());
+                                    sacado.getCarteira(),
+                                    sacado.getOpiniaoOrigem(), sacado.getOpiniaoOrigemPorNome(), sacado.getOpiniaoOrigemEm(),
+                                    sacado.getOpiniaoComite(), sacado.getOpiniaoComitePorNome(), sacado.getOpiniaoComiteEm(),
+                                    sacado.getParecerOrigem(), sacado.getParecerComite(), sacado.getParecerDiretoria(),
+                                    praca(pracaSacados.get(sacado.getCnpj())));
                         })
                         .toList())
                 .pareceres(pareceres.stream().map(this::parecer).toList())
@@ -191,7 +203,9 @@ public class LiberacaoResponseAssembler {
                 .build();
     }
 
-    private LiberacaoCardResponse card(LiberacaoCardEntity card, List<LiberacaoSacadoEntity> sacados,
+    private LiberacaoCardResponse card(LiberacaoCardEntity card,
+                                       com.portal.serasa.application.service.PaymentPlaceAnalysisService.ApontamentoPraca praca,
+                                       List<LiberacaoSacadoEntity> sacados,
                                        List<LiberacaoParecerEntity> pareceres, int pendenciasAbertas,
                                        int comentarios, int anexos, List<LiberacaoMembroEntity> membros, Map<UUID, UserEntity> usuarios,
                                        Map<String, EmpresaResolver.Empresa> empresas, boolean comiteVazio, UserEntity usuario,
@@ -216,8 +230,12 @@ public class LiberacaoResponseAssembler {
                 .cedenteNome(card.getCedenteNome())
                 .cedenteCadastrado(cedente != null)
                 .cedentePraca(cedente == null ? null : cedente.praca())
+                .pracaPagamento(praca(praca))
                 .tipoOperacao(card.getTipoOperacao())
                 .valor(card.getValor())
+                .taxa(card.getTaxa())
+                .tac(card.getTac())
+                .tranche(card.getTranche())
                 .prazo(card.getPrazo())
                 .parecerOrigem(card.getParecerOrigem())
                 .posicaoOrigem(card.getPosicaoOrigem())
@@ -229,6 +247,8 @@ public class LiberacaoResponseAssembler {
                 .atualizadoPorNome(card.getAtualizadoPorNome())
                 .atualizadoEm(card.getAtualizadoEm())
                 .finalizadoEm(card.getFinalizadoEm())
+                .arquivadoEm(card.getArquivadoEm())
+                .arquivadoPorNome(card.getArquivadoPorNome())
                 .resultado(card.getResultado())
                 .valorAprovado(valorAprovado)
                 .etiquetas(etiquetas)
@@ -257,7 +277,7 @@ public class LiberacaoResponseAssembler {
                 .podeEditar(autorizacao.podeEditar(card, usuario))
                 // Avançar primeiro, devolver por último: é a ordem em que a tela lista os botões.
                 .destinos(card.getEtapa().destinos().stream()
-                        .sorted(Comparator.comparing((EtapaLiberacao etapa) -> etapa == EtapaLiberacao.ORIGEM)
+                        .sorted(Comparator.comparing((EtapaLiberacao etapa) -> etapa.ordinal() < card.getEtapa().ordinal())
                                 .thenComparing(EtapaLiberacao::ordinal))
                         .map(destino -> {
                             var motivo = autorizacao.motivoBloqueio(card, destino, usuario, registrados, comiteVazio);
@@ -346,5 +366,10 @@ public class LiberacaoResponseAssembler {
             return unica.substring(0, Math.min(2, unica.length())).toUpperCase();
         }
         return (partes[0].substring(0, 1) + partes[partes.length - 1].substring(0, 1)).toUpperCase();
+    }
+
+    private static LiberacaoCardResponse.Praca praca(
+            com.portal.serasa.application.service.PaymentPlaceAnalysisService.ApontamentoPraca apontamento) {
+        return apontamento == null ? null : new LiberacaoCardResponse.Praca(apontamento.titulos(), apontamento.valor());
     }
 }

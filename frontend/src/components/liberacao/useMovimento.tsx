@@ -4,15 +4,15 @@ import { useState, type ReactNode } from "react";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { useMoverCard } from "@/hooks/useLiberacao";
 import {
+  ETAPAS_DECIDIDAS,
   ROTULO_ETAPA_CURTO,
   type DecisaoSacado,
   type EtapaLiberacao,
   type LiberacaoCard,
   type NovaPendencia,
-  type Resultado,
 } from "@/types/liberacao";
+import AprovarDialog from "./AprovarDialog";
 import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, ROTULO } from "./Dialogo";
-import FinalizarDialog from "./FinalizarDialog";
 import PendenciaDialog from "./PendenciaDialog";
 
 type Confirmacao = {
@@ -38,21 +38,21 @@ const CLASSE_TOM = {
  * Pede o que cada movimento exige antes de chamar o servidor.
  *
  * <p>Mesma regra para arrastar e para o botão "Mover" do detalhe: ir para Pendência pergunta
- * para quem; finalizar pede a decisão de cada sacado; devolver e reabrir confirmam com espaço
- * para observação. Saindo do Comitê com parecer faltando, confirma antes. Mover da Origem para o
- * Comitê, ou da Pendência de volta, vai direto — é o caminho do dia a dia.</p>
+ * para quem; aprovar pede a decisão de cada sacado; reprovar, devolver e reabrir confirmam com
+ * espaço para observação. Saindo do Comitê com parecer faltando, confirma antes. O resto —
+ * Origem para Comitê, assinatura, finalizar — vai direto: é o caminho do dia a dia.</p>
  */
 export function useMovimento(euId?: string) {
   const mover = useMoverCard();
   const [pendenciaPara, setPendenciaPara] = useState<LiberacaoCard | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
   const [observacao, setObservacao] = useState("");
-  const [finalizar, setFinalizar] = useState<{ card: LiberacaoCard; aviso: string | null } | null>(null);
+  const [aprovar, setAprovar] = useState<{ card: LiberacaoCard; aviso: string | null } | null>(null);
 
   function executar(
     card: LiberacaoCard,
     para: EtapaLiberacao,
-    extra?: { pendencias?: NovaPendencia[]; observacao?: string; decisoes?: DecisaoSacado[]; resultado?: Resultado },
+    extra?: { pendencias?: NovaPendencia[]; observacao?: string; decisoes?: DecisaoSacado[] },
   ) {
     mover.mutate(
       { id: card.id, de: card.etapa, para, ...extra },
@@ -60,7 +60,7 @@ export function useMovimento(euId?: string) {
         onSettled: () => {
           setPendenciaPara(null);
           setConfirmacao(null);
-          setFinalizar(null);
+          setAprovar(null);
           setObservacao("");
         },
       },
@@ -71,9 +71,9 @@ export function useMovimento(euId?: string) {
     const destino = card.destinos.find(item => item.etapa === para);
     if (!destino?.permitido) return;
 
-    // Finalizar é decidir os sacados; o diálogo mostra o aviso de parecer faltando, se houver.
-    if (para === "FINALIZADO") {
-      setFinalizar({ card, aviso: destino.aviso });
+    // Aprovar é decidir os sacados; o diálogo mostra o aviso de parecer faltando, se houver.
+    if (para === "APROVADO") {
+      setAprovar({ card, aviso: destino.aviso });
       return;
     }
     // Saindo do Comitê com parecer faltando: confirma antes de seguir para o passo normal.
@@ -110,7 +110,18 @@ export function useMovimento(euId?: string) {
       });
       return;
     }
-    if (card.etapa === "FINALIZADO") {
+    if (para === "REPROVADO") {
+      setConfirmacao({
+        card,
+        para,
+        titulo: `Reprovar #${card.numero}?`,
+        tom: "perigo",
+        rotulo: "Reprovar",
+        texto: <>Todos os sacados ficam reprovados. Depois, é só finalizar o card.</>,
+      });
+      return;
+    }
+    if (para === "COMITE" && ETAPAS_DECIDIDAS.includes(card.etapa)) {
       setConfirmacao({
         card,
         para,
@@ -127,13 +138,13 @@ export function useMovimento(euId?: string) {
 
   const dialogo = (
     <>
-      {finalizar && (
-        <FinalizarDialog
-          card={finalizar.card}
-          aviso={finalizar.aviso}
+      {aprovar && (
+        <AprovarDialog
+          card={aprovar.card}
+          aviso={aprovar.aviso}
           enviando={mover.isPending}
-          onFechar={() => setFinalizar(null)}
-          onConfirmar={dados => executar(finalizar.card, "FINALIZADO", dados)}
+          onFechar={() => setAprovar(null)}
+          onConfirmar={dados => executar(aprovar.card, "APROVADO", dados)}
         />
       )}
       {pendenciaPara && (

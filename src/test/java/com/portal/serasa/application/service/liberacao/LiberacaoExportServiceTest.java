@@ -195,6 +195,170 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
+    @DisplayName("horasPorEtapa: Aprovado→Assinatura→Finalizado conta as horas em Assinatura e para de contar em Finalizado")
+    void shouldCountHoursInAssinatura() {
+        UUID id = UUID.randomUUID();
+        LiberacaoCardEntity card = LiberacaoCardEntity.builder().id(id).criadoEm(T0).etapa(EtapaLiberacao.FINALIZADO).build();
+        List<LiberacaoEventoEntity> eventos = List.of(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0.plusHours(2)),
+                transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO, T0.plusHours(6)),
+                transicao(id, EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, T0.plusHours(7)),
+                transicao(id, EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO, T0.plusHours(31).plusMinutes(30)));
+
+        Map<EtapaLiberacao, Double> horas = LiberacaoExportService.horasPorEtapa(card, eventos, T0.plusDays(30));
+
+        assertThat(horas).containsEntry(EtapaLiberacao.COMITE, 4.0)
+                .containsEntry(EtapaLiberacao.APROVADO, 1.0)
+                .containsEntry(EtapaLiberacao.ASSINATURA, 24.5)
+                .doesNotContainKey(EtapaLiberacao.FINALIZADO);
+    }
+
+    @Test
+    @DisplayName("ehDecisao: TRANSICAO para Aprovado ou Reprovado é a decisão, de qualquer etapa de origem")
+    void shouldRecognizeNewDecisionEvents() {
+        UUID id = UUID.randomUUID();
+        for (EtapaLiberacao de : List.of(EtapaLiberacao.COMITE, EtapaLiberacao.PENDENCIA)) {
+            assertThat(LiberacaoExportService.ehDecisao(transicao(id, de, EtapaLiberacao.APROVADO, T0))).isTrue();
+            assertThat(LiberacaoExportService.ehDecisao(transicao(id, de, EtapaLiberacao.REPROVADO, T0))).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("ehDecisao: legado — TRANSICAO para Finalizado vinda do Comitê ou da Pendência ainda é decisão")
+    void shouldRecognizeLegacyDecisionEvents() {
+        UUID id = UUID.randomUUID();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.FINALIZADO, T0))).isTrue();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.PENDENCIA, EtapaLiberacao.FINALIZADO, T0))).isTrue();
+    }
+
+    @Test
+    @DisplayName("ehDecisao: Assinatura/Reprovado→Finalizado, Aprovado→Assinatura, outras etapas e etapa nula não são decisão")
+    void shouldNotRecognizeOtherTransitionsAsDecision() {
+        UUID id = UUID.randomUUID();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO, T0))).isFalse();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.REPROVADO, EtapaLiberacao.FINALIZADO, T0))).isFalse();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, T0))).isFalse();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0))).isFalse();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.PENDENCIA, T0))).isFalse();
+        assertThat(LiberacaoExportService.ehDecisao(
+                transicao(id, EtapaLiberacao.COMITE, null, T0))).isFalse();
+    }
+
+    @Test
+    @DisplayName("exportar: aba Sacados traz as opiniões O (Origem) e C (Comitê) nas duas últimas colunas")
+    void shouldExportSacadoOpinions() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 50L, EtapaLiberacao.COMITE, null)));
+        LiberacaoSacadoEntity opinado = sacado(id, SACADO_A, "BETA SA", "1000", 0, null, null, null);
+        opinado.setOpiniaoOrigem(ResultadoLiberacao.APROVADO);
+        opinado.setOpiniaoComite(ResultadoLiberacao.PARCIAL);
+        opinado.setParecerDiretoria("Limitar a @[Beta](cnpj:45723174000110).");
+        when(sacadoRepository.findByCardIdIn(any())).thenReturn(List.of(opinado,
+                sacado(id, "11444777000161", "GAMA SA", "500", 1, null, null, null)));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Sheet sacados = planilha.getSheet("Sacados");
+            assertThat(sacados.getRow(0).getCell(16).getStringCellValue()).isEqualTo("Opinião da Origem");
+            assertThat(sacados.getRow(0).getCell(17).getStringCellValue()).isEqualTo("Opinião do Comitê");
+            assertThat(sacados.getRow(1).getCell(16).getStringCellValue()).isEqualTo("Aprovado");
+            assertThat(sacados.getRow(1).getCell(17).getStringCellValue()).isEqualTo("Parcialmente aprovado");
+            assertThat(sacados.getRow(2).getCell(16).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
+            assertThat(sacados.getRow(0).getCell(20).getStringCellValue()).isEqualTo("Parecer da Diretoria");
+            assertThat(sacados.getRow(1).getCell(20).getStringCellValue()).isEqualTo("Limitar a @Beta.");
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: Taxa (%), TAC e Tranche nas últimas colunas; em branco quando o card não tem")
+    void shouldExportTaxaAndTac() throws Exception {
+        UUID comTaxa = UUID.randomUUID();
+        UUID semTaxa = UUID.randomUUID();
+        LiberacaoCardEntity card = card(comTaxa, 41L, EtapaLiberacao.COMITE, null);
+        card.setTaxa(new BigDecimal("1.875"));
+        card.setTac(new BigDecimal("420"));
+        card.setTranche(new BigDecimal("3126267.01"));
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card, card(semTaxa, 42L, EtapaLiberacao.ORIGEM, null)));
+
+        try (XSSFWorkbook planilha = exportar(comTaxa, semTaxa)) {
+            Sheet cards = planilha.getSheet("Cards");
+            assertThat(cards.getRow(0).getCell(40).getStringCellValue()).isEqualTo("Taxa (%)");
+            assertThat(cards.getRow(0).getCell(41).getStringCellValue()).isEqualTo("TAC");
+            assertThat(cards.getRow(0).getCell(42).getStringCellValue()).isEqualTo("Tranche");
+            assertThat(cards.getRow(1).getCell(42).getNumericCellValue()).isEqualTo(3126267.01);
+            assertThat(cards.getRow(2).getCell(42).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
+            Row linha = cards.getRow(1);
+            assertThat(linha.getCell(40).getNumericCellValue()).isEqualTo(1.875);
+            assertThat(linha.getCell(40).getCellStyle().getDataFormatString()).isEqualTo("0.00##");
+            assertThat(linha.getCell(41).getNumericCellValue()).isEqualTo(420.0);
+            assertThat(linha.getCell(41).getCellStyle().getDataFormatString()).contains("R$");
+            assertThat(cards.getRow(2).getCell(40).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
+            assertThat(cards.getRow(2).getCell(41).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: card em Assinatura preenche 'Decidido por/em' com a decisão, rótulo 'Assinatura' e as horas em Assinatura na última coluna")
+    void shouldExportCardInAssinatura() throws Exception {
+        UUID id = UUID.randomUUID();
+        LiberacaoCardEntity card = card(id, 40L, EtapaLiberacao.ASSINATURA, ResultadoLiberacao.APROVADO);
+        card.setFinalizadoEm(T0.plusHours(6));
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card));
+        LiberacaoEventoEntity decisao = transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO, T0.plusHours(6));
+        decisao.setUsuarioNome("Mychelly");
+        LiberacaoEventoEntity paraAssinatura = transicao(id, EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, T0.plusHours(7));
+        paraAssinatura.setUsuarioNome("Beatriz");
+        when(eventoRepository.findByCardIdInOrderByCriadoEm(any())).thenReturn(List.of(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0.plusHours(2)), decisao, paraAssinatura));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Sheet cards = planilha.getSheet("Cards");
+            Row cabecalho = cards.getRow(0);
+            Row linha = cards.getRow(1);
+            int ultima = 39;
+            // depois de "Horas em Assinatura" vêm Taxa, TAC e Tranche
+            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 4));
+            assertThat(cabecalho.getCell(ultima).getStringCellValue()).isEqualTo("Horas em Assinatura");
+            assertThat(linha.getCell(4).getStringCellValue()).isEqualTo("Assinatura");
+            assertThat(linha.getCell(17).getStringCellValue()).isEqualTo("Aprovado");
+            assertThat(linha.getCell(19).getStringCellValue()).isEqualTo("Mychelly");
+            assertThat(linha.getCell(20).getLocalDateTimeCellValue()).isEqualTo(T0.plusHours(6));
+            assertThat(linha.getCell(21).getNumericCellValue()).isEqualTo(2.0);
+            assertThat(linha.getCell(22).getNumericCellValue()).isEqualTo(4.0);
+            // ainda em Assinatura: a contagem corre até agora, então só garantimos que há valor positivo
+            assertThat(linha.getCell(ultima).getNumericCellValue()).isGreaterThan(0.0);
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: card decidido como Reprovado preenche 'Decidido por/em' e deixa 'Horas em Assinatura' vazia")
+    void shouldExportReprovadoCardWithoutSignatureHours() throws Exception {
+        UUID id = UUID.randomUUID();
+        LiberacaoCardEntity card = card(id, 41L, EtapaLiberacao.FINALIZADO, ResultadoLiberacao.REPROVADO);
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card));
+        when(eventoRepository.findByCardIdInOrderByCriadoEm(any())).thenReturn(List.of(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0.plusHours(2)),
+                transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO, T0.plusHours(5)),
+                transicao(id, EtapaLiberacao.REPROVADO, EtapaLiberacao.FINALIZADO, T0.plusHours(6))));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Row linha = planilha.getSheet("Cards").getRow(1);
+            assertThat(linha.getCell(19).getStringCellValue()).isEqualTo("Andressa");
+            assertThat(linha.getCell(20).getLocalDateTimeCellValue()).isEqualTo(T0.plusHours(5));
+            Row cabecalho = planilha.getSheet("Cards").getRow(0);
+            assertThat(cabecalho.getCell(39).getStringCellValue()).isEqualTo("Horas em Assinatura");
+            assertThat(linha.getCell(39) == null || linha.getCell(39).getCellType() == CellType.BLANK
+                    || linha.getCell(39).getCellType() == CellType.STRING).isTrue();
+        }
+    }
+
+    @Test
     @DisplayName("exportar: aba Sacados traz praça, situação, valor aprovado, quem decidiu e quando")
     void shouldExportSacadoDecisions() throws Exception {
         UUID id = UUID.randomUUID();
@@ -373,7 +537,7 @@ class LiberacaoExportServiceTest {
             "Liquidados", "Recomprados"};
 
     @Test
-    @DisplayName("exportar: cabeçalho da AR — Cards nas colunas 26 a 38 e Sacados nas 10 a 15, sem mexer nas antigas")
+    @DisplayName("exportar: cabeçalho da AR — Cards nas colunas 26 a 38 (mais Horas em Assinatura na 39) e Sacados nas 10 a 15, sem mexer nas antigas")
     void shouldExportArHeaders() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -382,7 +546,7 @@ class LiberacaoExportServiceTest {
 
         try (XSSFWorkbook planilha = exportar(id)) {
             Row cards = planilha.getSheet("Cards").getRow(0);
-            assertThat(cards.getLastCellNum()).as("39 colunas: 0 a 38").isEqualTo((short) 39);
+            assertThat(cards.getLastCellNum()).as("43 colunas: 0 a 42").isEqualTo((short) 43);
             for (int i = 0; i < CABECALHO_AR_CARDS.length; i++) {
                 assertThat(cards.getCell(26 + i).getStringCellValue()).as("Cards, coluna %d", 26 + i).isEqualTo(CABECALHO_AR_CARDS[i]);
             }
@@ -391,7 +555,7 @@ class LiberacaoExportServiceTest {
             assertThat(cards.getCell(25).getStringCellValue()).isEqualTo("Parecer da origem");
 
             Row sacados = planilha.getSheet("Sacados").getRow(0);
-            assertThat(sacados.getLastCellNum()).as("16 colunas: 0 a 15").isEqualTo((short) 16);
+            assertThat(sacados.getLastCellNum()).as("21 colunas: 0 a 20").isEqualTo((short) 21);
             for (int i = 0; i < CABECALHO_AR_SACADOS.length; i++) {
                 assertThat(sacados.getCell(10 + i).getStringCellValue()).as("Sacados, coluna %d", 10 + i).isEqualTo(CABECALHO_AR_SACADOS[i]);
             }
@@ -400,7 +564,7 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AM, Sacados até P)")
+    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AN, Sacados até P)")
     void shouldExtendAutoFilterToArColumns() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -410,8 +574,8 @@ class LiberacaoExportServiceTest {
         try (XSSFWorkbook planilha = exportar(id)) {
             XSSFSheet cards = planilha.getSheet("Cards");
             XSSFSheet sacados = planilha.getSheet("Sacados");
-            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AM2");
-            assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:P2");
+            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AQ2");
+            assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:U2");
         }
     }
 

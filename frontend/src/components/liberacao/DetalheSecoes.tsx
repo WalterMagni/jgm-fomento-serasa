@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import TextoRico from "@/components/ui/mencao/TextoRico";
-import { useDecidirSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
+import { useDecidirSacado, useOpinarSacado, useParecerSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
 import {
   ROTULO_POSICAO,
   ROTULO_RESULTADO,
@@ -15,6 +15,7 @@ import {
   type Parecer,
   type Pendencia,
   type PosicaoParecer,
+  type QuadroOpiniao,
   type Sacado,
 } from "@/types/liberacao";
 import Avatar from "./Avatar";
@@ -28,6 +29,7 @@ import {
   formatDataHora,
   formatDocumento,
   formatMoeda,
+  formatMoedaCurta,
   moedaParaCampo,
   parseMoeda,
   tempoRelativo,
@@ -79,70 +81,289 @@ export function HistoricoSacado({ historico, compacto = false }: { historico: De
 
 const DECISOES: Resultado[] = ["APROVADO", "PARCIAL", "REPROVADO"];
 
-/** Decisão de um sacado na lista do card, para analista no Comitê ou em Pendência. */
-function DecisaoInline({ cardId, sacado }: { cardId: string; sacado: Sacado }) {
-  const decidir = useDecidirSacado();
-  const [parcial, setParcial] = useState(false);
-  const [valor, setValor] = useState(moedaParaCampo(sacado.valorAprovado));
+/** Cor cheia de cada decisão no quadrado: verde, amarelo e vermelho, pedido do time. */
+const COR_QUADRADO: Record<Resultado, string> = {
+  APROVADO: "border-emerald-600 bg-emerald-500 text-white",
+  PARCIAL: "border-amber-500 bg-amber-400 text-amber-950",
+  REPROVADO: "border-rose-700 bg-rose-600 text-white",
+};
 
-  if (parcial) {
-    return (
-      <form
-        className="flex items-center gap-1"
-        onSubmit={event => {
-          event.preventDefault();
-          const numero = parseMoeda(valor);
-          if (!numero) return;
-          decidir.mutate({ id: cardId, documento: sacado.documento, situacao: "PARCIAL", valorAprovado: numero }, { onSuccess: () => setParcial(false) });
-        }}
-      >
-        <div className="relative w-28">
-          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">R$</span>
-          <input
-            autoFocus
-            inputMode="decimal"
-            value={valor}
-            onChange={event => setValor(event.target.value)}
-            placeholder="aprovado"
-            aria-label="Valor aprovado"
-            className="w-full rounded-md border border-amber-300 bg-white py-1 pl-6 pr-1.5 text-right text-xs tabular-nums focus:outline-none dark:bg-slate-800 dark:text-white"
-          />
-        </div>
-        <button type="submit" disabled={decidir.isPending} className="h-7 cursor-pointer rounded-md bg-amber-500 px-2 text-[11px] font-semibold text-white">
-          ok
-        </button>
-        <button type="button" onClick={() => setParcial(false)} aria-label="Cancelar" className="h-7 cursor-pointer px-1 text-slate-400 hover:text-slate-700">
-          <Icon name="close" size={12} />
-        </button>
-      </form>
-    );
+type Quadro = "O" | "C" | "D";
+const NOME_QUADRO: Record<Quadro, string> = { O: "Origem", C: "Comitê", D: "Diretoria" };
+
+/**
+ * Um quadrado (O, C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
+ * e, no D, o valor aprovado do parcial. Fora disso só mostra a cor e, ao passar o mouse, quem
+ * marcou e quando.
+ */
+function Quadrado({
+  letra,
+  situacao,
+  porNome,
+  em,
+  editavel,
+  pedirValor,
+  valorAtual,
+  ocupado,
+  onMarcar,
+  parecer,
+  salvandoParecer,
+  onParecer,
+}: {
+  letra: Quadro;
+  situacao: Resultado | null;
+  porNome: string | null;
+  em: string | null;
+  editavel: boolean;
+  /** D: parcial pede o valor aprovado. */
+  pedirValor?: boolean;
+  valorAtual?: number | null;
+  ocupado: boolean;
+  onMarcar: (situacao: Resultado | null, valorAprovado?: number) => void;
+  parecer: string | null;
+  salvandoParecer: boolean;
+  onParecer: (texto: string, aoSalvar: () => void) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [texto, setTexto] = useState(parecer ?? "");
+  const [parcial, setParcial] = useState(false);
+  const [valor, setValor] = useState(moedaParaCampo(valorAtual));
+  const caixa = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    function fora(event: MouseEvent) {
+      if (caixa.current && !caixa.current.contains(event.target as Node)) {
+        setAberto(false);
+        setParcial(false);
+      }
+    }
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+
+  const titulo = `${letra} · ${NOME_QUADRO[letra]}: ${situacao ? ROTULO_RESULTADO[situacao] : "sem decisão"}${
+    situacao && porNome ? ` — ${porNome}${em ? `, ${formatDataHora(em)}` : ""}` : ""
+  }`;
+
+  function escolher(opcao: Resultado | null) {
+    if (opcao === "PARCIAL" && pedirValor) {
+      setParcial(true);
+      return;
+    }
+    onMarcar(opcao === situacao ? null : opcao);
   }
 
   return (
-    <div className="flex items-center gap-0.5" role="radiogroup" aria-label={`Decisão de ${sacado.nome ?? sacado.documento}`}>
-      {DECISOES.map(opcao => (
-        <button
-          key={opcao}
-          type="button"
-          role="radio"
-          aria-checked={sacado.situacao === opcao}
-          disabled={decidir.isPending}
-          title={ROTULO_RESULTADO[opcao]}
-          onClick={() => {
-            if (opcao === "PARCIAL") {
-              setParcial(true);
-              return;
-            }
-            decidir.mutate({ id: cardId, documento: sacado.documento, situacao: sacado.situacao === opcao ? null : opcao });
-          }}
-          className={`inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-md px-1.5 text-[10.5px] font-semibold transition-colors ${
-            sacado.situacao === opcao ? COR_RESULTADO[opcao] : "text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
-          }`}
+    <div className="relative" ref={caixa}>
+      <button
+        type="button"
+        disabled={!editavel || ocupado}
+        onClick={() => {
+          setTexto(parecer ?? "");
+          setAberto(atual => !atual);
+        }}
+        title={titulo}
+        aria-label={titulo}
+        aria-haspopup={editavel ? "menu" : undefined}
+        aria-expanded={editavel ? aberto : undefined}
+        className={`inline-flex h-8 w-8 items-center justify-center rounded-md border-2 font-display text-[13px] font-bold transition
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] focus-visible:ring-offset-1 ${
+            situacao
+              ? COR_QUADRADO[situacao]
+              : editavel
+                ? "border-dashed border-slate-400 bg-white text-slate-500 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                : "border-dashed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
+          } ${editavel ? "cursor-pointer hover:-translate-y-px hover:shadow-md" : "cursor-default"}`}
+      >
+        {letra}
+      </button>
+      {aberto && (
+        <div
+          role="menu"
+          className="absolute right-0 top-10 z-20 w-80 rounded-xl border border-slate-200 bg-white p-1 shadow-xl
+            dark:border-slate-700 dark:bg-slate-800"
         >
-          <Icon name={ICONE_RESULTADO[opcao]} size={12} />
-          <span className="hidden sm:inline">{ROTULO_RESULTADO_CURTO[opcao]}</span>
-        </button>
+          <p className="px-2 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+            {letra} · {NOME_QUADRO[letra]}
+          </p>
+          {parcial ? (
+            <form
+              className="flex items-center gap-1 p-1"
+              onSubmit={event => {
+                event.preventDefault();
+                const numero = parseMoeda(valor);
+                if (!numero) return;
+                onMarcar("PARCIAL", numero);
+                setParcial(false);
+              }}
+            >
+              <div className="relative flex-1">
+                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">R$</span>
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={valor}
+                  onChange={event => setValor(event.target.value)}
+                  placeholder="aprovado"
+                  aria-label="Valor aprovado"
+                  className="w-full rounded-md border border-amber-300 bg-white py-1 pl-6 pr-1.5 text-right text-xs tabular-nums focus:outline-none
+                    dark:bg-slate-900 dark:text-white"
+                />
+              </div>
+              <button type="submit" className="h-7 cursor-pointer rounded-md bg-amber-500 px-2 text-[11px] font-semibold text-white">
+                ok
+              </button>
+            </form>
+          ) : (
+            <>
+              {DECISOES.map(opcao => (
+                <button
+                  key={opcao}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={situacao === opcao}
+                  onClick={() => escolher(opcao)}
+                  className="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-slate-700
+                    hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  <span className={`h-3.5 w-3.5 rounded ${COR_QUADRADO[opcao].split(" ").filter(classe => classe.startsWith("bg-")).join(" ")}`} />
+                  {ROTULO_RESULTADO_CURTO[opcao]}
+                  {situacao === opcao && <Icon name="check" size={12} className="ml-auto text-slate-400" />}
+                </button>
+              ))}
+              {situacao && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => escolher(null)}
+                  className="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left text-xs text-slate-500 hover:bg-slate-50
+                    dark:hover:bg-slate-700"
+                >
+                  <Icon name="close" size={12} /> Limpar
+                </button>
+              )}
+            </>
+          )}
+          <div className="mt-1 border-t border-slate-100 p-2 dark:border-slate-700">
+            <label htmlFor={`parecer-${letra}`} className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Parecer {letra}
+            </label>
+            <MentionTextarea
+              id={`parecer-${letra}`}
+              value={texto}
+              onChange={setTexto}
+              rows={3}
+              placeholder="Por que esta decisão? Use @ para marcar."
+            />
+            <div className="mt-1.5 flex justify-end">
+              <button
+                type="button"
+                disabled={salvandoParecer || texto.trim() === (parecer ?? "").trim()}
+                onClick={() => onParecer(texto, () => setAberto(false))}
+                className="h-7 cursor-pointer rounded-md bg-[#612035] px-3 text-[11px] font-semibold text-white disabled:cursor-not-allowed
+                  disabled:opacity-50"
+              >
+                {salvandoParecer ? "salvando…" : "Salvar parecer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Pareceres escritos nos quadrados, um por linha, com a letra na cor da decisão daquele quadrado. */
+function PareceresSacado({ sacado }: { sacado: Sacado }) {
+  const linhas: { letra: Quadro; situacao: Resultado | null; texto: string | null }[] = [
+    { letra: "O", situacao: sacado.opiniaoOrigem, texto: sacado.parecerOrigem },
+    { letra: "C", situacao: sacado.opiniaoComite, texto: sacado.parecerComite },
+    { letra: "D", situacao: sacado.situacao, texto: sacado.parecerDiretoria },
+  ];
+  const escritos = linhas.filter(linha => linha.texto);
+  if (escritos.length === 0) return null;
+  return (
+    <ul className="mt-1.5 space-y-1">
+      {escritos.map(linha => (
+        <li key={linha.letra} className="flex gap-2 text-[12.5px] leading-snug text-slate-700 dark:text-slate-300">
+          <span
+            title={`Parecer ${linha.letra} · ${NOME_QUADRO[linha.letra]}`}
+            className={`mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[9px] font-bold ${
+              linha.situacao ? COR_QUADRADO[linha.situacao] : "border-slate-300 text-slate-500 dark:border-slate-600"
+            }`}
+          >
+            {linha.letra}
+          </span>
+          <div className="min-w-0 flex-1">
+            <TextoRico texto={linha.texto} />
+          </div>
+        </li>
       ))}
+    </ul>
+  );
+}
+
+/** Os três quadrados do sacado: O (Origem), C (Comitê) e D (Diretoria, a decisão que vale). */
+function QuadradosSacado({
+  cardId,
+  sacado,
+  podeOrigem,
+  podeComite,
+}: {
+  cardId: string;
+  sacado: Sacado;
+  podeOrigem: boolean;
+  podeComite: boolean;
+}) {
+  const opinar = useOpinarSacado();
+  const decidir = useDecidirSacado();
+  const escrever = useParecerSacado();
+  const ocupado = opinar.isPending || decidir.isPending;
+  const salvar = (quadro: QuadroOpiniao) => (texto: string, aoSalvar: () => void) =>
+    escrever.mutate({ id: cardId, documento: sacado.documento, quadro, texto }, { onSuccess: aoSalvar });
+  return (
+    <div className="flex items-center gap-1.5" role="group" aria-label={`Decisões de ${sacado.nome ?? sacado.documento}`}>
+      <Quadrado
+        letra="O"
+        situacao={sacado.opiniaoOrigem}
+        porNome={sacado.opiniaoOrigemPorNome}
+        em={sacado.opiniaoOrigemEm}
+        editavel={podeOrigem}
+        ocupado={ocupado}
+        onMarcar={situacao => opinar.mutate({ id: cardId, documento: sacado.documento, quadro: "ORIGEM", situacao })}
+        parecer={sacado.parecerOrigem}
+        salvandoParecer={escrever.isPending}
+        onParecer={salvar("ORIGEM")}
+      />
+      <Quadrado
+        letra="C"
+        situacao={sacado.opiniaoComite}
+        porNome={sacado.opiniaoComitePorNome}
+        em={sacado.opiniaoComiteEm}
+        editavel={podeComite}
+        ocupado={ocupado}
+        onMarcar={situacao => opinar.mutate({ id: cardId, documento: sacado.documento, quadro: "COMITE", situacao })}
+        parecer={sacado.parecerComite}
+        salvandoParecer={escrever.isPending}
+        onParecer={salvar("COMITE")}
+      />
+      <Quadrado
+        letra="D"
+        situacao={sacado.situacao}
+        porNome={sacado.situacaoPorNome}
+        em={sacado.situacaoEm}
+        editavel={podeComite}
+        pedirValor
+        valorAtual={sacado.valorAprovado}
+        ocupado={ocupado}
+        onMarcar={(situacao, valorAprovado) =>
+          decidir.mutate({ id: cardId, documento: sacado.documento, situacao, valorAprovado: situacao === "PARCIAL" ? valorAprovado : null })
+        }
+        parecer={sacado.parecerDiretoria}
+        salvandoParecer={escrever.isPending}
+        onParecer={salvar("DIRETORIA")}
+      />
     </div>
   );
 }
@@ -151,13 +372,16 @@ export function SacadosLista({
   cardId,
   sacados,
   valorOperacao,
-  podeDecidir,
+  podeOrigem,
+  podeComite,
 }: {
   cardId: string;
   sacados: Sacado[];
   valorOperacao: number | null;
-  /** Analista com o card no Comitê ou em Pendência. */
-  podeDecidir: boolean;
+  /** Card na Origem: qualquer pessoa marca o quadrado O. */
+  podeOrigem: boolean;
+  /** Analista com o card no Comitê ou em Pendência: marca C e D. */
+  podeComite: boolean;
 }) {
   if (sacados.length === 0) {
     return <p className="text-sm text-slate-400">Nenhum sacado informado.</p>;
@@ -168,7 +392,7 @@ export function SacadosLista({
   const decididos = sacados.filter(sacado => sacado.situacao);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700">
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
         {sacados.map(sacado => (
           <li key={sacado.documento} className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3">
@@ -181,25 +405,25 @@ export function SacadosLista({
                 {sacado.praca && <span className="text-slate-400"> · {sacado.praca}</span>}
               </p>
               <CarteiraLinha carteira={sacado.carteira} />
+              {sacado.pracaPagamento && (
+                <p
+                  title="Praça de Pagamento: títulos decididos como pagos pelo cedente em que este sacado aparece"
+                  className="mt-1 inline-flex items-center gap-1 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-rose-800
+                    dark:bg-rose-900/40 dark:text-rose-200"
+                >
+                  <Icon name="alt_route" size={11} />
+                  praça de pagamento · {sacado.pracaPagamento.titulos} título{sacado.pracaPagamento.titulos === 1 ? "" : "s"} ·{" "}
+                  {formatMoedaCurta(sacado.pracaPagamento.valor)}
+                </p>
+              )}
               <HistoricoSacado historico={sacado.historico} />
+              <PareceresSacado sacado={sacado} />
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:justify-end">
               {sacado.valor != null && (
                 <span className="text-sm tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.valor)}</span>
               )}
-              {podeDecidir ? (
-                <DecisaoInline cardId={cardId} sacado={sacado} />
-              ) : (
-                sacado.situacao && (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${COR_RESULTADO[sacado.situacao]}`}
-                    title={sacado.situacaoPorNome ? `por ${sacado.situacaoPorNome}` : undefined}
-                  >
-                    <Icon name={ICONE_RESULTADO[sacado.situacao]} size={11} />
-                    {ROTULO_RESULTADO_CURTO[sacado.situacao]}
-                  </span>
-                )
-              )}
+              <QuadradosSacado cardId={cardId} sacado={sacado} podeOrigem={podeOrigem} podeComite={podeComite} />
               {sacado.documento.length === 14 && (
                 <a
                   href={`/clients/${sacado.documento}`}
@@ -224,7 +448,7 @@ export function SacadosLista({
           </li>
         ))}
       </ul>
-      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-800/50
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-b-xl border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-800/50
         ${divergente ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
         {comValor.length > 0 && (
           <span className="flex items-center gap-1">
