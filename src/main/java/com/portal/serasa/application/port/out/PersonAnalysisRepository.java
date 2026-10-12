@@ -27,5 +27,11 @@ public interface PersonAnalysisRepository {
 
     Page<PersonAnalysis> search(String term, Pageable pageable);
 
+    /**
+     * Última análise de cada CPF, só com o que a lista de Pessoas Físicas precisa — sem o
+     * payload original, que é a parte pesada da linha.
+     */
+    List<UltimaAnalisePessoa> findUltimaAnalisePorCpf();
+
     void deleteByCpf(String cpf);
 }

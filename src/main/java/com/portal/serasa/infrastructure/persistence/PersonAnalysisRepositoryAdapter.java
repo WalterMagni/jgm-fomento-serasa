@@ -1,6 +1,7 @@
 package com.portal.serasa.infrastructure.persistence;
 
 import com.portal.serasa.application.port.out.PersonAnalysisRepository;
+import com.portal.serasa.application.port.out.UltimaAnalisePessoa;
 import com.portal.serasa.domain.model.PersonAnalysis;
 import com.portal.serasa.infrastructure.persistence.entity.PersonAnalysisEntity;
 import com.portal.serasa.infrastructure.persistence.mapper.PersonAnalysisEntityMapper;
@@ -60,6 +61,14 @@ public class PersonAnalysisRepositoryAdapter implements PersonAnalysisRepository
         return jpaRepository
                 .findByCpfContainingIgnoreCaseOrPersonNameContainingIgnoreCase(term, term, pageable)
                 .map(mapper::toDomain);
+    }
+
+    @Override
+    public List<UltimaAnalisePessoa> findUltimaAnalisePorCpf() {
+        return jpaRepository.findUltimaAnalisePorCpf().stream()
+                .map(v -> new UltimaAnalisePessoa(v.getCpf(), v.getNome(), v.getConsultaEm(),
+                        v.getCidade(), v.getUf(), v.getRestricoesJson(), v.getSociosJson()))
+                .toList();
     }
 
     @Override

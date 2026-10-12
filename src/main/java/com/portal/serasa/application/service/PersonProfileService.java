@@ -3,8 +3,10 @@ package com.portal.serasa.application.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.portal.serasa.application.port.out.ClientRepository;
 import com.portal.serasa.application.port.out.PersonAnalysisRepository;
+import com.portal.serasa.application.port.out.UltimaAnalisePessoa;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.model.PersonAnalysis;
+import com.portal.serasa.domain.model.pessoa.PessoaResumo;
 import com.portal.serasa.infrastructure.integration.serasa.SerasaPersonCreditRatingClient;
 import com.portal.serasa.infrastructure.integration.serasa.SerasaPersonCreditRatingMapper;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
@@ -22,8 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -37,6 +42,7 @@ public class PersonProfileService {
     private final SerasaPersonCreditRatingClient serasaPersonCreditRatingClient;
     private final SerasaPersonCreditRatingMapper serasaPersonCreditRatingMapper;
     private final ApiUsageLogService apiUsageLogService;
+    private final PessoaResumoMontador pessoaResumoMontador;
 
     @Value("${billing.serasa.pf-cost-per-query:15.52}")
     private BigDecimal pfCostPerQuery;
@@ -108,6 +114,30 @@ public class PersonProfileService {
         return (search != null && !search.isBlank())
                 ? personAnalysisRepository.search(search.trim(), sorted)
                 : personAnalysisRepository.findAll(sorted);
+    }
+
+    /**
+     * Resumo da última análise de cada CPF, para a lista de Pessoas Físicas.
+     *
+     * <p>Volta tudo de uma vez: a tela filtra, ordena e conta na memória. Com centenas de CPFs
+     * a resposta fica em dezenas de KB; se a base passar de alguns milhares, o caminho é
+     * guardar o resumo em colunas e paginar no servidor.</p>
+     */
+    public List<PessoaResumo> listarResumos() {
+        List<UltimaAnalisePessoa> analises = personAnalysisRepository.findUltimaAnalisePorCpf();
+
+        // Uma consulta só para as razões sociais de todas as empresas citadas, sem N+1.
+        Set<String> cnpjs = new HashSet<>();
+        analises.forEach(a -> cnpjs.addAll(pessoaResumoMontador.cnpjsDosSocios(a.sociosJson())));
+        Map<String, String> razaoSocialPorCnpj = new HashMap<>();
+        if (!cnpjs.isEmpty()) {
+            clientRepository.findByDocumentNumberIn(cnpjs)
+                    .forEach(c -> razaoSocialPorCnpj.put(c.getDocumentNumber(), c.getName()));
+        }
+
+        return analises.stream()
+                .map(a -> pessoaResumoMontador.montar(a, razaoSocialPorCnpj))
+                .toList();
     }
 
     /**

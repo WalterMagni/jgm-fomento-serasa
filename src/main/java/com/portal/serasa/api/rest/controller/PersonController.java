@@ -4,6 +4,7 @@ import com.portal.serasa.api.rest.dto.request.CompanyNoteRequest;
 import com.portal.serasa.api.rest.dto.response.CompanyNoteAttachmentResponse;
 import com.portal.serasa.api.rest.dto.response.CompanyNoteResponse;
 import com.portal.serasa.api.rest.dto.response.PersonAnalysisResponse;
+import com.portal.serasa.api.rest.dto.response.PessoaResumoResponse;
 import com.portal.serasa.api.rest.mapper.PersonAnalysisDtoMapper;
 import com.portal.serasa.application.service.PersonNoteService;
 import com.portal.serasa.application.service.PersonProfileService;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -175,6 +177,14 @@ public class PersonController {
             Pageable pageable) {
         Page<PersonAnalysis> page = personProfileService.findAllProfiles(pageable, search);
         return ResponseEntity.ok(page.map(this::toResponse));
+    }
+
+    /** Última consulta de cada CPF, resumida para a lista de Pessoas Físicas. */
+    @GetMapping("/profiles/resumo")
+    public ResponseEntity<List<PessoaResumoResponse>> listarResumos() {
+        return ResponseEntity.ok(personProfileService.listarResumos().stream()
+                .map(PessoaResumoResponse::de)
+                .toList());
     }
 
     /** Remove todas as análises do CPF. */
