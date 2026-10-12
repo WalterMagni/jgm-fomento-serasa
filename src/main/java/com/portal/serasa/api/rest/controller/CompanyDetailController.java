@@ -665,9 +665,11 @@ public class CompanyDetailController {
             @RequestParam(required = false) String visaoCedente,
             @RequestParam(required = false) String analysisStatus,
             @RequestParam(required = false) String origin,
+            /** "nome" ordena pela razão social; qualquer outro valor, pelos mais recentes na carteira. */
+            @RequestParam(required = false) String ordem,
             Pageable pageable) {
         return ResponseEntity.ok(
-                clientProfileService.findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin)
+                clientProfileService.findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin, ordem)
                         .map(this::toProfileResponse));
     }
 

@@ -447,11 +447,25 @@ public class ClientProfileService {
     }
 
     public Page<ClientProfile> findAllProfiles(Pageable pageable, String search, String visaoCedente, String analysisStatus, String origin) {
+        return findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin, null);
+    }
+
+    /**
+     * @param ordem "nome" ordena pela razão social da carteira; o resto, mais recentes primeiro.
+     *              A ordem vai para o banco: ordenar só a página na tela embaralhava a carteira.
+     */
+    public Page<ClientProfile> findAllProfiles(Pageable pageable, String search, String visaoCedente, String analysisStatus,
+                                               String origin, String ordem) {
+        org.springframework.data.domain.Sort sort = "nome".equalsIgnoreCase(ordem)
+                ? org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Order.asc("name").ignoreCase(),
+                        org.springframework.data.domain.Sort.Order.asc("documentNumber"))
+                : org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt");
         Pageable sorted = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
-                org.springframework.data.domain.Sort.by(
-                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+                sort);
 
         Page<Client> clients = clientRepository.searchProfiles(search, visaoCedente, analysisStatus, origin, sorted);
 
