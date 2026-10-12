@@ -100,6 +100,11 @@ public class ProspeccaoAutorizacao {
         }
     }
 
+    /** Admin pelo papel do usuário, nas duas grafias que existem no banco. */
+    public static boolean ehAdmin(UserEntity usuario) {
+        return ADMIN.equals(papel(usuario));
+    }
+
     /**
      * Papel normalizado para {@code ROLE_*}.
      *
@@ -107,7 +112,7 @@ public class ProspeccaoAutorizacao {
      * {@code DatabaseSeeder} grava {@code ADMIN}. Comparar só uma forma trancaria fora justamente
      * os usuários mais antigos, e sem erro que explicasse o motivo.</p>
      */
-    private String papel(UserEntity usuario) {
+    private static String papel(UserEntity usuario) {
         if (usuario == null || usuario.getRole() == null || usuario.getRole().isBlank()) {
             return "";
         }

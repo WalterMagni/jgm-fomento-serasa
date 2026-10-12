@@ -143,6 +143,8 @@ public class ProspeccaoController {
                 .precisamAtencao(abertos.stream()
                         .filter(card -> card.slaEstourado() || card.silencioProlongado())
                         .count())
+                .aguardandoComercial(abertos.stream().filter(card -> card.pendenciasAbertas() > 0).count())
+                .pareceresAguardandoMeus(comiteService.cardsAguardandoParecerDe(usuarioAutenticado()))
                 .build());
     }
 

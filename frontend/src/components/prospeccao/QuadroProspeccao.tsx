@@ -20,6 +20,8 @@ import Icon from "@/components/ui/Icon";
 import BackfillDialog from "./BackfillDialog";
 import ManualDrawer from "./ManualDrawer";
 import NovaProspeccaoDialog from "./NovaProspeccaoDialog";
+import ProdutosDialog from "./ProdutosDialog";
+import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import ProspeccaoColumn from "./ProspeccaoColumn";
 import ProspeccaoModal, { RESPOSTA_DO_DESTINO, RESULTADO_DO_DESTINO, type AcaoAberta } from "./ProspeccaoModal";
 import { CardFace } from "./ProspeccaoCard";
@@ -98,6 +100,9 @@ export default function QuadroProspeccao() {
   const [busca, setBusca] = useState("");
   const [responsavel, setResponsavel] = useState("");
   const [origem, setOrigem] = useState<"" | "MANUAL" | "AUTOMATICA">("");
+  const [soMinhas, setSoMinhas] = useState(false);
+  const [aguardandoComercial, setAguardandoComercial] = useState(false);
+  const [produtosAberto, setProdutosAberto] = useState(false);
   const [ordenacoes, setOrdenacoes] = useState<Record<string, Ordenacao>>({});
   const [selecionando, setSelecionando] = useState(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -117,6 +122,7 @@ export default function QuadroProspeccao() {
   const enviarComite = useEnviarComite();
   const excluir = useExcluirProspeccoes();
   const ehCelular = useEhCelular();
+  const { data: eu } = useUsuarioAtual();
 
   const abrir = useCallback(
     (id: string | null) => {
@@ -157,19 +163,23 @@ export default function QuadroProspeccao() {
     return cards.filter(card => {
       if (responsavel && card.analistaNome !== responsavel && card.comercialNome !== responsavel) return false;
       if (origem && card.origem !== origem) return false;
+      if (soMinhas && card.analistaId !== eu?.id) return false;
+      if (aguardandoComercial && card.pendenciasAbertas === 0) return false;
       if (!termo) return true;
       if (digitos.length >= 2 && card.cnpj.includes(digitos)) return true;
       return card.razaoSocial.toLowerCase().includes(termo);
     });
-  }, [cards, busca, responsavel, origem]);
+  }, [cards, busca, responsavel, origem, soMinhas, aguardandoComercial, eu?.id]);
 
-  const temFiltro = Boolean(busca.trim() || responsavel || origem || apenasAtrasados);
+  const temFiltro = Boolean(busca.trim() || responsavel || origem || apenasAtrasados || soMinhas || aguardandoComercial);
 
   function limparFiltros() {
     setBusca("");
     setResponsavel("");
     setOrigem("");
     setApenasAtrasados(false);
+    setSoMinhas(false);
+    setAguardandoComercial(false);
   }
 
   const porEstagio = useMemo(() => {
@@ -292,6 +302,14 @@ export default function QuadroProspeccao() {
           </button>
           <button
             type="button"
+            onClick={() => setProdutosAberto(true)}
+            title="Produtos das condições de crédito"
+            className={`${BOTAO_TOPO} text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800`}
+          >
+            <Icon name="inventory_2" size={15} /> Produtos
+          </button>
+          <button
+            type="button"
             onClick={() => setBackfillAberto(true)}
             title="Traz para a esteira as análises com visão cedente SIM que já existiam"
             className={`${BOTAO_TOPO} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700`}
@@ -309,10 +327,32 @@ export default function QuadroProspeccao() {
       </header>
 
       {/* -------------------------------------------------------- pede atenção */}
-      {resumo && (resumo.slaEstourado > 0 || resumo.slaEmAtencao > 0 || resumo.silencioProlongado > 0) && (
+      {resumo && (resumo.slaEstourado > 0 || resumo.slaEmAtencao > 0 || resumo.silencioProlongado > 0
+        || resumo.pareceresAguardandoMeus.length > 0 || resumo.aguardandoComercial > 0) && (
         <div className="esteira-fade-in flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-[#612035]/15 bg-gradient-to-r
           from-[#612035]/[0.07] via-[#612035]/[0.03] to-transparent px-4 py-2 text-sm dark:border-[#e8a3b6]/20 dark:from-[#612035]/30">
           <span className="font-semibold text-[#612035] dark:text-[#e8a3b6]">{resumo.total} em aberto</span>
+          {resumo.pareceresAguardandoMeus.length > 0 && (
+            <button
+              type="button"
+              onClick={() => abrir(resumo.pareceresAguardandoMeus[0])}
+              className="inline-flex cursor-pointer items-center gap-1 font-medium text-[#612035] underline-offset-2 hover:underline dark:text-[#e8a3b6]"
+            >
+              <Icon name="gavel" size={13} />
+              {resumo.pareceresAguardandoMeus.length === 1
+                ? "1 parecer seu no comitê"
+                : `${resumo.pareceresAguardandoMeus.length} pareceres seus no comitê`}
+            </button>
+          )}
+          {resumo.aguardandoComercial > 0 && (
+            <button
+              type="button"
+              onClick={() => setAguardandoComercial(true)}
+              className="cursor-pointer text-[#a8551a] underline-offset-2 hover:underline dark:text-[#f0a46b]"
+            >
+              {resumo.aguardandoComercial} aguardando comercial
+            </button>
+          )}
           {resumo.slaEstourado > 0 && (
             <button
               type="button"
@@ -366,6 +406,24 @@ export default function QuadroProspeccao() {
         >
           <Icon name="schedule" size={14} /> Só atrasados
         </button>
+        <button
+          type="button"
+          onClick={() => setSoMinhas(valor => !valor)}
+          aria-pressed={soMinhas}
+          title="Cards em que você é a analista dona"
+          className={`${BOTAO_TOPO} ${soMinhas ? "bg-[#612035] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"}`}
+        >
+          <Icon name="person" size={14} /> Só minhas
+        </button>
+        <button
+          type="button"
+          onClick={() => setAguardandoComercial(valor => !valor)}
+          aria-pressed={aguardandoComercial}
+          title="Cards com pendência aberta"
+          className={`${BOTAO_TOPO} ${aguardandoComercial ? "bg-[#D1732C] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"}`}
+        >
+          <Icon name="hourglass_top" size={14} /> Aguardando comercial
+        </button>
 
         <div className="relative">
           <button
@@ -381,7 +439,7 @@ export default function QuadroProspeccao() {
               <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg bg-white py-1 text-xs shadow-lg dark:bg-slate-800">
                 {(
                   [
-                    ["CARDS", "Cards da esteira", "uma linha por empresa"],
+                    ["CARDS", "Cards da esteira", "uma linha por empresa, com decisão e comitê"],
                     ["DOCUMENTOS", "Checklist item a item", "qual documento mais trava"],
                     ["EVENTOS", "Histórico de cobranças", "canal, autor e data"],
                   ] as [ConteudoExport, string, string][]
@@ -588,6 +646,7 @@ export default function QuadroProspeccao() {
       {novaAberta && <NovaProspeccaoDialog onFechar={() => setNovaAberta(false)} onCriado={card => abrir(card.id)} />}
       {backfillAberto && <BackfillDialog onFechar={() => setBackfillAberto(false)} />}
       {manualAberto && <ManualDrawer onFechar={() => setManualAberto(false)} />}
+      {produtosAberto && <ProdutosDialog podeEditar={eu?.admin ?? false} onFechar={() => setProdutosAberto(false)} />}
     </div>
   );
 }

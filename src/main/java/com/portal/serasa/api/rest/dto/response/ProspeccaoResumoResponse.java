@@ -16,5 +16,9 @@ public record ProspeccaoResumoResponse(
          * Cards que exigem ação hoje, sem dupla contagem: atraso de prazo e silêncio do cliente
          * costumam cair no mesmo card, e somar os dois inflaria o badge do menu.
          */
-        long precisamAtencao) {
+        long precisamAtencao,
+        /** Cards com pendência aberta, esperando o comercial. */
+        long aguardandoComercial,
+        /** Cards no comitê que esperam o parecer de quem está olhando. */
+        java.util.List<java.util.UUID> pareceresAguardandoMeus) {
 }

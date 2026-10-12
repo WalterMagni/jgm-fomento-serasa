@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface ProspeccaoAceiteJpaRepository extends JpaRepository<ProspeccaoAceiteEntity, UUID> {
 
     List<ProspeccaoAceiteEntity> findByProspeccaoIdOrderByRegistradoEmDesc(UUID prospeccaoId);
+
+    List<ProspeccaoAceiteEntity> findByProspeccaoIdInOrderByRegistradoEmDesc(java.util.Collection<UUID> prospeccaoIds);
 }

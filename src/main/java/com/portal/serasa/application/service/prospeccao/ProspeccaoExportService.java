@@ -50,6 +50,9 @@ public class ProspeccaoExportService {
     private final ProspeccaoDocumentoService documentoService;
     private final ProspeccaoEventoJpaRepository eventoRepository;
     private final UserRepository userRepository;
+    private final ProspeccaoDecisaoService decisaoService;
+    private final ProspeccaoPendenciaService pendenciaService;
+    private final ProspeccaoComiteService comiteService;
 
     public enum Conteudo { CARDS, DOCUMENTOS, EVENTOS }
 
@@ -75,12 +78,22 @@ public class ProspeccaoExportService {
 
     private String cards(List<ProspeccaoEntity> cards) {
         Map<UUID, String> nomes = nomesDeUsuario(cards);
-        Map<UUID, List<ProspeccaoDocumentoEntity>> docs = documentoService.listarPorCards(ids(cards));
+        List<UUID> ids = ids(cards);
+        Map<UUID, List<ProspeccaoDocumentoEntity>> docs = documentoService.listarPorCards(ids);
+        // Uma consulta por assunto, não por card: a exportação pode levar a esteira inteira.
+        Map<UUID, ProspeccaoDecisaoService.DecisaoCompleta> decisoes = decisaoService.vigentes(ids);
+        Map<UUID, com.portal.serasa.infrastructure.persistence.entity.ProspeccaoAceiteEntity> respostas =
+                decisaoService.ultimasRespostas(ids);
+        Map<UUID, Long> pendencias = pendenciaService.abertasPorCard(ids);
+        Map<UUID, List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity>> rodadas =
+                comiteService.rodadaVigente(ids);
 
         StringBuilder csv = new StringBuilder(BOM);
         linha(csv, "Empresa", "CNPJ", "Estágio", "Horas no estágio", "Prazo (horas úteis)", "Situação",
                 "Comercial", "Analista", "Origem", "Motivo da recusa", "Observação", "Reaberturas",
-                "Documentos resolvidos", "Documentos no checklist", "Última cobrança", "Aberto em", "Fechado em");
+                "Documentos resolvidos", "Documentos no checklist", "Última cobrança", "Aberto em", "Fechado em",
+                "Decisão", "Limite", "Condições", "Versão da decisão", "Resposta do cliente", "Pendências abertas",
+                "Rodada do comitê", "Pareceres", "Contato do contrato", "Legado");
 
         for (ProspeccaoEntity card : cards) {
             List<ProspeccaoDocumentoEntity> itens = docs.getOrDefault(card.getId(), List.of());
@@ -111,9 +124,74 @@ public class ProspeccaoExportService {
                     String.valueOf(total),
                     data(card.getUltimoContatoEm()),
                     data(card.getCreatedAt()),
-                    data(card.getClosedAt()));
+                    data(card.getClosedAt()),
+                    decisao(decisoes.get(card.getId()), 0),
+                    decisao(decisoes.get(card.getId()), 1),
+                    decisao(decisoes.get(card.getId()), 2),
+                    decisao(decisoes.get(card.getId()), 3),
+                    resposta(respostas.get(card.getId())),
+                    String.valueOf(pendencias.getOrDefault(card.getId(), 0L)),
+                    card.getRodadaComite() == null || card.getRodadaComite() == 0 ? "" : String.valueOf(card.getRodadaComite()),
+                    pareceres(rodadas.getOrDefault(card.getId(), List.of())),
+                    contrato(card),
+                    Boolean.TRUE.equals(card.getLegado()) ? "sim" : "");
         }
         return csv.toString();
+    }
+
+    /**
+     * Colunas da decisão vigente: resultado, limite, condições e versão. O valor vai com vírgula
+     * decimal e sem símbolo, para o Excel em português somar a coluna.
+     */
+    static String decisao(ProspeccaoDecisaoService.DecisaoCompleta completa, int coluna) {
+        if (completa == null) {
+            return "";
+        }
+        var decisao = completa.decisao();
+        return switch (coluna) {
+            case 0 -> decisao.getResultado() == null ? "" : decisao.getResultado().name().equals("APROVADO") ? "Aprovado" : "Reprovado";
+            case 1 -> numero(decisao.getLimite());
+            case 2 -> completa.condicoes().stream()
+                    .map(condicao -> condicao.getProduto() + " " + numero(condicao.getValor()))
+                    .collect(Collectors.joining(" | "));
+            default -> String.valueOf(decisao.getVersao());
+        };
+    }
+
+    static String resposta(com.portal.serasa.infrastructure.persistence.entity.ProspeccaoAceiteEntity aceite) {
+        if (aceite == null) {
+            return "";
+        }
+        return switch (aceite.getResposta()) {
+            case ACEITO -> "Aceitou";
+            case RECUSADO -> "Recusou";
+            case CONTRAPROPOSTA -> "Contraproposta";
+        };
+    }
+
+    /** "2 de 3: Favorável, Com ressalvas". */
+    static String pareceres(List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodada) {
+        if (rodada.isEmpty()) {
+            return "";
+        }
+        List<String> dados = rodada.stream()
+                .filter(com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity::registrado)
+                .map(parecer -> parecer.getUsuarioNome() + " " + ProspeccaoComiteService.rotulo(parecer.getPosicao()))
+                .toList();
+        return dados.size() + " de " + rodada.size() + (dados.isEmpty() ? "" : ": " + String.join(", ", dados));
+    }
+
+    private static String contrato(ProspeccaoEntity card) {
+        if (card.getContratoContatoNome() == null) {
+            return "";
+        }
+        return java.util.stream.Stream.of(card.getContratoContatoNome(), card.getContratoContatoTelefone(), card.getContratoContatoEmail())
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.joining(" · "));
+    }
+
+    static String numero(java.math.BigDecimal valor) {
+        return valor == null ? "" : valor.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString().replace('.', ',');
     }
 
     /** Situação em uma palavra, que é o que a planilha precisa para filtrar. */

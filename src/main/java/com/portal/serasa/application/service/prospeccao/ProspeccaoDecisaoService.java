@@ -244,6 +244,31 @@ public class ProspeccaoDecisaoService {
                 .collect(Collectors.toMap(ProspeccaoDecisaoEntity::getProspeccaoId, ProspeccaoDecisaoEntity::getLimite));
     }
 
+    /** Decisão vigente de cada card, com condições, numa consulta só — para a exportação. */
+    @Transactional(readOnly = true)
+    public Map<UUID, DecisaoCompleta> vigentes(Collection<UUID> cardIds) {
+        if (cardIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ProspeccaoDecisaoEntity> decisoes = decisaoRepository.findByProspeccaoIdInAndVigenteTrue(cardIds);
+        Map<UUID, List<ProspeccaoDecisaoCondicaoEntity>> condicoes = condicoesPorDecisao(
+                decisoes.stream().map(ProspeccaoDecisaoEntity::getId).toList());
+        return decisoes.stream().collect(Collectors.toMap(ProspeccaoDecisaoEntity::getProspeccaoId,
+                decisao -> new DecisaoCompleta(decisao, condicoes.getOrDefault(decisao.getId(), List.of()))));
+    }
+
+    /** Última resposta do cliente de cada card. */
+    @Transactional(readOnly = true)
+    public Map<UUID, ProspeccaoAceiteEntity> ultimasRespostas(Collection<UUID> cardIds) {
+        if (cardIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, ProspeccaoAceiteEntity> ultimas = new java.util.HashMap<>();
+        aceiteRepository.findByProspeccaoIdInOrderByRegistradoEmDesc(cardIds)
+                .forEach(aceite -> ultimas.putIfAbsent(aceite.getProspeccaoId(), aceite));
+        return ultimas;
+    }
+
     private Map<UUID, List<ProspeccaoDecisaoCondicaoEntity>> condicoesPorDecisao(List<UUID> decisaoIds) {
         if (decisaoIds.isEmpty()) {
             return Map.of();

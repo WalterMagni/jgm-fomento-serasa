@@ -237,6 +237,17 @@ export function useProdutos() {
   });
 }
 
+/** Catálogo de produtos: só o admin altera; o servidor confere. */
+export function useSalvarProduto() {
+  const queryClient = useQueryClient();
+  return useMutation<ProdutoCatalogo, Error, { id?: string; nome: string; ordem?: number; ativo?: boolean }>({
+    mutationFn: ({ id, ...corpo }) =>
+      enviarJson(`${API_BASE_URL}/prospeccao/produtos${id ? `/${id}` : ""}`, id ? "PATCH" : "POST", corpo, "Falha ao salvar o produto"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["prospeccaoProdutos"] }),
+    onError: error => toast.error(error.message),
+  });
+}
+
 export type NovaDecisao = {
   resultado: ResultadoDecisao;
   limite?: number | null;

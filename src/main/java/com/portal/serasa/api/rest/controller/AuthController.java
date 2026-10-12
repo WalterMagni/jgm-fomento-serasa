@@ -214,6 +214,9 @@ public class AuthController {
         perfil.put("comite", user.isComite());
         perfil.put("somNotificacao", user.isSomNotificacao());
         perfil.put("emailLiberacao", user.isEmailLiberacao());
+        // Papel ADMIN: altera os catálogos da esteira de prospecção. Diferente de canManageUsers,
+        // que é a lista de e-mails que administra usuários.
+        perfil.put("admin", com.portal.serasa.application.service.prospeccao.ProspeccaoAutorizacao.ehAdmin(user));
         return perfil;
     }
 }

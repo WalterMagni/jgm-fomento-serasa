@@ -27,6 +27,15 @@ public interface ProspeccaoParecerJpaRepository extends JpaRepository<Prospeccao
             """)
     List<ProspeccaoParecerEntity> rodadaVigente(@Param("ids") Collection<UUID> ids);
 
+    /** Cards no comitê esperando o parecer desta pessoa, para o aviso do topo do quadro. */
+    @Query("""
+            select c.id from ProspeccaoParecerEntity p, ProspeccaoEntity c
+            where p.prospeccaoId = c.id and p.rodada = c.rodadaComite and p.usuarioId = :usuarioId
+              and p.posicao is null
+              and c.estagio = com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.COMITE
+            """)
+    List<UUID> cardsAguardandoParecerDe(@Param("usuarioId") UUID usuarioId);
+
     /** Rodada que ficou para trás: quem não chegou a registrar não é histórico, é ruído. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from ProspeccaoParecerEntity p where p.prospeccaoId = :id and p.rodada = :rodada and p.posicao is null")

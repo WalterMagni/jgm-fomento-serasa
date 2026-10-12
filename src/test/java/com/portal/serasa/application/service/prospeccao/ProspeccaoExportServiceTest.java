@@ -92,4 +92,33 @@ class ProspeccaoExportServiceTest {
     void shouldStartWithBom() {
         assertThat(ProspeccaoExportService.BOM).isEqualTo("﻿");
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("decisão no CSV: valores com vírgula decimal e condições numa coluna")
+    void shouldFormatDecisionColumns() {
+        var decisao = com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDecisaoEntity.builder()
+                .versao(2).resultado(com.portal.serasa.domain.model.prospeccao.ResultadoDecisao.APROVADO)
+                .limite(new java.math.BigDecimal("500000")).build();
+        var condicao = com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDecisaoCondicaoEntity.builder()
+                .produto("DUPLICATA").valor(new java.math.BigDecimal("400000.5")).build();
+        var completa = new ProspeccaoDecisaoService.DecisaoCompleta(decisao, java.util.List.of(condicao));
+
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoExportService.decisao(completa, 0)).isEqualTo("Aprovado");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoExportService.decisao(completa, 1)).isEqualTo("500000,00");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoExportService.decisao(completa, 2)).isEqualTo("DUPLICATA 400000,50");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoExportService.decisao(completa, 3)).isEqualTo("2");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoExportService.decisao(null, 1)).isEmpty();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("pareceres no CSV: quantos de quantos e a posição de quem deu")
+    void shouldSummarizeOpinions() {
+        var dado = com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity.builder()
+                .usuarioNome("Andressa").posicao(com.portal.serasa.domain.model.liberacao.PosicaoParecer.FAVORAVEL).build();
+        var aguardando = com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity.builder()
+                .usuarioNome("Mychelly").build();
+
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoExportService.pareceres(java.util.List.of(dado, aguardando)))
+                .isEqualTo("1 de 2: Andressa Favorável");
+    }
 }

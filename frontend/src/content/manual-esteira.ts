@@ -209,14 +209,21 @@ documentos dele param de travar o fechamento e o histórico continua visível.
 
 **Buscar** — a barra no topo procura por razão social ou CNPJ, com ou sem pontuação.
 
-**Filtrar** — por responsável, por tipo de entrada (manual ou visão cedente) e o botão
-**só atrasados**.
+**Filtrar** — por responsável, por tipo de entrada (manual ou visão cedente) e os botões
+**só atrasados**, **só minhas** (cards em que você é a analista dona) e **aguardando comercial**
+(cards com pendência aberta). A faixa no topo avisa quantos **pareceres seus** o comitê espera —
+clique para abrir o primeiro — e quantos cards aguardam o comercial.
 
 **Ordenar** — o ícone no cabeçalho de cada coluna alterna entre urgência (mais parado
 primeiro, que é o padrão), nome A→Z e nome Z→A. Ele fica colorido quando sai do padrão.
 
 **Exportar** — botão **Exportar**, três arquivos que abrem no Excel e respeitam o filtro
-atual: os cards, o checklist item a item e o histórico de cobranças.
+atual: os cards (com decisão, limite, condições, resposta do cliente, pendências, comitê e contato
+do contrato), o checklist item a item e o histórico de cobranças.
+
+**Produtos** — o botão **Produtos** no topo mostra o catálogo usado nas condições da decisão
+(duplicata, cheque próprio…). Só o administrador adiciona, renomeia ou desativa; produto
+desativado some da escolha, mas decisões antigas continuam mostrando o nome.
 
 ---
 

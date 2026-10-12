@@ -245,6 +245,11 @@ public class ProspeccaoComiteService {
                 .collect(Collectors.groupingBy(ProspeccaoParecerEntity::getProspeccaoId));
     }
 
+    @Transactional(readOnly = true)
+    public List<UUID> cardsAguardandoParecerDe(UserEntity usuario) {
+        return usuario == null || usuario.getId() == null ? List.of() : parecerRepository.cardsAguardandoParecerDe(usuario.getId());
+    }
+
     private List<ProspeccaoParecerEntity> rodada(ProspeccaoEntity card) {
         return parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(card.getId(), card.getRodadaComite());
     }

@@ -320,4 +320,6 @@ export type UsuarioAtual = {
   comite: boolean;
   somNotificacao: boolean;
   emailLiberacao: boolean;
+  /** Papel ADMIN: altera os catálogos da esteira de prospecção. */
+  admin: boolean;
 };

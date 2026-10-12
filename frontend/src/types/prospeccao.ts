@@ -311,6 +311,10 @@ export type ProspeccaoResumo = {
   silencioProlongado: number;
   /** Sem dupla contagem: atraso e silêncio costumam cair no mesmo card. */
   precisamAtencao: number;
+  /** Cards com pendência aberta, esperando o comercial. */
+  aguardandoComercial: number;
+  /** Cards no comitê esperando o parecer de quem está olhando. */
+  pareceresAguardandoMeus: string[];
 };
 
 export type DocumentoTipo = {

@@ -1,7 +1,8 @@
 # Esteira de prospecção unificada — design
 
 Data: 2026-10-11
-Status: validado com o Walter, seção a seção, em 2026-10-11
+Status: validado com o Walter, seção a seção, em 2026-10-11. Fase A implementada (A1–A5) na
+mesma data, migrations V74–V77; produção ainda não recebeu.
 Branch: `feat/esteira-unificada`, criada a partir de `feat/esteira-liberacao` (`2436ee9`)
 Meta: Fase A completa na terça, 2026-10-13
 
