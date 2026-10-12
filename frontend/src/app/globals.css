@@ -129,6 +129,17 @@
   opacity: 0.55;
 }
 
+/* Bloco "esqueleto" enquanto a lista carrega: brilho correndo no lugar do ícone girando. */
+.esqueleto {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #EFEDE6 25%, #F8F7F3 50%, #EFEDE6 75%);
+  background-size: 200% 100%;
+  animation: var(--animate-brilho);
+}
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto { animation: none; }
+}
+
 /* Títulos em Clash Display, números tabulares no app todo. */
 .font-display {
   font-family: var(--font-clash-display);

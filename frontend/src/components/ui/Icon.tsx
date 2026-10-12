@@ -88,6 +88,18 @@ const SITUACAO = new Set([
   "thumb_up", "help", "help_outline", "block",
 ]);
 
+/**
+ * Glifos de traço puro (setas, fechar, check, mais). No duotone o caret vira triângulo cheio e o
+ * "+" ganha um quadrado de fundo, então eles ficam no peso `bold`, que equivale ao traço antigo.
+ */
+const TRACO = new Set([
+  "chevron_right", "chevron_left", "expand_more", "expand_less", "keyboard_double_arrow_right",
+  "keyboard_double_arrow_left", "arrow_back", "arrow_forward", "arrow_upward", "arrow_downward",
+  "unfold_more", "unfold_less", "close", "clear", "check", "done_all", "add", "remove", "more_vert",
+  "more_horiz", "more", "menu", "sort", "undo", "reply", "refresh", "sync", "restore", "autorenew",
+  "restart_alt", "progress_activity",
+]);
+
 type Props = {
   name: string;
   size?: number;
@@ -102,11 +114,11 @@ type Props = {
  *
  * <p>Duotone por padrão, com a camada de fundo pintada pelo CSS (`.icone-duo` em globals.css).
  * Abaixo de 13px o duotone vira borrão, então o peso cai para `bold`, assim como os checks
- * que antes pediam traço grosso.</p>
+ * que antes pediam traço grosso e os glifos de TRACO.</p>
  */
 export default function Icon({ name, size = 18, className, strokeWidth, weight, ...rest }: Props) {
   const Cmp = ICONS[name] ?? QuestionIcon;
-  const peso: IconWeight = weight ?? ((strokeWidth ?? 0) >= 2.5 || size <= 12 ? "bold" : "duotone");
+  const peso: IconWeight = weight ?? ((strokeWidth ?? 0) >= 2.5 || size <= 12 || TRACO.has(name) ? "bold" : "duotone");
   return (
     <Cmp
       size={size}

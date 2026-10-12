@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { PersonAnalysisData } from '../types/person-analysis';
-import type { PageResponse } from '../types/company-detail';
+import type { PessoaResumo } from '../types/pessoa-resumo';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
@@ -59,6 +59,7 @@ export function usePersonProfile(cpf: string) {
     onSuccess: () => {
       toast.success('Análise de crédito PF gerada com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['personProfile', cleanCpf] });
+      queryClient.invalidateQueries({ queryKey: ['pessoasResumo'] });
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Falha ao consultar Serasa PF');
@@ -76,24 +77,21 @@ export function usePersonProfile(cpf: string) {
   };
 }
 
-/** Lista paginada de análises PF (para a página /individuals). */
-export function usePersonProfiles(page: number, search: string) {
-  const params = new URLSearchParams({
-    page: String(page),
-    size: '20',
-    sort: 'consultaEm,desc',
-  });
-  if (search) params.set('search', search);
-
-  return useQuery<PageResponse<PersonAnalysisData>>({
-    queryKey: ['personProfiles', page, search],
+/**
+ * Última consulta de cada CPF, resumida (página /individuals). Vem tudo de uma vez: a tela
+ * filtra, ordena, pagina e conta na memória.
+ */
+export function usePessoasResumo() {
+  return useQuery<PessoaResumo[]>({
+    queryKey: ['pessoasResumo'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/person/profiles?${params}`, {
+      const res = await fetch(`${API_BASE_URL}/person/profiles/resumo`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error('Erro ao listar análises PF');
+      if (!res.ok) throw new Error('Não foi possível carregar as pessoas físicas.');
       return res.json();
     },
+    staleTime: 60 * 1000,
   });
 }
 
@@ -117,6 +115,7 @@ export function useEnrichPersonSerasa(cpf: string, onSuccessCb?: () => void) {
     onSuccess: (data) => {
       toast.success(`Análise de ${data.personName || 'Pessoa Física'} salva!`);
       queryClient.invalidateQueries({ queryKey: ['personProfile', cleanCpf] });
+      queryClient.invalidateQueries({ queryKey: ['pessoasResumo'] });
       onSuccessCb?.();
     },
     onError: (error: Error) => {
