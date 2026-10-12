@@ -56,13 +56,6 @@ export const NAV_ITEMS: NavItem[] = [
     isActive: p => p.startsWith("/reports"),
   },
   {
-    href: "/prospeccao",
-    icon: "conveyor_belt",
-    label: "Esteira de Prospecção",
-    beta: true,
-    isActive: p => p.startsWith("/prospeccao"),
-  },
-  {
     href: "/praca-pagamento",
     icon: "account_balance",
     label: "Praça de Pagamento",
@@ -90,6 +83,13 @@ export const NAV_ITEMS: NavItem[] = [
         isActive: p => p === "/praca-pagamento/historico",
       },
     ],
+  },
+  {
+    href: "/prospeccao",
+    icon: "conveyor_belt",
+    label: "Esteira de Prospecção",
+    beta: true,
+    isActive: p => p.startsWith("/prospeccao"),
   },
   {
     href: "/liberacao",
