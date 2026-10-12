@@ -79,10 +79,11 @@ export function usePersonProfile(cpf: string) {
 
 /**
  * Última consulta de cada CPF, resumida (página /individuals). Vem tudo de uma vez: a tela
- * filtra, ordena, pagina e conta na memória.
+ * filtra, ordena, pagina e conta na memória. A busca do topo só pede quando alguém digita.
  */
-export function usePessoasResumo() {
+export function usePessoasResumo(enabled = true) {
   return useQuery<PessoaResumo[]>({
+    enabled,
     queryKey: ['pessoasResumo'],
     queryFn: async () => {
       const res = await fetch(`${API_BASE_URL}/person/profiles/resumo`, {

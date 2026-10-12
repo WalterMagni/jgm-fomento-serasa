@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import SinoNotificacoes from "@/components/notificacoes/SinoNotificacoes";
+import BuscaGlobal from "@/components/busca/BuscaGlobal";
 import { GRUPOS_NAV } from "./NavItems";
 import Sidebar from "./Sidebar";
 
@@ -24,7 +25,7 @@ function caminhoDaPagina(pathname: string): string[] {
 
 /**
  * Casca da repaginação: sidebar bordô com grupos à esquerda, topo enxuto com o caminho da
- * página e o sino, conteúdo sobre o papel. No tablet (abaixo de lg) a sidebar vira gaveta.
+ * página, a busca e o sino, conteúdo sobre o papel. No tablet (abaixo de lg) a sidebar vira gaveta.
  */
 export default function CascaNova({
   pathname,
@@ -104,7 +105,8 @@ export default function CascaNova({
           >
             <Icon name="menu" />
           </button>
-          <nav aria-label="Você está em" className="flex min-w-0 items-center gap-2 text-[13px] text-suave">
+          {/* No celular o caminho dá lugar à busca: o título da página já está logo abaixo. */}
+          <nav aria-label="Você está em" className="hidden min-w-0 items-center gap-2 text-[13px] text-suave sm:flex">
             {caminho.map((parte, i) =>
               i < caminho.length - 1 ? (
                 <Fragment key={parte}>
@@ -118,7 +120,8 @@ export default function CascaNova({
               ),
             )}
           </nav>
-          <div className="ml-auto">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:ml-auto sm:flex-none">
+            <BuscaGlobal />
             <SinoNotificacoes />
           </div>
         </header>

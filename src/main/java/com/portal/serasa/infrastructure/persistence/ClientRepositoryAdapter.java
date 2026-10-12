@@ -68,9 +68,17 @@ public class ClientRepositoryAdapter implements ClientRepository {
         String normalizedVisaoCedente = visaoCedente == null ? "" : visaoCedente.trim().toUpperCase();
         String normalizedAnalysisStatus = analysisStatus == null ? "" : analysisStatus.trim().toUpperCase();
         String normalizedOrigin = origin == null ? "" : origin.trim().toUpperCase();
+        // Termo só com dígitos e pontuação: "59.304.716/0001-25" acha o CNPJ, guardado sem
+        // pontuação, e "000693" acha o código do cliente, guardado sem zeros à esquerda.
+        String digitos = normalizedTerm.matches("[\\d.\\-/\\s]+") ? normalizedTerm.replaceAll("\\D", "") : "";
+        String codigo = digitos.replaceFirst("^0+", "");
         return jpaRepository.searchProfiles(
                 normalizedTerm,
                 normalizedTerm.isBlank(),
+                digitos,
+                digitos.isBlank(),
+                codigo,
+                codigo.isBlank(),
                 normalizedVisaoCedente,
                 normalizedVisaoCedente.isBlank(),
                 normalizedAnalysisStatus,

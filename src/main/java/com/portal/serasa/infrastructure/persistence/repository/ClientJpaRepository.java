@@ -29,6 +29,8 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
         where (:searchBlank = true
                or lower(c.documentNumber) like lower(concat('%', :search, '%'))
                or lower(c.name) like lower(concat('%', :search, '%'))
+               or (:digitosBlank = false and c.documentNumber like concat('%', :digitos, '%'))
+               or (:codigoBlank = false and c.clientCode = :codigo)
                or exists (
                    select cd.id
                    from CompanyDetailEntity cd
@@ -72,6 +74,10 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
     Page<ClientEntity> searchProfiles(
             @Param("search") String search,
             @Param("searchBlank") boolean searchBlank,
+            @Param("digitos") String digitos,
+            @Param("digitosBlank") boolean digitosBlank,
+            @Param("codigo") String codigo,
+            @Param("codigoBlank") boolean codigoBlank,
             @Param("visaoCedente") String visaoCedente,
             @Param("visaoCedenteBlank") boolean visaoCedenteBlank,
             @Param("analysisStatus") String analysisStatus,
