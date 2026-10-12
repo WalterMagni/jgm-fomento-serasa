@@ -441,7 +441,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
         <div>
           <div className="mb-1 flex items-center gap-2">
             <Icon name="folder_open" className="text-primary" />
-            <h2 className="text-xl font-bold text-primary">Documentos da Empresa</h2>
+            <h2 className="font-sans text-base font-bold text-primary">Documentos da Empresa</h2>
           </div>
           <p className="text-sm font-sans text-gray-500">
             Navegação restrita à pasta mapeada desta empresa.

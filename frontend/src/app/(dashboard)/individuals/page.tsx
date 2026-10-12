@@ -131,7 +131,7 @@ function PessoasFisicas() {
   };
 
   return (
-    <div className="mx-auto flex max-w-[1180px] flex-col gap-6 pb-10">
+    <div className="flex flex-col gap-6 pb-10">
       <PageHeader
         rotulo="Gestão de Carteira"
         titulo="Pessoas Físicas"

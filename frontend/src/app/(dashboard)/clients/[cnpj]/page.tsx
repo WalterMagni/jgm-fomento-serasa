@@ -2161,8 +2161,10 @@ export default function ClientDashboardPage() {
                       ))}
                     </div>
                   )}
-                  {comOcorrencia.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {(comOcorrencia.length > 0 || notaryCount > 0 || recheckCount > 0) && (
+                    // Uma grade só para cards e Concentre/Recheque: se ajusta à quantidade, sem card
+                    // sozinho e estreito num canto.
+                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
                       {comOcorrencia.map(item => (
                         <NegativeCard
                           key={item.id}
@@ -2175,41 +2177,10 @@ export default function ClientDashboardPage() {
                           onToggle={() => toggle(item.id)}
                         />
                       ))}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-
-            {/* Detail panels */}
-            {isOpen("pefin") && pefinRecords.length > 0 && (
-              <NegDetailTable title="PEFIN — Pendências Financeiras" shownCount={pefinRecords.length} totalCount={neg?.pefin?.summary?.count}>
-                <PefinRefinTable records={pefinRecords} fmt={fmt} />
-              </NegDetailTable>
-            )}
-            {isOpen("refin") && refinRecords.length > 0 && (
-              <NegDetailTable title="REFIN — Refinanciamentos" shownCount={refinRecords.length} totalCount={neg?.refin?.summary?.count}>
-                <PefinRefinTable records={refinRecords} fmt={fmt} />
-              </NegDetailTable>
-            )}
-            {isOpen("collect") && collectRecords.length > 0 && (
-              <NegDetailTable title="Dívidas Vencidas" shownCount={collectRecords.length} totalCount={neg?.collectionRecords?.summary?.count}>
-                <CollectionDetailTable records={collectRecords} fmt={fmt} />
-              </NegDetailTable>
-            )}
-            {isOpen("check") && checkRecords.length > 0 && (
-              <NegDetailTable title="Cheques" shownCount={checkRecords.length} totalCount={neg?.check?.summary?.count}>
-                <CheckDetailTable records={checkRecords} fmt={fmt} />
-              </NegDetailTable>
-            )}
-
-            {/* Concentre e Recheque: só aparecem aqui quando têm ocorrência (limpos estão na linha de nada consta) */}
-            {(notaryCount > 0 || recheckCount > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               {/* Concentre — clicável quando há protestos */}
               {notaryCount > 0 && (
               <div
-                className={`rounded-xl p-4 border transition-all ${notaryCount === 0
+                className={`rounded-xl p-4 border transition-all ${isOpen("concentre") ? "col-span-full" : ""} ${notaryCount === 0
                   ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
                   : isOpen("concentre")
                     ? "bg-red-100 dark:bg-red-900/20 border-red-500 dark:border-red-500 ring-2 ring-red-300 dark:ring-red-700"
@@ -2249,8 +2220,36 @@ export default function ClientDashboardPage() {
                 </p>
               </div>
               )}
-            </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Detail panels */}
+            {isOpen("pefin") && pefinRecords.length > 0 && (
+              <NegDetailTable title="PEFIN — Pendências Financeiras" shownCount={pefinRecords.length} totalCount={neg?.pefin?.summary?.count}>
+                <PefinRefinTable records={pefinRecords} fmt={fmt} />
+              </NegDetailTable>
             )}
+            {isOpen("refin") && refinRecords.length > 0 && (
+              <NegDetailTable title="REFIN — Refinanciamentos" shownCount={refinRecords.length} totalCount={neg?.refin?.summary?.count}>
+                <PefinRefinTable records={refinRecords} fmt={fmt} />
+              </NegDetailTable>
+            )}
+            {isOpen("collect") && collectRecords.length > 0 && (
+              <NegDetailTable title="Dívidas Vencidas" shownCount={collectRecords.length} totalCount={neg?.collectionRecords?.summary?.count}>
+                <CollectionDetailTable records={collectRecords} fmt={fmt} />
+              </NegDetailTable>
+            )}
+            {isOpen("check") && checkRecords.length > 0 && (
+              <NegDetailTable title="Cheques" shownCount={checkRecords.length} totalCount={neg?.check?.summary?.count}>
+                <CheckDetailTable records={checkRecords} fmt={fmt} />
+              </NegDetailTable>
+            )}
+
+            {/* Concentre e Recheque: só aparecem aqui quando têm ocorrência (limpos estão na linha de nada consta) */}
+
           </div>
         );
       })()}
@@ -2269,7 +2268,7 @@ export default function ClientDashboardPage() {
 
         return (
           <div className="mb-6">
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
 
               {/* Fatos Relevantes */}
               <div className="bg-surface-light dark:bg-surface-dark rounded-cartao p-6 border border-linha print:border-gray-400 print:shadow-none">
