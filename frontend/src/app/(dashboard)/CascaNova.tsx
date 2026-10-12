@@ -94,34 +94,37 @@ export default function CascaNova({
 
       <div className="flex min-w-0 flex-1 flex-col print:block">
         {/* z-20: o <main> abaixo cria a própria camada (z-0) e vem depois no HTML; sem isso o
-            popup do sino fica por baixo do conteúdo. */}
-        <header className="relative z-20 flex h-16 shrink-0 items-center gap-3 border-b border-linha bg-papel/85 px-5 backdrop-blur-md lg:px-8 print:hidden">
-          <button
-            type="button"
-            onClick={() => setMenuAberto(true)}
-            aria-label="Abrir menu"
-            aria-expanded={menuAberto}
-            className="-ml-2 grid h-11 w-11 place-items-center rounded-xl text-grafite transition-colors hover:bg-white lg:hidden"
-          >
-            <Icon name="menu" />
-          </button>
-          {/* No celular o caminho dá lugar à busca: o título da página já está logo abaixo. */}
-          <nav aria-label="Você está em" className="hidden min-w-0 items-center gap-2 text-[13px] text-suave sm:flex">
-            {caminho.map((parte, i) =>
-              i < caminho.length - 1 ? (
-                <Fragment key={parte}>
-                  <span className="hidden whitespace-nowrap sm:inline">{parte}</span>
-                  <span aria-hidden className="hidden text-[#B5B1A6] sm:inline">/</span>
-                </Fragment>
-              ) : (
-                <b key={parte} className="truncate font-semibold text-grafite">
-                  {parte}
-                </b>
-              ),
-            )}
-          </nav>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:ml-auto sm:flex-none">
-            <BuscaGlobal />
+            popup do sino fica por baixo do conteúdo. A partir do tablet, três colunas: caminho à
+            esquerda, busca no centro, sino à direita. */}
+        <header className="relative z-20 flex h-16 shrink-0 items-center gap-3 border-b border-linha bg-papel/85 px-5 backdrop-blur-md sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:px-8 print:hidden">
+          <div className="flex shrink-0 items-center gap-3 sm:min-w-0">
+            <button
+              type="button"
+              onClick={() => setMenuAberto(true)}
+              aria-label="Abrir menu"
+              aria-expanded={menuAberto}
+              className="-ml-2 grid h-11 w-11 place-items-center rounded-xl text-grafite transition-colors hover:bg-white lg:hidden"
+            >
+              <Icon name="menu" />
+            </button>
+            {/* No celular o caminho dá lugar à busca: o título da página já está logo abaixo. */}
+            <nav aria-label="Você está em" className="hidden min-w-0 items-center gap-2 text-[13px] text-suave sm:flex">
+              {caminho.map((parte, i) =>
+                i < caminho.length - 1 ? (
+                  <Fragment key={parte}>
+                    <span className="hidden whitespace-nowrap sm:inline">{parte}</span>
+                    <span aria-hidden className="hidden text-[#B5B1A6] sm:inline">/</span>
+                  </Fragment>
+                ) : (
+                  <b key={parte} className="truncate font-semibold text-grafite">
+                    {parte}
+                  </b>
+                ),
+              )}
+            </nav>
+          </div>
+          <BuscaGlobal />
+          <div className="flex shrink-0 justify-end">
             <SinoNotificacoes />
           </div>
         </header>

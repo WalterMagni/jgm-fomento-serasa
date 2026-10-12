@@ -193,7 +193,7 @@ export default function BuscaGlobal() {
   const idOpcao = (i: number) => `${ID_LISTA}-op-${i}`;
 
   return (
-    <div ref={caixa} className="relative min-w-0 flex-1 sm:w-[340px] sm:flex-none xl:w-[420px]">
+    <div ref={caixa} className="relative min-w-0 flex-1 sm:w-[340px] lg:w-[400px] xl:w-[520px]">
       <Icon name="search" size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8A877E]" />
       <input
         ref={campo}
@@ -233,7 +233,7 @@ export default function BuscaGlobal() {
 
       {aberto && (
         <div
-          className="z-30 overflow-hidden rounded-painel border border-linha bg-white shadow-elevado animate-cair motion-reduce:animate-none max-sm:fixed max-sm:inset-x-4 max-sm:top-[72px] sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-[min(560px,calc(100vw-2.5rem))]"
+          className="z-30 overflow-hidden rounded-painel border border-linha bg-white shadow-elevado animate-cair motion-reduce:animate-none max-sm:fixed max-sm:inset-x-4 max-sm:top-[72px] sm:absolute sm:left-1/2 sm:top-full sm:mt-2 sm:w-[min(600px,calc(100vw-2.5rem))] sm:-translate-x-1/2"
         >
           {limpo.length < MINIMO ? (
             <p className="px-5 py-4 text-sm text-suave">
