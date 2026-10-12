@@ -239,7 +239,9 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
     );
 
     if (imageAttachments.length === 0) {
-      setAttachmentPreviewUrls({});
+      // Devolve o mesmo objeto quando já está vazio. Sem notas, a lista vem como um array novo a
+      // cada render; um {} novo aqui disparava outro render, e a página entrava em loop.
+      setAttachmentPreviewUrls((atual) => (Object.keys(atual).length === 0 ? atual : {}));
       return;
     }
 
