@@ -5,7 +5,6 @@ import Icon from "@/components/ui/Icon";
 import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
 import { useImportClientCodes } from "@/hooks/useImportClientCodes";
-import { Loader2 } from "lucide-react";
 import PapeisUsuario from "@/components/liberacao/PapeisUsuario";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
@@ -332,7 +331,7 @@ export default function SettingsPage() {
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <h3 className="text-sm font-sans font-bold text-grafite dark:text-white">Custos configurados</h3>
-                    {isLoadingBillingSettings && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                    {isLoadingBillingSettings && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
@@ -364,7 +363,7 @@ export default function SettingsPage() {
                           Pasta base onde o sistema cria e busca as pastas padrão de cada empresa.
                         </p>
                       </div>
-                      {isLoadingDocumentSettings && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                      {isLoadingDocumentSettings && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
                     </div>
                     <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4">
                       <label className="block text-xs font-sans font-bold text-gray-500 uppercase tracking-wide mb-2">
@@ -462,7 +461,7 @@ export default function SettingsPage() {
                   <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <h3 className="text-sm font-sans font-bold text-grafite dark:text-white">Gerenciamento de usuários</h3>
-                      {isLoadingUsers && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                      {isLoadingUsers && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
                     </div>
                     <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                       <table className="w-full text-sm">
@@ -604,7 +603,7 @@ export default function SettingsPage() {
                 <div className="overflow-x-auto min-h-[250px] relative">
                   {isLoading && (
                     <div className="absolute inset-0 z-10 bg-white/50 dark:bg-gray-900/50 flex flex-col items-center justify-center backdrop-blur-sm">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                      <Icon name="progress_activity" size={32} weight="bold" className="animate-spin text-primary mb-2" />
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Carregando consultas...</p>
                     </div>
                   )}

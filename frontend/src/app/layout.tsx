@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Source_Serif_4, Hanken_Grotesk } from "next/font/google";
+import { Space_Grotesk, Source_Serif_4, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -16,6 +16,12 @@ const sourceSerif = Source_Serif_4({
 // Piloto de repaginação: corpo Hanken Grotesk + títulos Clash Display.
 const hankenGrotesk = Hanken_Grotesk({
   variable: "--font-hanken",
+  subsets: ["latin"],
+});
+
+// CPF, CNPJ e códigos: dígitos de largura fixa alinham na lista.
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
 });
 
@@ -48,13 +54,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${spaceGrotesk.variable} ${sourceSerif.variable} ${hankenGrotesk.variable} ${clashDisplay.variable}`}>
+    <html lang="pt-BR" className={`${spaceGrotesk.variable} ${sourceSerif.variable} ${hankenGrotesk.variable} ${jetbrainsMono.variable} ${clashDisplay.variable}`}>
       {/*
         Sem <link> para CDN de fontes: Google Fonts vêm do next/font (auto-hospedadas
-        no build) e o Clash Display é servido de src/fonts. Os antigos links de
-        Material Icons foram removidos — o sistema usa Lucide (bundle), não Material.
+        no build) e o Clash Display é servido de src/fonts. Ícones vêm do Phosphor
+        (bundle), não de fonte de ícones.
       */}
-      <body className="antialiased font-sans bg-background-light text-grafite dark:bg-background-dark dark:text-areia transition-colors duration-300">
+      <body className="antialiased font-sans bg-background-light text-grafite">
         {children}
       </body>
     </html>

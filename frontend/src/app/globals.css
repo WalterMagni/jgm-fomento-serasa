@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-/* Tailwind v4: use .dark class on <html> instead of prefers-color-scheme media query */
+/* Modo escuro desativado na repaginação: nada mais aplica a classe .dark, então as
+   variantes dark: que restam no código ficam inertes até cada tela ser refeita. */
 @custom-variant dark (&:is(.dark *));
 
 @theme {
@@ -35,6 +36,97 @@
   --font-clash-display: var(--font-clash), var(--font-hanken), ui-sans-serif, sans-serif;
 
   --radius-default: 8px;
+
+  /* Repaginação — docs/plans/2026-10-12-repaginacao-interface-design.md.
+     Papel e linha em tom areia; laranja-texto é o laranja que passa contraste como texto. */
+  --color-papel: #F8F7F3;
+  --color-linha: #E4E1D8;
+  --color-suave: #69675F;
+  --color-laranja-texto: #944C17;
+  --color-ok: #1F7A5C;
+  --color-critico: #B42345;
+
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-cartao: 18px;
+  --radius-painel: 20px;
+
+  --shadow-cartao: 0 1px 2px rgba(38, 40, 51, 0.06);
+  --shadow-elevado: 0 18px 34px -22px rgba(38, 40, 51, 0.45);
+  --shadow-gaveta: -40px 0 80px -40px rgba(38, 40, 51, 0.55);
+
+  --ease-saida: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Movimento da repaginação. Entradas escalonadas recebem o atraso inline, por item.
+     Use com motion-reduce:animate-none quando a classe vier do Tailwind. */
+  --animate-subir: subir 0.55s var(--ease-saida) both;
+  --animate-cair: cair 0.4s var(--ease-saida) both;
+  --animate-crescer-y: crescer-y 0.8s var(--ease-saida) both;
+  --animate-crescer-x: crescer-x 0.9s var(--ease-saida) both;
+  --animate-pulo: pulo 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  --animate-surgir: surgir 0.25s ease-out both;
+  --animate-deslizar: deslizar 0.45s var(--ease-saida) both;
+  --animate-respirar: respirar 7s ease-in-out infinite;
+  --animate-flutuar: flutuar 3s ease-in-out infinite;
+  --animate-brilho: brilho 1.4s linear infinite;
+
+  @keyframes subir {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes cair {
+    from { opacity: 0; transform: translateY(-10px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes crescer-y {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+  }
+  @keyframes crescer-x {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  @keyframes pulo {
+    from { transform: scale(0); }
+    to   { transform: scale(1); }
+  }
+  @keyframes surgir {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes deslizar {
+    from { opacity: 0; transform: translateX(60px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes respirar {
+    50% { transform: scale(1.15) translate(-10px, 10px); opacity: 0.7; }
+  }
+  @keyframes flutuar {
+    50% { transform: translateY(-6px) rotate(-4deg); }
+  }
+  @keyframes brilho {
+    from { background-position: -200% 0; }
+    to   { background-position: 200% 0; }
+  }
+}
+
+/* Ícones duotone (components/ui/Icon.tsx). O Phosphor desenha a camada de fundo com
+   opacity="0.2"; aqui ela ganha o laranja da marca. Ícone de situação e ícone branco
+   (sobre botão colorido) usam a própria cor, senão o laranja briga com o fundo. */
+.icone-duo [opacity="0.2"] {
+  fill: var(--icone-duo, var(--color-laranja));
+  opacity: var(--icone-duo-opacidade, 0.38);
+}
+.icone-duo[data-tom="situacao"] [opacity="0.2"],
+.icone-duo.text-white [opacity="0.2"],
+.text-white .icone-duo [opacity="0.2"] {
+  fill: currentColor;
+  opacity: 0.22;
+}
+/* Sobre o bordô da sidebar, laranja claro — vem depois para vencer a regra do ícone branco. */
+.sidebar-marca .icone-duo [opacity="0.2"] {
+  fill: #F0A46B;
+  opacity: 0.55;
 }
 
 /* Títulos em Clash Display, números tabulares no app todo. */

@@ -1,85 +1,120 @@
 "use client";
 
 import {
-  Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpDown,
-  BadgeCheck, BarChart3, Braces, Brain, Briefcase, Building2, Calendar, CalendarDays, Check, CheckCheck, CheckCircle2, ChevronDown,
-  ChevronLeft, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsLeft, ChevronsRight, ChevronsUpDown,
-  CircleAlert, CircleX, ClipboardCheck, Clock, Copy, Database, Download, Eye, ExternalLink, File, FileArchive,
-  FileText, FileUp, Filter, Folder, FolderOpen, FolderPlus, Footprints, Gavel, Globe, HelpCircle,
-  Handshake, History, Home, Hourglass, IdCard, Image as ImageIcon, Inbox, Info, Landmark, Layers, Lightbulb, Link as LinkIcon, Mail, MessageSquarePlus, Network,
-  ListChecks, Lock, LogOut, Map as MapIcon, Maximize2, Menu, Minus, Moon, MoreHorizontal, MoreVertical,
-  SearchX,
-  Paperclip, Pencil, PenLine, Phone, Plus, Presentation, ReceiptText, Reply, RotateCcw, Save, ScrollText, Search,
-  Settings, Shield, ShieldAlert, ShieldCheck, Sparkles, StickyNote, Store, Sun, Table, Tag, ThumbsUp, Trash2,
-  TrendingUp, Undo2, Unlink, Upload, UploadCloud, User, UserCheck, Users, UserSearch, Wallet, X, ZoomIn,
-  Ban, BellOff, CirclePlus, FolderCheck, Flag, Megaphone, MinusCircle, RotateCw, EyeOff, Workflow, CircleCheckBig,
-  BookOpen, MessageSquare, AtSign, Palette,
-  type LucideIcon,
-} from "lucide-react";
+  ArchiveIcon, ArrowBendUpLeftIcon, ArrowClockwiseIcon, ArrowCounterClockwiseIcon, ArrowDownIcon, ArrowLeftIcon,
+  ArrowRightIcon, ArrowSquareOutIcon, ArrowUUpLeftIcon, ArrowUpIcon, ArrowsClockwiseIcon, ArrowsDownUpIcon,
+  ArrowsInLineVerticalIcon, ArrowsLeftRightIcon, ArrowsOutIcon, AtIcon, BankIcon, BellSlashIcon, BookOpenIcon,
+  BracketsCurlyIcon, BrainIcon, BriefcaseIcon, BuildingsIcon, CalendarBlankIcon, CalendarIcon, CaretDoubleLeftIcon,
+  CaretDoubleRightIcon, CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpDownIcon, CaretUpIcon,
+  ChartBarIcon, ChatCenteredTextIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, ChecksIcon, CircleNotchIcon,
+  ClockCounterClockwiseIcon, ClockIcon, CloudArrowUpIcon, CopyIcon, DatabaseIcon, DotsThreeIcon,
+  DotsThreeVerticalIcon, DownloadSimpleIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon, FileArrowUpIcon, FileIcon,
+  FilePdfIcon, FileTextIcon, FileZipIcon, FlagIcon, FloppyDiskIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon,
+  FolderUserIcon, FunnelIcon, FunnelSimpleIcon, GavelIcon, GearSixIcon, GlobeIcon, HandshakeIcon, HourglassHighIcon,
+  HourglassIcon, HouseIcon, IdentificationBadgeIcon, IdentificationCardIcon, ImageIcon, InfoIcon, LightbulbIcon,
+  LinkBreakIcon, LinkSimpleIcon, ListChecksIcon, ListIcon, LockIcon, MagnifyingGlassIcon, MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon, MapTrifoldIcon, MegaphoneIcon, MinusCircleIcon, MinusIcon, MoonIcon, NoteIcon,
+  PaletteIcon, PaperclipIcon, PencilLineIcon, PencilSimpleIcon, PersonSimpleWalkIcon, PhoneIcon, PlusCircleIcon,
+  PlusIcon, PresentationIcon, ProhibitIcon, QuestionIcon, ReceiptIcon, ScrollIcon, SealCheckIcon, ShieldCheckIcon,
+  ShieldIcon, ShieldWarningIcon, SignOutIcon, SparkleIcon, StackIcon, StorefrontIcon, SunIcon, TableIcon, TagIcon,
+  ThumbsUpIcon, TrashIcon, TrayIcon, TreeStructureIcon, TrendUpIcon, UploadSimpleIcon, UserCheckIcon, UserIcon,
+  UsersIcon, WalletIcon, WarningCircleIcon, XCircleIcon, XIcon,
+  type Icon as PhosphorIcon, type IconWeight,
+} from "@phosphor-icons/react";
 
-// Padrão de ícones do sistema: nomes semânticos (compatíveis com os antigos Material) → Lucide.
-const ICONS: Record<string, LucideIcon> = {
+// Padrão de ícones do sistema: nomes semânticos (compatíveis com os antigos Material) → Phosphor.
+const ICONS: Record<string, PhosphorIcon> = {
   // navegação / setas
-  close: X, clear: X, chevron_right: ChevronRight, chevron_left: ChevronLeft, expand_more: ChevronDown,
-  expand_less: ChevronUp, keyboard_double_arrow_right: ChevronsRight, keyboard_double_arrow_left: ChevronsLeft,
-  menu: Menu, search_off: SearchX, lock: Lock,
-  unfold_more: ChevronsUpDown, unfold_less: ChevronsDownUp, arrow_back: ArrowLeft, arrow_forward: ArrowRight,
-  arrow_upward: ArrowUp, arrow_downward: ArrowDown, more_vert: MoreVertical, more_horiz: MoreHorizontal,
+  close: XIcon, clear: XIcon, chevron_right: CaretRightIcon, chevron_left: CaretLeftIcon, expand_more: CaretDownIcon,
+  expand_less: CaretUpIcon, keyboard_double_arrow_right: CaretDoubleRightIcon, keyboard_double_arrow_left: CaretDoubleLeftIcon,
+  menu: ListIcon, search_off: MagnifyingGlassMinusIcon, lock: LockIcon,
+  unfold_more: CaretUpDownIcon, unfold_less: ArrowsInLineVerticalIcon, arrow_back: ArrowLeftIcon, arrow_forward: ArrowRightIcon,
+  arrow_upward: ArrowUpIcon, arrow_downward: ArrowDownIcon, more_vert: DotsThreeVerticalIcon, more_horiz: DotsThreeIcon,
   // ações
-  search: Search, manage_search: Search, refresh: RotateCcw, sync: RotateCcw, restore: RotateCcw,
-  delete: Trash2, edit: Pencil, edit_note: PenLine, drive_file_rename_outline: PenLine, save: Save,
-  add: Plus, remove: Minus, content_copy: Copy, file_copy: Copy, download: Download, upload_file: FileUp,
-  cloud_upload: UploadCloud, open_in_new: ExternalLink, open_in_full: Maximize2, zoom_in: ZoomIn,
-  zoom_out_map: Maximize2, sort: ArrowUpDown, filter_alt: Filter, done_all: CheckCheck, check: Check,
-  checklist: ListChecks, undo: Undo2, reply: Reply, logout: LogOut, link: LinkIcon, link_off: Unlink,
-  visibility: Eye, settings: Settings, more: MoreHorizontal, upload: Upload, layers_clear: Layers,
+  search: MagnifyingGlassIcon, manage_search: MagnifyingGlassIcon, refresh: ArrowCounterClockwiseIcon,
+  sync: ArrowsClockwiseIcon, restore: ArrowCounterClockwiseIcon,
+  delete: TrashIcon, edit: PencilSimpleIcon, edit_note: PencilLineIcon, drive_file_rename_outline: PencilLineIcon, save: FloppyDiskIcon,
+  add: PlusIcon, remove: MinusIcon, content_copy: CopyIcon, file_copy: CopyIcon, download: DownloadSimpleIcon, upload_file: FileArrowUpIcon,
+  cloud_upload: CloudArrowUpIcon, open_in_new: ArrowSquareOutIcon, open_in_full: ArrowsOutIcon, zoom_in: MagnifyingGlassPlusIcon,
+  zoom_out_map: ArrowsOutIcon, sort: ArrowsDownUpIcon, filter_alt: FunnelSimpleIcon, done_all: ChecksIcon, check: CheckIcon,
+  checklist: ListChecksIcon, undo: ArrowUUpLeftIcon, reply: ArrowBendUpLeftIcon, logout: SignOutIcon, link: LinkSimpleIcon,
+  link_off: LinkBreakIcon, visibility: EyeIcon, settings: GearSixIcon, more: DotsThreeIcon, upload: UploadSimpleIcon,
+  layers_clear: StackIcon, progress_activity: CircleNotchIcon,
   // status / feedback
-  check_circle: CheckCircle2, how_to_reg: UserCheck, warning: CircleAlert, warning_amber: CircleAlert,
-  error: CircleAlert, error_outline: CircleAlert, priority_high: CircleAlert, info: Info,
-  hourglass_empty: Hourglass, schedule: Clock, lock_clock: Clock, fact_check: ClipboardCheck,
-  thumb_up: ThumbsUp, security_update_warning: ShieldAlert, security: ShieldCheck, shield: Shield,
+  check_circle: CheckCircleIcon, how_to_reg: UserCheckIcon, warning: WarningCircleIcon, warning_amber: WarningCircleIcon,
+  error: WarningCircleIcon, error_outline: WarningCircleIcon, priority_high: WarningCircleIcon, info: InfoIcon,
+  hourglass_empty: HourglassIcon, schedule: ClockIcon, lock_clock: ClockIcon, fact_check: SealCheckIcon,
+  thumb_up: ThumbsUpIcon, security_update_warning: ShieldWarningIcon, security: ShieldCheckIcon, shield: ShieldIcon,
   // entidades / dados
-  business: Building2, domain: Building2, add_business: Building2, person: User, people: Users,
-  groups: Users, handshake: Handshake, lightbulb: Lightbulb,
-  person_search: UserSearch, attach_file: Paperclip, folder: Folder, folder_open: FolderOpen,
-  create_new_folder: FolderPlus, inventory_2: Archive, unarchive: ArchiveRestore, history: History,
-  history_edu: ScrollText, receipt_long: ReceiptText, description: FileText, article: FileText,
-  insert_drive_file: File, folder_zip: FileArchive, picture_as_pdf: FileText, table_chart: Table,
-  data_object: Braces, gavel: Gavel, event: Calendar, tag: Tag, home: Home, inbox: Inbox, phone: Phone,
+  business: BuildingsIcon, domain: BuildingsIcon, add_business: BuildingsIcon, person: UserIcon, people: UsersIcon,
+  groups: UsersIcon, handshake: HandshakeIcon, lightbulb: LightbulbIcon,
+  person_search: IdentificationCardIcon, attach_file: PaperclipIcon, folder: FolderIcon, folder_open: FolderOpenIcon,
+  create_new_folder: FolderPlusIcon, inventory_2: ArchiveIcon, unarchive: ArrowUUpLeftIcon, history: ClockCounterClockwiseIcon,
+  history_edu: ScrollIcon, receipt_long: ReceiptIcon, description: FileTextIcon, article: FileTextIcon,
+  insert_drive_file: FileIcon, folder_zip: FileZipIcon, picture_as_pdf: FilePdfIcon, table_chart: TableIcon,
+  data_object: BracketsCurlyIcon, gavel: GavelIcon, event: CalendarIcon, tag: TagIcon, home: HouseIcon, inbox: TrayIcon, phone: PhoneIcon,
   // mapa / análise
-  map: MapIcon, travel_explore: Globe, language: Globe, streetview: Eye, directions_walk: Footprints,
-  alt_route: ArrowLeftRight, swap_horiz: ArrowLeftRight, auto_awesome: Sparkles, psychology: Brain,
-  insights: TrendingUp, analytics: BarChart3, leaderboard: BarChart3, stacked_bar_chart: BarChart3,
+  map: MapTrifoldIcon, travel_explore: GlobeIcon, language: GlobeIcon, streetview: EyeIcon, directions_walk: PersonSimpleWalkIcon,
+  alt_route: ArrowsLeftRightIcon, swap_horiz: ArrowsLeftRightIcon, auto_awesome: SparkleIcon, psychology: BrainIcon,
+  insights: TrendUpIcon, analytics: ChartBarIcon, leaderboard: ChartBarIcon, stacked_bar_chart: ChartBarIcon,
   // tema
-  dark_mode: Moon, light_mode: Sun,
+  dark_mode: MoonIcon, light_mode: SunIcon,
   // arquivos genéricos
   image: ImageIcon,
   // extras (rollout app-wide)
-  account_balance: Landmark, account_tree: Network, add_comment: MessageSquarePlus, autorenew: RotateCcw,
-  badge: IdCard, bar_chart: BarChart3, business_center: Briefcase, calendar_today: CalendarDays,
-  folder_shared: FolderOpen, hourglass_top: Hourglass, mail: Mail, rule: ListChecks, verified_user: BadgeCheck,
-  public: Globe, account_balance_wallet: Wallet, trending_up: TrendingUp, store: Store,
-  cancel: CircleX, database: Database, domain_verification: BadgeCheck, notes: StickyNote, pending: Clock,
-  slideshow: Presentation,
+  account_balance: BankIcon, account_tree: TreeStructureIcon, add_comment: ChatCenteredTextIcon, autorenew: ArrowsClockwiseIcon,
+  badge: IdentificationBadgeIcon, bar_chart: ChartBarIcon, business_center: StorefrontIcon, calendar_today: CalendarBlankIcon,
+  folder_shared: BriefcaseIcon, hourglass_top: HourglassHighIcon, mail: EnvelopeIcon, rule: ListChecksIcon, verified_user: ShieldCheckIcon,
+  public: GlobeIcon, account_balance_wallet: WalletIcon, trending_up: TrendUpIcon, store: StorefrontIcon,
+  cancel: XCircleIcon, database: DatabaseIcon, domain_verification: SealCheckIcon, notes: NoteIcon, pending: ClockIcon,
+  slideshow: PresentationIcon,
   // esteira de prospecção
-  conveyor_belt: Workflow, task_alt: CircleCheckBig, folder_supervised: FolderCheck, flag: Flag,
-  block: Ban, visibility_off: EyeOff, notifications_off: BellOff, campaign: Megaphone,
-  add_circle: CirclePlus, remove_circle: MinusCircle, restart_alt: RotateCw,
-  help: HelpCircle, help_outline: HelpCircle, menu_book: BookOpen,
-  palette: Palette, contract: ScrollText, verified: BadgeCheck, do_not_disturb_on: MinusCircle, storefront: Store,
+  conveyor_belt: FunnelIcon, task_alt: CheckCircleIcon, folder_supervised: FolderUserIcon, flag: FlagIcon,
+  block: ProhibitIcon, visibility_off: EyeSlashIcon, notifications_off: BellSlashIcon, campaign: MegaphoneIcon,
+  add_circle: PlusCircleIcon, remove_circle: MinusCircleIcon, restart_alt: ArrowClockwiseIcon,
+  help: QuestionIcon, help_outline: QuestionIcon, menu_book: BookOpenIcon,
+  palette: PaletteIcon, contract: ScrollIcon, verified: SealCheckIcon, do_not_disturb_on: MinusCircleIcon, storefront: StorefrontIcon,
   // esteira de liberação
-  chat: MessageSquare, alternate_email: AtSign,
+  chat: ChatCircleIcon, alternate_email: AtIcon,
 };
+
+/**
+ * Ícones que comunicam situação (ok, alerta, erro). A camada de fundo segue a cor do próprio
+ * ícone em vez do laranja da marca, para não misturar "atenção" com "decoração".
+ */
+const SITUACAO = new Set([
+  "check_circle", "task_alt", "warning", "warning_amber", "error", "error_outline", "priority_high", "cancel",
+  "info", "how_to_reg", "verified", "verified_user", "domain_verification", "security_update_warning",
+  "thumb_up", "help", "help_outline", "block",
+]);
 
 type Props = {
   name: string;
   size?: number;
   className?: string;
+  /** Legado do Lucide: traço 2.5+ vira peso `bold`. */
   strokeWidth?: number;
-} & Omit<React.SVGProps<SVGSVGElement>, "ref" | "name" | "size">;
+  weight?: IconWeight;
+} & Omit<React.SVGProps<SVGSVGElement>, "ref" | "name" | "size" | "weight">;
 
-/** Ícone padrão do sistema (Lucide). Use `name` semântico; fallback discreto se não mapeado. */
-export default function Icon({ name, size = 18, className, strokeWidth = 2, ...rest }: Props) {
-  const Cmp = ICONS[name] ?? HelpCircle;
-  return <Cmp size={size} className={className} strokeWidth={strokeWidth} aria-hidden {...rest} />;
+/**
+ * Ícone padrão do sistema (Phosphor duotone). Use `name` semântico; fallback discreto se não mapeado.
+ *
+ * <p>Duotone por padrão, com a camada de fundo pintada pelo CSS (`.icone-duo` em globals.css).
+ * Abaixo de 13px o duotone vira borrão, então o peso cai para `bold`, assim como os checks
+ * que antes pediam traço grosso.</p>
+ */
+export default function Icon({ name, size = 18, className, strokeWidth, weight, ...rest }: Props) {
+  const Cmp = ICONS[name] ?? QuestionIcon;
+  const peso: IconWeight = weight ?? ((strokeWidth ?? 0) >= 2.5 || size <= 12 ? "bold" : "duotone");
+  return (
+    <Cmp
+      size={size}
+      weight={peso}
+      className={`icone-duo ${className ?? ""}`}
+      data-tom={SITUACAO.has(name) ? "situacao" : undefined}
+      aria-hidden
+      {...rest}
+    />
+  );
 }

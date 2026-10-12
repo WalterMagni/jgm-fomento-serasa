@@ -28,9 +28,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [isDark, setIsDark] = useState(false);
-  const [themeReady, setThemeReady] = useState(false);
-
   const [userName, setUserName] = useState<string>("Usuário");
   const [userInitials, setUserInitials] = useState<string>("US");
 
@@ -43,33 +40,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: { queries: { staleTime: 60 * 1000 } },
   }));
-
-  useEffect(() => {
-    setTimeout(() => {
-      const saved = localStorage.getItem('credanalyze_theme');
-      const shouldUseDark = saved === 'dark'
-        ? true
-        : saved === 'light'
-        ? false
-        : window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-      setIsDark(shouldUseDark);
-      setThemeReady(true);
-      document.documentElement.classList.toggle('dark', shouldUseDark);
-    }, 0);
-  }, []);
-
-  // Update external DOM + persist after the browser theme has been read.
-  useEffect(() => {
-    if (!themeReady) return;
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('credanalyze_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('credanalyze_theme', 'light');
-    }
-  }, [isDark, themeReady]);
 
   // Auth Guard — valida presença E expiração do token (sessão de 8h).
   useEffect(() => {
@@ -195,11 +165,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </button>
 
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            {isDark ? (
-              <Image src="/logo-dark.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain hidden dark:block" />
-            ) : (
-              <Image src="/logo-light.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain dark:hidden" />
-            )}
+            <Image src="/logo-light.png" alt="JGM Fomento" width={140} height={32} className="h-8 w-auto object-contain" />
             <span className="font-heading font-bold text-xl text-primary dark:text-white tracking-tight">
               Fomento
             </span>
@@ -215,14 +181,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex items-center gap-4">
             <SinoNotificacoes />
-            <button
-              onClick={() => setIsDark(prev => !prev)}
-              aria-label={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
-              title={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
-              className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors"
-            >
-              <Icon name={isDark ? 'light_mode' : 'dark_mode'} />
-            </button>
             <div className="relative" ref={userMenuRef}>
               {/* Clique (não hover) — em tela de toque hover não existe. */}
               <button
@@ -259,7 +217,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       <div className="flex pt-16 h-screen">
         {/* Sidebar — desktop (lg+). Modo tablet usa o drawer abaixo. */}
-        <aside className="w-64 bg-primary dark:bg-[#0a0b0f] border-r border-primary dark:border-gray-800/50 hidden lg:flex flex-col flex-shrink-0 transition-all duration-300 print:hidden relative z-20 overflow-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <aside className="sidebar-marca w-64 bg-primary dark:bg-[#0a0b0f] border-r border-primary dark:border-gray-800/50 hidden lg:flex flex-col flex-shrink-0 transition-all duration-300 print:hidden relative z-20 overflow-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
           {/* Decorative element in sidebar */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -281,7 +239,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={() => setMenuOpen(false)}
             />
-            <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[85vw] flex-col overflow-hidden bg-primary shadow-2xl dark:bg-[#0a0b0f]">
+            <aside className="sidebar-marca absolute left-0 top-0 flex h-full w-72 max-w-[85vw] flex-col overflow-hidden bg-primary shadow-2xl dark:bg-[#0a0b0f]">
               <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/10 px-4">
                 <span className="font-heading text-lg font-bold text-white">Menu</span>
                 <button
