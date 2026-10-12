@@ -12,16 +12,20 @@ import { CLASSE_BADGE_SEMAFORO, formatDate, semaforoDe, textoPrazo } from "./for
 /**
  * Faixa de prospecção na página da empresa.
  *
- * <p>Com card em aberto, mostra onde ele está e leva até ele. Sem card, oferece abrir — já com CNPJ
- * e razão social —, e lembra a última passagem pela esteira, se houve: empresa reprovada que volta
- * é caso comum, e quem abre precisa saber disso antes.</p>
+ * <p>Só aparece para empresa que tem ou teve card: poucas passam pela esteira, e uma faixa vazia
+ * em toda ficha seria ruído. Para as demais, abrir fica em "Mais ações" — ver
+ * {@link AbrirProspeccaoMenuItem}.</p>
+ *
+ * <p>Com card em aberto, mostra onde ele está e leva até ele. Só com card encerrado, lembra a
+ * última passagem e oferece abrir de novo: empresa reprovada que volta é caso comum, e quem abre
+ * precisa saber disso antes.</p>
  */
 export default function ProspeccaoEmpresaBloco({ cnpj, razaoSocial }: { cnpj: string; razaoSocial?: string }) {
   const router = useRouter();
   const { data: cards = [], isLoading } = useProspeccoesDoCnpj(cnpj);
   const [abrindo, setAbrindo] = useState(false);
 
-  if (isLoading) return null;
+  if (isLoading || cards.length === 0) return null;
 
   const aberto = cards.find(card => !ehTerminal(card.estagio));
   // A lista vem do mais novo para o mais antigo.
@@ -58,7 +62,7 @@ export default function ProspeccaoEmpresaBloco({ cnpj, razaoSocial }: { cnpj: st
       ) : (
         <>
           <span className="text-sm text-slate-600 dark:text-slate-300">
-            {ultimoEncerrado ? (
+            {ultimoEncerrado && (
               <>
                 Última passagem:{" "}
                 <Link href={`/prospeccao?card=${ultimoEncerrado.id}`} className="font-medium hover:underline">
@@ -67,8 +71,6 @@ export default function ProspeccaoEmpresaBloco({ cnpj, razaoSocial }: { cnpj: st
                 {ultimoEncerrado.motivoRecusa && ` · ${ROTULO_MOTIVO[ultimoEncerrado.motivoRecusa]}`}
                 {ultimoEncerrado.closedAt && ` em ${formatDate(ultimoEncerrado.closedAt)}`}
               </>
-            ) : (
-              "Nenhuma prospecção para esta empresa."
             )}
           </span>
           <button
@@ -77,7 +79,7 @@ export default function ProspeccaoEmpresaBloco({ cnpj, razaoSocial }: { cnpj: st
             className="ml-auto inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-[#612035] px-3 text-xs font-medium text-white
               shadow-sm transition-colors hover:bg-[#4e1a2a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] focus-visible:ring-offset-2"
           >
-            <Icon name="add" size={14} /> Abrir prospecção
+            <Icon name="add" size={14} /> Abrir nova prospecção
           </button>
         </>
       )}
@@ -90,5 +92,51 @@ export default function ProspeccaoEmpresaBloco({ cnpj, razaoSocial }: { cnpj: st
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Item de "Mais ações" da página da empresa: abre prospecção, ou leva ao card se já houver um
+ * aberto — assim o menu nunca oferece algo que o servidor recusaria por CNPJ duplicado.
+ */
+export function AbrirProspeccaoMenuItem({
+  cnpj,
+  razaoSocial,
+  className,
+}: {
+  cnpj: string;
+  razaoSocial?: string;
+  className: string;
+}) {
+  const router = useRouter();
+  const { data: cards = [], isLoading } = useProspeccoesDoCnpj(cnpj);
+  const [abrindo, setAbrindo] = useState(false);
+  const aberto = cards.find(card => !ehTerminal(card.estagio));
+
+  if (isLoading) return null;
+
+  if (aberto) {
+    return (
+      <Link href={`/prospeccao?card=${aberto.id}`} className={className}>
+        <Icon name="conveyor_belt" size={18} />
+        Ver card na esteira
+      </Link>
+    );
+  }
+
+  return (
+    <>
+      <button type="button" onClick={() => setAbrindo(true)} className={className}>
+        <Icon name="conveyor_belt" size={18} />
+        Abrir prospecção
+      </button>
+      {abrindo && (
+        <NovaProspeccaoDialog
+          inicial={{ cnpj, razaoSocial }}
+          onFechar={() => setAbrindo(false)}
+          onCriado={card => router.push(`/prospeccao?card=${card.id}`)}
+        />
+      )}
+    </>
   );
 }

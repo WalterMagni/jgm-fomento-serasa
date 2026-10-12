@@ -41,7 +41,7 @@ import { CommercialInformationPanel } from "./CommercialInformationPanel";
 import { CompanyDocumentsPanel } from "./CompanyDocumentsPanel";
 import { CompanyBranchesPanel } from "./CompanyBranchesPanel";
 import { CompanyPartnersPanel } from "./CompanyPartnersPanel";
-import ProspeccaoEmpresaBloco from "@/components/prospeccao/ProspeccaoEmpresaBloco";
+import ProspeccaoEmpresaBloco, { AbrirProspeccaoMenuItem } from "@/components/prospeccao/ProspeccaoEmpresaBloco";
 import { useEconomicGroup, type RelatedCompany } from "./useEconomicGroup";
 import { useEnrichPersonSerasa } from "../../../../hooks/usePersonProfile";
 import type { PersonAnalysisSummary } from "../../../../types/person-analysis";
@@ -1305,6 +1305,11 @@ export default function ClientDashboardPage() {
                     <Icon name="picture_as_pdf" size={18} />
                     Gerar PDF
                   </button>
+                  <AbrirProspeccaoMenuItem
+                    cnpj={cleanCnpj}
+                    razaoSocial={companyLabel === "Empresa" ? undefined : companyLabel}
+                    className="w-full text-left inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-sans font-medium text-grafite dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  />
                   {ca?.visaoCedente === "SIM" && emailNotificacaoCedente && (
                     <button
                       onClick={handleSendEmailAnalysis}
@@ -1414,7 +1419,7 @@ export default function ClientDashboardPage() {
       {/* ── Progress Bar ──────────────────────────────────────────────────── */}
       <DataProgressBar hasCnpja={hasCnpjaData} hasSerasa={hasSerasaData} />
 
-      {/* ── Esteira de prospecção: card em aberto ou botão para abrir ─────── */}
+      {/* ── Esteira de prospecção: só para empresa que tem ou teve card ─────── */}
       <ProspeccaoEmpresaBloco cnpj={cleanCnpj} razaoSocial={companyLabel === "Empresa" ? undefined : companyLabel} />
 
       {/* ── Praça de Pagamento: resumo sacado/cedente ─────────────────────── */}
