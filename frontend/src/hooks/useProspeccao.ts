@@ -717,17 +717,6 @@ export async function abrirArquivo(arquivo: ProspeccaoArquivo) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-/** Copia o caminho do arquivo ou da pasta, para colar no Explorer. */
-export async function copiarCaminho(caminho: string | null | undefined) {
-  if (!caminho) return;
-  try {
-    await navigator.clipboard.writeText(caminho);
-    toast.success("Caminho copiado — cole no Explorer");
-  } catch {
-    toast.error("Não foi possível copiar o caminho");
-  }
-}
-
 export type ConteudoExport = "CARDS" | "DOCUMENTOS" | "EVENTOS";
 
 /**

@@ -236,8 +236,6 @@ export const DADOS_COMERCIAIS_VAZIOS: DadosComerciais = {
 };
 
 export type ProspeccaoArquivo = {
-  /** Onde o arquivo está no compartilhamento, como se acha no Explorer. */
-  caminho: string | null;
   id: string;
   documentoId: string | null;
   nomeOriginal: string;
@@ -248,8 +246,6 @@ export type ProspeccaoArquivo = {
 };
 
 export type ProspeccaoDocumento = {
-  /** Pasta onde os arquivos deste item ficam no compartilhamento. */
-  pasta: string | null;
   id: string;
   codigo: string;
   nome: string;

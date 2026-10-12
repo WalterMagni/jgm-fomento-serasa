@@ -13,7 +13,6 @@ import {
 import {
   abrirArquivo,
   baixarArquivo,
-  copiarCaminho,
   useAdicionarPessoa,
   useAtualizarDocumento,
   useDefinirSocio,
@@ -75,11 +74,6 @@ function Arquivo({ arquivo, cardId, ultimo }: { arquivo: ProspeccaoArquivo; card
           <span aria-hidden>·</span>
           <span>{formatDate(arquivo.enviadoEm)}</span>
         </p>
-        {arquivo.caminho && (
-          <p className="mt-0.5 truncate font-mono text-[10px] text-slate-400" title={arquivo.caminho}>
-            {arquivo.caminho}
-          </p>
-        )}
       </div>
       <div className="flex shrink-0 items-center">
         <button type="button" onClick={() => abrirArquivo(arquivo)} className={ACAO_ICONE} aria-label={`Abrir ${arquivo.nomeOriginal}`} title="Abrir">
@@ -87,16 +81,6 @@ function Arquivo({ arquivo, cardId, ultimo }: { arquivo: ProspeccaoArquivo; card
         </button>
         <button type="button" onClick={() => baixarArquivo(arquivo)} className={ACAO_ICONE} aria-label={`Baixar ${arquivo.nomeOriginal}`} title="Baixar">
           <Icon name="download" size={15} />
-        </button>
-        <button
-          type="button"
-          onClick={() => copiarCaminho(arquivo.caminho)}
-          disabled={!arquivo.caminho}
-          className={ACAO_ICONE}
-          aria-label="Copiar caminho na rede"
-          title="Copiar caminho na rede"
-        >
-          <Icon name="content_copy" size={15} />
         </button>
         <button
           type="button"
@@ -239,17 +223,13 @@ function ItemDocumento({ documento, cardId }: { documento: ProspeccaoDocumento; 
           </ul>
         )}
 
-        {!temArquivo && resolvido && documento.pasta && (
-          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-            <Icon name="folder_open" size={14} className="shrink-0" />
-            <span className="min-w-0 flex-1">
-              <span className="block">{documento.status === "VALIDADO" ? "Validado sem arquivo anexado na esteira." : "Sem arquivo."} Pasta do item:</span>
-              <span className="block truncate font-mono text-[10px]" title={documento.pasta}>{documento.pasta}</span>
-            </span>
-            <button type="button" onClick={() => copiarCaminho(documento.pasta)} className={ACAO_ICONE} aria-label="Copiar caminho da pasta" title="Copiar caminho da pasta">
-              <Icon name="content_copy" size={14} />
-            </button>
-          </div>
+        {!temArquivo && resolvido && (
+          <p className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <Icon name="info" size={14} className="shrink-0" />
+            {documento.status === "VALIDADO"
+              ? "Validado sem arquivo anexado na esteira — a conferência foi feita fora do portal."
+              : "Sem arquivo anexado."}
+          </p>
         )}
 
         {(!resolvido || temArquivo) && <Envio cardId={cardId} documentoId={documento.id} compacto={temArquivo} />}

@@ -192,14 +192,10 @@ Três itens são obrigatórios mas admitem exceção: **endividamento**, **curva
 **autorização SCR**. O cliente pode legitimamente não ter os dois primeiros, ou não aceitar
 assinar o terceiro. Neles a ação se chama **Liberar na exceção** e exige escrever o motivo.
 
-**Anexar**: arraste o arquivo para o item, ou clique na área tracejada. Ele vai para a pasta da
-empresa no compartilhamento de rede, a mesma pasta \`CLIENTES\` de sempre. Reenviar cria uma
-versão nova sem apagar a anterior — a mais nova aparece primeiro.
-
-Em cada arquivo: **abrir** (PDF e imagem abrem numa aba; Word e Excel baixam), **baixar**,
-**copiar o caminho** na rede — é só colar no Explorer — e **remover**. Remover tira da tela, mas
-**o arquivo continua no compartilhamento**: nada é apagado de lá pelo portal. Item validado sem
-arquivo anexado mostra a pasta onde os arquivos dele ficam, também com o botão de copiar.
+**Anexar**: arraste o arquivo para o item, ou clique na área tracejada. Reenviar cria uma versão
+nova sem apagar a anterior — a mais nova aparece primeiro. O lugar dos arquivos da esteira é o
+próprio card: em cada arquivo, **abrir** (PDF e imagem abrem numa aba; Word e Excel baixam),
+**baixar** e **remover**. Remover tira da tela, mas o arquivo não é apagado do servidor.
 
 O campo de **observação** ao lado de cada item é onde vai o dado real: "CRC válido",
 "7 clientes", "válida até 2032".

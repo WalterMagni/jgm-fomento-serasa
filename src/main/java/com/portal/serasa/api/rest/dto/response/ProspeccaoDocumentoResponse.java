@@ -10,8 +10,6 @@ import java.util.UUID;
 
 @Builder
 public record ProspeccaoDocumentoResponse(
-        /** Pasta onde os arquivos deste item ficam no compartilhamento, como a pessoa acha no Explorer. */
-        String pasta,
         UUID id,
         String codigo,
         String nome,
