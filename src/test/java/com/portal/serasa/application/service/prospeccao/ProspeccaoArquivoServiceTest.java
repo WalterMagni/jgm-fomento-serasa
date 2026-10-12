@@ -270,4 +270,36 @@ class ProspeccaoArquivoServiceTest {
     void shouldSlugify(String entrada, String esperado) {
         assertThat(ProspeccaoArquivoService.slug(entrada)).isEqualTo(esperado);
     }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("zip: arquivo entra com o nome do documento, numa pasta por empresa ou pessoa")
+    void shouldNameZipEntriesByDocument() {
+        ProspeccaoDocumentoEntity daEmpresa = ProspeccaoDocumentoEntity.builder()
+                .nomeSnapshot("Contrato / última alteração consolidada")
+                .escopo(com.portal.serasa.domain.model.prospeccao.EscopoDocumento.EMPRESA).build();
+        ProspeccaoDocumentoEntity doSocio = ProspeccaoDocumentoEntity.builder()
+                .nomeSnapshot("RG/CPF ou CNH").socioNome("João Silva")
+                .escopo(com.portal.serasa.domain.model.prospeccao.EscopoDocumento.SOCIO)
+                .pessoaPapel(com.portal.serasa.domain.model.prospeccao.PapelPessoa.SOCIO).build();
+        ProspeccaoDocumentoEntity doAvalista = ProspeccaoDocumentoEntity.builder()
+                .nomeSnapshot("Comprovante de endereço").socioNome("Maria")
+                .escopo(com.portal.serasa.domain.model.prospeccao.EscopoDocumento.SOCIO)
+                .pessoaPapel(com.portal.serasa.domain.model.prospeccao.PapelPessoa.AVALISTA).build();
+
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoArquivoService.caminhoNoZip(daEmpresa, "scan_0042.PDF"))
+                .isEqualTo("Empresa/Contrato última alteração consolidada.pdf");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoArquivoService.caminhoNoZip(doSocio, "foto.jpg"))
+                .isEqualTo("Sócio - João Silva/RG CPF ou CNH.jpg");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoArquivoService.caminhoNoZip(doAvalista, "conta.pdf"))
+                .isEqualTo("Avalista - Maria/Comprovante de endereço.pdf");
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("zip: nomes repetidos ganham sufixo em vez de se sobrescrever")
+    void shouldDeduplicateZipNames() {
+        java.util.Set<String> usados = new java.util.HashSet<>();
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoArquivoService.nomeUnico("Empresa/RG.pdf", usados)).isEqualTo("Empresa/RG.pdf");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoArquivoService.nomeUnico("Empresa/RG.pdf", usados)).isEqualTo("Empresa/RG (2).pdf");
+        org.assertj.core.api.Assertions.assertThat(ProspeccaoArquivoService.nomeUnico("Empresa/rg.PDF", usados)).isEqualTo("Empresa/rg (3).PDF");
+    }
 }

@@ -197,6 +197,11 @@ nova sem apagar a anterior — a mais nova aparece primeiro. O lugar dos arquivo
 próprio card: em cada arquivo, **abrir** (PDF e imagem abrem numa aba; Word e Excel baixam),
 **baixar** e **remover**. Remover tira da tela, mas o arquivo não é apagado do servidor.
 
+**Baixar tudo (.zip)**, no topo da aba Documentos, junta num arquivo só a versão mais recente de
+cada documento, já com o nome do documento ("Contrato social.pdf"), numa pasta para a empresa e uma
+para cada sócio ou avalista. Se algum arquivo não for encontrado no servidor, o ZIP traz um
+LEIA-ME dizendo qual.
+
 O campo de **observação** ao lado de cada item é onde vai o dado real: "CRC válido",
 "7 clientes", "válida até 2032".
 

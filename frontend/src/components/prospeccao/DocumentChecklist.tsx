@@ -13,6 +13,7 @@ import {
 import {
   abrirArquivo,
   baixarArquivo,
+  baixarZip,
   useAdicionarPessoa,
   useAtualizarDocumento,
   useDefinirSocio,
@@ -397,6 +398,7 @@ export default function DocumentChecklist({ cardId, documentos }: { cardId: stri
   const [tirando, setTirando] = useState<string | null>(null);
   const [motivoTirar, setMotivoTirar] = useState("");
   const [novoAvalista, setNovoAvalista] = useState<{ nome: string; documento: string } | null>(null);
+  const [zipando, setZipando] = useState(false);
 
   if (documentos.length === 0) {
     return (
@@ -410,6 +412,16 @@ export default function DocumentChecklist({ cardId, documentos }: { cardId: stri
   const resolvidos = contaveis.filter(item => RESOLVIDOS.includes(item.status)).length;
   const obrigatoriosFaltando = contaveis.filter(item => item.obrigatorio && !RESOLVIDOS.includes(item.status)).length;
   const progresso = contaveis.length ? Math.round((resolvidos / contaveis.length) * 100) : 0;
+  const comArquivo = documentos.filter(item => item.arquivos.length > 0).length;
+
+  async function zipar() {
+    setZipando(true);
+    try {
+      await baixarZip(cardId);
+    } finally {
+      setZipando(false);
+    }
+  }
 
   const visivel = (item: ProspeccaoDocumento) =>
     filtro === "todos" || (filtro === "resolvidos" ? RESOLVIDOS.includes(item.status) : !RESOLVIDOS.includes(item.status));
@@ -441,6 +453,25 @@ export default function DocumentChecklist({ cardId, documentos }: { cardId: stri
               )}
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+          {comArquivo > 0 && (
+            <button
+              type="button"
+              onClick={zipar}
+              disabled={zipando}
+              title="A versão mais recente de cada documento, numa pasta por empresa e por pessoa"
+              className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700
+                shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] disabled:cursor-wait disabled:opacity-60
+                dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              {zipando ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-[#612035]" />
+              ) : (
+                <Icon name="folder_zip" size={14} />
+              )}
+              {zipando ? "Montando o ZIP…" : `Baixar tudo (.zip) · ${comArquivo} arquivo${comArquivo > 1 ? "s" : ""}`}
+            </button>
+          )}
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Filtrar documentos">
             {([["todos", "Todos"], ["faltando", "Faltando"], ["resolvidos", "Resolvidos"]] as [Filtro, string][]).map(([valor, rotulo]) => (
               <button
@@ -456,6 +487,7 @@ export default function DocumentChecklist({ cardId, documentos }: { cardId: stri
                 {rotulo}
               </button>
             ))}
+          </div>
           </div>
         </div>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

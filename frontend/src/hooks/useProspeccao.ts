@@ -717,6 +717,29 @@ export async function abrirArquivo(arquivo: ProspeccaoArquivo) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/**
+ * Baixa todos os documentos do card num ZIP: a versão mais recente de cada item, com o nome do
+ * documento, em pastas por empresa e por pessoa. O nome do arquivo vem do servidor.
+ */
+export async function baixarZip(cardId: string) {
+  const res = await fetch(`${API_BASE_URL}/prospeccao/${cardId}/arquivos/zip`, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    toast.error(await extractErrorMessage(res, "Falha ao montar o ZIP"));
+    return;
+  }
+  const disposicao = res.headers.get("Content-Disposition") ?? "";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(disposicao)?.[1];
+  const simples = /filename="?([^";]+)"?/i.exec(disposicao)?.[1];
+  const nome = utf8 ? decodeURIComponent(utf8) : simples ?? "documentos.zip";
+
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export type ConteudoExport = "CARDS" | "DOCUMENTOS" | "EVENTOS";
 
 /**

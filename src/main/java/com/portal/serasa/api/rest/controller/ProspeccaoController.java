@@ -585,6 +585,46 @@ public class ProspeccaoController {
         return ResponseEntity.ok().headers(headers).body(conteudo);
     }
 
+    /**
+     * Todos os documentos do card num ZIP: a versão mais recente de cada item, com o nome do
+     * documento, em pastas por empresa e por pessoa.
+     *
+     * <p>O plano é resolvido antes de responder — se não há arquivo nenhum, sai 404 com mensagem,
+     * e não um ZIP vazio. O ZIP em si é escrito direto na resposta, arquivo por arquivo, sem montar
+     * tudo em memória.</p>
+     */
+    @GetMapping("/{id}/arquivos/zip")
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> baixarZip(
+            @PathVariable UUID id) {
+        usuarioAutenticado();
+        var plano = arquivoService.planoDoZip(id);
+
+        org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody corpo = saida -> {
+            try (var zip = new java.util.zip.ZipOutputStream(saida, StandardCharsets.UTF_8)) {
+                for (var item : plano.itens()) {
+                    zip.putNextEntry(new java.util.zip.ZipEntry(item.caminhoNoZip()));
+                    java.nio.file.Files.copy(item.origem(), zip);
+                    zip.closeEntry();
+                }
+                if (!plano.faltando().isEmpty()) {
+                    zip.putNextEntry(new java.util.zip.ZipEntry("LEIA-ME - arquivos que faltaram.txt"));
+                    String texto = "Estes documentos têm registro na esteira, mas o arquivo não foi encontrado no\r\n"
+                            + "compartilhamento (movido ou renomeado fora do portal):\r\n\r\n- "
+                            + String.join("\r\n- ", plano.faltando()) + "\r\n";
+                    zip.write(texto.getBytes(StandardCharsets.UTF_8));
+                    zip.closeEntry();
+                }
+            }
+        };
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/zip"));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(plano.nomeDoArquivo(), StandardCharsets.UTF_8)
+                .build());
+        return ResponseEntity.ok().headers(headers).body(corpo);
+    }
+
     @DeleteMapping("/arquivos/{arquivoId}")
     public ResponseEntity<Void> removerArquivo(@PathVariable UUID arquivoId) {
         UserEntity autor = usuarioAutenticado();

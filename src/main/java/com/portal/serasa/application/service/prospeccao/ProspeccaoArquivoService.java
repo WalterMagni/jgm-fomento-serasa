@@ -168,6 +168,114 @@ public class ProspeccaoArquivoService {
                 TipoEventoProspeccao.ARQUIVO_REMOVIDO, null, null, null, arquivo.getNomeOriginal(), autor);
     }
 
+    // ---------------------------------------------------------------- zip
+
+    /** Um arquivo dentro do ZIP: onde ele entra e de onde vem. */
+    public record ItemZip(String caminhoNoZip, Path origem) {
+    }
+
+    /**
+     * O que vai no ZIP, resolvido antes de começar a escrever.
+     *
+     * <p>{@code faltando} lista o que tem registro na esteira mas não está mais no compartilhamento
+     * — movido ou renomeado fora do portal. Vira um LEIA-ME dentro do ZIP em vez de derrubar o
+     * download inteiro por causa de um arquivo.</p>
+     */
+    public record PlanoZip(String nomeDoArquivo, List<ItemZip> itens, List<String> faltando) {
+    }
+
+    /**
+     * Monta o plano do ZIP com a versão mais recente de cada documento do card.
+     *
+     * <p>Os arquivos entram com o nome do documento, e não o nome com que foram enviados — quem
+     * abre o ZIP procura "Contrato social", não "scan_0042.pdf" — organizados em uma pasta para a
+     * empresa e uma para cada sócio ou avalista.</p>
+     */
+    @Transactional(readOnly = true)
+    public PlanoZip planoDoZip(UUID prospeccaoId) {
+        ProspeccaoEntity card = prospeccaoService.buscar(prospeccaoId);
+        java.util.Map<UUID, ProspeccaoDocumentoEntity> documentos = new java.util.HashMap<>();
+        documentoRepository.findByProspeccaoId(prospeccaoId).forEach(documento -> documentos.put(documento.getId(), documento));
+
+        // A mais nova de cada item: as versões anteriores ficam só no portal.
+        java.util.Map<UUID, ProspeccaoArquivoEntity> maisNovo = new java.util.LinkedHashMap<>();
+        for (ProspeccaoArquivoEntity arquivo : listar(prospeccaoId)) {
+            if (arquivo.getDocumentoId() == null) {
+                continue;
+            }
+            maisNovo.merge(arquivo.getDocumentoId(), arquivo,
+                    (atual, outro) -> outro.getVersao() > atual.getVersao() ? outro : atual);
+        }
+        if (maisNovo.isEmpty()) {
+            throw new EntityNotFoundException("Nenhum arquivo anexado neste card ainda.");
+        }
+
+        Path base = baseDeDocumentos();
+        java.util.Set<String> usados = new java.util.HashSet<>();
+        List<ItemZip> itens = new java.util.ArrayList<>();
+        List<String> faltando = new java.util.ArrayList<>();
+        for (ProspeccaoArquivoEntity arquivo : maisNovo.values()) {
+            ProspeccaoDocumentoEntity documento = documentos.get(arquivo.getDocumentoId());
+            String caminho = nomeUnico(caminhoNoZip(documento, arquivo.getNomeOriginal()), usados);
+            Path origem = resolverDentroDaBase(base, arquivo.getCaminhoRelativo());
+            if (Files.isRegularFile(origem)) {
+                itens.add(new ItemZip(caminho, origem));
+            } else {
+                faltando.add(caminho + " (enviado como " + arquivo.getNomeOriginal() + ")");
+            }
+        }
+        itens.sort(java.util.Comparator.comparing(ItemZip::caminhoNoZip));
+        return new PlanoZip(nomeParaArquivo(card.getRazaoSocial()) + " - documentos.zip", itens, faltando);
+    }
+
+    /** {@code Empresa/Contrato social.pdf}, {@code Sócio - João Silva/RG ou CNH.jpg}. */
+    static String caminhoNoZip(ProspeccaoDocumentoEntity documento, String nomeOriginal) {
+        String pasta;
+        String nome;
+        if (documento == null) {
+            pasta = "Outros";
+            nome = nomeOriginal;
+        } else {
+            pasta = documento.getEscopo() == EscopoDocumento.SOCIO
+                    ? (documento.getPessoaPapel() == com.portal.serasa.domain.model.prospeccao.PapelPessoa.AVALISTA ? "Avalista - " : "Sócio - ")
+                            + documento.getSocioNome()
+                    : "Empresa";
+            nome = documento.getNomeSnapshot();
+        }
+        int ponto = nomeOriginal == null ? -1 : nomeOriginal.lastIndexOf('.');
+        String extensao = ponto > 0 ? nomeOriginal.substring(ponto).toLowerCase(Locale.ROOT) : "";
+        String semExtensao = nome != null && extensao.length() > 0 && nome.toLowerCase(Locale.ROOT).endsWith(extensao)
+                ? nome.substring(0, nome.length() - extensao.length())
+                : nome;
+        return nomeParaArquivo(pasta) + "/" + nomeParaArquivo(semExtensao) + extensao;
+    }
+
+    /** Tira o que Windows não aceita em nome de arquivo, e o "/" que abriria pasta no ZIP. */
+    static String nomeParaArquivo(String valor) {
+        String limpo = valor == null ? "" : valor.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (limpo.isBlank()) {
+            return "arquivo";
+        }
+        return limpo.length() > 120 ? limpo.substring(0, 120).trim() : limpo;
+    }
+
+    /** Dois itens com o mesmo nome (dois avalistas homônimos) não se sobrescrevem no ZIP. */
+    static String nomeUnico(String caminho, java.util.Set<String> usados) {
+        String candidato = caminho;
+        int contador = 2;
+        while (!usados.add(candidato.toLowerCase(Locale.ROOT))) {
+            int ponto = caminho.lastIndexOf('.');
+            int barra = caminho.lastIndexOf('/');
+            candidato = ponto > barra
+                    ? caminho.substring(0, ponto) + " (" + contador + ")" + caminho.substring(ponto)
+                    : caminho + " (" + contador + ")";
+            contador++;
+        }
+        return candidato;
+    }
+
     /** Metadado do arquivo ativo, para montar o cabeçalho do download. */
     @Transactional(readOnly = true)
     public ProspeccaoArquivoEntity buscar(UUID arquivoId) {
