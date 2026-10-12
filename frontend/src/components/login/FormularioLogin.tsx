@@ -11,8 +11,9 @@ export const CAMPO =
   "h-[50px] w-full rounded-[14px] border border-linha bg-white pl-11 pr-4 text-[14.5px] text-grafite outline-none transition-[border-color,box-shadow] placeholder:text-[#A29E93] focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 /**
- * Formulário de entrada, igual em todos os fundos. Guarda token, nome, e-mail e a preferência
- * de e-mail da Visão Cedente, como antes, e leva para a Carteira.
+ * Formulário de entrada. Guarda token, nome, e-mail e a preferência de e-mail da Visão Cedente,
+ * como antes, e leva para a Carteira. Sem "lembrar-me" de propósito: com dados sensíveis, a sessão
+ * sempre vence em 8h e pede login de novo.
  */
 export default function FormularioLogin() {
   const router = useRouter();
@@ -115,11 +116,6 @@ export default function FormularioLogin() {
               <Icon name={verSenha ? "visibility_off" : "visibility"} size={19} />
             </button>
           </span>
-        </label>
-
-        <label className="flex cursor-pointer items-center gap-2 text-[13.5px] text-suave">
-          <input type="checkbox" className="h-4 w-4 rounded border-linha accent-primary" />
-          Lembrar-me
         </label>
 
         <button
