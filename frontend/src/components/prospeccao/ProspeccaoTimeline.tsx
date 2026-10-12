@@ -20,6 +20,8 @@ const ICONE_EVENTO: Record<TipoEvento, string> = {
   ANALISTA_ALTERADO: "person",
   REABERTURA: "restart_alt",
   DADOS_COMERCIAIS: "storefront",
+  DECISAO: "gavel",
+  ACEITE: "handshake",
 };
 
 /**

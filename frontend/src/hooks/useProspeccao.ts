@@ -1,8 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  Aceite,
   CanalContato,
+  Condicao,
   DadosComerciais,
+  Decisao,
+  ProdutoCatalogo,
+  RespostaCliente,
+  ResultadoDecisao,
   DocumentoTipo,
   EstagioProspeccao,
   MotivoRecusa,
@@ -211,6 +217,83 @@ export function useTransicionarProspeccao() {
     },
     onSuccess: card => invalidar(card.id),
     // O card volta para a coluna de origem e o motivo aparece — em 422 ele lista o que falta.
+    onError: error => toast.error(error.message, { duration: 6000 }),
+  });
+}
+
+/** Produtos que podem entrar numa condição. Muda raramente: cache longo. */
+export function useProdutos() {
+  return useQuery<ProdutoCatalogo[]>({
+    queryKey: ["prospeccaoProdutos"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/produtos`, { headers: getAuthHeaders("application/json") });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao carregar os produtos"));
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export type NovaDecisao = {
+  resultado: ResultadoDecisao;
+  limite?: number | null;
+  condicoes?: Condicao[];
+  parecer?: string;
+  motivoRecusa?: MotivoRecusa;
+  observacao?: string;
+};
+
+/** Decisão da análise. A analista dona aprova com limite e condições, ou reprova com motivo. */
+export function useDecidir() {
+  const invalidar = useInvalidar();
+  return useMutation<Decisao, Error, { id: string; decisao: NovaDecisao }>({
+    mutationFn: async ({ id, decisao }) => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/${id}/decisao`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify(decisao),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao registrar a decisão"));
+      return res.json();
+    },
+    onSuccess: (decisao, { id }) => {
+      invalidar(id);
+      toast.success(decisao.resultado === "APROVADO" ? "Aprovado — aguardando o aceite do cliente" : "Card reprovado");
+    },
+    onError: error => toast.error(error.message, { duration: 6000 }),
+  });
+}
+
+export type NovoAceite = {
+  resposta: RespostaCliente;
+  mensagem?: string;
+  limiteSugerido?: number | null;
+  condicoesSugeridas?: Condicao[];
+};
+
+const TOAST_ACEITE: Record<RespostaCliente, string> = {
+  ACEITO: "Aceite registrado — card segue para a documentação",
+  RECUSADO: "Recusa registrada — card encerrado",
+  CONTRAPROPOSTA: "Contraproposta registrada — card voltou para a análise",
+};
+
+/** Resposta do cliente à proposta vigente. */
+export function useRegistrarAceite() {
+  const invalidar = useInvalidar();
+  return useMutation<Aceite, Error, { id: string; aceite: NovoAceite }>({
+    mutationFn: async ({ id, aceite }) => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/${id}/aceite`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify(aceite),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao registrar a resposta do cliente"));
+      return res.json();
+    },
+    onSuccess: (aceite, { id }) => {
+      invalidar(id);
+      toast.success(TOAST_ACEITE[aceite.resposta]);
+    },
     onError: error => toast.error(error.message, { duration: 6000 }),
   });
 }

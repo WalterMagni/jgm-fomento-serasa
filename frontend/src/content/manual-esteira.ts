@@ -76,6 +76,24 @@ abaixo, os botões mostram só o que vale naquele estágio: o próximo passo em 
 lado os retrocessos (devolver, contraproposta, comitê devolveu) e as saídas. **Reprovar** e
 **Mover para inerte** pedem o motivo de uma lista fechada; se escolher "Outro", descreva.
 
+**Decidir.** Em análise, quem assumiu o card clica em **Decidir** — só ela (ou o admin) pode.
+Para **aprovar**: limite, condições por produto (duplicata, cheque próprio…, quantas linhas
+quiser) e parecer. Se a soma das condições passar do limite, o sistema avisa mas deixa seguir.
+Para **reprovar**: motivo da lista fechada e, se quiser, parecer. Arrastar o card para
+*Aguardando aceite* abre a mesma janela — a aprovação não anda sem limite e condições.
+
+**Resposta do cliente.** Em Aguardando aceite, **Registrar resposta do cliente**:
+
+| Resposta | O que acontece |
+|---|---|
+| **Aceitou** | O card segue para Documentação. |
+| **Contraproposta** | Volta para Em análise com o pedido do cliente (mensagem, limite e produtos que ele quer). A analista decide de novo: a janela já vem com a proposta anterior. |
+| **Recusou** | O card encerra em *Recusado pelo cliente*. |
+
+Cada decisão fica guardada: a nova não apaga a anterior. A aba **Decisão e aceite** mostra a
+proposta vigente e o histórico da negociação. Enquanto não há acesso do comercial ao portal,
+quem registra a resposta é a equipe; o histórico marca "pelo comercial".
+
 **Dados comerciais.** Aba *Dados comerciais* do card: faturamento, ticket médio, prazos,
 região, produtos e parceiros. Edite e clique em **Salvar**; a alteração fica no histórico.
 
@@ -196,8 +214,6 @@ não está acessível — o mesmo problema que afeta a pasta de documentos da em
 
 A esteira unificada está entrando por partes. Nas próximas:
 
-- **decisão com limite**: ao aprovar, a analista registra limite, condições por produto e
-  parecer; o aceite do cliente aceita contraproposta;
 - **pendências e comentários**: pedir informação ou documento ao comercial, com aviso no sino;
 - **comitê com pareceres**: cada membro dá a posição dele, como na esteira de liberação;
 - **contrato**: contato de quem assina e conclusão do card.

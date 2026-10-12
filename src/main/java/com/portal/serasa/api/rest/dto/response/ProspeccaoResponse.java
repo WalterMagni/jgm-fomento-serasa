@@ -46,5 +46,7 @@ public record ProspeccaoResponse(
         LocalDateTime closedAt,
         /** Migrado da esteira antiga sem decisão registrada. Ver V74. */
         boolean legado,
+        /** Limite da decisão vigente, quando aprovada. Selo do quadro. */
+        java.math.BigDecimal limiteVigente,
         Long version) {
 }

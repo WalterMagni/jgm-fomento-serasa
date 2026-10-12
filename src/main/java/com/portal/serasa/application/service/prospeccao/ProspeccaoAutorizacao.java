@@ -57,6 +57,30 @@ public class ProspeccaoAutorizacao {
     }
 
     /**
+     * Decidir a análise: só a analista dona do card, ou o admin.
+     *
+     * <p>Exceção à regra de "todos operam tudo", pedida pelo Walter em 2026-10-11: a decisão leva
+     * limite e parecer, e quem assina é quem analisou.</p>
+     */
+    public void exigirDona(ProspeccaoEntity card, UserEntity usuario) {
+        exigirAutenticado(usuario);
+        if (!ehDona(card, usuario)) {
+            throw new AcessoNegadoException(card.getAnalistaId() == null
+                    ? "Assuma a análise antes de decidir."
+                    : "Só a analista dona do card decide.");
+        }
+    }
+
+    /** Mesma regra de {@link #exigirDona}, sem lançar — a tela usa para mostrar o botão. */
+    public boolean ehDona(ProspeccaoEntity card, UserEntity usuario) {
+        if (usuario == null || usuario.getId() == null) {
+            return false;
+        }
+        return ADMIN.equals(papel(usuario))
+                || (card.getAnalistaId() != null && card.getAnalistaId().equals(usuario.getId()));
+    }
+
+    /**
      * Catálogo de documentos: continua restrito ao admin.
      *
      * <p>Não é operação da esteira e sim configuração: mexer aqui muda o que passa a ser exigido
@@ -66,7 +90,7 @@ public class ProspeccaoAutorizacao {
     public void exigirAdmin(UserEntity usuario) {
         exigirAutenticado(usuario);
         if (!ADMIN.equals(papel(usuario))) {
-            throw new AcessoNegadoException("Só admin altera o catálogo de documentos.");
+            throw new AcessoNegadoException("Só admin altera os catálogos da esteira.");
         }
     }
 

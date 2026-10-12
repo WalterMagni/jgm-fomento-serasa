@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Dialogo from "@/components/liberacao/Dialogo";
-import { ROTULO_ESTAGIO, ehTerminal, type EstagioProspeccao, type MotivoRecusa } from "@/types/prospeccao";
+import { ROTULO_ESTAGIO, ehTerminal, type EstagioProspeccao, type MotivoRecusa, type RespostaCliente } from "@/types/prospeccao";
 import {
   useAssumirProspeccao,
   useExcluirProspeccoes,
@@ -12,16 +12,29 @@ import {
   useReabrirProspeccao,
   useTransicionarProspeccao,
 } from "@/hooks/useProspeccao";
+import AceiteDialog from "./AceiteDialog";
 import DadosComerciaisAba from "./DadosComerciaisAba";
+import DecisaoAba from "./DecisaoAba";
+import DecisaoDialog from "./DecisaoDialog";
 import DocumentChecklist from "./DocumentChecklist";
 import EsteiraTrilha from "./EsteiraTrilha";
 import MotivoDialog from "./MotivoDialog";
 import ProspeccaoTimeline from "./ProspeccaoTimeline";
 import ResumoAba from "./ResumoAba";
 import { TOTAL_CAMPOS_COMERCIAIS, camposPreenchidos } from "./DadosComerciaisForm";
-import { CLASSE_BADGE_SEMAFORO, confirmarExclusao, ehAvanco, formatCnpj, rotuloAcao, semaforoDe, textoPrazo } from "./formatters";
+import { CLASSE_BADGE_SEMAFORO, acaoPropria, confirmarExclusao, ehAvanco, formatCnpj, rotuloAcao, semaforoDe, textoPrazo } from "./formatters";
 
-type Aba = "resumo" | "dados" | "documentos" | "historico";
+type Aba = "resumo" | "dados" | "decisao" | "documentos" | "historico";
+
+/** Diálogo de ação própria aberto por cima do card. */
+export type AcaoAberta = { tipo: "decidir" } | { tipo: "aceite"; resposta: RespostaCliente };
+
+/** Resposta do cliente que cada destino do aceite representa — para o arraste abrir já marcado. */
+export const RESPOSTA_DO_DESTINO: Partial<Record<EstagioProspeccao, RespostaCliente>> = {
+  DOCUMENTACAO: "ACEITO",
+  RECUSADO_CLIENTE: "RECUSADO",
+  EM_ANALISE: "CONTRAPROPOSTA",
+};
 
 /** Passagem que pede algo antes de mover: motivo, texto livre ou nada. */
 type Pergunta =
@@ -43,7 +56,16 @@ const SECUNDARIO = `${BOTAO_ACAO} border border-slate-200 bg-white text-slate-70
  * retrocessos e saídas ao lado, discretos. Abaixo, abas para o trabalho e, a partir de {@code lg},
  * o histórico fixo na lateral — é ali que a equipe registra cobrança e nota sem trocar de aba.</p>
  */
-export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; onFechar: () => void }) {
+export default function ProspeccaoModal({
+  cardId,
+  onFechar,
+  acaoInicial = null,
+}: {
+  cardId: string;
+  onFechar: () => void;
+  /** Vindo do arraste para um estágio que exige decisão ou resposta do cliente. */
+  acaoInicial?: AcaoAberta | null;
+}) {
   const { data, isLoading, error } = useProspeccaoDetalhe(cardId);
   const assumir = useAssumirProspeccao();
   const transicionar = useTransicionarProspeccao();
@@ -51,6 +73,7 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
   const excluir = useExcluirProspeccoes();
   const [aba, setAba] = useState<Aba>("resumo");
   const [pergunta, setPergunta] = useState<Pergunta | null>(null);
+  const [acao, setAcao] = useState<AcaoAberta | null>(acaoInicial);
 
   const card = data?.card;
   const ocupado = transicionar.isPending || assumir.isPending || reabrir.isPending;
@@ -77,10 +100,48 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
     transicionar.mutate({ id: cardId, estagio: pergunta.destino, ...dados }, fechar);
   }
 
-  const destinos = data?.destinosPossiveis ?? [];
   // Assumir é o avanço de Nova: tem endpoint próprio, que impede duas analistas de pegarem juntas.
-  const avancos = card ? destinos.filter(destino => ehAvanco(card.estagio, destino) && !(card.estagio === "NOVA" && destino === "EM_ANALISE")) : [];
-  const outros = card ? destinos.filter(destino => !avancos.includes(destino) && !(card.estagio === "NOVA" && destino === "EM_ANALISE")) : [];
+  // Decisão e resposta do cliente também: viram um botão só, que abre o diálogo.
+  const destinos = card
+    ? (data?.destinosPossiveis ?? []).filter(
+        destino => !(card.estagio === "NOVA" && destino === "EM_ANALISE") && !acaoPropria(card.estagio, destino),
+      )
+    : [];
+  const avancos = card ? destinos.filter(destino => ehAvanco(card.estagio, destino)) : [];
+  const outros = destinos.filter(destino => !avancos.includes(destino));
+
+  const vigente = data?.decisoes.find(decisao => decisao.vigente) ?? null;
+  const ultimoAceite = data?.aceites[0];
+  const pedidoCliente =
+    ultimoAceite && ultimoAceite.resposta === "CONTRAPROPOSTA" && vigente && ultimoAceite.decisaoId === vigente.id
+      ? { mensagem: ultimoAceite.mensagem, limiteSugerido: ultimoAceite.limiteSugerido, condicoes: ultimoAceite.condicoesSugeridas }
+      : null;
+  const propostaAberta = vigente && vigente.resultado === "APROVADO" ? vigente : null;
+
+  const botaoDecidir = card?.estagio === "EM_ANALISE" && (
+    <button
+      type="button"
+      onClick={() => setAcao({ tipo: "decidir" })}
+      disabled={ocupado || !data?.podeDecidir}
+      title={data?.podeDecidir ? undefined : "Só a analista dona do card decide"}
+      className={PRIMARIO}
+    >
+      <Icon name="gavel" size={15} />
+      {pedidoCliente ? "Decidir a contraproposta" : "Decidir"}
+    </button>
+  );
+  const botaoAceite = card?.estagio === "AGUARDANDO_ACEITE" && (
+    <button
+      type="button"
+      onClick={() => setAcao({ tipo: "aceite", resposta: "ACEITO" })}
+      disabled={ocupado || !propostaAberta}
+      title={propostaAberta ? undefined : "Não há proposta aprovada vigente"}
+      className={PRIMARIO}
+    >
+      <Icon name="handshake" size={15} />
+      Registrar resposta do cliente
+    </button>
+  );
 
   const titulo = card ? card.razaoSocial : isLoading ? "Carregando…" : "Card da esteira";
   const subtitulo = card && (
@@ -110,6 +171,7 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
   const abas: [Aba, string, string?][] = [
     ["resumo", "Resumo"],
     ["dados", "Dados comerciais", preenchidos ? `${preenchidos}/${TOTAL_CAMPOS_COMERCIAIS}` : undefined],
+    ["decisao", "Decisão e aceite", data && data.decisoes.length > 0 ? String(data.decisoes.length) : undefined],
     ["documentos", "Documentos", card && card.documentosTotal > 0 ? `${card.documentosResolvidos}/${card.documentosTotal}` : undefined],
     ["historico", "Histórico"],
   ];
@@ -132,6 +194,13 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
                     <Icon name="how_to_reg" size={15} />
                     {assumir.isPending ? "Assumindo…" : "Assumir análise"}
                   </button>
+                )}
+                {botaoDecidir}
+                {botaoAceite}
+                {card.estagio === "EM_ANALISE" && !data.podeDecidir && (
+                  <span className="text-[11px] text-slate-400">
+                    {card.analistaNome ? `Quem decide é ${card.analistaNome}` : "Assuma para decidir"}
+                  </span>
                 )}
                 {avancos.map(destino => (
                   <button key={destino} type="button" onClick={() => mover(destino)} disabled={ocupado} className={PRIMARIO}>
@@ -189,6 +258,15 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
                 </nav>
                 <div className="p-5">
                   {aba === "resumo" && <ResumoAba detalhe={data} onIrPara={setAba} />}
+                  {aba === "decisao" && (
+                    <DecisaoAba
+                      decisoes={data.decisoes}
+                      aceites={data.aceites}
+                      legado={card.legado}
+                      emRevisao={card.estagio === "EM_ANALISE"}
+                      acao={botaoDecidir || botaoAceite || undefined}
+                    />
+                  )}
                   {aba === "dados" && (
                     <DadosComerciaisAba cardId={cardId} dados={data.dadosComerciais} somenteLeitura={ehTerminal(card.estagio)} />
                   )}
@@ -204,6 +282,25 @@ export default function ProspeccaoModal({ cardId, onFechar }: { cardId: string; 
           </div>
         )}
       </Dialogo>
+
+      {card && acao?.tipo === "decidir" && (
+        <DecisaoDialog
+          cardId={cardId}
+          razaoSocial={card.razaoSocial}
+          anterior={vigente}
+          pedidoCliente={pedidoCliente}
+          onFechar={() => setAcao(null)}
+        />
+      )}
+      {card && acao?.tipo === "aceite" && propostaAberta && (
+        <AceiteDialog
+          cardId={cardId}
+          razaoSocial={card.razaoSocial}
+          proposta={propostaAberta}
+          inicial={acao.resposta}
+          onFechar={() => setAcao(null)}
+        />
+      )}
 
       {pergunta && (
         <MotivoDialog

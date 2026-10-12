@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { CAMPO, ROTULO } from "@/components/liberacao/Dialogo";
 import type { DadosComerciais } from "@/types/prospeccao";
+import InputMoeda from "./InputMoeda";
 
 /**
  * Os treze campos do perfil comercial, como o comercial preenchia no Portal Comercial.
@@ -70,52 +70,19 @@ function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode
   );
 }
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/**
- * Valor em reais digitado como no Excel: "250.000,00" ou "250000".
- *
- * <p>O texto digitado vive no estado local enquanto o campo tem foco; só ao sair dele vira número
- * e volta formatado. Formatar a cada tecla moveria o cursor para o fim no meio da digitação.</p>
- */
+/** Valor em reais com rótulo. */
 function Moeda({ rotulo, valor, onMudar, desabilitado }: {
   rotulo: string;
   valor: number | null;
   onMudar: (v: number | null) => void;
   desabilitado: boolean;
 }) {
-  const [rascunho, setRascunho] = useState<string | null>(null);
-  const exibido = rascunho ?? (valor == null ? "" : MOEDA.format(valor));
-
   return (
     <label className="block">
       <span className={ROTULO}>{rotulo}</span>
-      <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
-        <input
-          inputMode="decimal"
-          value={exibido}
-          disabled={desabilitado}
-          onFocus={() => setRascunho(valor == null ? "" : MOEDA.format(valor))}
-          onChange={event => setRascunho(event.target.value.replace(/[^\d.,]/g, ""))}
-          onBlur={() => {
-            onMudar(paraNumero(rascunho ?? ""));
-            setRascunho(null);
-          }}
-          placeholder="0,00"
-          className={`${CAMPO} pl-9 text-right tabular-nums`}
-        />
-      </div>
+      <InputMoeda valor={valor} onMudar={onMudar} desabilitado={desabilitado} />
     </label>
   );
-}
-
-/** "1.234,56" → 1234.56. Ponto é milhar, vírgula é decimal, como se digita no Brasil. */
-function paraNumero(texto: string): number | null {
-  const limpo = texto.trim();
-  if (!limpo) return null;
-  const numero = Number(limpo.replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(numero) && numero >= 0 ? numero : null;
 }
 
 function Dias({ rotulo, valor, onMudar, desabilitado }: {

@@ -163,7 +163,7 @@ class ProspeccaoServiceTest {
     @Test
     @DisplayName("transicionar: reprovar sem motivo não passa")
     void shouldRequireReasonToReject() {
-        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
 
         assertThatThrownBy(() -> service.transicionar(
                 card.getId(), EstagioProspeccao.REPROVADO, null, null, analista))
@@ -174,7 +174,7 @@ class ProspeccaoServiceTest {
     @Test
     @DisplayName("transicionar: motivo OUTRO exige observação, senão vira caixa-preta")
     void shouldRequireNoteWhenReasonIsOther() {
-        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
 
         assertThatThrownBy(() -> service.transicionar(
                 card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.OUTRO, "  ", analista))
@@ -187,7 +187,7 @@ class ProspeccaoServiceTest {
     void shouldCompleteChecklistWhenEnteringDocumentation() {
         ProspeccaoEntity card = card(EstagioProspeccao.AGUARDANDO_ACEITE);
 
-        ProspeccaoEntity resultado = service.transicionar(
+        ProspeccaoEntity resultado = service.mover(
                 card.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, analista);
 
         verify(checklistService).materializar(card);
@@ -201,11 +201,29 @@ class ProspeccaoServiceTest {
     void shouldMoveToAwaitingAcceptance() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
 
-        ProspeccaoEntity resultado = service.transicionar(
+        ProspeccaoEntity resultado = service.mover(
                 card.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, analista);
 
         assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.AGUARDANDO_ACEITE);
         verify(checklistService, never()).materializar(any());
+    }
+
+    @Test
+    @DisplayName("troca simples não pula a decisão nem a resposta do cliente")
+    void shouldRequireDedicatedActions() {
+        ProspeccaoEntity emAnalise = card(EstagioProspeccao.EM_ANALISE);
+        ProspeccaoEntity aguardando = card(EstagioProspeccao.AGUARDANDO_ACEITE);
+
+        assertThatThrownBy(() -> service.transicionar(emAnalise.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, analista))
+                .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("decisão");
+        assertThatThrownBy(() -> service.transicionar(emAnalise.getId(), EstagioProspeccao.REPROVADO,
+                MotivoRecusa.SEGMENTO, null, analista))
+                .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("decisão");
+        assertThatThrownBy(() -> service.transicionar(aguardando.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, analista))
+                .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("resposta do cliente");
+        // Devolver para Nova e mover para inerte continuam sendo troca simples.
+        assertThat(service.transicionar(emAnalise.getId(), EstagioProspeccao.NOVA, null, null, analista).getEstagio())
+                .isEqualTo(EstagioProspeccao.NOVA);
     }
 
     @Test

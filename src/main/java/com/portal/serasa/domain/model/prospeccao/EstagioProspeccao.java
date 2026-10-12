@@ -125,4 +125,24 @@ public enum EstagioProspeccao {
     public boolean aceita(EstagioProspeccao destino) {
         return destinos().contains(destino);
     }
+
+    /**
+     * Passagens que só acontecem por ação própria, porque exigem dado que a troca simples de
+     * estágio não carrega.
+     *
+     * <p>Sair da análise aprovando ou reprovando é a <b>decisão</b> — limite, condições, parecer.
+     * Sair do aceite é a <b>resposta do cliente</b>, que fica registrada. Arrastar o card não pode
+     * pular esse registro.</p>
+     *
+     * @return o nome da ação que deve ser usada, ou nulo quando a troca simples basta
+     */
+    public String acaoPropria(EstagioProspeccao destino) {
+        if (this == EM_ANALISE && (destino == AGUARDANDO_ACEITE || destino == REPROVADO)) {
+            return "a decisão da análise";
+        }
+        if (this == AGUARDANDO_ACEITE && (destino == DOCUMENTACAO || destino == RECUSADO_CLIENTE || destino == EM_ANALISE)) {
+            return "a resposta do cliente";
+        }
+        return null;
+    }
 }

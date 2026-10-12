@@ -3,7 +3,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
 import type { Prospeccao } from "@/types/prospeccao";
-import { CLASSE_BADGE_SEMAFORO, CLASSE_SEMAFORO, formatCnpj, semaforoDe, textoPrazo } from "./formatters";
+import { CLASSE_BADGE_SEMAFORO, CLASSE_SEMAFORO, formatCnpj, formatMoedaCurta, semaforoDe, textoPrazo } from "./formatters";
 
 /** O que o card mostra, sem o comportamento de arraste — reaproveitado na cópia que segue o ponteiro. */
 export function CardFace({
@@ -43,6 +43,12 @@ export function CardFace({
           <Icon name={semaforo === "ok" ? "schedule" : "warning"} size={13} />
           {textoPrazo(card)}
         </span>
+        {card.limiteVigente != null && (
+          <span className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-300" title="Limite da decisão vigente">
+            <Icon name="account_balance_wallet" size={13} />
+            {formatMoedaCurta(card.limiteVigente)}
+          </span>
+        )}
         {progresso && (
           <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400" title="Documentos resolvidos">
             <Icon name="checklist" size={13} />

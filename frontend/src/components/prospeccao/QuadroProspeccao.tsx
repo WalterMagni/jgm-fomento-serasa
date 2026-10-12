@@ -21,9 +21,9 @@ import BackfillDialog from "./BackfillDialog";
 import ManualDrawer from "./ManualDrawer";
 import NovaProspeccaoDialog from "./NovaProspeccaoDialog";
 import ProspeccaoColumn from "./ProspeccaoColumn";
-import ProspeccaoModal from "./ProspeccaoModal";
+import ProspeccaoModal, { RESPOSTA_DO_DESTINO, type AcaoAberta } from "./ProspeccaoModal";
 import { CardFace } from "./ProspeccaoCard";
-import { confirmarExclusao, ordenarCards, type Ordenacao } from "./formatters";
+import { acaoPropria, confirmarExclusao, ordenarCards, type Ordenacao } from "./formatters";
 import {
   COLUNAS,
   ROTULO_ESTAGIO,
@@ -103,6 +103,10 @@ export default function QuadroProspeccao() {
   const [arrastando, setArrastando] = useState<Prospeccao | null>(null);
   const [larguraArrasto, setLarguraArrasto] = useState<number | null>(null);
   const [abaCelular, setAbaCelular] = useState<EstagioProspeccao>("NOVA");
+  // Arrastar para um estágio que exige decisão ou resposta do cliente abre o card com o diálogo.
+  const [acaoInicial, setAcaoInicial] = useState<AcaoAberta | null>(null);
+  // Conta os arrastes com ação: soltar de novo o mesmo card remonta o detalhe e reabre o diálogo.
+  const [arrastesComAcao, setArrastesComAcao] = useState(0);
 
   const { data: cards = [], isLoading, error } = useProspeccoes({ apenasAtrasados });
   const { data: resumo } = useProspeccaoResumo();
@@ -230,6 +234,13 @@ export default function QuadroProspeccao() {
     if (!card || !destino || destino === card.estagio) return;
     if (card.estagio === "NOVA" && destino === "EM_ANALISE") {
       assumir.mutate(card.id);
+      return;
+    }
+    const acao = acaoPropria(card.estagio, destino);
+    if (acao) {
+      setAcaoInicial(acao === "decidir" ? { tipo: "decidir" } : { tipo: "aceite", resposta: RESPOSTA_DO_DESTINO[destino] ?? "ACEITO" });
+      setArrastesComAcao(n => n + 1);
+      abrir(card.id);
       return;
     }
     transicionar.mutate({ id: card.id, estagio: destino });
@@ -547,7 +558,18 @@ export default function QuadroProspeccao() {
         </div>
       )}
 
-      {cardAberto && <ProspeccaoModal cardId={cardAberto} onFechar={() => abrir(null)} />}
+      {cardAberto && (
+        <ProspeccaoModal
+          // A chave remonta o detalhe quando a ação muda: o diálogo nasce aberto sem efeito de sincronização.
+          key={`${cardAberto}-${arrastesComAcao}`}
+          cardId={cardAberto}
+          acaoInicial={acaoInicial}
+          onFechar={() => {
+            setAcaoInicial(null);
+            abrir(null);
+          }}
+        />
+      )}
       {novaAberta && <NovaProspeccaoDialog onFechar={() => setNovaAberta(false)} onCriado={card => abrir(card.id)} />}
       {backfillAberto && <BackfillDialog onFechar={() => setBackfillAberto(false)} />}
       {manualAberto && <ManualDrawer onFechar={() => setManualAberto(false)} />}

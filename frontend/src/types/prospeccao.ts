@@ -46,7 +46,9 @@ export type TipoEvento =
   | "ARQUIVO_REMOVIDO"
   | "ANALISTA_ALTERADO"
   | "REABERTURA"
-  | "DADOS_COMERCIAIS";
+  | "DADOS_COMERCIAIS"
+  | "DECISAO"
+  | "ACEITE";
 
 export type Prospeccao = {
   id: string;
@@ -80,7 +82,47 @@ export type Prospeccao = {
   closedAt: string | null;
   /** Migrado da esteira antiga sem decisão registrada: o time revisa e completa. */
   legado: boolean;
+  /** Limite da decisão vigente, quando aprovada. */
+  limiteVigente: number | null;
   version: number;
+};
+
+export type ResultadoDecisao = "APROVADO" | "REPROVADO";
+export type RespostaCliente = "ACEITO" | "RECUSADO" | "CONTRAPROPOSTA";
+
+export type Condicao = { produto: string; valor: number };
+
+export type Decisao = {
+  id: string;
+  versao: number;
+  resultado: ResultadoDecisao;
+  limite: number | null;
+  condicoes: Condicao[];
+  parecer: string | null;
+  motivoRecusa: MotivoRecusa | null;
+  vigente: boolean;
+  decididoPorNome: string | null;
+  decididoEm: string;
+};
+
+export type Aceite = {
+  id: string;
+  decisaoId: string;
+  resposta: RespostaCliente;
+  limiteSugerido: number | null;
+  condicoesSugeridas: Condicao[];
+  mensagem: string | null;
+  registradoPorNome: string | null;
+  emNomeDoComercial: boolean;
+  registradoEm: string;
+};
+
+export type ProdutoCatalogo = { id: string; nome: string; ordem: number; ativo: boolean };
+
+export const ROTULO_RESPOSTA: Record<RespostaCliente, string> = {
+  ACEITO: "Aceitou",
+  RECUSADO: "Recusou",
+  CONTRAPROPOSTA: "Contraproposta",
 };
 
 /** Perfil comercial da empresa. Todos opcionais; valores em reais, prazos em dias. */
@@ -173,6 +215,11 @@ export type ProspeccaoDetalhe = {
   timeline: ProspeccaoEvento[];
   /** Destinos válidos vindos da máquina de estados do backend. */
   destinosPossiveis: EstagioProspeccao[];
+  /** Da mais nova para a mais antiga; a vigente vem marcada. */
+  decisoes: Decisao[];
+  aceites: Aceite[];
+  /** Quem olha é a analista dona ou admin — mesma regra que autoriza no servidor. */
+  podeDecidir: boolean;
 };
 
 export type ProspeccaoResumo = {

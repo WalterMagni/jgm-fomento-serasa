@@ -116,4 +116,17 @@ class EstagioProspeccaoTest {
     void shouldNotLoopOnItself(EstagioProspeccao estagio) {
         assertThat(estagio.destinos()).doesNotContain(estagio);
     }
+
+    @Test
+    @DisplayName("sair da análise e do aceite exige a ação própria; o resto é troca simples")
+    void shouldFlagDedicatedActions() {
+        assertThat(EM_ANALISE.acaoPropria(AGUARDANDO_ACEITE)).contains("decisão");
+        assertThat(EM_ANALISE.acaoPropria(REPROVADO)).contains("decisão");
+        assertThat(AGUARDANDO_ACEITE.acaoPropria(DOCUMENTACAO)).contains("cliente");
+        assertThat(AGUARDANDO_ACEITE.acaoPropria(RECUSADO_CLIENTE)).contains("cliente");
+        assertThat(AGUARDANDO_ACEITE.acaoPropria(EM_ANALISE)).contains("cliente");
+        assertThat(EM_ANALISE.acaoPropria(NOVA)).isNull();
+        assertThat(EM_ANALISE.acaoPropria(INERTE)).isNull();
+        assertThat(DOCUMENTACAO.acaoPropria(COMITE)).isNull();
+    }
 }

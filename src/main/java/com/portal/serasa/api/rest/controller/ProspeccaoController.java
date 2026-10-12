@@ -87,6 +87,8 @@ public class ProspeccaoController {
     private final ProspeccaoAutorizacao autorizacao;
     private final ProspeccaoEntradaAutomatica entradaAutomatica;
     private final ProspeccaoExportService exportService;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService decisaoService;
+    private final com.portal.serasa.infrastructure.persistence.repository.ProdutoCatalogoJpaRepository produtoRepository;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final UserRepository userRepository;
@@ -171,6 +173,9 @@ public class ProspeccaoController {
                 .destinosPossiveis(card.getEstagio().destinos().stream()
                         .sorted(Comparator.comparing(EstagioProspeccao::name))
                         .toList())
+                .decisoes(decisaoService.historico(id).stream().map(mapper::toResponse).toList())
+                .aceites(decisaoService.aceites(id).stream().map(mapper::toResponse).toList())
+                .podeDecidir(autorizacao.ehDona(card, usuarioAutenticado()))
                 .build());
     }
 
@@ -192,6 +197,82 @@ public class ProspeccaoController {
                 request.cnpj(), request.razaoSocial(), comercialId, comercialNome,
                 mapper.toEntity(request.dadosComerciais()), autor);
         return ResponseEntity.status(201).body(toResponse(card));
+    }
+
+    /**
+     * Decisão da análise: aprova com limite e condições, ou reprova com motivo. Só a analista dona
+     * do card (ou o admin) decide.
+     */
+    @PostMapping("/{id}/decisao")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoDecisaoResponse> decidir(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoDecisaoRequest request) {
+        var condicoes = request.condicoes() == null ? List.<com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.Condicao>of()
+                : request.condicoes().stream()
+                        .map(c -> new com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.Condicao(c.produto(), c.valor()))
+                        .toList();
+        var decisao = decisaoService.decidir(id,
+                new com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.ComandoDecisao(
+                        request.resultado(), request.limite(), condicoes, request.parecer(),
+                        request.motivoRecusa(), request.observacao()),
+                usuarioAutenticado());
+        return ResponseEntity.status(201).body(mapper.toResponse(decisao));
+    }
+
+    /** Resposta do cliente à proposta vigente: aceite, recusa ou contraproposta. */
+    @PostMapping("/{id}/aceite")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoAceiteResponse> registrarAceite(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoAceiteRequest request) {
+        var aceite = decisaoService.registrarAceite(id,
+                new com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.ComandoAceite(
+                        request.resposta(), request.mensagem(), request.limiteSugerido(), request.condicoesSugeridas()),
+                usuarioAutenticado());
+        return ResponseEntity.status(201).body(mapper.toResponse(aceite));
+    }
+
+    // --------------------------------------------------- catálogo de produtos
+
+    /** Produtos das condições de crédito. Todos leem; só o admin altera. */
+    @GetMapping("/produtos")
+    public ResponseEntity<List<com.portal.serasa.api.rest.dto.response.ProdutoCatalogoResponse>> produtos() {
+        return ResponseEntity.ok(produtoRepository.findAllByOrderByOrdemAscNomeAsc().stream()
+                .map(mapper::toResponse)
+                .toList());
+    }
+
+    @PostMapping("/produtos")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProdutoCatalogoResponse> criarProduto(
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProdutoCatalogoRequest request) {
+        autorizacao.exigirAdmin(usuarioAutenticado());
+        String nome = request.nome().trim().toUpperCase(java.util.Locale.ROOT);
+        if (produtoRepository.existsByNomeIgnoreCase(nome)) {
+            throw new com.portal.serasa.domain.exception.TransicaoInvalidaException("Produto já existe no catálogo: " + nome);
+        }
+        var produto = produtoRepository.save(com.portal.serasa.infrastructure.persistence.entity.ProdutoCatalogoEntity.builder()
+                .nome(nome)
+                .ordem(request.ordem() == null ? 99 : request.ordem())
+                .ativo(request.ativo() == null || request.ativo())
+                .createdAt(LocalDateTime.now())
+                .build());
+        return ResponseEntity.status(201).body(mapper.toResponse(produto));
+    }
+
+    @PatchMapping("/produtos/{produtoId}")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProdutoCatalogoResponse> atualizarProduto(
+            @PathVariable UUID produtoId,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProdutoCatalogoRequest request) {
+        autorizacao.exigirAdmin(usuarioAutenticado());
+        var produto = produtoRepository.findById(produtoId)
+                .orElseThrow(() -> new EntityNotFoundException("Produto não encontrado no catálogo"));
+        produto.setNome(request.nome().trim().toUpperCase(java.util.Locale.ROOT));
+        if (request.ordem() != null) {
+            produto.setOrdem(request.ordem());
+        }
+        if (request.ativo() != null) {
+            produto.setAtivo(request.ativo());
+        }
+        return ResponseEntity.ok(mapper.toResponse(produtoRepository.save(produto)));
     }
 
     /** Substitui o perfil comercial do card pelo formulário enviado. */
@@ -519,11 +600,12 @@ public class ProspeccaoController {
 
     private ProspeccaoResponse toResponse(ProspeccaoEntity card) {
         return mapper.toResponse(card, nomeDoUsuario(card.getAnalistaId()),
-                documentoService.listar(card.getId()));
+                documentoService.listar(card.getId()),
+                decisaoService.limitesVigentes(List.of(card.getId())).get(card.getId()));
     }
 
     /**
-     * Converte a lista inteira com três consultas fixas, em vez de duas por card.
+     * Converte a lista inteira com quatro consultas fixas, em vez de três por card.
      *
      * <p>O kanban abre com dezenas de cards e cada um mostra o progresso do checklist e o nome do
      * analista. Resolver card a card seria N+1 — a mesma conta que já custou uma correção de
@@ -536,6 +618,7 @@ public class ProspeccaoController {
         List<UUID> ids = cards.stream().map(ProspeccaoEntity::getId).toList();
         Map<UUID, List<ProspeccaoDocumentoEntity>> documentosPorCard =
                 documentoService.listarPorCards(ids);
+        Map<UUID, java.math.BigDecimal> limites = decisaoService.limitesVigentes(ids);
 
         List<UUID> analistas = cards.stream()
                 .map(ProspeccaoEntity::getAnalistaId)
@@ -550,7 +633,8 @@ public class ProspeccaoController {
         return cards.stream()
                 .map(card -> mapper.toResponse(card,
                         card.getAnalistaId() == null ? null : nomes.get(card.getAnalistaId()),
-                        documentosPorCard.getOrDefault(card.getId(), List.of())))
+                        documentosPorCard.getOrDefault(card.getId(), List.of()),
+                        limites.get(card.getId())))
                 .toList();
     }
 

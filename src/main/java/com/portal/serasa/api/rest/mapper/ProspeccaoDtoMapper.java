@@ -29,6 +29,12 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
+        return toResponse(card, analistaNome, documentos, null);
+    }
+
+    public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
+                                         List<ProspeccaoDocumentoEntity> documentos,
+                                         java.math.BigDecimal limiteVigente) {
         long total = documentos == null ? 0 : documentos.stream()
                 .filter(doc -> !Boolean.TRUE.equals(doc.getInformativoSnapshot()))
                 .filter(doc -> Boolean.TRUE.equals(doc.getSocioAtivo()))
@@ -66,8 +72,36 @@ public class ProspeccaoDtoMapper {
                 .createdAt(card.getCreatedAt())
                 .closedAt(card.getClosedAt())
                 .legado(Boolean.TRUE.equals(card.getLegado()))
+                .limiteVigente(limiteVigente)
                 .version(card.getVersion())
                 .build();
+    }
+
+    public com.portal.serasa.api.rest.dto.response.ProspeccaoDecisaoResponse toResponse(
+            com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.DecisaoCompleta completa) {
+        var d = completa.decisao();
+        return new com.portal.serasa.api.rest.dto.response.ProspeccaoDecisaoResponse(
+                d.getId(), d.getVersao(), d.getResultado(), d.getLimite(),
+                completa.condicoes().stream()
+                        .map(c -> new com.portal.serasa.api.rest.dto.response.ProspeccaoDecisaoResponse.Condicao(c.getProduto(), c.getValor()))
+                        .toList(),
+                d.getParecer(), d.getMotivoRecusa(), Boolean.TRUE.equals(d.getVigente()),
+                d.getDecididoPorNome(), d.getDecididoEm());
+    }
+
+    public com.portal.serasa.api.rest.dto.response.ProspeccaoAceiteResponse toResponse(
+            com.portal.serasa.infrastructure.persistence.entity.ProspeccaoAceiteEntity a) {
+        return new com.portal.serasa.api.rest.dto.response.ProspeccaoAceiteResponse(
+                a.getId(), a.getDecisaoId(), a.getResposta(), a.getLimiteSugerido(),
+                a.getCondicoesSugeridas() == null ? List.of() : a.getCondicoesSugeridas(),
+                a.getMensagem(), a.getRegistradoPorNome(), Boolean.TRUE.equals(a.getEmNomeDoComercial()),
+                a.getRegistradoEm());
+    }
+
+    public com.portal.serasa.api.rest.dto.response.ProdutoCatalogoResponse toResponse(
+            com.portal.serasa.infrastructure.persistence.entity.ProdutoCatalogoEntity p) {
+        return new com.portal.serasa.api.rest.dto.response.ProdutoCatalogoResponse(
+                p.getId(), p.getNome(), p.getOrdem() == null ? 0 : p.getOrdem(), Boolean.TRUE.equals(p.getAtivo()));
     }
 
     public DadosComerciaisDto toDto(DadosComerciais dados) {

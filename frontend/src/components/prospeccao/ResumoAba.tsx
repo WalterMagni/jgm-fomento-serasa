@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
-import { ROTULO_MOTIVO, type ProspeccaoDetalhe } from "@/types/prospeccao";
+import { ROTULO_MOTIVO, ROTULO_RESPOSTA, type ProspeccaoDetalhe } from "@/types/prospeccao";
 import { TOTAL_CAMPOS_COMERCIAIS, camposPreenchidos } from "./DadosComerciaisForm";
 import { formatDate, formatMoeda } from "./formatters";
 
@@ -16,9 +16,10 @@ export default function ResumoAba({
   onIrPara,
 }: {
   detalhe: ProspeccaoDetalhe;
-  onIrPara: (aba: "dados" | "documentos") => void;
+  onIrPara: (aba: "dados" | "documentos" | "decisao") => void;
 }) {
   const { card, dadosComerciais } = detalhe;
+  const vigente = detalhe.decisoes.find(decisao => decisao.vigente);
   const preenchidos = camposPreenchidos(dadosComerciais);
   const progresso = card.documentosTotal > 0 ? Math.round((card.documentosResolvidos / card.documentosTotal) * 100) : 0;
 
@@ -50,6 +51,32 @@ export default function ResumoAba({
           <p className="font-medium">O cliente recusou</p>
           <p className="mt-0.5 text-xs opacity-80">{card.observacao}</p>
         </div>
+      )}
+
+      {vigente && (
+        <button
+          type="button"
+          onClick={() => onIrPara("decisao")}
+          className={`flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left transition-colors
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] ${
+              vigente.resultado === "APROVADO"
+                ? "border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+                : "border-rose-200 bg-rose-50/60 hover:bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/20"
+            }`}
+        >
+          <span className="text-sm">
+            <span className="font-semibold text-slate-900 dark:text-white">
+              {vigente.resultado === "APROVADO" ? `Limite aprovado: ${formatMoeda(vigente.limite)}` : "Reprovado na análise"}
+            </span>
+            {vigente.condicoes.length > 0 && (
+              <span className="ml-2 text-xs text-slate-500">{vigente.condicoes.map(c => c.produto).join(" · ")}</span>
+            )}
+          </span>
+          <span className="text-xs text-slate-500">
+            {vigente.decididoPorNome} · decisão {vigente.versao}
+            {detalhe.aceites[0] && detalhe.aceites[0].decisaoId === vigente.id && ` · cliente: ${ROTULO_RESPOSTA[detalhe.aceites[0].resposta].toLowerCase()}`}
+          </span>
+        </button>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -164,6 +164,20 @@ public class ProspeccaoService {
     @Transactional
     public ProspeccaoEntity transicionar(UUID id, EstagioProspeccao destino, MotivoRecusa motivo,
                                          String observacao, UserEntity autor) {
+        String acao = buscar(id).getEstagio().acaoPropria(destino);
+        if (acao != null) {
+            throw new TransicaoInvalidaException("Essa passagem é feita registrando " + acao + ".");
+        }
+        return mover(id, destino, motivo, observacao, autor);
+    }
+
+    /**
+     * Troca de estágio sem a guarda das ações próprias. Para uso de quem já registrou o dado que a
+     * passagem exige — a decisão, a resposta do cliente — na mesma transação.
+     */
+    @Transactional
+    ProspeccaoEntity mover(UUID id, EstagioProspeccao destino, MotivoRecusa motivo,
+                           String observacao, UserEntity autor) {
         ProspeccaoEntity card = buscar(id);
         EstagioProspeccao origem = card.getEstagio();
 

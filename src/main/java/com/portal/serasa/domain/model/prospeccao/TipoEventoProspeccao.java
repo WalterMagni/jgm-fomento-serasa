@@ -16,5 +16,9 @@ public enum TipoEventoProspeccao {
     ANALISTA_ALTERADO,
     REABERTURA,
     /** Perfil comercial do card alterado. Ver V74. */
-    DADOS_COMERCIAIS
+    DADOS_COMERCIAIS,
+    /** Analista aprovou com limite ou reprovou. Ver V75. */
+    DECISAO,
+    /** Resposta do cliente à proposta. Ver V75. */
+    ACEITE
 }

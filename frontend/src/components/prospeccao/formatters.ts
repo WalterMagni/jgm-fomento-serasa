@@ -20,6 +20,13 @@ export function formatMoeda(valor: number | null | undefined) {
   return valor == null ? "—" : MOEDA.format(valor);
 }
 
+/** R$ 1,2 mi · R$ 350 mil — para selo, onde não cabe o valor inteiro. */
+export function formatMoedaCurta(valor: number) {
+  if (valor >= 1_000_000) return `R$ ${(valor / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+  if (valor >= 1_000) return `R$ ${Math.round(valor / 1_000).toLocaleString("pt-BR")} mil`;
+  return MOEDA.format(valor);
+}
+
 export function formatBytes(bytes: number | null | undefined) {
   if (!bytes) return "—";
   if (bytes < 1024) return `${bytes} B`;
@@ -102,6 +109,18 @@ export function rotuloAcao(de: EstagioProspeccao, para: EstagioProspeccao) {
   }
   if (para === "COMITE" && de === "CONTRATO") return "Voltar para o comitê";
   return ACAO_PARA_ESTAGIO[para];
+}
+
+/**
+ * Passagem que só acontece pela ação própria — decisão ou resposta do cliente. Espelha
+ * {@code EstagioProspeccao.acaoPropria} no servidor, que recusa a troca simples nesses casos.
+ */
+export type AcaoPropria = "decidir" | "aceite";
+
+export function acaoPropria(de: EstagioProspeccao, para: EstagioProspeccao): AcaoPropria | null {
+  if (de === "EM_ANALISE" && (para === "AGUARDANDO_ACEITE" || para === "REPROVADO")) return "decidir";
+  if (de === "AGUARDANDO_ACEITE" && (para === "DOCUMENTACAO" || para === "RECUSADO_CLIENTE" || para === "EM_ANALISE")) return "aceite";
+  return null;
 }
 
 /** Destinos que levam o card para trás ou para fora: aparecem depois, em botão discreto. */
