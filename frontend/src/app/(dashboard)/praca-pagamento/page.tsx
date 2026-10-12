@@ -1496,7 +1496,7 @@ export default function PaymentPlacePage() {
             <div className="space-y-4 p-4">
               {/* Arquivo */}
               <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Arquivo(s) PDF</p>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Arquivo(s) PDF</p>
                 <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-linha px-3 py-4 text-sm text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-400 dark:hover:bg-white/5">
                   <Icon name="upload_file" size={20} />
                   {customFiles.length === 0 ? "Selecionar PDF" : `${customFiles.length} arquivo(s) selecionado(s)`}
@@ -1519,7 +1519,7 @@ export default function PaymentPlacePage() {
 
               {/* Calendário de data do lote */}
               <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Dia do lote</p>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Dia do lote</p>
                 <div className="rounded-lg border border-linha p-2 dark:border-border-dark">
                   <div className="mb-2 flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1">
@@ -1637,7 +1637,7 @@ export default function PaymentPlacePage() {
                 onClick={() => copyField(label, value)}
                 className="flex w-full flex-col px-3 py-1.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
               >
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">{label}</span>
                 <span className="text-sm font-medium leading-snug text-grafite dark:text-white">
                   {value == null || String(value).trim() === "" ? <span className="text-gray-400">—</span> : String(value)}
                 </span>
@@ -1650,22 +1650,22 @@ export default function PaymentPlacePage() {
 
       {expandedEntry && typeof document !== "undefined" ? createPortal(
         <div
-          className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-grafite/40 px-4 py-6 backdrop-blur-sm animate-surgir motion-reduce:animate-none"
           onClick={() => setExpandedEntryId(null)}
         >
           <div
-            className="w-full max-w-5xl overflow-hidden rounded-xl border border-linha bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark"
+            className="w-full max-w-5xl overflow-hidden rounded-[22px] border border-linha bg-white shadow-[0_40px_80px_-30px_rgba(38,40,51,0.55)] animate-cair motion-reduce:animate-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-linha p-4 dark:border-border-dark">
+            <div className="flex items-center justify-between gap-3 border-b border-linha px-6 py-5">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="truncate font-sans text-base font-bold text-grafite dark:text-white">{expandedEntry.titleNumber}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate font-display text-2xl font-semibold tracking-[-0.015em] text-grafite">{expandedEntry.titleNumber}</h2>
                   <SuggestionPill suggestion={expandedEntry.automaticSuggestion} confidence={expandedEntry.automaticConfidence} />
                   {expandedEntry.relatedParties ? <RelatedPartiesChip detail={expandedEntry.relatedPartiesDetail} /> : null}
                   {expandedEntry.analystDecision ? <DecisionPill decision={expandedEntry.analystDecision} /> : null}
                 </div>
-                <p className="truncate text-xs text-gray-500">{clean(expandedEntry.payerName)} · {clean(expandedEntry.payerDocument)}</p>
+                <p className="mt-1 truncate text-[13px] text-suave">{clean(expandedEntry.payerName)} · <span className="font-mono text-xs">{clean(expandedEntry.payerDocument)}</span></p>
                 {fileNameByBatch.get(expandedEntry.batchId) ? (
                   <p className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11px] text-gray-400" title={fileNameByBatch.get(expandedEntry.batchId)}>
                     <Icon name="description" size={13} />
@@ -1736,7 +1736,7 @@ export default function PaymentPlacePage() {
             </div>
             <div ref={modalBodyRef} className="max-h-[78vh] overflow-y-auto p-5">
               <div className="mb-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Observação da análise</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Observação da análise</p>
                 <textarea
                   value={notesByEntry[expandedEntry.id] ?? expandedEntry.analystNotes ?? ""}
                   onChange={(event) => setNotesByEntry((current) => ({ ...current, [expandedEntry.id]: event.target.value }))}
@@ -1803,10 +1803,10 @@ function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): nu
 function DistanceCard({ label, from, to, value, color }: { label: string; from?: string | null; to?: string | null; value?: number | null; color: string }) {
   const km = formatKm(value);
   return (
-    <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
-      <p className="mt-1 whitespace-nowrap text-xl font-bold" style={{ color }}>{km ?? "—"}</p>
-      <p className="mt-1 truncate text-xs text-gray-500" title={`${clean(from)} → ${clean(to)}`}>
+    <div className="rounded-cartao border border-linha bg-white p-5">
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">{label}</p>
+      <p className="mt-1.5 whitespace-nowrap font-display text-[28px] font-semibold leading-none tracking-[-0.015em]" style={{ color }}>{km ?? "—"}</p>
+      <p className="mt-2 truncate text-xs text-suave" title={`${clean(from)} → ${clean(to)}`}>
         {clean(from)} → {clean(to)}
       </p>
     </div>
@@ -1847,7 +1847,7 @@ function InsightMetric({
 function Field({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">{label}</p>
       <p className="mt-0.5 text-sm text-grafite dark:text-white">{clean(value)}</p>
     </div>
   );
@@ -2022,7 +2022,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Distâncias geográficas</p>
+        <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Distâncias geográficas</p>
         <p className="text-[11px] text-gray-400">Centroide do município (IBGE); a agência usa o endereço exato quando localizado. Sinal de análise, não prova.</p>
         <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <DistanceCard label={`${cedenteLabel} ↔ Agência`} from={cedenteCity} to={entry.agencyCityPdf} value={distClientAgency} color={selBranch ? "#7C3AED" : "#D1732C"} />
@@ -2040,8 +2040,8 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <div className="space-y-4">
-        <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Partes do título</p>
+        <div className="rounded-cartao border border-linha bg-white p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Partes do título</p>
           <div className="mt-3 space-y-2.5">
             <div className="space-y-3 rounded-lg border border-linha p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#612035", background: "#6120350a" }}>
             <div>
@@ -2150,8 +2150,8 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           </div>
         </div>
 
-        <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Dados completos do lançamento</p>
+        <div className="rounded-cartao border border-linha bg-white p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Dados completos do lançamento</p>
           <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
             <Field label="Título" value={entry.titleNumber} />
             <Field label="ID externo" value={entry.externalId} />
@@ -2181,7 +2181,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           ) : null}
           {entry.geographicReliabilityReason ? (
             <div className="mt-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Motivo da confiabilidade</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Motivo da confiabilidade</p>
               <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{entry.geographicReliabilityReason}</p>
             </div>
           ) : null}
@@ -2202,7 +2202,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
             ) : null}
           </div>
         </div>
-        <div className="min-h-[300px] flex-1 overflow-hidden rounded-xl border border-linha shadow-sm dark:border-border-dark">
+        <div className="min-h-[300px] flex-1 overflow-hidden rounded-cartao border border-linha">
           <PaymentPlaceMap
             points={points}
             branches={cedenteBranchMarkers}
@@ -2214,8 +2214,8 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
       </div>
       </div>
 
-      <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Anexos do título</p>
+      <div className="rounded-cartao border border-linha bg-white p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Anexos do título</p>
         <p className="mt-0.5 mb-3 text-[11px] text-gray-400">Comprovante de pagamento, endereço, etc. Arraste, cole ou clique.</p>
         <EntryAttachmentsPanel entryId={entry.id} />
       </div>
