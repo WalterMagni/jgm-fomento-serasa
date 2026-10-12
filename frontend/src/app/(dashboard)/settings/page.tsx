@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Icon from "@/components/ui/Icon";
+import Segmentos from "@/components/ui/Segmentos";
+import { BOTAO } from "@/components/ui/botao";
 import { useNovoVisual } from "@/hooks/useNovoVisual";
 import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
@@ -255,448 +257,434 @@ export default function SettingsPage() {
     }
   };
 
+  const moeda = (valor: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+  const CARTAO = "rounded-cartao border border-linha bg-white p-6";
+  const TITULO = "flex items-center gap-2 font-sans text-base font-bold text-primary";
+  const ROTULO = "text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]";
+  const CAMPO =
+    "w-full rounded-[10px] border border-linha bg-white px-3.5 py-2.5 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10";
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-sans font-bold text-grafite dark:text-white mb-1">Configurações do Sistema</h1>
-        <p className="text-gray-500 font-sans">Gerencie suas preferências e custos da plataforma.</p>
-      </div>
-
-      {/* Interruptor da repaginação: vale para quem liga, neste navegador. Sai quando a casca nova for aprovada. */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-secondary/30 bg-secondary/5 p-5">
-        <div className="min-w-0">
-          <p id="novo-visual-titulo" className="flex items-center gap-2 font-sans font-bold text-grafite">
-            Novo visual
-            <span className="rounded-md border border-secondary/40 px-1.5 py-px text-[10px] font-bold uppercase tracking-wider text-laranja-texto">
-              em teste
-            </span>
-          </p>
-          <p id="novo-visual-descricao" className="mt-1 max-w-2xl text-sm text-gray-500">
-            Menu lateral e topo da repaginação. Vale só para você, neste navegador. Se algo atrapalhar, é só desligar.
-          </p>
+    <div className="space-y-6 pb-10">
+      <header className="flex flex-wrap items-end justify-between gap-5 animate-subir motion-reduce:animate-none">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-laranja-texto">Sistema</p>
+          <h1 className="mt-2 text-4xl font-semibold leading-none tracking-[-0.02em] text-grafite sm:text-[46px]">Configurações</h1>
+          <p className="mt-3 text-[15px] text-suave">Seu perfil, os custos das consultas e a administração do portal.</p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={novoVisual}
-          aria-labelledby="novo-visual-titulo"
-          aria-describedby="novo-visual-descricao"
-          onClick={() => setNovoVisual(!novoVisual)}
-          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-            novoVisual ? "bg-primary" : "bg-gray-300"
-          }`}
-        >
-          <span
-            className={`absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ${
-              novoVisual ? "translate-x-6" : ""
-            }`}
-          />
-        </button>
-      </div>
+        <Segmentos
+          rotulo="Seção das configurações"
+          valor={activeTab}
+          onChange={setActiveTab}
+          opcoes={[
+            { valor: "profile", rotulo: "Perfil e sistema" },
+            { valor: "consumo", rotulo: "Consumo Serasa" },
+          ]}
+        />
+      </header>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-        {/* Tabs Header */}
-        <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors duration-200 ${activeTab === "profile" ? "text-primary border-primary" : "text-gray-500 border-transparent hover:text-grafite dark:text-gray-400 dark:hover:text-white"}`}
-          >
-            Perfil do Usuário
-          </button>
-          <button
-            onClick={() => setActiveTab("consumo")}
-            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors duration-200 ${activeTab === "consumo" ? "text-primary border-primary" : "text-gray-500 border-transparent hover:text-grafite dark:text-gray-400 dark:hover:text-white"}`}
-          >
-            Consumo
-          </button>
-        </div>
+      {activeTab === "profile" && (
+        <form className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2" onSubmit={(e) => e.preventDefault()}>
+          {/* Nome e preferência de e-mail são gravados juntos pelo mesmo botão. */}
+          <section className={`${CARTAO} flex flex-col gap-5 animate-subir motion-reduce:animate-none`} style={{ animationDelay: "60ms" }}>
+            <h2 className={TITULO}>
+              <Icon name="person" className="text-lg" /> Seu perfil
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className={ROTULO}>Nome completo</span>
+                <input type="text" value={userName || ""} onChange={(e) => setUserName(e.target.value)} className={`mt-1.5 ${CAMPO}`} />
+              </label>
+              <label className="block">
+                <span className={ROTULO}>E-mail</span>
+                <input type="email" value={userEmail || ""} onChange={(e) => setUserEmail(e.target.value)} className={`mt-1.5 ${CAMPO}`} />
+              </label>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-2xl border border-linha bg-[#FBFAF7] p-4">
+              <div className="min-w-0">
+                <p id="notificacao-cedente" className="text-sm font-semibold text-grafite">E-mail automático de Visão Cedente</p>
+                <p className="mt-0.5 text-xs text-suave">
+                  Avisa a equipe comercial por e-mail sempre que uma empresa sai com Visão Cedente = SIM.
+                </p>
+              </div>
+              <Interruptor ligado={emailNotificacaoCedente} onAlternar={() => setEmailNotificacaoCedente((v) => !v)} rotuloId="notificacao-cedente" />
+            </div>
+            <div className="flex justify-end border-t border-linha pt-4">
+              <button type="button" onClick={handleSaveProfile} disabled={isSaving} className={BOTAO.primario}>
+                {isSaving ? "Salvando…" : "Salvar perfil"}
+              </button>
+            </div>
+          </section>
 
-        {/* Tab Content */}
-        <div className="p-6">
-          {activeTab === "profile" && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h2 className="text-lg font-sans font-bold text-grafite dark:text-white mb-4">Informações Pessoais</h2>
-              <form className="space-y-6 max-w-2xl">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-sans font-bold text-gray-500 uppercase tracking-wide mb-2 opacity-80">Nome Completo</label>
-                    <input
-                      type="text"
-                      value={userName || ""}
-                      onChange={(e) => setUserName(e.target.value)}
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm font-sans focus:outline-none focus:ring-2 focus:ring-primary/50 text-grafite dark:text-white transition-all"
-                    />
+          <div className="flex flex-col gap-6">
+            <section className={`${CARTAO} flex flex-col gap-4 animate-subir motion-reduce:animate-none`} style={{ animationDelay: "120ms" }}>
+              <h2 className={TITULO}>
+                <Icon name="account_balance_wallet" className="text-lg" /> Custos das consultas
+                {isLoadingBillingSettings && <Icon name="progress_activity" size={16} weight="bold" className="ml-auto animate-spin text-primary" />}
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { rotulo: "Consulta PJ", valor: settings?.serasaCostPerQuery ?? 0, apoio: "Cada consulta de empresa no Serasa" },
+                  { rotulo: "Consulta PF", valor: settings?.serasaPfCostPerQuery ?? 0, apoio: "Cada consulta de pessoa física no Serasa" },
+                ].map((custo) => (
+                  <div key={custo.rotulo} className="rounded-2xl border border-linha bg-[#FBFAF7] px-4 py-3.5">
+                    <p className={ROTULO}>{custo.rotulo}</p>
+                    <p className="mt-1.5 font-display text-[28px] font-semibold leading-none tracking-[-0.015em] text-grafite">{moeda(custo.valor)}</p>
+                    <p className="mt-1.5 text-xs text-suave">{custo.apoio}</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-sans font-bold text-gray-500 uppercase tracking-wide mb-2 opacity-80">E-mail</label>
-                    <input
-                      type="email"
-                      value={userEmail || ""}
-                      onChange={(e) => setUserEmail(e.target.value)}
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm font-sans focus:outline-none focus:ring-2 focus:ring-primary/50 text-grafite dark:text-white transition-all"
-                    />
-                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-suave">Valores definidos na configuração do servidor.</p>
+            </section>
+
+            <section className={`${CARTAO} flex items-start justify-between gap-4 animate-subir motion-reduce:animate-none`} style={{ animationDelay: "180ms" }}>
+              <div className="min-w-0">
+                <h2 id="novo-visual-titulo" className={TITULO}>
+                  <Icon name="palette" className="text-lg" /> Novo visual
+                </h2>
+                <p id="novo-visual-descricao" className="mt-1.5 text-sm text-suave">
+                  Visual repaginado do portal. Vale só para você, neste navegador. Desligado, volta ao visual antigo.
+                </p>
+              </div>
+              <Interruptor
+                ligado={novoVisual}
+                onAlternar={() => setNovoVisual(!novoVisual)}
+                rotuloId="novo-visual-titulo"
+                descricaoId="novo-visual-descricao"
+                grande
+              />
+            </section>
+          </div>
+
+          {canManageUsers && (
+            <section className={`${CARTAO} lg:col-span-2`}>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className={TITULO}>
+                    <Icon name="folder_open" className="text-lg" /> Documentos das empresas
+                  </h2>
+                  <p className="mt-1 text-sm text-suave">Pasta base onde o sistema cria e busca as pastas padrão de cada empresa.</p>
                 </div>
+                {isLoadingDocumentSettings && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
+              </div>
+              <label className={`block ${ROTULO}`} htmlFor="pasta-base">
+                Caminho base
+              </label>
+              <div className="mt-1.5 flex flex-col gap-3 lg:flex-row">
+                <input
+                  id="pasta-base"
+                  type="text"
+                  value={documentBasePathDraft}
+                  onChange={(e) => setDocumentBasePathDraft(e.target.value)}
+                  placeholder="/Users/waltermagni/Desktop/Projeto Serasa/Gerenciador de Empresas"
+                  className={`flex-1 font-mono ${CAMPO}`}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveDocumentSettings}
+                  disabled={isSavingDocumentSettings || !documentBasePathDraft.trim()}
+                  className={BOTAO.primario}
+                >
+                  {isSavingDocumentSettings ? "Salvando…" : "Salvar pasta base"}
+                </button>
+              </div>
+              {documentBasePath && (
+                <p className="mt-3 text-xs text-suave">
+                  Atual: <strong className="font-mono text-grafite">{documentBasePath}</strong>
+                  {documentBasePathUpdatedBy && <> · atualizado por {documentBasePathUpdatedBy}</>}
+                  {documentBasePathUpdatedAt && <> em {new Date(documentBasePathUpdatedAt).toLocaleString("pt-BR")}</>}
+                </p>
+              )}
+            </section>
+          )}
 
-                {/* Email Notification Toggle */}
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <h3 className="text-sm font-sans font-bold text-grafite dark:text-white mb-3">Notificações por E-mail</h3>
-                  <div className="flex items-start justify-between gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-grafite dark:text-white">Envio automático de e-mail — Visão Cedente</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        Quando ativado, um e-mail é enviado automaticamente para a equipe comercial sempre que uma empresa for identificada com Visão Cedente = SIM.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={emailNotificacaoCedente}
-                      onClick={() => setEmailNotificacaoCedente((v) => !v)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/50 ${emailNotificacaoCedente ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"}`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${emailNotificacaoCedente ? "translate-x-5" : "translate-x-0"}`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <h3 className="text-sm font-sans font-bold text-grafite dark:text-white">Custos configurados</h3>
-                    {isLoadingBillingSettings && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-wide mb-1">Consulta PJ</p>
-                      <p className="text-2xl font-serif font-bold text-grafite dark:text-white">
-                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(settings?.serasaCostPerQuery ?? 0)}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Valor atual aplicado nas consultas empresariais.</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-sans font-bold text-gray-500 uppercase tracking-wide mb-1">Consulta PF</p>
-                      <p className="text-2xl font-serif font-bold text-grafite dark:text-white">
-                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(settings?.serasaPfCostPerQuery ?? 0)}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Valor atual aplicado nas consultas de pessoa física.</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                    Esses valores refletem a configuração atual do backend. Se quiser tornar isso editável pelo portal, o próximo passo é persistir essas configurações em banco.
+          {canManageUsers && (
+            <section className={`${CARTAO} lg:col-span-2`}>
+              <h2 className={TITULO}>
+                <Icon name="upload_file" className="text-lg" /> Importação de dados (4R)
+              </h2>
+              <p className="mt-1 text-sm text-suave">Importe o CSV exportado do ERP 4R.</p>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                {/* Importar SÓ os códigos — seguro p/ produção */}
+                <div className="rounded-2xl border border-linha bg-[#FBFAF7] p-4">
+                  <p className="text-sm font-bold text-grafite">Importar códigos do cliente (4R)</p>
+                  <p className="mt-0.5 text-xs text-suave">
+                    Atualiza apenas o <strong>código interno</strong> das empresas que já existem (por CNPJ).
+                    Não cria empresas novas nem altera nome/endereço. Seguro para produção.
                   </p>
-                </div>
-
-                {canManageUsers && (
-                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <div>
-                        <h3 className="text-sm font-sans font-bold text-grafite dark:text-white">Documentos das empresas</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          Pasta base onde o sistema cria e busca as pastas padrão de cada empresa.
-                        </p>
-                      </div>
-                      {isLoadingDocumentSettings && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
-                    </div>
-                    <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4">
-                      <label className="block text-xs font-sans font-bold text-gray-500 uppercase tracking-wide mb-2">
-                        Caminho base
-                      </label>
-                      <div className="flex flex-col lg:flex-row gap-3">
-                        <input
-                          type="text"
-                          value={documentBasePathDraft}
-                          onChange={(e) => setDocumentBasePathDraft(e.target.value)}
-                          placeholder="/Users/waltermagni/Desktop/Projeto Serasa/Gerenciador de Empresas"
-                          className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 text-grafite dark:text-white transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleSaveDocumentSettings}
-                          disabled={isSavingDocumentSettings || !documentBasePathDraft.trim()}
-                          className="inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(97,32,53,0.3)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                        >
-                          {isSavingDocumentSettings ? "Salvando..." : "Salvar pasta base"}
-                        </button>
-                      </div>
-                      {documentBasePath && (
-                        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                          Atual: <strong className="font-mono text-grafite dark:text-white">{documentBasePath}</strong>
-                          {documentBasePathUpdatedBy && <> · atualizado por {documentBasePathUpdatedBy}</>}
-                          {documentBasePathUpdatedAt && <> em {new Date(documentBasePathUpdatedAt).toLocaleString("pt-BR")}</>}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {canManageUsers && (
-                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <h3 className="text-sm font-sans font-bold text-grafite dark:text-white mb-1">Importação de dados (4R)</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      Importe o CSV exportado do ERP 4R.
-                    </p>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {/* Importar SÓ os códigos — seguro p/ produção */}
-                      <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4">
-                        <p className="text-sm font-bold text-grafite dark:text-white">Importar códigos do cliente (4R)</p>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          Atualiza apenas o <strong>código interno</strong> das empresas que já existem (por CNPJ).
-                          Não cria empresas novas nem altera nome/endereço. Seguro para produção.
-                        </p>
-                        <input
-                          type="file"
-                          id="csv-codes-upload"
-                          accept=".csv"
-                          className="hidden"
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) { importCodes(f); e.target.value = ""; } }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById("csv-codes-upload")?.click()}
-                          disabled={isImportingCodes}
-                          className="mt-3 inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Icon name={isImportingCodes ? "sync" : "tag"} className={`text-lg ${isImportingCodes ? "animate-spin" : ""}`} />
-                          {isImportingCodes ? "Importando..." : "Importar códigos"}
-                        </button>
-                      </div>
-
-                      {/* Importação completa — legado */}
-                      <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4">
-                        <p className="text-sm font-bold text-grafite dark:text-white">Importar empresas (CSV completo) <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">legado</span></p>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          Cria empresas novas e atualiza código + endereço das existentes (preserva nome/email/telefone).
-                          Usado na carga inicial do sistema.
-                        </p>
-                        <input
-                          type="file"
-                          id="csv-full-upload"
-                          accept=".csv"
-                          className="hidden"
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) { importCsv(f); e.target.value = ""; } }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById("csv-full-upload")?.click()}
-                          disabled={isImportingCsv}
-                          className="mt-3 inline-flex items-center justify-center gap-2 border border-border-light bg-white px-4 py-2 rounded-lg text-sm font-medium text-grafite transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                        >
-                          <Icon name={isImportingCsv ? "sync" : "upload_file"} className={`text-lg ${isImportingCsv ? "animate-spin" : ""}`} />
-                          {isImportingCsv ? "Importando..." : "Importar CSV completo"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {canManageUsers && (
-                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <h3 className="text-sm font-sans font-bold text-grafite dark:text-white">Gerenciamento de usuários</h3>
-                      {isLoadingUsers && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
-                    </div>
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 dark:bg-gray-800/70">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">Nome</th>
-                            <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">E-mail</th>
-                            <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">
-                              Esteira de Liberação
-                            </th>
-                            <th className="px-4 py-3 text-left text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">Criado em</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-sans font-bold text-gray-500 uppercase tracking-wide">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
-                          {managedUsers.length === 0 && !isLoadingUsers ? (
-                            <tr>
-                              <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
-                                Nenhum usuário disponível para gerenciamento.
-                              </td>
-                            </tr>
-                          ) : (
-                            managedUsers.map((user) => (
-                              <tr key={user.id}>
-                                <td className="px-4 py-3 text-grafite dark:text-gray-200">{user.name}</td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{user.email}</td>
-                                <td className="px-4 py-3">
-                                  <PapeisUsuario
-                                    usuarioId={user.id}
-                                    analista={user.analista}
-                                    comite={user.comite}
-                                    onMudou={papeis =>
-                                      setManagedUsers(atuais => atuais.map(item => (item.id === user.id ? { ...item, ...papeis } : item)))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-gray-500">
-                                  {user.createdAt ? new Date(user.createdAt).toLocaleDateString("pt-BR") : "—"}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  {user.email !== userEmail && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteUser(user.id, user.email)}
-                                      disabled={isDeletingUserId === user.id}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
-                                    >
-                                      {isDeletingUserId === user.id ? "Apagando..." : "Apagar"}
-                                    </button>
-                                  )}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+                  <input
+                    type="file"
+                    id="csv-codes-upload"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) { importCodes(f); e.target.value = ""; } }}
+                  />
                   <button
                     type="button"
-                    onClick={handleSaveProfile}
-                    disabled={isSaving}
-                    className="bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(97,32,53,0.3)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    onClick={() => document.getElementById("csv-codes-upload")?.click()}
+                    disabled={isImportingCodes}
+                    className={`mt-3 ${BOTAO.primario}`}
                   >
-                    {isSaving ? "Salvando..." : "Salvar Alterações"}
+                    <Icon name={isImportingCodes ? "sync" : "tag"} className={isImportingCodes ? "animate-spin" : ""} />
+                    {isImportingCodes ? "Importando…" : "Importar códigos"}
                   </button>
                 </div>
-              </form>
-            </div>
-          )}
 
-          {activeTab === "consumo" && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
-              {/* Header with Filter */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-lg font-sans font-bold text-grafite dark:text-white">Relatório de Consumo Serasa</h2>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    {(["ALL", "PJ", "PF"] as const).map((item) => (
-                      <button
-                        key={item}
-                        onClick={() => setEntityFilter(item)}
-                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${entityFilter === item ? "bg-white dark:bg-gray-700 text-primary shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"}`}
-                      >
-                        {item === "ALL" ? "Tudo" : item}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    {(["7", "15", "30", "60", "90"] as const).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setPeriod(p)}
-                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${period === p ? "bg-white dark:bg-gray-700 text-primary shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"}`}
-                      >
-                        {p} dias
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="px-6 py-5 rounded-xl border border-red-100 bg-red-50/50 dark:bg-red-900/10 dark:border-red-900/30 shadow-sm flex flex-col justify-center">
-                  <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-1">Custo Total do Período</p>
-                  <p className="text-3xl font-bold font-serif text-red-700 dark:text-red-500">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalCost)}
+                {/* Importação completa — legado */}
+                <div className="rounded-2xl border border-linha bg-[#FBFAF7] p-4">
+                  <p className="text-sm font-bold text-grafite">
+                    Importar empresas (CSV completo){" "}
+                    <span className="ml-1 rounded bg-secondary/15 px-1.5 py-0.5 text-[10px] font-bold text-laranja-texto">legado</span>
                   </p>
-                </div>
-                <div className="px-6 py-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-center">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total de Consultas</p>
-                  <p className="text-3xl font-bold font-serif text-grafite dark:text-white">{filteredLogs.length}</p>
-                </div>
-                <div className="px-6 py-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-center">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Distribuição PF vs. PJ</p>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-bold font-serif text-grafite dark:text-white">{totalPf}</span>
-                    <span className="text-sm text-gray-500">PF</span>
-                    <span className="text-gray-300 dark:text-gray-700 font-light mx-1">/</span>
-                    <span className="text-xl font-bold font-serif text-gray-700 dark:text-gray-300">{totalPj}</span>
-                    <span className="text-sm text-gray-500">PJ</span>
-                  </div>
-                </div>
-                <div className="px-6 py-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-center">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Custo PF vs. PJ</p>
-                  <div className="flex flex-col gap-1 mt-1">
-                    <span className="text-sm text-grafite dark:text-white">PF: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(custoPf)}</span>
-                    <span className="text-sm text-grafite dark:text-white">PJ: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(custoPj)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Data Table */}
-              <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto min-h-[250px] relative">
-                  {isLoading && (
-                    <div className="absolute inset-0 z-10 bg-white/50 dark:bg-gray-900/50 flex flex-col items-center justify-center backdrop-blur-sm">
-                      <Icon name="progress_activity" size={32} weight="bold" className="animate-spin text-primary mb-2" />
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Carregando consultas...</p>
-                    </div>
-                  )}
-                  {isError && !isLoading && (
-                    <div className="absolute inset-0 z-10 bg-white dark:bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
-                      <p className="text-red-500 font-medium mb-1">Erro ao carregar o histórico.</p>
-                      <p className="text-sm text-gray-500">O servidor pode estar indisponível ou a rota não concluída no backend.</p>
-                    </div>
-                  )}
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50/80 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800">
-                      <tr>
-                        <th className="px-6 py-4 font-semibold">Usuário</th>
-                        <th className="px-6 py-4 font-semibold">Consultado</th>
-                        <th className="px-6 py-4 font-semibold">Documento</th>
-                        <th className="px-6 py-4 font-semibold">Entidade</th>
-                        <th className="px-6 py-4 font-semibold">Data/Hora</th>
-                        <th className="px-6 py-4 font-semibold">Tipo</th>
-                        <th className="px-6 py-4 font-semibold text-right">Custo</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
-                      {!isLoading && !isError && filteredLogs.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Nenhuma consulta encontrada neste período.</td>
-                        </tr>
-                      ) : (
-                        filteredLogs.map((log) => (
-                          <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                            <td className="px-6 py-4 font-medium text-grafite dark:text-gray-200">{log.userName}</td>
-                            <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{log.companyName}</td>
-                            <td className="px-6 py-4 text-gray-500">{formatDocument(log.documentNumber)}</td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${log.entityType === "PF" ? "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>
-                                {log.entityType}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-gray-500">
-                              {new Date(log.timestamp).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${log.queryType === "INITIAL" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : log.queryType === "UPDATE" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400"}`}>
-                                {queryTypeLabel(log.queryType, log.entityType)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-medium text-grafite dark:text-gray-200">
-                              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(log.cost)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                  <p className="mt-0.5 text-xs text-suave">
+                    Cria empresas novas e atualiza código + endereço das existentes (preserva nome/email/telefone).
+                    Usado na carga inicial do sistema.
+                  </p>
+                  <input
+                    type="file"
+                    id="csv-full-upload"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) { importCsv(f); e.target.value = ""; } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("csv-full-upload")?.click()}
+                    disabled={isImportingCsv}
+                    className={`mt-3 ${BOTAO.fantasma}`}
+                  >
+                    <Icon name={isImportingCsv ? "sync" : "upload_file"} className={isImportingCsv ? "animate-spin" : ""} />
+                    {isImportingCsv ? "Importando…" : "Importar CSV completo"}
+                  </button>
                 </div>
               </div>
-            </div>
+            </section>
           )}
+
+          {canManageUsers && (
+            <section className={`${CARTAO} lg:col-span-2`}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className={TITULO}>
+                  <Icon name="groups" className="text-lg" /> Usuários
+                </h2>
+                {isLoadingUsers && <Icon name="progress_activity" size={16} weight="bold" className="animate-spin text-primary" />}
+              </div>
+              <div className="overflow-x-auto rounded-2xl border border-linha">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#FBFAF7]">
+                    <tr>
+                      <th className={`px-4 py-3 text-left ${ROTULO}`}>Nome</th>
+                      <th className={`px-4 py-3 text-left ${ROTULO}`}>E-mail</th>
+                      <th className={`px-4 py-3 text-left ${ROTULO}`}>Esteira de Liberação</th>
+                      <th className={`px-4 py-3 text-left ${ROTULO}`}>Criado em</th>
+                      <th className={`px-4 py-3 text-right ${ROTULO}`}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F0EEE8] bg-white">
+                    {managedUsers.length === 0 && !isLoadingUsers ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-6 text-center text-suave">
+                          Nenhum usuário disponível para gerenciamento.
+                        </td>
+                      </tr>
+                    ) : (
+                      managedUsers.map((user) => (
+                        <tr key={user.id} className="transition-colors hover:bg-[#FBF7F1]">
+                          <td className="px-4 py-3 font-medium text-grafite">{user.name}</td>
+                          <td className="px-4 py-3 text-suave">{user.email}</td>
+                          <td className="px-4 py-3">
+                            <PapeisUsuario
+                              usuarioId={user.id}
+                              analista={user.analista}
+                              comite={user.comite}
+                              onMudou={papeis =>
+                                setManagedUsers(atuais => atuais.map(item => (item.id === user.id ? { ...item, ...papeis } : item)))
+                              }
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-suave">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString("pt-BR") : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {user.email !== userEmail && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(user.id, user.email)}
+                                disabled={isDeletingUserId === user.id}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-[#F0C9D2] bg-[#FBEEF1] px-3 py-1.5 text-xs font-bold text-[#8E1B37] transition-colors hover:bg-[#F8E1E6] disabled:opacity-50"
+                              >
+                                {isDeletingUserId === user.id ? "Apagando…" : "Apagar"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+        </form>
+      )}
+
+      {activeTab === "consumo" && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className={TITULO}>
+              <Icon name="analytics" className="text-lg" /> Consumo do Serasa
+            </h2>
+            <div className="flex flex-wrap gap-2.5">
+              <Segmentos
+                rotulo="Tipo de consulta"
+                valor={entityFilter}
+                onChange={setEntityFilter}
+                opcoes={[
+                  { valor: "ALL", rotulo: "Tudo" },
+                  { valor: "PJ", rotulo: "PJ" },
+                  { valor: "PF", rotulo: "PF" },
+                ]}
+              />
+              <Segmentos
+                rotulo="Período"
+                valor={period}
+                onChange={setPeriod}
+                opcoes={(["7", "15", "30", "60", "90"] as const).map((p) => ({ valor: p, rotulo: `${p} dias` }))}
+              />
+            </div>
+          </div>
+
+          <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { rotulo: "Custo do período", valor: moeda(totalCost), cor: "#612035", apoio: `nos últimos ${period} dias` },
+              { rotulo: "Consultas", valor: filteredLogs.length.toLocaleString("pt-BR"), cor: "#262833", apoio: entityFilter === "ALL" ? "PF e PJ" : `só ${entityFilter}` },
+              { rotulo: "Empresas (PJ)", valor: totalPj.toLocaleString("pt-BR"), cor: "#262833", apoio: `${moeda(custoPj)} no período` },
+              { rotulo: "Pessoas físicas (PF)", valor: totalPf.toLocaleString("pt-BR"), cor: "#262833", apoio: `${moeda(custoPf)} no período` },
+            ].map((item, i) => (
+              <div
+                key={item.rotulo}
+                className="rounded-cartao border border-linha bg-white px-5 py-4 animate-subir motion-reduce:animate-none"
+                style={{ animationDelay: `${60 + i * 60}ms` }}
+              >
+                <p className="text-[12.5px] font-semibold text-suave">{item.rotulo}</p>
+                <p
+                  className="mt-1.5 font-display text-[30px] font-semibold leading-tight tracking-[-0.015em]"
+                  style={{ color: item.cor }}
+                >
+                  {item.valor}
+                </p>
+                <p className="mt-1 text-xs text-suave">{item.apoio}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="overflow-hidden rounded-painel border border-linha bg-white">
+            <div className={`relative overflow-x-auto ${isLoading || isError ? "min-h-[250px]" : ""}`}>
+              {isLoading && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm">
+                  <Icon name="progress_activity" size={32} weight="bold" className="mb-2 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-suave">Carregando consultas…</p>
+                </div>
+              )}
+              {isError && !isLoading && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white p-6 text-center">
+                  <p className="mb-1 font-medium text-critico">Não foi possível carregar o histórico.</p>
+                  <p className="text-sm text-suave">O servidor não respondeu agora. Tente de novo em instantes.</p>
+                </div>
+              )}
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-linha bg-[#FBFAF7]">
+                  <tr>
+                    <th className={`px-6 py-3.5 ${ROTULO}`}>Usuário</th>
+                    <th className={`px-6 py-3.5 ${ROTULO}`}>Consultado</th>
+                    <th className={`px-6 py-3.5 ${ROTULO}`}>Documento</th>
+                    <th className={`px-6 py-3.5 ${ROTULO}`}>Entidade</th>
+                    <th className={`px-6 py-3.5 ${ROTULO}`}>Data/Hora</th>
+                    <th className={`px-6 py-3.5 ${ROTULO}`}>Tipo</th>
+                    <th className={`px-6 py-3.5 text-right ${ROTULO}`}>Custo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F0EEE8]">
+                  {!isLoading && !isError && filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-10 text-center text-suave">Nenhuma consulta neste período.</td>
+                    </tr>
+                  ) : (
+                    filteredLogs.map((log) => (
+                      <tr key={log.id} className="transition-colors hover:bg-[#FBF7F1]">
+                        <td className="px-6 py-3.5 font-medium text-grafite">{log.userName}</td>
+                        <td className="px-6 py-3.5 text-grafite">{log.companyName}</td>
+                        <td className="px-6 py-3.5 font-mono text-xs text-suave">{formatDocument(log.documentNumber)}</td>
+                        <td className="px-6 py-3.5">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold ${
+                              log.entityType === "PF" ? "bg-secondary/15 text-laranja-texto" : "bg-[#EFEDE6] text-[#5E5C55]"
+                            }`}
+                          >
+                            {log.entityType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-suave">
+                          {new Date(log.timestamp).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold ${
+                              log.queryType === "INITIAL"
+                                ? "bg-[#E2F0E9] text-[#17583F]"
+                                : log.queryType === "UPDATE"
+                                  ? "bg-[#2956E0]/10 text-[#1f43b8]"
+                                  : "bg-secondary/15 text-laranja-texto"
+                            }`}
+                          >
+                            {queryTypeLabel(log.queryType, log.entityType)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-right font-semibold text-grafite">{moeda(log.cost)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
-      </div>
+      )}
     </div>
+  );
+}
+
+/** Chave liga/desliga das preferências. */
+function Interruptor({
+  ligado,
+  onAlternar,
+  rotuloId,
+  descricaoId,
+  grande = false,
+}: {
+  ligado: boolean;
+  onAlternar: () => void;
+  rotuloId: string;
+  descricaoId?: string;
+  grande?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={ligado}
+      aria-labelledby={rotuloId}
+      aria-describedby={descricaoId}
+      onClick={onAlternar}
+      className={`relative shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+        grande ? "h-8 w-14" : "h-7 w-12"
+      } ${ligado ? "bg-primary" : "bg-[#D6D2C8]"}`}
+    >
+      <span
+        className={`absolute left-1 top-1 rounded-full bg-white shadow transition-transform duration-200 ${
+          grande ? "h-6 w-6" : "h-5 w-5"
+        } ${ligado ? (grande ? "translate-x-6" : "translate-x-5") : ""}`}
+      />
+    </button>
   );
 }
