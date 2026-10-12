@@ -6,19 +6,44 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Icon from "@/components/ui/Icon";
 import { usePessoasResumo } from "@/hooks/usePersonProfile";
-import { caixaTitulo, formatCnpj, normalizar } from "@/lib/formatadores";
+import { caixaTitulo, diasDesde, formatCnpj, formatMoeda, normalizar, tempoRelativo } from "@/lib/formatadores";
 import { GRUPOS_NAV, SETTINGS_ITEM } from "@/app/(dashboard)/NavItems";
+import { COR_ETAPA, ICONE_ETAPA } from "@/components/liberacao/formatters";
+import { COR_ESTAGIO } from "@/components/prospeccao/estilo";
+import { ICONE_ESTAGIO } from "@/components/prospeccao/formatters";
 import type { ClientProfile, PageResponse } from "@/types/company-detail";
+import { ETAPAS_DECIDIDAS, ROTULO_ETAPA_CURTO, type LiberacaoCard } from "@/types/liberacao";
+import { numeroBr, type FichaComercialApi } from "@/types/informacao-comercial";
 import { formatCpf } from "@/types/person-analysis";
+import { ROTULO_ESTAGIO, TERMINAIS, type Prospeccao } from "@/types/prospeccao";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 const MINIMO = 2;
 const POR_GRUPO = 5;
+/** Esteiras e fichas mostram menos: são o "onde mais essa empresa aparece". */
+const POR_ESTEIRA = 4;
 /** Id fixo: há um campo só no portal, e o useId mudava entre servidor e navegador. */
 const ID_LISTA = "busca-global-resultados";
 
-type Resultado = { chave: string; href: string; titulo: string; detalhe: string; icone: string };
-type Grupo = { id: string; titulo: string; itens: Resultado[]; carregando?: boolean; verTodos?: { href: string; rotulo: string } };
+type Resultado = {
+  chave: string;
+  href: string;
+  titulo: string;
+  detalhe: string;
+  icone: string;
+  /** Cor da etapa: pinta o ícone e a etiqueta. */
+  cor?: string;
+  /** Etapa ou situação, à direita: "Pendência", "Documentação", "com vencido". */
+  etiqueta?: string;
+};
+type Grupo = {
+  id: string;
+  titulo: string;
+  icone: string;
+  itens: Resultado[];
+  carregando?: boolean;
+  verTodos?: { href: string; rotulo: string };
+};
 
 /** Telas do menu, com os subitens da Praça, para quem busca "praça" ou "configurações". */
 const TELAS: Resultado[] = [
@@ -56,6 +81,28 @@ function useEmpresas(termo: string) {
   });
 }
 
+/**
+ * Lista inteira de uma tela (quadro da esteira, fichas), pedida só quando alguém digita. Sem
+ * permissão ou com erro, o grupo some em vez de travar a busca.
+ */
+function useListaInteira<T>(chave: string, caminho: string, ativo: boolean) {
+  return useQuery<T[]>({
+    queryKey: ["buscaGlobal", chave],
+    enabled: ativo,
+    staleTime: 30 * 1000,
+    queryFn: async ({ signal }) => {
+      const token = localStorage.getItem("serasa_token");
+      const res = await fetch(`${API_URL}${caminho}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal });
+      return res.ok ? res.json() : [];
+    },
+  });
+}
+
+/** "há 3 dias na etapa": quanto tempo o card está parado onde está. */
+function tempoParado(desde: string | null | undefined, onde: string) {
+  return desde ? `${tempoRelativo(diasDesde(desde))} ${onde}` : null;
+}
+
 /** Trecho que bateu com a busca em negrito; sem acento dos dois lados, então os índices batem. */
 function Destaque({ texto, termo }: { texto: string; termo: string }) {
   const i = termo ? normalizar(texto).indexOf(normalizar(termo)) : -1;
@@ -70,8 +117,9 @@ function Destaque({ texto, termo }: { texto: string; termo: string }) {
 }
 
 /**
- * Campo de busca do topo: empresas (nome, CNPJ ou código do cliente), pessoas físicas (nome ou
- * CPF) e telas do menu, num painel só. Setas escolhem, Enter abre, Esc fecha.
+ * Campo de busca do topo, num painel só: telas do menu, empresas (nome, CNPJ ou código do cliente),
+ * onde a empresa está nas esteiras de Liberação e Prospecção, fichas comerciais e pessoas
+ * físicas (nome ou CPF). Setas escolhem, Enter abre, Esc fecha.
  */
 export default function BuscaGlobal() {
   const router = useRouter();
@@ -102,6 +150,9 @@ export default function BuscaGlobal() {
   const buscando = aberto && limpo.length >= MINIMO;
   const empresas = useEmpresas(aberto ? enviado : "");
   const pessoas = usePessoasResumo(buscando);
+  const liberacao = useListaInteira<LiberacaoCard>("liberacao", "/liberacao", buscando);
+  const prospeccao = useListaInteira<Prospeccao>("prospeccao", "/prospeccao", buscando);
+  const fichas = useListaInteira<FichaComercialApi>("fichas", "/company/commercial-information", buscando);
 
   const grupos = useMemo<Grupo[]>(() => {
     if (limpo.length < MINIMO) return [];
@@ -132,6 +183,71 @@ export default function BuscaGlobal() {
         };
       });
 
+    // Mesma regra para esteiras e fichas: nome contém o termo, ou CNPJ contém os dígitos.
+    const casa = (nome?: string | null, cnpj?: string | null) =>
+      (!!nome && normalizar(nome).includes(alvo)) || (digitos.length >= 3 && !!cnpj?.includes(digitos));
+
+    // "#6" acha o card 6 da Liberação.
+    const numeroCard = /^#\d{1,6}$/.test(limpo) ? Number(limpo.slice(1)) : null;
+    const cardsLiberacao = (liberacao.data ?? [])
+      .filter(c => casa(c.cedenteNome, c.cedenteCnpj) || c.numero === numeroCard)
+      // Em andamento antes dos já decididos; dentro de cada um, o que mexeu por último.
+      .sort(
+        (a, b) =>
+          Number(ETAPAS_DECIDIDAS.includes(a.etapa)) - Number(ETAPAS_DECIDIDAS.includes(b.etapa)) ||
+          b.etapaDesde.localeCompare(a.etapaDesde),
+      );
+    const listaLiberacao = cardsLiberacao.slice(0, POR_ESTEIRA).map<Resultado>(c => ({
+      chave: `lib-${c.id}`,
+      href: `/liberacao?card=${c.id}`,
+      titulo: caixaTitulo(c.cedenteNome) || formatCnpj(c.cedenteCnpj),
+      detalhe: [`#${c.numero}`, c.tipoOperacao, c.valor ? formatMoeda(c.valor) : null, tempoParado(c.etapaDesde, "na etapa")]
+        .filter(Boolean)
+        .join(" · "),
+      icone: ICONE_ETAPA[c.etapa],
+      cor: COR_ETAPA[c.etapa].hex,
+      etiqueta: c.etapa === "FINALIZADO" ? "Finalizado" : ROTULO_ETAPA_CURTO[c.etapa],
+    }));
+
+    const cardsProspeccao = (prospeccao.data ?? [])
+      .filter(c => casa(c.razaoSocial, c.cnpj))
+      .sort(
+        (a, b) =>
+          Number(TERMINAIS.includes(a.estagio)) - Number(TERMINAIS.includes(b.estagio)) ||
+          b.estagioDesde.localeCompare(a.estagioDesde),
+      );
+    const listaProspeccao = cardsProspeccao.slice(0, POR_ESTEIRA).map<Resultado>(c => ({
+      chave: `pro-${c.id}`,
+      href: `/prospeccao?card=${c.id}`,
+      titulo: caixaTitulo(c.razaoSocial) || formatCnpj(c.cnpj),
+      detalhe: [formatCnpj(c.cnpj), c.comercialNome ? `comercial ${c.comercialNome.split(" ")[0]}` : null, tempoParado(c.estagioDesde, "no estágio")]
+        .filter(Boolean)
+        .join(" · "),
+      icone: ICONE_ESTAGIO[c.estagio],
+      cor: COR_ESTAGIO[c.estagio].hex,
+      etiqueta: ROTULO_ESTAGIO[c.estagio],
+    }));
+
+    // Uma linha por empresa, juntando as fichas dos parceiros.
+    const fichasPorEmpresa = new Map<string, FichaComercialApi[]>();
+    for (const f of fichas.data ?? []) {
+      if (!casa(f.empresa, f.cnpj)) continue;
+      const chave = f.cnpj || f.empresa || f.id;
+      fichasPorEmpresa.set(chave, [...(fichasPorEmpresa.get(chave) ?? []), f]);
+    }
+    const listaFichas = [...fichasPorEmpresa.entries()].slice(0, POR_ESTEIRA).map<Resultado>(([chave, doGrupo]) => {
+      const parceiros = [...new Set(doGrupo.map(f => f.parceiro).filter(Boolean))];
+      const vencido = doGrupo.some(f => numeroBr(f.vencidosValorMonetario) > 0);
+      return {
+        chave: `ic-${chave}`,
+        href: `/commercial-information?q=${encodeURIComponent(doGrupo[0].cnpj || doGrupo[0].empresa || "")}`,
+        titulo: caixaTitulo(doGrupo[0].empresa ?? null) || "Empresa sem nome",
+        detalhe: [doGrupo.length === 1 ? "1 ficha" : `${doGrupo.length} fichas`, parceiros.join(", ")].filter(Boolean).join(" · "),
+        icone: "request_quote",
+        ...(vencido ? { cor: "#B42345", etiqueta: "Com vencido" } : {}),
+      };
+    });
+
     const listaPessoas = (pessoas.data ?? [])
       .filter(p => (p.nome && normalizar(p.nome).includes(alvo)) || (digitos.length >= 3 && p.cpf.includes(digitos)))
       .slice(0, POR_GRUPO)
@@ -144,18 +260,44 @@ export default function BuscaGlobal() {
       }));
 
     const q = encodeURIComponent(limpo);
+    const mais = (total: number, href: string, rotulo: string) => (total > POR_ESTEIRA ? { href, rotulo: `Ver os ${total} ${rotulo}` } : undefined);
     return [
-      { id: "telas", titulo: "Telas", itens: telas },
+      { id: "telas", titulo: "Telas", icone: "menu", itens: telas },
       {
         id: "empresas",
         titulo: "Empresas",
+        icone: "business",
         itens: listaEmpresas,
         carregando: empresas.isFetching || enviado !== limpo,
         verTodos: (empresas.data?.totalElements ?? 0) > POR_GRUPO ? { href: `/?q=${q}`, rotulo: `Ver as ${empresas.data!.totalElements} na Gestão de Carteira` } : undefined,
       },
-      { id: "pessoas", titulo: "Pessoas físicas", itens: listaPessoas, carregando: pessoas.isLoading, verTodos: listaPessoas.length === POR_GRUPO ? { href: `/individuals?q=${q}`, rotulo: "Ver todas em Pessoas Físicas" } : undefined },
+      {
+        id: "liberacao",
+        titulo: "Esteira de Liberação",
+        icone: "fact_check",
+        itens: listaLiberacao,
+        carregando: liberacao.isLoading,
+        verTodos: mais(cardsLiberacao.length, `/liberacao?q=${q}`, "cards na esteira"),
+      },
+      {
+        id: "prospeccao",
+        titulo: "Esteira de Prospecção",
+        icone: "conveyor_belt",
+        itens: listaProspeccao,
+        carregando: prospeccao.isLoading,
+        verTodos: mais(cardsProspeccao.length, `/prospeccao?q=${q}`, "cards na esteira"),
+      },
+      {
+        id: "fichas",
+        titulo: "Informações comerciais",
+        icone: "business_center",
+        itens: listaFichas,
+        carregando: fichas.isLoading,
+        verTodos: mais(fichasPorEmpresa.size, `/commercial-information?q=${q}`, "empresas com ficha"),
+      },
+      { id: "pessoas", titulo: "Pessoas físicas", icone: "person_search", itens: listaPessoas, carregando: pessoas.isLoading, verTodos: listaPessoas.length === POR_GRUPO ? { href: `/individuals?q=${q}`, rotulo: "Ver todas em Pessoas Físicas" } : undefined },
     ];
-  }, [limpo, enviado, empresas.data, empresas.isFetching, pessoas.data, pessoas.isLoading]);
+  }, [limpo, enviado, empresas.data, empresas.isFetching, pessoas.data, pessoas.isLoading, liberacao.data, liberacao.isLoading, prospeccao.data, prospeccao.isLoading, fichas.data, fichas.isLoading]);
 
   const opcoes = grupos.flatMap(g => g.itens);
   const posicaoDe = new Map(opcoes.map((o, i) => [o.chave, i]));
@@ -246,6 +388,7 @@ export default function BuscaGlobal() {
                 return (
                   <div key={grupo.id} role="group" aria-labelledby={`${ID_LISTA}-${grupo.id}`} className="pb-1">
                     <p id={`${ID_LISTA}-${grupo.id}`} className="flex items-center gap-2 px-5 pb-1.5 pt-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">
+                      <Icon name={grupo.icone} size={14} className="text-[#A29E93]" />
                       {grupo.titulo}
                       {grupo.carregando && <Icon name="progress_activity" size={12} weight="bold" className="animate-spin text-primary" />}
                     </p>
@@ -263,7 +406,12 @@ export default function BuscaGlobal() {
                           onMouseEnter={() => setAtivo(i)}
                           className={`mx-2 flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${selecionado ? "bg-[#F6EFEA]" : ""}`}
                         >
-                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${selecionado ? "bg-white text-primary" : "bg-[#F4F2EC] text-[#6E6B63]"}`}>
+                          <span
+                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${
+                              item.cor ? "" : selecionado ? "bg-white text-primary" : "bg-[#F4F2EC] text-[#6E6B63]"
+                            }`}
+                            style={item.cor ? { background: `${item.cor}1A`, color: item.cor } : undefined}
+                          >
                             <Icon name={item.icone} size={18} />
                           </span>
                           <span className="min-w-0 flex-1">
@@ -272,6 +420,15 @@ export default function BuscaGlobal() {
                             </span>
                             <span className="block truncate text-xs text-suave">{item.detalhe}</span>
                           </span>
+                          {item.etiqueta && (
+                            <span
+                              className="hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold sm:inline-flex"
+                              style={{ background: `${item.cor ?? "#5E5C55"}14`, color: item.cor ?? "#5E5C55" }}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.cor ?? "#5E5C55" }} />
+                              {item.etiqueta}
+                            </span>
+                          )}
                           <Icon name="chevron_right" size={14} className={`shrink-0 transition-opacity ${selecionado ? "text-primary opacity-100" : "opacity-0"}`} />
                         </Link>
                       );

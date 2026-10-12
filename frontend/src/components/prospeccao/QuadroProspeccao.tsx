@@ -98,7 +98,8 @@ export default function QuadroProspeccao() {
   const [exportAberto, setExportAberto] = useState(false);
   const [backfillAberto, setBackfillAberto] = useState(false);
   const [manualAberto, setManualAberto] = useState(false);
-  const [busca, setBusca] = useState("");
+  // A busca do topo do portal manda o termo em ?q=.
+  const [busca, setBusca] = useState(() => params.get("q") ?? "");
   const [responsavel, setResponsavel] = useState("");
   const [origem, setOrigem] = useState<"" | "MANUAL" | "AUTOMATICA">("");
   const [soMinhas, setSoMinhas] = useState(false);
