@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import { useEffect, useMemo, useState } from "react";
 import { usePaymentPlaceHistory } from "../../../../hooks/usePaymentPlaceCompany";
@@ -95,13 +94,9 @@ export default function HistoricoPage() {
     <div className="space-y-5 p-1">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <nav className="mb-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Link href="/praca-pagamento" className="transition-colors hover:text-primary">Praça de Pagamento</Link>
-            <span>/</span>
-            <span className="font-medium text-grafite dark:text-white">Histórico</span>
-          </nav>
-          <h1 className="font-sans text-xl font-bold text-primary dark:text-white">Histórico de títulos</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-laranja-texto">Praça de Pagamento</p>
+          <h1 className="mt-2 text-3xl font-semibold leading-none tracking-[-0.02em] text-grafite sm:text-4xl">Histórico de títulos</h1>
+          <p className="mt-3 max-w-3xl text-[15px] text-suave">
             Biblioteca de todos os lançamentos já importados. Busque por sacado, cedente, banco/agência ou nº do título — ou navegue por dia no calendário.
           </p>
         </div>
@@ -116,7 +111,7 @@ export default function HistoricoPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Sacado, cedente, banco, nº título..."
-              className="h-11 w-full rounded-xl border border-border-light bg-white pl-10 pr-9 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+              className="h-11 w-full rounded-cartao border border-linha bg-white pl-10 pr-9 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
             />
             {searchInput ? (
               <button
@@ -130,16 +125,16 @@ export default function HistoricoPage() {
             ) : null}
           </div>
 
-          <div className="rounded-xl border border-border-light bg-surface-light p-3 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+          <div className="rounded-cartao border border-linha bg-white p-3">
             <div className="mb-2 flex items-center justify-between gap-1">
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
               </div>
               <p className="text-sm font-bold capitalize text-grafite dark:text-white">{`${calendarMonth.toLocaleDateString("pt-BR", { month: "long" })}/${String(calendarMonth.getFullYear()).slice(-2)}`}</p>
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
-                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
+                <button type="button" onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-gray-400">
@@ -171,12 +166,12 @@ export default function HistoricoPage() {
               })}
             </div>
             {selectedDay ? (
-              <div className="mt-3 flex items-center justify-between gap-2 border-t border-border-light pt-2 dark:border-border-dark">
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-linha pt-2 dark:border-border-dark">
                 <span className="text-xs font-bold text-grafite dark:text-white">{new Date(`${selectedDay}T12:00:00`).toLocaleDateString("pt-BR")}</span>
                 <button type="button" onClick={() => { setSelectedDay(null); setPage(0); }} className="text-xs font-semibold text-primary hover:underline dark:text-secondary">Limpar dia</button>
               </div>
             ) : (
-              <p className="mt-3 border-t border-border-light pt-2 text-[11px] text-gray-400 dark:border-border-dark">Selecione um dia para filtrar pela data de importação.</p>
+              <p className="mt-3 border-t border-linha pt-2 text-[11px] text-gray-400 dark:border-border-dark">Selecione um dia para filtrar pela data de importação.</p>
             )}
           </div>
         </div>
@@ -190,14 +185,14 @@ export default function HistoricoPage() {
           </div>
 
           {entries.length === 0 && !isFetching ? (
-            <div className="rounded-xl border border-dashed border-border-light p-10 text-center text-sm text-gray-500 dark:border-border-dark dark:text-gray-400">
+            <div className="rounded-xl border border-dashed border-linha p-10 text-center text-sm text-gray-500 dark:border-border-dark dark:text-gray-400">
               <Icon name="history" size={32} className="mb-2 block text-gray-300" />
               Nenhum lançamento encontrado.
             </div>
           ) : (
             <div className="space-y-2">
               {entries.map((e) => (
-                <div key={e.id} className="rounded-xl border border-border-light bg-surface-light p-3 shadow-sm transition-colors hover:bg-gray-50/60 dark:border-border-dark dark:bg-surface-dark dark:hover:bg-white/[0.03]">
+                <div key={e.id} className="rounded-cartao border border-linha bg-white p-3 shadow-sm transition-colors hover:bg-[#FBF7F1] dark:border-border-dark dark:bg-surface-dark dark:hover:bg-white/[0.03]">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -218,7 +213,7 @@ export default function HistoricoPage() {
                       <p className="text-[11px] text-gray-500 dark:text-gray-400">{e.bankName ?? "—"} · {e.bankAgency ?? "—"}</p>
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-light pt-2 text-[11px] text-gray-400 dark:border-border-dark">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-linha pt-2 text-[11px] text-gray-400 dark:border-border-dark">
                     <span className="inline-flex items-center gap-1"><Icon name="description" size={13} />{e.batchFileName ?? "—"}</span>
                     <span className="inline-flex items-center gap-1"><Icon name="schedule" size={13} />Importado em {formatDateTime(e.batchImportedAt)}</span>
                     {e.dueDate ? <span className="inline-flex items-center gap-1"><Icon name="event" size={13} />Venc. {e.dueDate}</span> : null}
@@ -235,7 +230,7 @@ export default function HistoricoPage() {
                 type="button"
                 disabled={page <= 0}
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
-                className="inline-flex h-9 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                className="inline-flex h-9 items-center gap-1 rounded-lg border border-linha px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >
                 <Icon name="chevron_left" size={16} />Anterior
               </button>
@@ -244,7 +239,7 @@ export default function HistoricoPage() {
                 type="button"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                className="inline-flex h-9 items-center gap-1 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                className="inline-flex h-9 items-center gap-1 rounded-lg border border-linha px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >
                 Próxima<Icon name="chevron_right" size={16} />
               </button>

@@ -27,6 +27,7 @@ import {
 } from "../../../hooks/usePaymentPlace";
 import { useReopenPaymentPlaceEntry, usePaymentPlaceHistory } from "../../../hooks/usePaymentPlaceCompany";
 import LearnedPatternAssistant from "../../../components/payment-place/LearnedPatternAssistant";
+import { Medidor } from "@/components/ui/KpiCard";
 import PaymentPlaceEntryReadOnlyModal from "../../../components/payment-place/PaymentPlaceEntryReadOnlyModal";
 import { AttachmentBadge, AttachmentViewerModal, EntryAttachmentsPanel } from "../../../components/payment-place/EntryAttachments";
 import { PaymentPlaceEntry } from "../../../types/payment-place";
@@ -35,7 +36,7 @@ import Icon from "../../../components/ui/Icon";
 const PaymentPlaceMap = dynamic(() => import("../../../components/payment-place/PaymentPlaceMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[260px] items-center justify-center rounded-lg border border-dashed border-border-light bg-gray-50 text-xs text-gray-500 dark:border-border-dark dark:bg-white/5">
+    <div className="flex h-full min-h-[260px] items-center justify-center rounded-lg border border-dashed border-linha bg-gray-50 text-xs text-gray-500 dark:border-border-dark dark:bg-white/5">
       Carregando mapa...
     </div>
   ),
@@ -218,7 +219,7 @@ function DistanceChip({ label, value, highlight }: { label: string; value?: numb
       className={`relative inline-flex flex-col overflow-hidden whitespace-nowrap rounded-md border px-2 py-0.5 leading-tight ${
         highlight
           ? "border-primary/25 bg-primary/[0.07] text-primary dark:border-secondary/30 dark:bg-secondary/10 dark:text-secondary"
-          : "border-border-light bg-gradient-to-br from-sky-50/70 to-emerald-50/60 text-gray-600 dark:border-border-dark dark:from-white/[0.05] dark:to-white/[0.02] dark:text-gray-300"
+          : "border-linha bg-gradient-to-br from-sky-50/70 to-emerald-50/60 text-gray-600 dark:border-border-dark dark:from-white/[0.05] dark:to-white/[0.02] dark:text-gray-300"
       }`}
     >
       <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.06]" style={contour} />
@@ -766,18 +767,12 @@ export default function PaymentPlacePage() {
   }, [focusedEntryId, expandedEntryId]);
 
   return (
-    <div className="mx-auto max-w-[1900px] space-y-5">
+    <div className="mx-auto max-w-[1900px] space-y-5 pb-24">
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <nav className="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Link href="/" className="transition-colors hover:text-primary">
-              Carteira
-            </Link>
-            <span>/</span>
-            <span className="font-medium text-grafite dark:text-white">Praça de Pagamento</span>
-          </nav>
-          <h1 className="font-sans text-3xl font-bold text-grafite dark:text-white">Praça de Pagamento</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+        <div className="animate-subir motion-reduce:animate-none">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-laranja-texto">Operação</p>
+          <h1 className="mt-2 text-4xl font-semibold leading-none tracking-[-0.02em] text-grafite sm:text-[46px]">Praça de Pagamento</h1>
+          <p className="mt-3 max-w-3xl text-[15px] text-suave">
             Importe o retorno bancário diário, revise os lançamentos de auditoria e classifique cada caso como sacado ou cedente.
           </p>
         </div>
@@ -786,8 +781,8 @@ export default function PaymentPlacePage() {
           <div
             className={`inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-4 text-sm font-bold ${
               todayBatch
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
-                : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                ? "border-[#CFE6DA] bg-[#EEF7F2] text-[#17583F]"
+                : "border-[#F0C9D2] bg-[#F8E1E6] text-[#8E1B37]"
             }`}
           >
             <Icon name={todayBatch ? "check_circle" : "error"} size={20} />
@@ -796,7 +791,7 @@ export default function PaymentPlacePage() {
           <button
             type="button"
             onClick={openBatchModal}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border-light bg-white px-4 text-sm font-bold text-grafite shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-white/5"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-linha bg-white px-4 text-sm font-bold text-grafite shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-white/5"
           >
             <Icon name="inventory_2" size={20} />
             Lotes
@@ -819,7 +814,7 @@ export default function PaymentPlacePage() {
             {importMenuOpen ? (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setImportMenuOpen(false)} />
-                <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-xl border border-border-light bg-surface-light p-1 shadow-lg dark:border-border-dark dark:bg-surface-dark">
+                <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-xl border border-linha bg-white p-1 shadow-lg dark:border-border-dark dark:bg-surface-dark">
                   <button
                     type="button"
                     onClick={openCustomImport}
@@ -839,18 +834,18 @@ export default function PaymentPlacePage() {
       </header>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <Metric label="Lançamentos" value={entries.length} />
-        <Metric label="Auditoria eletrônica" value={batchMeta.auditEntries} />
-        <Metric label="Agências não localizadas" value={batchMeta.unlocatedAgencyEntries} />
-        <Metric label="Digitais/cooperativas" value={counters.digitalOrCooperative} />
-        <Metric label="Baixa confiança" value={counters.lowReliability} tone="red" />
-        <Metric label="Pendentes" value={counters.pending} tone="amber" />
+        <Metric atraso={60} label="Lançamentos" value={entries.length} />
+        <Metric atraso={100} label="Auditoria eletrônica" value={batchMeta.auditEntries} />
+        <Metric atraso={140} label="Agências não localizadas" value={batchMeta.unlocatedAgencyEntries} />
+        <Metric atraso={180} label="Digitais/cooperativas" value={counters.digitalOrCooperative} />
+        <Metric atraso={220} label="Baixa confiança" value={counters.lowReliability} tone="red" />
+        <Metric atraso={260} label="Pendentes" value={counters.pending} tone="amber" />
       </section>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-grafite dark:text-white">Indicadores {batches.length > 1 ? "dos lotes" : "do lote"}</h2>
+            <h2 className="font-sans text-sm font-bold text-grafite dark:text-white">Indicadores {batches.length > 1 ? "dos lotes" : "do lote"}</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Leitura rápida da qualidade da praça e da aderência entre sugestão automática e decisão humana.
             </p>
@@ -861,7 +856,7 @@ export default function PaymentPlacePage() {
         </div>
 
         {indicatorsQuery.isLoading && batches.length > 0 ? (
-          <div className="rounded-xl border border-border-light bg-surface-light p-4 text-sm text-gray-500 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+          <div className="rounded-xl border border-linha bg-white p-4 text-sm text-gray-500 shadow-sm dark:border-border-dark dark:bg-surface-dark">
             Carregando indicadores do lote...
           </div>
         ) : indicatorsQuery.data ? (
@@ -869,24 +864,28 @@ export default function PaymentPlacePage() {
             <InsightMetric
               label="Agências localizadas"
               value={formatPercent(indicatorsQuery.data.locatedAgencyPct)}
+              fracao={(indicatorsQuery.data.locatedAgencyPct ?? 0) / 100}
               detail={`${indicatorsQuery.data.locatedAgencyCount} de ${indicatorsQuery.data.totalEntries} com endereço/cidade resolvidos`}
               tone="emerald"
             />
             <InsightMetric
               label="Baixa confiança geográfica"
               value={formatPercent(indicatorsQuery.data.lowReliabilityPct)}
+              fracao={(indicatorsQuery.data.lowReliabilityPct ?? 0) / 100}
               detail={`${indicatorsQuery.data.lowReliabilityCount} de ${indicatorsQuery.data.totalEntries} marcados como baixa`}
               tone="red"
             />
             <InsightMetric
               label="Concordância sugestão × analista"
               value={formatPercent(indicatorsQuery.data.agreementPct)}
+              fracao={(indicatorsQuery.data.agreementPct ?? 0) / 100}
               detail={`${indicatorsQuery.data.agreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
               tone="blue"
             />
             <InsightMetric
               label="Divergência sugestão × analista"
               value={formatPercent(indicatorsQuery.data.disagreementPct)}
+              fracao={(indicatorsQuery.data.disagreementPct ?? 0) / 100}
               detail={`${indicatorsQuery.data.disagreementCount} de ${indicatorsQuery.data.comparableDecisionCount} casos comparáveis`}
               tone="amber"
             />
@@ -896,23 +895,23 @@ export default function PaymentPlacePage() {
 
       <section className="space-y-4">
         <main className="min-w-0 space-y-4">
-          <section className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+          <section className="rounded-cartao border border-linha bg-white p-4">
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1fr)_180px_170px_170px_160px_170px_auto]">
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Busca</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Busca</span>
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Título, sacado, cedente, documento, cidade, banco/agência..."
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 h-10 w-full rounded-[10px] border border-linha bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                 />
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Seção</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Seção</span>
                 <select
                   value={sectionFilter}
                   onChange={(event) => setSectionFilter(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 h-10 w-full rounded-[10px] border border-linha bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                 >
                   <option value="">Todas</option>
                   <option value="Auditoria Eletrônica">Auditoria Eletrônica</option>
@@ -920,11 +919,11 @@ export default function PaymentPlacePage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Instituição</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Instituição</span>
                 <select
                   value={categoryFilter}
                   onChange={(event) => setCategoryFilter(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 h-10 w-full rounded-[10px] border border-linha bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                 >
                   <option value="">Todas</option>
                   <option value="TRADICIONAL">Tradicional</option>
@@ -935,11 +934,11 @@ export default function PaymentPlacePage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Confiança</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Confiança</span>
                 <select
                   value={reliabilityFilter}
                   onChange={(event) => setReliabilityFilter(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 h-10 w-full rounded-[10px] border border-linha bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                 >
                   <option value="">Todas</option>
                   <option value="ALTA">Alta</option>
@@ -949,11 +948,11 @@ export default function PaymentPlacePage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Decisão</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Decisão</span>
                 <select
                   value={decisionFilter}
                   onChange={(event) => setDecisionFilter(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 h-10 w-full rounded-[10px] border border-linha bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                 >
                   <option value="">Todas</option>
                   <option value="SEM_DECISAO">Sem decisão</option>
@@ -963,11 +962,11 @@ export default function PaymentPlacePage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Data importação</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Data importação</span>
                 <select
                   value={importDateFilter}
                   onChange={(event) => setImportDateFilter(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 h-10 w-full rounded-[10px] border border-linha bg-white px-3 text-sm text-grafite outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                 >
                   <option value="">Todas</option>
                   {importDateOptions.map((day) => (
@@ -987,18 +986,18 @@ export default function PaymentPlacePage() {
                   setDecisionFilter("");
                   setImportDateFilter("");
                 }}
-                className="mt-5 h-10 rounded-lg border border-border-light px-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                className="mt-5 h-10 rounded-lg border border-linha px-3 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
               >
                 Limpar
               </button>
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            <div className="flex flex-col gap-3 border-b border-border-light p-4 dark:border-border-dark">
+          <section className="overflow-hidden rounded-painel border border-linha bg-white">
+            <div className="flex flex-col gap-3 border-b border-linha p-4 dark:border-border-dark">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold text-grafite dark:text-white">
+                  <h2 className="truncate font-sans text-sm font-bold text-grafite dark:text-white">
                     {batches.length === 0 ? "Nenhum lote ativo" : batches.length === 1 ? batches[0].fileName : `Todos os lotes (${batches.length})`}
                   </h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1020,7 +1019,7 @@ export default function PaymentPlacePage() {
                     className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors ${
                       selectMode
                         ? "border-primary bg-primary text-white dark:border-secondary dark:bg-secondary"
-                        : "border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                        : "border-linha text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     }`}
                     title="Selecionar vários lançamentos para decidir em lote"
                   >
@@ -1043,7 +1042,7 @@ export default function PaymentPlacePage() {
                     className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors ${
                       sortByConfidence
                         ? "border-primary bg-primary/5 text-primary dark:border-secondary dark:text-secondary"
-                        : "border-border-light text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                        : "border-linha text-gray-600 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     }`}
                     title="Ordenar por confiança (pendentes primeiro)"
                   >
@@ -1055,7 +1054,7 @@ export default function PaymentPlacePage() {
                       <button
                         type="button"
                         onClick={() => setListCollapsed((v) => !v)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                         title={listCollapsed ? "Expandir lista" : "Minimizar lista"}
                         aria-label={listCollapsed ? "Expandir lista" : "Minimizar lista"}
                       >
@@ -1064,7 +1063,7 @@ export default function PaymentPlacePage() {
                       <button
                         type="button"
                         onClick={openBatchModal}
-                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border-light px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-linha px-3 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                         title="Gerenciar lotes (arquivar/apagar)"
                       >
                         <Icon name="inventory_2" size={16} />
@@ -1075,7 +1074,7 @@ export default function PaymentPlacePage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/5">
+              <div className="flex items-center gap-0.5 rounded-[13px] bg-[#ECE9E1] p-[3px]">
                 {([
                   ["PENDENTES", `Pendentes (${counters.pending})`],
                   ["DECIDIDOS", `Decididos (${counters.reviewed})`],
@@ -1085,10 +1084,10 @@ export default function PaymentPlacePage() {
                     key={key}
                     type="button"
                     onClick={() => setAnalysisTab(key)}
-                    className={`h-8 flex-1 rounded-md text-xs font-bold transition-colors ${
+                    className={`h-9 flex-1 rounded-[10px] text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-200 ${
                       analysisTab === key
-                        ? "bg-white text-grafite shadow-sm dark:bg-surface-dark dark:text-white"
-                        : "text-gray-500 hover:text-grafite dark:text-gray-400 dark:hover:text-white"
+                        ? "bg-white text-grafite shadow-[0_1px_2px_rgba(38,40,51,0.08),0_6px_14px_-8px_rgba(38,40,51,0.3)]"
+                        : "text-[#5E5C55] hover:text-grafite"
                     }`}
                   >
                     {label}
@@ -1112,7 +1111,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={selectAllVisible}
-                    className="inline-flex h-8 items-center rounded-lg border border-border-light bg-white px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-8 items-center rounded-lg border border-linha bg-white px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-gray-300 dark:hover:bg-white/5"
                   >
                     Selecionar todos ({sortedEntries.length})
                   </button>
@@ -1120,7 +1119,7 @@ export default function PaymentPlacePage() {
                     <button
                       type="button"
                       onClick={clearSelection}
-                      className="inline-flex h-8 items-center rounded-lg border border-border-light bg-white px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-gray-300 dark:hover:bg-white/5"
+                      className="inline-flex h-8 items-center rounded-lg border border-linha bg-white px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-gray-300 dark:hover:bg-white/5"
                     >
                       Limpar
                     </button>
@@ -1191,7 +1190,7 @@ export default function PaymentPlacePage() {
                       key={item.key}
                       data-index={item.index}
                       ref={rowVirtualizer.measureElement}
-                      className={`absolute left-0 top-0 w-full ${item.index < sortedEntries.length - 1 ? "border-b border-border-light dark:border-border-dark" : ""}`}
+                      className={`absolute left-0 top-0 w-full ${item.index < sortedEntries.length - 1 ? "border-b border-linha dark:border-border-dark" : ""}`}
                       style={{ transform: `translateY(${item.start - rowVirtualizer.options.scrollMargin}px)` }}
                     >
                       <EntryRow
@@ -1211,10 +1210,10 @@ export default function PaymentPlacePage() {
           </section>
 
           {historyEnabled ? (
-            <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              <div className="flex items-center gap-2 border-b border-border-light px-4 py-3 dark:border-border-dark">
+            <section className="overflow-hidden rounded-xl border border-linha bg-white shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <div className="flex items-center gap-2 border-b border-linha px-4 py-3 dark:border-border-dark">
                 <Icon name="history" size={18} className="text-gray-400" />
-                <h2 className="text-sm font-bold text-grafite dark:text-white">No histórico (outros lotes)</h2>
+                <h2 className="font-sans text-sm font-bold text-grafite dark:text-white">No histórico (outros lotes)</h2>
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500 dark:bg-white/10 dark:text-gray-300">
                   {historyQuery.isFetching ? "…" : historyResults.length}
                 </span>
@@ -1283,17 +1282,17 @@ export default function PaymentPlacePage() {
 
       {showBatchModal ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 py-20 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark">
-            <div className="flex items-center justify-between gap-3 border-b border-border-light p-4 dark:border-border-dark">
+          <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-linha bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark">
+            <div className="flex items-center justify-between gap-3 border-b border-linha p-4 dark:border-border-dark">
               <div>
-                <h2 className="text-sm font-bold text-grafite dark:text-white">Lotes importados</h2>
+                <h2 className="font-sans text-sm font-bold text-grafite dark:text-white">Lotes importados</h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{batches.length} registros disponíveis</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => batchesQuery.refetch()}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                   title="Atualizar lotes"
                 >
                   <Icon name="refresh" size={18} />
@@ -1301,7 +1300,7 @@ export default function PaymentPlacePage() {
                 <button
                   type="button"
                   onClick={() => setShowBatchModal(false)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                   title="Fechar lotes"
                   aria-label="Fechar lotes"
                 >
@@ -1317,7 +1316,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))}
-                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Ano anterior"
                     aria-label="Ano anterior"
                   >
@@ -1326,7 +1325,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Mês anterior"
                     aria-label="Mês anterior"
                   >
@@ -1340,7 +1339,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Próximo mês"
                     aria-label="Próximo mês"
                   >
@@ -1349,7 +1348,7 @@ export default function PaymentPlacePage() {
                   <button
                     type="button"
                     onClick={() => setCalendarMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))}
-                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Próximo ano"
                     aria-label="Próximo ano"
                   >
@@ -1411,7 +1410,7 @@ export default function PaymentPlacePage() {
               })()}
 
               {/* Lotes do dia selecionado */}
-              <div className="mt-4 border-t border-border-light pt-3 dark:border-border-dark">
+              <div className="mt-4 border-t border-linha pt-3 dark:border-border-dark">
                 {!selectedDay ? (
                   <p className="px-1 py-2 text-xs text-gray-400">Selecione um dia para ver os lotes importados.</p>
                 ) : (batchesByDay.get(selectedDay) ?? []).length === 0 ? (
@@ -1428,8 +1427,8 @@ export default function PaymentPlacePage() {
                           key={item.id}
                           className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                             archived
-                              ? "border-border-light bg-gray-50/50 dark:border-border-dark dark:bg-white/[0.02]"
-                              : "border-border-light bg-white hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark dark:hover:bg-white/5"
+                              ? "border-linha bg-gray-50/50 dark:border-border-dark dark:bg-white/[0.02]"
+                              : "border-linha bg-white hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark dark:hover:bg-white/5"
                           }`}
                         >
                           <div className="min-w-0 flex-1">
@@ -1451,7 +1450,7 @@ export default function PaymentPlacePage() {
                             type="button"
                             onClick={() => archiveBatchMutation.mutate({ batchId: item.id, archived: !archived })}
                             disabled={archiveBatchMutation.isPending}
-                            className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                            className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                             title={archived ? "Restaurar lote" : "Arquivar lote"}
                           >
                             <Icon name={archived ? "unarchive" : "inventory_2"} size={18} />
@@ -1478,16 +1477,16 @@ export default function PaymentPlacePage() {
 
       {customImportOpen ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 py-16 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark">
-            <div className="flex items-center justify-between gap-3 border-b border-border-light p-4 dark:border-border-dark">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-linha bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark">
+            <div className="flex items-center justify-between gap-3 border-b border-linha p-4 dark:border-border-dark">
               <div>
-                <h2 className="text-sm font-bold text-grafite dark:text-white">Importar relatório anterior</h2>
+                <h2 className="font-sans text-sm font-bold text-grafite dark:text-white">Importar relatório anterior</h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Escolha o arquivo e o dia do lote.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setCustomImportOpen(false)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                 aria-label="Fechar"
               >
                 <Icon name="close" size={18} />
@@ -1498,7 +1497,7 @@ export default function PaymentPlacePage() {
               {/* Arquivo */}
               <div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Arquivo(s) PDF</p>
-                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-light px-3 py-4 text-sm text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-400 dark:hover:bg-white/5">
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-linha px-3 py-4 text-sm text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-400 dark:hover:bg-white/5">
                   <Icon name="upload_file" size={20} />
                   {customFiles.length === 0 ? "Selecionar PDF" : `${customFiles.length} arquivo(s) selecionado(s)`}
                   <input
@@ -1521,16 +1520,16 @@ export default function PaymentPlacePage() {
               {/* Calendário de data do lote */}
               <div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Dia do lote</p>
-                <div className="rounded-lg border border-border-light p-2 dark:border-border-dark">
+                <div className="rounded-lg border border-linha p-2 dark:border-border-dark">
                   <div className="mb-2 flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() - 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Ano anterior"><Icon name="keyboard_double_arrow_left" size={16} /></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Mês anterior"><Icon name="chevron_left" size={16} /></button>
                     </div>
                     <p className="text-sm font-bold capitalize text-grafite dark:text-white">{`${customMonth.toLocaleDateString("pt-BR", { month: "long" })}/${String(customMonth.getFullYear()).slice(-2)}`}</p>
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
-                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-light text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo mês"><Icon name="chevron_right" size={16} /></button>
+                      <button type="button" onClick={() => setCustomMonth((d) => new Date(d.getFullYear() + 1, d.getMonth(), 1))} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-linha text-gray-500 hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5" title="Próximo ano"><Icon name="keyboard_double_arrow_right" size={16} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-gray-400">
@@ -1583,7 +1582,7 @@ export default function PaymentPlacePage() {
                 <button
                   type="button"
                   onClick={() => setCustomImportOpen(false)}
-                  className="inline-flex h-10 items-center rounded-lg border border-border-light px-4 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                  className="inline-flex h-10 items-center rounded-lg border border-linha px-4 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                 >
                   Cancelar
                 </button>
@@ -1614,7 +1613,7 @@ export default function PaymentPlacePage() {
           onContextMenu={(e) => { e.preventDefault(); closeCopyMenu(); }}
         >
           <div
-            className={`absolute w-[280px] max-w-[calc(100vw-24px)] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-border-light bg-surface-light py-1 shadow-2xl transition-all duration-150 dark:border-border-dark dark:bg-surface-dark ${
+            className={`absolute w-[280px] max-w-[calc(100vw-24px)] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-linha bg-white py-1 shadow-2xl transition-all duration-150 dark:border-border-dark dark:bg-surface-dark ${
               copyMenuVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
             }`}
             style={{
@@ -1655,13 +1654,13 @@ export default function PaymentPlacePage() {
           onClick={() => setExpandedEntryId(null)}
         >
           <div
-            className="w-full max-w-5xl overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-2xl dark:border-border-dark dark:bg-surface-dark"
+            className="w-full max-w-5xl overflow-hidden rounded-xl border border-linha bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-border-light p-4 dark:border-border-dark">
+            <div className="flex items-center justify-between gap-3 border-b border-linha p-4 dark:border-border-dark">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-base font-bold text-grafite dark:text-white">{expandedEntry.titleNumber}</h2>
+                  <h2 className="truncate font-sans text-base font-bold text-grafite dark:text-white">{expandedEntry.titleNumber}</h2>
                   <SuggestionPill suggestion={expandedEntry.automaticSuggestion} confidence={expandedEntry.automaticConfidence} />
                   {expandedEntry.relatedParties ? <RelatedPartiesChip detail={expandedEntry.relatedPartiesDetail} /> : null}
                   {expandedEntry.analystDecision ? <DecisionPill decision={expandedEntry.analystDecision} /> : null}
@@ -1727,7 +1726,7 @@ export default function PaymentPlacePage() {
                 <button
                   type="button"
                   onClick={() => setExpandedEntryId(null)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                   title="Fechar (Esc)"
                   aria-label="Fechar"
                 >
@@ -1749,7 +1748,7 @@ export default function PaymentPlacePage() {
                   }}
                   rows={2}
                   placeholder="Anotação (salva ao decidir ou ao sair do campo se já houver decisão)"
-                  className="mt-1 w-full rounded-lg border border-border-light bg-white px-3 py-2 text-xs text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+                  className="mt-1 w-full rounded-lg border border-linha bg-white px-3 py-2 text-xs text-grafite outline-none transition focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
                 />
               </div>
               {/* Alerta de fraude: precisa ser lido antes de qualquer decisão, não ficar num card lateral. */}
@@ -1804,7 +1803,7 @@ function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): nu
 function DistanceCard({ label, from, to, value, color }: { label: string; from?: string | null; to?: string | null; value?: number | null; color: string }) {
   const km = formatKm(value);
   return (
-    <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
+    <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
       <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
       <p className="mt-1 whitespace-nowrap text-xl font-bold" style={{ color }}>{km ?? "—"}</p>
       <p className="mt-1 truncate text-xs text-gray-500" title={`${clean(from)} → ${clean(to)}`}>
@@ -1818,26 +1817,29 @@ function InsightMetric({
   label,
   value,
   detail,
+  fracao,
   tone = "gray",
 }: {
   label: string;
   value: string;
   detail: string;
+  /** 0 a 1: desenha a barra de proporção na cor do indicador. */
+  fracao?: number;
   tone?: "gray" | "emerald" | "red" | "blue" | "amber";
 }) {
-  const tones: Record<string, string> = {
-    gray: "border-border-light bg-surface-light dark:border-border-dark dark:bg-surface-dark",
-    emerald: "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10",
-    red: "border-red-200 bg-red-50/70 dark:border-red-500/30 dark:bg-red-500/10",
-    blue: "border-blue-200 bg-blue-50/70 dark:border-blue-500/30 dark:bg-blue-500/10",
-    amber: "border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10",
-  };
+  // A cor fica na bolinha e na barra; o fundo é o mesmo branco dos outros cartões.
+  const cores: Record<string, string> = { gray: "#69675F", emerald: "#1F7A5C", red: "#B42345", blue: "#2956E0", amber: "#D1732C" };
+  const cor = cores[tone];
 
   return (
-    <div className={`rounded-xl border p-4 shadow-sm ${tones[tone]}`}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-grafite dark:text-white">{value}</p>
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{detail}</p>
+    <div className="flex flex-col gap-2 rounded-cartao border border-linha bg-white px-5 py-4 animate-subir motion-reduce:animate-none">
+      <p className="flex items-center gap-2 text-[12.5px] font-semibold text-suave">
+        <span className="h-2 w-2 rounded-full" style={{ background: cor }} />
+        {label}
+      </p>
+      <p className="font-display text-[30px] font-semibold leading-none tracking-[-0.02em] text-grafite">{value}</p>
+      {fracao != null ? <Medidor fracao={Math.min(1, Math.max(0, fracao))} cor={cor} /> : null}
+      <p className="text-xs text-suave">{detail}</p>
     </div>
   );
 }
@@ -1887,7 +1889,7 @@ function PartyNoteField({ partyType, document, label, color }: { partyType: "CED
             disabled={noteQuery.isLoading || save.isPending}
             rows={2}
             placeholder="Observação que vale para todos os títulos desta parte..."
-            className="mt-1 w-full resize-y rounded-lg border border-border-light bg-white px-3 py-2 text-sm text-grafite outline-none transition focus:border-primary disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-white"
+            className="mt-1 w-full resize-y rounded-lg border border-linha bg-white px-3 py-2 text-sm text-grafite outline-none transition focus:border-primary disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-white"
           />
           <p className="mt-0.5 text-[11px] text-gray-400">
             {save.isPending ? "Salvando..." : "Salva automaticamente ao sair do campo · vale para todos os títulos desta parte."}
@@ -1939,7 +1941,7 @@ function CedenteLinkField({ entry }: { entry: PaymentPlaceEntry }) {
           onChange={(e) => setCnpj(e.target.value)}
           placeholder={`CNPJ do cedente (cód. ${entry.clientCode ?? ""})`}
           inputMode="numeric"
-          className="h-8 w-full max-w-[230px] rounded-md border border-border-light px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
+          className="h-8 w-full max-w-[230px] rounded-md border border-linha px-2 text-sm text-grafite outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-white"
         />
         <button
           type="button"
@@ -2038,10 +2040,10 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <div className="space-y-4">
-        <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
+        <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
           <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Partes do título</p>
           <div className="mt-3 space-y-2.5">
-            <div className="space-y-3 rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#612035", background: "#6120350a" }}>
+            <div className="space-y-3 rounded-lg border border-linha p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#612035", background: "#6120350a" }}>
             <div>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#612035" }}>
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#612035" }} />
@@ -2075,7 +2077,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
             </div>
             <PartyNoteField partyType="CEDENTE" document={entry.clientDocument} label="Observação do cedente" color="#612035" />
             </div>
-            <div className="space-y-3 rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#2956E0", background: "#2956E00a" }}>
+            <div className="space-y-3 rounded-lg border border-linha p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#2956E0", background: "#2956E00a" }}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#2956E0" }}>
@@ -2087,7 +2089,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                     type="button"
                     onClick={onEnrichPayerCnpj}
                     disabled={enrichingPayerCnpj}
-                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-linha px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     title="Consultar endereço do sacado pelo CNPJ (CNPJ Já) e recalcular as distâncias"
                   >
                     <Icon name={enrichingPayerCnpj ? "hourglass_empty" : "person_search"} size={14} />
@@ -2123,7 +2125,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
             </div>
             <PartyNoteField partyType="SACADO" document={entry.payerDocument} label="Observação do sacado" color="#2956E0" />
             </div>
-            <div className="rounded-lg border border-border-light p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#D1732C", background: "#D1732C0a" }}>
+            <div className="rounded-lg border border-linha p-3 dark:border-border-dark" style={{ borderLeftWidth: 3, borderLeftColor: "#D1732C", background: "#D1732C0a" }}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D1732C" }}>
@@ -2134,7 +2136,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
                   type="button"
                   onClick={onEnrichAgency}
                   disabled={enriching}
-                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-border-light px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-linha px-2.5 text-[11px] font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                 >
                   <Icon name={enriching ? "hourglass_empty" : "travel_explore"} size={14} />
                   {entry.agencyAddressResolved ? "Atualizar (Bacen)" : "Buscar no Bacen"}
@@ -2148,7 +2150,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
           </div>
         </div>
 
-        <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
+        <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
           <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Dados completos do lançamento</p>
           <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
             <Field label="Título" value={entry.titleNumber} />
@@ -2200,7 +2202,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
             ) : null}
           </div>
         </div>
-        <div className="min-h-[300px] flex-1 overflow-hidden rounded-xl border border-border-light shadow-sm dark:border-border-dark">
+        <div className="min-h-[300px] flex-1 overflow-hidden rounded-xl border border-linha shadow-sm dark:border-border-dark">
           <PaymentPlaceMap
             points={points}
             branches={cedenteBranchMarkers}
@@ -2212,7 +2214,7 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
       </div>
       </div>
 
-      <div className="rounded-xl border border-border-light bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
+      <div className="rounded-xl border border-linha bg-white p-4 shadow-sm dark:border-border-dark dark:bg-background-dark">
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Anexos do título</p>
         <p className="mt-0.5 mb-3 text-[11px] text-gray-400">Comprovante de pagamento, endereço, etc. Arraste, cole ou clique.</p>
         <EntryAttachmentsPanel entryId={entry.id} />
@@ -2221,20 +2223,16 @@ function EntryDetail({ entry, onEnrichAgency, enriching, onEnrichPayerCnpj, enri
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone?: "amber" | "green" | "red" }) {
-  const toneClass =
-    tone === "green"
-      ? "text-emerald-600 dark:text-emerald-300"
-      : tone === "red"
-        ? "text-red-600 dark:text-red-300"
-      : tone === "amber"
-        ? "text-amber-600 dark:text-amber-300"
-        : "text-grafite dark:text-white";
+function Metric({ label, value, tone, atraso = 0 }: { label: string; value: number; tone?: "amber" | "green" | "red"; atraso?: number }) {
+  const toneClass = tone === "green" ? "text-ok" : tone === "red" ? "text-critico" : tone === "amber" ? "text-laranja-texto" : "text-grafite";
 
   return (
-    <div className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-      <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{label}</p>
-      <p className={`mt-2 text-2xl font-bold ${toneClass}`}>{value}</p>
+    <div
+      className="rounded-cartao border border-linha bg-white px-5 py-4 transition-[transform,box-shadow] duration-300 ease-saida hover:-translate-y-0.5 hover:shadow-elevado animate-subir motion-reduce:animate-none motion-reduce:hover:translate-y-0"
+      style={{ animationDelay: `${atraso}ms` }}
+    >
+      <p className="text-[12.5px] font-semibold text-suave">{label}</p>
+      <p className={`mt-1.5 font-display text-[32px] font-semibold leading-none tracking-[-0.02em] ${toneClass}`}>{value.toLocaleString("pt-BR")}</p>
     </div>
   );
 }
@@ -2307,7 +2305,7 @@ const EntryRow = memo(function EntryRow({
                 ? "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/10"
                 : entry.learnedPatternDecision
                   ? "ring-1 ring-inset ring-emerald-200/50 shadow-[inset_0_0_26px_-8px_rgba(16,185,129,0.45)] hover:shadow-[inset_0_0_30px_-6px_rgba(16,185,129,0.55)] dark:ring-emerald-500/20 dark:shadow-[inset_0_0_28px_-8px_rgba(16,185,129,0.35)]"
-                  : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
+                  : "hover:bg-[#FBF7F1]"
         }`}
       >
         {selectMode ? (
@@ -2427,7 +2425,7 @@ const EntryRow = memo(function EntryRow({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); actions.focus(entry.id); actions.expand(entry.id); }}
-            className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-border-light text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+            className="inline-flex h-11 w-11 lg:h-8 lg:w-8 items-center justify-center rounded-lg border border-linha text-gray-500 transition-colors hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
             title="Ver detalhes"
             aria-label="Ver detalhes"
           >

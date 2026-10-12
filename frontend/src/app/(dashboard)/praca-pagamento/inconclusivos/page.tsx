@@ -38,29 +38,30 @@ export default function InconclusivosPage() {
   return (
     <div className="space-y-5 p-1">
       <div>
-        <h1 className="font-sans text-xl font-bold text-primary">Análises inconclusivas</h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-laranja-texto">Praça de Pagamento</p>
+        <h1 className="mt-2 text-3xl font-semibold leading-none tracking-[-0.02em] text-grafite sm:text-4xl">Análises inconclusivas</h1>
+        <p className="mt-3 max-w-3xl text-[15px] text-suave">
           Lançamentos marcados como inconclusivos em qualquer lote. Restaure a qualquer momento para reanalisar.
         </p>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+      <div className="flex flex-wrap items-end gap-3 rounded-cartao border border-linha bg-white p-4">
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">De (data da decisão)</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">De (data da decisão)</span>
           <div className="mt-1 w-[160px]">
             <MonthDatePicker value={from || null} onChange={(v) => { setFrom(v ?? ""); setPage(0); }} />
           </div>
         </label>
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Até</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">Até</span>
           <div className="mt-1 w-[160px]">
             <MonthDatePicker value={to || null} onChange={(v) => { setTo(v ?? ""); setPage(0); }} />
           </div>
         </label>
         {(from || to) ? (
           <button type="button" onClick={() => { setFrom(""); setTo(""); setPage(0); }}
-            className="h-9 rounded-lg border border-border-light px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
+            className="h-9 rounded-lg border border-linha px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
             Limpar
           </button>
         ) : null}
@@ -68,10 +69,10 @@ export default function InconclusivosPage() {
       </div>
 
       {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+      <div className="overflow-hidden rounded-painel border border-linha bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-light text-left text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:border-border-dark">
+            <tr className="border-b border-linha text-left text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73] dark:border-border-dark">
               <th className="px-4 py-3">Título</th>
               <th className="px-4 py-3">Cedente</th>
               <th className="px-4 py-3">Sacado</th>
@@ -87,7 +88,7 @@ export default function InconclusivosPage() {
               <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Nenhum lançamento inconclusivo no período.</td></tr>
             ) : (
               entries.map((e) => (
-                <tr key={e.id} className="border-b border-border-light last:border-0 dark:border-border-dark">
+                <tr key={e.id} className="border-b border-linha last:border-0 dark:border-border-dark">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-grafite dark:text-gray-200">{e.titleNumber ?? "—"}</p>
@@ -110,7 +111,7 @@ export default function InconclusivosPage() {
                       type="button"
                       onClick={() => reopen.mutate(e.id)}
                       disabled={reopen.isPending}
-                      className="inline-flex items-center gap-1 rounded-md border border-border-light px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
+                      className="inline-flex items-center gap-1 rounded-md border border-linha px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5"
                     >
                       <Icon name="restore" size={15} />
                       Restaurar
@@ -127,12 +128,12 @@ export default function InconclusivosPage() {
       {totalPages > 1 ? (
         <div className="flex items-center justify-center gap-3">
           <button type="button" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="rounded-md border border-border-light px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
+            className="rounded-md border border-linha px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
             Anterior
           </button>
           <span className="text-xs text-gray-500">Página {page + 1} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            className="rounded-md border border-border-light px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
+            className="rounded-md border border-linha px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-border-dark dark:text-gray-300 dark:hover:bg-white/5">
             Próxima
           </button>
         </div>
