@@ -21,7 +21,7 @@ import BackfillDialog from "./BackfillDialog";
 import ManualDrawer from "./ManualDrawer";
 import NovaProspeccaoDialog from "./NovaProspeccaoDialog";
 import ProspeccaoColumn from "./ProspeccaoColumn";
-import ProspeccaoModal, { RESPOSTA_DO_DESTINO, type AcaoAberta } from "./ProspeccaoModal";
+import ProspeccaoModal, { RESPOSTA_DO_DESTINO, RESULTADO_DO_DESTINO, type AcaoAberta } from "./ProspeccaoModal";
 import { CardFace } from "./ProspeccaoCard";
 import { acaoPropria, confirmarExclusao, ordenarCards, type Ordenacao } from "./formatters";
 import {
@@ -35,6 +35,7 @@ import {
 import {
   exportarEsteira,
   useAssumirProspeccao,
+  useEnviarComite,
   useEstagios,
   useExcluirProspeccoes,
   useProspeccaoResumo,
@@ -113,6 +114,7 @@ export default function QuadroProspeccao() {
   const { data: transicoes } = useEstagios();
   const transicionar = useTransicionarProspeccao();
   const assumir = useAssumirProspeccao();
+  const enviarComite = useEnviarComite();
   const excluir = useExcluirProspeccoes();
   const ehCelular = useEhCelular();
 
@@ -237,8 +239,21 @@ export default function QuadroProspeccao() {
       return;
     }
     const acao = acaoPropria(card.estagio, destino);
+    if (acao === "comite") {
+      // Enviar ao comitê não pede nada além do clique: convoca os membros direto.
+      enviarComite.mutate({ id: card.id });
+      return;
+    }
     if (acao) {
-      setAcaoInicial(acao === "decidir" ? { tipo: "decidir" } : { tipo: "aceite", resposta: RESPOSTA_DO_DESTINO[destino] ?? "ACEITO" });
+      setAcaoInicial(
+        acao === "decidir"
+          ? { tipo: "decidir" }
+          : acao === "aceite"
+            ? { tipo: "aceite", resposta: RESPOSTA_DO_DESTINO[destino] ?? "ACEITO" }
+            : acao === "resultado"
+              ? { tipo: "resultado", resultado: RESULTADO_DO_DESTINO[destino] ?? "APROVADO" }
+              : { tipo: "contrato" },
+      );
       setArrastesComAcao(n => n + 1);
       abrir(card.id);
       return;

@@ -50,6 +50,12 @@ export function CardFace({
             aguardando comercial
           </span>
         )}
+        {card.estagio === "COMITE" && card.pareceresEsperados > 0 && (
+          <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300" title="Pareceres do comitê nesta rodada">
+            <Icon name="groups" size={13} />
+            {card.pareceresRegistrados}/{card.pareceresEsperados} pareceres
+          </span>
+        )}
         {card.limiteVigente != null && (
           <span className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-300" title="Limite da decisão vigente">
             <Icon name="account_balance_wallet" size={13} />

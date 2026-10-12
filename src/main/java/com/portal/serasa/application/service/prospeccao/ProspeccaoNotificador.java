@@ -47,12 +47,14 @@ public class ProspeccaoNotificador {
     /** O que também vai por e-mail: o que pede ação da pessoa. Comentário genérico fica no sino. */
     static final Set<TipoNotificacao> POR_EMAIL = EnumSet.of(
             TipoNotificacao.CARD_CRIADO, TipoNotificacao.PENDENCIA_ABERTA, TipoNotificacao.PENDENCIA_RESPONDIDA,
-            TipoNotificacao.MENCAO, TipoNotificacao.RESPOSTA_CLIENTE);
+            TipoNotificacao.MENCAO, TipoNotificacao.RESPOSTA_CLIENTE,
+            TipoNotificacao.PARECER_ESPERADO, TipoNotificacao.COMITE_COMPLETO, TipoNotificacao.DECISAO);
 
     private final NotificacaoService notificacaoService;
     private final SseHub hub;
     private final UserRepository userRepository;
     private final ProspeccaoComentarioJpaRepository comentarioRepository;
+    private final com.portal.serasa.infrastructure.persistence.repository.ProspeccaoParecerJpaRepository parecerRepository;
     private final LiberacaoEmail email;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -108,6 +110,40 @@ public class ProspeccaoNotificador {
             };
             novas.add(new Nova(card.getAnalistaId(), TipoNotificacao.RESPOSTA_CLIENTE,
                     empresa + " " + verbo, resumo(card, acontecimento.trecho()), link));
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.ComiteConvocado convocado) {
+            for (UUID membro : convocado.membros()) {
+                novas.add(new Nova(membro, TipoNotificacao.PARECER_ESPERADO,
+                        empresa + " chegou ao comitê: seu parecer é esperado", resumo(card, null), link));
+            }
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.ParecerDado dado) {
+            if (dado.ultimo()) {
+                novas.add(new Nova(card.getAnalistaId(), TipoNotificacao.COMITE_COMPLETO,
+                        "Comitê completo em " + empresa + ": pode registrar o resultado", resumo(card, null), link));
+            }
+            String titulo = autor + (dado.revisao() ? " reviu o parecer em " : " deu parecer em ") + empresa;
+            String posicao = dado.parecer().getPosicao() == null ? null
+                    : ProspeccaoComiteService.rotulo(dado.parecer().getPosicao());
+            novas.add(new Nova(card.getAnalistaId(), TipoNotificacao.PARECER_REGISTRADO, titulo, resumo(card, posicao), link));
+            parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(card.getId(), card.getRodadaComite()).stream()
+                    .map(com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity::getUsuarioId)
+                    .filter(Objects::nonNull)
+                    .forEach(id -> novas.add(new Nova(id, TipoNotificacao.PARECER_REGISTRADO, titulo, resumo(card, posicao), link)));
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.ComiteDecidiu decidiu) {
+            String titulo = switch (decidiu.resultado()) {
+                case APROVADO -> empresa + " aprovada no comitê";
+                case DEVOLVIDO -> empresa + " devolvida pelo comitê para a análise";
+                case REPROVADO -> empresa + " reprovada no comitê";
+            };
+            List<UUID> interessados = new ArrayList<>();
+            interessados.add(card.getAnalistaId());
+            interessados.addAll(decidiu.membros());
+            interessados.stream().filter(Objects::nonNull).distinct()
+                    .forEach(id -> novas.add(new Nova(id, TipoNotificacao.DECISAO, titulo, resumo(card, acontecimento.trecho()), link)));
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.Concluido) {
+            // Fase B: o comercial com acesso fica sabendo que o cliente dele está habilitado.
+            if (card.getComercialId() != null) {
+                novas.add(new Nova(card.getComercialId(), TipoNotificacao.DECISAO, empresa + " habilitada", resumo(card, null), link));
+            }
         } else if (acontecimento instanceof ProspeccaoAcontecimento.Comentado comentado && !comentado.edicao()) {
             for (UUID interessado : interessados(card)) {
                 novas.add(new Nova(interessado, TipoNotificacao.COMENTARIO, autor + " comentou em " + empresa,

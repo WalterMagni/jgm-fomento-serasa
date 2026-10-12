@@ -127,6 +127,17 @@ class EstagioProspeccaoTest {
         assertThat(AGUARDANDO_ACEITE.acaoPropria(EM_ANALISE)).contains("cliente");
         assertThat(EM_ANALISE.acaoPropria(NOVA)).isNull();
         assertThat(EM_ANALISE.acaoPropria(INERTE)).isNull();
-        assertThat(DOCUMENTACAO.acaoPropria(COMITE)).isNull();
+        assertThat(DOCUMENTACAO.acaoPropria(EM_ANALISE)).isNull();
+        assertThat(CONTRATO.acaoPropria(COMITE)).contains("comitê");
+    }
+
+    @Test
+    @DisplayName("comitê e contrato: entrar convoca, sair é resultado, concluir exige contrato")
+    void shouldFlagCommitteeActions() {
+        assertThat(DOCUMENTACAO.acaoPropria(COMITE)).contains("comitê");
+        assertThat(COMITE.acaoPropria(CONTRATO)).contains("resultado");
+        assertThat(COMITE.acaoPropria(EM_ANALISE)).contains("resultado");
+        assertThat(COMITE.acaoPropria(REPROVADO)).contains("resultado");
+        assertThat(CONTRATO.acaoPropria(HABILITADO)).contains("contrato");
     }
 }

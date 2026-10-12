@@ -162,12 +162,12 @@ class ProspeccaoServiceTest {
     }
 
     @Test
-    @DisplayName("transicionar: reprovar sem motivo não passa")
+    @DisplayName("transicionar: inerte sem motivo não passa")
     void shouldRequireReasonToReject() {
-        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
 
         assertThatThrownBy(() -> service.transicionar(
-                card.getId(), EstagioProspeccao.REPROVADO, null, null, analista))
+                card.getId(), EstagioProspeccao.INERTE, null, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining("Motivo é obrigatório");
     }
@@ -175,10 +175,10 @@ class ProspeccaoServiceTest {
     @Test
     @DisplayName("transicionar: motivo OUTRO exige observação, senão vira caixa-preta")
     void shouldRequireNoteWhenReasonIsOther() {
-        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
 
         assertThatThrownBy(() -> service.transicionar(
-                card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.OUTRO, "  ", analista))
+                card.getId(), EstagioProspeccao.INERTE, MotivoRecusa.OUTRO, "  ", analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining("observação");
     }
@@ -236,7 +236,7 @@ class ProspeccaoServiceTest {
                 doc("Curva ABC", true, StatusDocumento.PENDENTE, null),
                 doc("IRPF", true, StatusDocumento.RECEBIDO, "Antonio")));
 
-        assertThatThrownBy(() -> service.transicionar(
+        assertThatThrownBy(() -> service.mover(
                 card.getId(), EstagioProspeccao.COMITE, null, null, analista))
                 .isInstanceOf(DocumentacaoIncompletaException.class)
                 .hasMessageContaining("Curva ABC")
@@ -258,7 +258,7 @@ class ProspeccaoServiceTest {
                 doc("Contrato social", true, StatusDocumento.VALIDADO, null),
                 curvaAbc));
 
-        assertThat(service.transicionar(card.getId(), EstagioProspeccao.COMITE, null, null, analista)
+        assertThat(service.mover(card.getId(), EstagioProspeccao.COMITE, null, null, analista)
                 .getEstagio()).isEqualTo(EstagioProspeccao.COMITE);
     }
 
@@ -271,7 +271,7 @@ class ProspeccaoServiceTest {
                 doc("Certidão simplificada", true, StatusDocumento.NAO_APLICAVEL, null),
                 doc("Balanço", true, StatusDocumento.DISPENSADO, null)));
 
-        ProspeccaoEntity resultado = service.transicionar(
+        ProspeccaoEntity resultado = service.mover(
                 card.getId(), EstagioProspeccao.COMITE, null, null, analista);
 
         assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.COMITE);
@@ -285,7 +285,7 @@ class ProspeccaoServiceTest {
         doSocioQueSaiu.setSocioAtivo(false);
         when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(doSocioQueSaiu));
 
-        assertThat(service.transicionar(card.getId(), EstagioProspeccao.COMITE, null, null, analista)
+        assertThat(service.mover(card.getId(), EstagioProspeccao.COMITE, null, null, analista)
                 .getEstagio()).isEqualTo(EstagioProspeccao.COMITE);
     }
 

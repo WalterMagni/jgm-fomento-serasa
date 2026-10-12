@@ -51,7 +51,11 @@ export type TipoEvento =
   | "ACEITE"
   | "PENDENCIA_ABERTA"
   | "PENDENCIA_RESPONDIDA"
-  | "PENDENCIA_CANCELADA";
+  | "PENDENCIA_CANCELADA"
+  | "COMITE_ENVIADO"
+  | "PARECER"
+  | "COMITE_RESULTADO"
+  | "CONTRATO";
 
 export type Prospeccao = {
   id: string;
@@ -89,6 +93,9 @@ export type Prospeccao = {
   limiteVigente: number | null;
   /** Pendências abertas: o card espera o comercial e o prazo está parado. */
   pendenciasAbertas: number;
+  /** Rodada vigente do comitê: o "2/3" do quadro. */
+  pareceresRegistrados: number;
+  pareceresEsperados: number;
   version: number;
 };
 
@@ -164,6 +171,22 @@ export const ROTULO_CAMPO_COMERCIAL: Record<keyof DadosComerciais, string> = {
   parceirosAtuais: "Parceiros atuais",
   outros: "Outros",
 };
+
+export type PosicaoParecer = "FAVORAVEL" | "COM_RESSALVAS" | "DESFAVORAVEL";
+export type ResultadoComite = "APROVADO" | "DEVOLVIDO" | "REPROVADO";
+
+export type ParecerProspeccao = {
+  id: string;
+  rodada: number;
+  usuarioId: string | null;
+  usuarioNome: string;
+  /** Nulo: convocado, ainda sem parecer. */
+  posicao: PosicaoParecer | null;
+  texto: string | null;
+  registradoEm: string | null;
+};
+
+export type ContratoContato = { nome: string | null; telefone: string | null; email: string | null };
 
 export type ProdutoCatalogo = { id: string; nome: string; ordem: number; ativo: boolean };
 
@@ -268,6 +291,14 @@ export type ProspeccaoDetalhe = {
   aceites: Aceite[];
   pendencias: Pendencia[];
   comentarios: ComentarioProspeccao[];
+  /** Todas as rodadas, da mais nova para a mais antiga. */
+  pareceres: ParecerProspeccao[];
+  rodadaComite: number;
+  contrato: ContratoContato;
+  /** Quem olha foi convocado na rodada vigente. */
+  convocadoNoComite: boolean;
+  /** Quem olha registra o resultado do comitê: dona, admin ou membro do comitê. */
+  podeRegistrarResultado: boolean;
   /** Quem olha é a analista dona ou admin — mesma regra que autoriza no servidor. */
   podeDecidir: boolean;
 };

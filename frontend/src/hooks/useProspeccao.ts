@@ -4,6 +4,9 @@ import {
   Aceite,
   CanalContato,
   Condicao,
+  ContratoContato,
+  PosicaoParecer,
+  ResultadoComite,
   DadosComerciais,
   Decisao,
   ProdutoCatalogo,
@@ -365,6 +368,51 @@ export function useEditarComentarioProspeccao() {
 export function useApagarComentarioProspeccao() {
   return useMutacaoDoCard<{ id: string; comentarioId: string }>(({ id, comentarioId }) =>
     enviarJson(`${API_BASE_URL}/prospeccao/${id}/comentarios/${comentarioId}`, "DELETE", undefined, "Falha ao apagar o comentário"),
+  );
+}
+
+export function useEnviarComite() {
+  return useMutacaoDoCard<{ id: string }>(
+    ({ id }) => enviarJson(`${API_BASE_URL}/prospeccao/${id}/comite`, "POST", undefined, "Falha ao enviar ao comitê"),
+    "Enviado ao comitê — membros convocados",
+  );
+}
+
+export function useRegistrarParecerProspeccao() {
+  return useMutacaoDoCard<{ id: string; posicao: PosicaoParecer; texto?: string }>(
+    ({ id, posicao, texto }) =>
+      enviarJson(`${API_BASE_URL}/prospeccao/${id}/parecer`, "PATCH", { posicao, texto }, "Falha ao registrar o parecer"),
+    "Parecer registrado",
+  );
+}
+
+const TOAST_RESULTADO: Record<ResultadoComite, string> = {
+  APROVADO: "Aprovado no comitê — card segue para o contrato",
+  DEVOLVIDO: "Devolvido para a análise",
+  REPROVADO: "Reprovado no comitê",
+};
+
+export function useResultadoComite() {
+  return useMutacaoDoCard<{ id: string; resultado: ResultadoComite; motivoRecusa?: MotivoRecusa; observacao?: string }>(
+    ({ id, ...corpo }) => enviarJson(`${API_BASE_URL}/prospeccao/${id}/comite/resultado`, "POST", corpo, "Falha ao registrar o resultado"),
+  );
+}
+
+export function toastResultado(resultado: ResultadoComite) {
+  toast.success(TOAST_RESULTADO[resultado]);
+}
+
+export function useSalvarContrato() {
+  return useMutacaoDoCard<{ id: string; contrato: ContratoContato }>(
+    ({ id, contrato }) => enviarJson(`${API_BASE_URL}/prospeccao/${id}/contrato`, "PUT", contrato, "Falha ao salvar o contato"),
+    "Contato do contrato salvo",
+  );
+}
+
+export function useConcluirProspeccao() {
+  return useMutacaoDoCard<{ id: string }>(
+    ({ id }) => enviarJson(`${API_BASE_URL}/prospeccao/${id}/concluir`, "POST", undefined, "Falha ao concluir"),
+    "Cedente habilitado",
   );
 }
 

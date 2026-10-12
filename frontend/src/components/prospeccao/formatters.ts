@@ -115,11 +115,14 @@ export function rotuloAcao(de: EstagioProspeccao, para: EstagioProspeccao) {
  * Passagem que só acontece pela ação própria — decisão ou resposta do cliente. Espelha
  * {@code EstagioProspeccao.acaoPropria} no servidor, que recusa a troca simples nesses casos.
  */
-export type AcaoPropria = "decidir" | "aceite";
+export type AcaoPropria = "decidir" | "aceite" | "comite" | "resultado" | "concluir";
 
 export function acaoPropria(de: EstagioProspeccao, para: EstagioProspeccao): AcaoPropria | null {
   if (de === "EM_ANALISE" && (para === "AGUARDANDO_ACEITE" || para === "REPROVADO")) return "decidir";
   if (de === "AGUARDANDO_ACEITE" && (para === "DOCUMENTACAO" || para === "RECUSADO_CLIENTE" || para === "EM_ANALISE")) return "aceite";
+  if (para === "COMITE") return "comite";
+  if (de === "COMITE") return "resultado";
+  if (de === "CONTRATO" && para === "HABILITADO") return "concluir";
   return null;
 }
 

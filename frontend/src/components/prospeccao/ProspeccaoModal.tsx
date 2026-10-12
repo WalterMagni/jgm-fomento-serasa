@@ -4,15 +4,27 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Dialogo from "@/components/liberacao/Dialogo";
-import { ROTULO_ESTAGIO, ehTerminal, type EstagioProspeccao, type MotivoRecusa, type RespostaCliente } from "@/types/prospeccao";
+import {
+  ROTULO_ESTAGIO,
+  ehTerminal,
+  type EstagioProspeccao,
+  type MotivoRecusa,
+  type RespostaCliente,
+  type ResultadoComite,
+} from "@/types/prospeccao";
+import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import {
   useAssumirProspeccao,
+  useEnviarComite,
   useExcluirProspeccoes,
   useProspeccaoDetalhe,
   useReabrirProspeccao,
   useTransicionarProspeccao,
 } from "@/hooks/useProspeccao";
 import AceiteDialog from "./AceiteDialog";
+import ComiteAba from "./ComiteAba";
+import ContratoAba from "./ContratoAba";
+import ResultadoComiteDialog from "./ResultadoComiteDialog";
 import DadosComerciaisAba from "./DadosComerciaisAba";
 import DecisaoAba from "./DecisaoAba";
 import DecisaoDialog from "./DecisaoDialog";
@@ -26,10 +38,21 @@ import ResumoAba from "./ResumoAba";
 import { TOTAL_CAMPOS_COMERCIAIS, camposPreenchidos } from "./DadosComerciaisForm";
 import { CLASSE_BADGE_SEMAFORO, acaoPropria, confirmarExclusao, ehAvanco, formatCnpj, rotuloAcao, semaforoDe, textoPrazo } from "./formatters";
 
-type Aba = "resumo" | "dados" | "decisao" | "documentos" | "historico";
+type Aba = "resumo" | "dados" | "decisao" | "documentos" | "comite" | "contrato" | "historico";
 
-/** Diálogo de ação própria aberto por cima do card. */
-export type AcaoAberta = { tipo: "decidir" } | { tipo: "aceite"; resposta: RespostaCliente };
+/** Diálogo de ação própria aberto por cima do card, ou a aba onde a ação acontece. */
+export type AcaoAberta =
+  | { tipo: "decidir" }
+  | { tipo: "aceite"; resposta: RespostaCliente }
+  | { tipo: "resultado"; resultado: ResultadoComite }
+  | { tipo: "contrato" };
+
+/** Resultado do comitê que cada destino representa — para o arraste abrir já marcado. */
+export const RESULTADO_DO_DESTINO: Partial<Record<EstagioProspeccao, ResultadoComite>> = {
+  CONTRATO: "APROVADO",
+  EM_ANALISE: "DEVOLVIDO",
+  REPROVADO: "REPROVADO",
+};
 
 /** Resposta do cliente que cada destino do aceite representa — para o arraste abrir já marcado. */
 export const RESPOSTA_DO_DESTINO: Partial<Record<EstagioProspeccao, RespostaCliente>> = {
@@ -73,13 +96,15 @@ export default function ProspeccaoModal({
   const transicionar = useTransicionarProspeccao();
   const reabrir = useReabrirProspeccao();
   const excluir = useExcluirProspeccoes();
-  const [aba, setAba] = useState<Aba>("resumo");
+  const enviarComite = useEnviarComite();
+  const { data: eu } = useUsuarioAtual();
+  const [aba, setAba] = useState<Aba>(acaoInicial?.tipo === "contrato" ? "contrato" : "resumo");
   const [pergunta, setPergunta] = useState<Pergunta | null>(null);
-  const [acao, setAcao] = useState<AcaoAberta | null>(acaoInicial);
+  const [acao, setAcao] = useState<AcaoAberta | null>(acaoInicial?.tipo === "contrato" ? null : acaoInicial);
   const [abrindoPendencia, setAbrindoPendencia] = useState(false);
 
   const card = data?.card;
-  const ocupado = transicionar.isPending || assumir.isPending || reabrir.isPending;
+  const ocupado = transicionar.isPending || assumir.isPending || reabrir.isPending || enviarComite.isPending;
 
   function mover(destino: EstagioProspeccao) {
     if (destino === "REPROVADO" || destino === "INERTE") {
@@ -133,6 +158,47 @@ export default function ProspeccaoModal({
       {pedidoCliente ? "Decidir a contraproposta" : "Decidir"}
     </button>
   );
+  const rodadaVigente = data ? data.pareceres.filter(parecer => parecer.rodada === data.rodadaComite) : [];
+  const faltandoParecer = rodadaVigente.filter(parecer => !parecer.posicao).map(parecer => parecer.usuarioNome);
+  const algumParecer = rodadaVigente.some(parecer => parecer.posicao);
+
+  const botaoEnviarComite = card && (card.estagio === "DOCUMENTACAO" || card.estagio === "CONTRATO") && (
+    <button
+      type="button"
+      onClick={() => enviarComite.mutate({ id: cardId })}
+      disabled={ocupado || !data?.podeDecidir}
+      title={data?.podeDecidir ? "Convoca os membros do comitê numa rodada nova" : "Só a analista dona do card envia ao comitê"}
+      className={card.estagio === "DOCUMENTACAO" ? PRIMARIO : SECUNDARIO}
+    >
+      <Icon name="groups" size={15} />
+      {card.estagio === "DOCUMENTACAO" ? "Enviar ao comitê" : "Voltar para o comitê"}
+    </button>
+  );
+  const botaoResultado = card?.estagio === "COMITE" && (
+    <button
+      type="button"
+      onClick={() => setAcao({ tipo: "resultado", resultado: "APROVADO" })}
+      disabled={ocupado || !data?.podeRegistrarResultado || !algumParecer}
+      title={
+        !data?.podeRegistrarResultado
+          ? "Só a dona do card ou um membro do comitê registra o resultado"
+          : !algumParecer
+            ? "O comitê ainda não deu nenhum parecer"
+            : undefined
+      }
+      className={PRIMARIO}
+    >
+      <Icon name="gavel" size={15} />
+      Registrar resultado
+    </button>
+  );
+  const botaoConcluir = card?.estagio === "CONTRATO" && (
+    <button type="button" onClick={() => setAba("contrato")} disabled={ocupado} className={PRIMARIO}>
+      <Icon name="verified" size={15} />
+      Concluir contrato
+    </button>
+  );
+
   const botaoAceite = card?.estagio === "AGUARDANDO_ACEITE" && (
     <button
       type="button"
@@ -181,6 +247,12 @@ export default function ProspeccaoModal({
     ["dados", "Dados comerciais", preenchidos ? `${preenchidos}/${TOTAL_CAMPOS_COMERCIAIS}` : undefined],
     ["decisao", "Decisão e aceite", data && data.decisoes.length > 0 ? String(data.decisoes.length) : undefined],
     ["documentos", "Documentos", card && card.documentosTotal > 0 ? `${card.documentosResolvidos}/${card.documentosTotal}` : undefined],
+    ...((data && (data.pareceres.length > 0 || card?.estagio === "COMITE")
+      ? [["comite", "Comitê", rodadaVigente.length ? `${rodadaVigente.filter(p => p.posicao).length}/${rodadaVigente.length}` : undefined]]
+      : []) as [Aba, string, string?][]),
+    ...((card && (card.estagio === "CONTRATO" || card.estagio === "HABILITADO" || data?.contrato.nome)
+      ? [["contrato", "Contrato"]]
+      : []) as [Aba, string, string?][]),
     ["historico", "Atividade", data && data.comentarios.length > 0 ? String(data.comentarios.length) : undefined],
   ];
 
@@ -205,6 +277,10 @@ export default function ProspeccaoModal({
                 )}
                 {botaoDecidir}
                 {botaoAceite}
+                {card.estagio === "DOCUMENTACAO" && botaoEnviarComite}
+                {botaoResultado}
+                {botaoConcluir}
+                {card.estagio === "CONTRATO" && botaoEnviarComite}
                 {card.estagio === "EM_ANALISE" && !data.podeDecidir && (
                   <span className="text-[11px] text-slate-400">
                     {card.analistaNome ? `Quem decide é ${card.analistaNome}` : "Assuma para decidir"}
@@ -300,6 +376,20 @@ export default function ProspeccaoModal({
                     />
                   )}
                   {aba === "documentos" && <DocumentChecklist cardId={cardId} documentos={data.documentos} />}
+                  {aba === "comite" && (
+                    <ComiteAba
+                      cardId={cardId}
+                      pareceres={data.pareceres}
+                      rodadaVigente={data.rodadaComite}
+                      noComite={card.estagio === "COMITE"}
+                      convocado={data.convocadoNoComite}
+                      euId={eu?.id}
+                      acao={botaoResultado || (card.estagio === "DOCUMENTACAO" ? botaoEnviarComite : undefined) || undefined}
+                    />
+                  )}
+                  {aba === "contrato" && (
+                    <ContratoAba cardId={cardId} contrato={data.contrato} estagio={card.estagio} podeConcluir={data.podeDecidir} />
+                  )}
                   {aba === "historico" && <ProspeccaoTimeline cardId={cardId} eventos={data.timeline} comentarios={data.comentarios} />}
                 </div>
               </div>
@@ -318,6 +408,15 @@ export default function ProspeccaoModal({
           razaoSocial={card.razaoSocial}
           anterior={vigente}
           pedidoCliente={pedidoCliente}
+          onFechar={() => setAcao(null)}
+        />
+      )}
+      {card && acao?.tipo === "resultado" && (
+        <ResultadoComiteDialog
+          cardId={cardId}
+          razaoSocial={card.razaoSocial}
+          faltando={faltandoParecer}
+          inicial={acao.resultado}
           onFechar={() => setAcao(null)}
         />
       )}

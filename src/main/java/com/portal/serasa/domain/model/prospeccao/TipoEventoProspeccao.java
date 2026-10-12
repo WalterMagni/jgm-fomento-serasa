@@ -24,5 +24,11 @@ public enum TipoEventoProspeccao {
     /** Pedido de informação ou documento ao comercial. Ver V76. */
     PENDENCIA_ABERTA,
     PENDENCIA_RESPONDIDA,
-    PENDENCIA_CANCELADA
+    PENDENCIA_CANCELADA,
+    /** Card entrou no comitê e os membros foram convocados. Ver V77. */
+    COMITE_ENVIADO,
+    PARECER,
+    COMITE_RESULTADO,
+    /** Contato de quem assina o contrato alterado. */
+    CONTRATO
 }

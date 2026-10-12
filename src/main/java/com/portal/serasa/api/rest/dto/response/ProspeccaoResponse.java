@@ -50,5 +50,8 @@ public record ProspeccaoResponse(
         java.math.BigDecimal limiteVigente,
         /** Pendências abertas: o card espera resposta do comercial e o prazo está parado. */
         long pendenciasAbertas,
+        /** Pareceres registrados e esperados na rodada vigente do comitê — o "2/3" do quadro. */
+        int pareceresRegistrados,
+        int pareceresEsperados,
         Long version) {
 }

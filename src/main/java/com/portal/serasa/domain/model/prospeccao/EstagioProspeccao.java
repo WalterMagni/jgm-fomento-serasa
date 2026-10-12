@@ -131,8 +131,9 @@ public enum EstagioProspeccao {
      * estágio não carrega.
      *
      * <p>Sair da análise aprovando ou reprovando é a <b>decisão</b> — limite, condições, parecer.
-     * Sair do aceite é a <b>resposta do cliente</b>, que fica registrada. Arrastar o card não pode
-     * pular esse registro.</p>
+     * Sair do aceite é a <b>resposta do cliente</b>, que fica registrada. Entrar no comitê convoca os
+     * membros; sair dele é o <b>resultado</b>, que exige parecer; concluir exige o contato do
+     * contrato. Arrastar o card não pode pular esses registros.</p>
      *
      * @return o nome da ação que deve ser usada, ou nulo quando a troca simples basta
      */
@@ -142,6 +143,15 @@ public enum EstagioProspeccao {
         }
         if (this == AGUARDANDO_ACEITE && (destino == DOCUMENTACAO || destino == RECUSADO_CLIENTE || destino == EM_ANALISE)) {
             return "a resposta do cliente";
+        }
+        if (destino == COMITE) {
+            return "o envio ao comitê";
+        }
+        if (this == COMITE) {
+            return "o resultado do comitê";
+        }
+        if (this == CONTRATO && destino == HABILITADO) {
+            return "a conclusão do contrato";
         }
         return null;
     }

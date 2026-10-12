@@ -127,6 +127,21 @@ public class ProspeccaoEntity {
     @Builder.Default
     private Integer horasPausadas = 0;
 
+    /** Rodada vigente do comitê. Zero até a primeira entrada. Ver V77. */
+    @Column(name = "rodada_comite", nullable = false)
+    @Builder.Default
+    private Integer rodadaComite = 0;
+
+    /** Quem assina o contrato pelo cliente. Exigido para concluir. Ver V77. */
+    @Column(name = "contrato_contato_nome", length = 200)
+    private String contratoContatoNome;
+
+    @Column(name = "contrato_contato_telefone", length = 40)
+    private String contratoContatoTelefone;
+
+    @Column(name = "contrato_contato_email", length = 200)
+    private String contratoContatoEmail;
+
     /** Trava otimista: a segunda edição concorrente recebe 409. */
     @Version
     private Long version;

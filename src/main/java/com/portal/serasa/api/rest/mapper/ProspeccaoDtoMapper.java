@@ -29,12 +29,15 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
-        return toResponse(card, analistaNome, documentos, null, 0);
+        return toResponse(card, analistaNome, documentos, null, 0, List.of());
     }
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos,
-                                         java.math.BigDecimal limiteVigente, long pendenciasAbertas) {
+                                         java.math.BigDecimal limiteVigente, long pendenciasAbertas,
+                                         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodadaVigente) {
+        List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodada =
+                rodadaVigente == null ? List.of() : rodadaVigente;
         long total = documentos == null ? 0 : documentos.stream()
                 .filter(doc -> !Boolean.TRUE.equals(doc.getInformativoSnapshot()))
                 .filter(doc -> Boolean.TRUE.equals(doc.getSocioAtivo()))
@@ -74,6 +77,8 @@ public class ProspeccaoDtoMapper {
                 .legado(Boolean.TRUE.equals(card.getLegado()))
                 .limiteVigente(limiteVigente)
                 .pendenciasAbertas(pendenciasAbertas)
+                .pareceresRegistrados((int) rodada.stream().filter(p -> p.registrado()).count())
+                .pareceresEsperados(rodada.size())
                 .version(card.getVersion())
                 .build();
     }
@@ -119,6 +124,12 @@ public class ProspeccaoDtoMapper {
             com.portal.serasa.infrastructure.persistence.entity.ProspeccaoComentarioEntity c) {
         return new com.portal.serasa.api.rest.dto.response.ProspeccaoComentarioResponse(
                 c.getId(), c.getAutorId(), c.getAutorNome(), c.getTexto(), c.getCriadoEm(), c.getEditadoEm());
+    }
+
+    public com.portal.serasa.api.rest.dto.response.ProspeccaoParecerResponse toResponse(
+            com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity p) {
+        return new com.portal.serasa.api.rest.dto.response.ProspeccaoParecerResponse(
+                p.getId(), p.getRodada(), p.getUsuarioId(), p.getUsuarioNome(), p.getPosicao(), p.getTexto(), p.getRegistradoEm());
     }
 
     public DadosComerciaisDto toDto(DadosComerciais dados) {

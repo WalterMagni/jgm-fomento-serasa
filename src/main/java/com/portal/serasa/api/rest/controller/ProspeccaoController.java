@@ -91,6 +91,7 @@ public class ProspeccaoController {
     private final com.portal.serasa.infrastructure.persistence.repository.ProdutoCatalogoJpaRepository produtoRepository;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoPendenciaService pendenciaService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoComentarioService comentarioService;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoComiteService comiteService;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final UserRepository userRepository;
@@ -167,6 +168,10 @@ public class ProspeccaoController {
     @GetMapping("/{id}")
     public ResponseEntity<ProspeccaoDetalheResponse> detalhe(@PathVariable UUID id) {
         ProspeccaoEntity card = prospeccaoService.buscar(id);
+        UserEntity eu = usuarioAutenticado();
+        var pareceres = comiteService.pareceres(id);
+        boolean convocado = card.getEstagio() == EstagioProspeccao.COMITE && eu != null && pareceres.stream()
+                .anyMatch(p -> p.getRodada().equals(card.getRodadaComite()) && eu.getId().equals(p.getUsuarioId()));
         return ResponseEntity.ok(ProspeccaoDetalheResponse.builder()
                 .card(toResponse(card))
                 .dadosComerciais(mapper.toDto(card.getDadosComerciais()))
@@ -179,7 +184,13 @@ public class ProspeccaoController {
                 .aceites(decisaoService.aceites(id).stream().map(mapper::toResponse).toList())
                 .pendencias(pendenciaService.listar(id).stream().map(mapper::toResponse).toList())
                 .comentarios(comentarioService.listar(id).stream().map(mapper::toResponse).toList())
-                .podeDecidir(autorizacao.ehDona(card, usuarioAutenticado()))
+                .pareceres(pareceres.stream().map(mapper::toResponse).toList())
+                .rodadaComite(card.getRodadaComite() == null ? 0 : card.getRodadaComite())
+                .contrato(new ProspeccaoDetalheResponse.Contrato(card.getContratoContatoNome(),
+                        card.getContratoContatoTelefone(), card.getContratoContatoEmail()))
+                .convocadoNoComite(convocado)
+                .podeRegistrarResultado(autorizacao.ehDona(card, eu) || (eu != null && eu.isComite()))
+                .podeDecidir(autorizacao.ehDona(card, eu))
                 .build());
     }
 
@@ -258,6 +269,45 @@ public class ProspeccaoController {
     public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoPendenciaResponse> cancelarPendencia(
             @PathVariable UUID pendenciaId) {
         return ResponseEntity.ok(mapper.toResponse(pendenciaService.cancelar(pendenciaId, usuarioAutenticado())));
+    }
+
+    // ------------------------------------------------------- comitê e contrato
+
+    /** Leva ao comitê numa rodada nova e convoca os membros. Só a dona do card. */
+    @PostMapping("/{id}/comite")
+    public ResponseEntity<ProspeccaoResponse> enviarAoComite(@PathVariable UUID id) {
+        return ResponseEntity.ok(toResponse(comiteService.enviar(id, usuarioAutenticado())));
+    }
+
+    @PatchMapping("/{id}/parecer")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoParecerResponse> registrarParecer(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoParecerRequest request) {
+        var registrado = comiteService.registrarParecer(id, request.posicao(), request.texto(), usuarioAutenticado());
+        return ResponseEntity.ok(mapper.toResponse(registrado.parecer()));
+    }
+
+    @PostMapping("/{id}/comite/resultado")
+    public ResponseEntity<ProspeccaoResponse> resultadoDoComite(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoResultadoComiteRequest request) {
+        comiteService.registrarResultado(id, request.resultado(), request.motivoRecusa(), request.observacao(), usuarioAutenticado());
+        return ResponseEntity.ok(toResponse(prospeccaoService.buscar(id)));
+    }
+
+    @PutMapping("/{id}/contrato")
+    public ResponseEntity<ProspeccaoDetalheResponse.Contrato> salvarContrato(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoContratoRequest request) {
+        ProspeccaoEntity card = comiteService.salvarContrato(id, request.nome(), request.telefone(), request.email(), usuarioAutenticado());
+        return ResponseEntity.ok(new ProspeccaoDetalheResponse.Contrato(card.getContratoContatoNome(),
+                card.getContratoContatoTelefone(), card.getContratoContatoEmail()));
+    }
+
+    /** Conclui em HABILITADO. Exige o contato do contrato. Só a dona do card. */
+    @PostMapping("/{id}/concluir")
+    public ResponseEntity<ProspeccaoResponse> concluir(@PathVariable UUID id) {
+        return ResponseEntity.ok(toResponse(comiteService.concluir(id, usuarioAutenticado())));
     }
 
     // ------------------------------------------------------------ comentários
@@ -654,11 +704,12 @@ public class ProspeccaoController {
         return mapper.toResponse(card, nomeDoUsuario(card.getAnalistaId()),
                 documentoService.listar(card.getId()),
                 decisaoService.limitesVigentes(List.of(card.getId())).get(card.getId()),
-                pendenciaService.abertasPorCard(List.of(card.getId())).getOrDefault(card.getId(), 0L));
+                pendenciaService.abertasPorCard(List.of(card.getId())).getOrDefault(card.getId(), 0L),
+                comiteService.rodadaVigente(List.of(card.getId())).getOrDefault(card.getId(), List.of()));
     }
 
     /**
-     * Converte a lista inteira com cinco consultas fixas, em vez de quatro por card.
+     * Converte a lista inteira com seis consultas fixas, em vez de cinco por card.
      *
      * <p>O kanban abre com dezenas de cards e cada um mostra o progresso do checklist e o nome do
      * analista. Resolver card a card seria N+1 — a mesma conta que já custou uma correção de
@@ -673,6 +724,7 @@ public class ProspeccaoController {
                 documentoService.listarPorCards(ids);
         Map<UUID, java.math.BigDecimal> limites = decisaoService.limitesVigentes(ids);
         Map<UUID, Long> pendencias = pendenciaService.abertasPorCard(ids);
+        var rodadas = comiteService.rodadaVigente(ids);
 
         List<UUID> analistas = cards.stream()
                 .map(ProspeccaoEntity::getAnalistaId)
@@ -689,7 +741,8 @@ public class ProspeccaoController {
                         card.getAnalistaId() == null ? null : nomes.get(card.getAnalistaId()),
                         documentosPorCard.getOrDefault(card.getId(), List.of()),
                         limites.get(card.getId()),
-                        pendencias.getOrDefault(card.getId(), 0L)))
+                        pendencias.getOrDefault(card.getId(), 0L),
+                        rodadas.getOrDefault(card.getId(), List.of())))
                 .toList();
     }
 

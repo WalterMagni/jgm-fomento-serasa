@@ -42,12 +42,17 @@ const ICONE_EVENTO: Record<TipoEvento, string> = {
   PENDENCIA_ABERTA: "hourglass_top",
   PENDENCIA_RESPONDIDA: "reply",
   PENDENCIA_CANCELADA: "cancel",
+  COMITE_ENVIADO: "groups",
+  PARECER: "gavel",
+  COMITE_RESULTADO: "fact_check",
+  CONTRATO: "contract",
 };
 
 const TITULO_EVENTO: Partial<Record<TipoEvento, string>> = {
   PENDENCIA_ABERTA: "Pendência aberta",
   PENDENCIA_RESPONDIDA: "Pendência respondida",
   PENDENCIA_CANCELADA: "Pendência cancelada",
+  COMITE_ENVIADO: "Enviado ao comitê",
 };
 
 /**

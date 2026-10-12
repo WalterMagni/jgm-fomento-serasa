@@ -50,6 +50,23 @@ public sealed interface ProspeccaoAcontecimento {
                      String trecho) implements ProspeccaoAcontecimento {
     }
 
+    /** Card entrou no comitê: cada membro foi convocado a dar parecer. */
+    record ComiteConvocado(ProspeccaoEntity card, java.util.List<UUID> membros, UserEntity autor) implements ProspeccaoAcontecimento {
+    }
+
+    /** Parecer registrado ou revisto. {@code ultimo}: completou a rodada. */
+    record ParecerDado(ProspeccaoEntity card, com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity parecer,
+                       boolean ultimo, boolean revisao, UserEntity autor, Set<UUID> mencionados, String trecho)
+            implements ProspeccaoAcontecimento {
+    }
+
+    record ComiteDecidiu(ProspeccaoEntity card, com.portal.serasa.domain.model.prospeccao.ResultadoComite resultado,
+                         java.util.List<UUID> membros, UserEntity autor, String trecho) implements ProspeccaoAcontecimento {
+    }
+
+    record Concluido(ProspeccaoEntity card, UserEntity autor) implements ProspeccaoAcontecimento {
+    }
+
     /** Mudou algo que não pede aviso a ninguém, mas o quadro dos outros precisa atualizar. */
     record Alterado(ProspeccaoEntity card, UserEntity autor) implements ProspeccaoAcontecimento {
     }

@@ -21,6 +21,17 @@ public record ProspeccaoDetalheResponse(
         /** Da mais nova para a mais antiga. */
         List<ProspeccaoPendenciaResponse> pendencias,
         List<ProspeccaoComentarioResponse> comentarios,
+        /** Todas as rodadas, da mais nova para a mais antiga. */
+        List<ProspeccaoParecerResponse> pareceres,
+        int rodadaComite,
+        Contrato contrato,
+        /** Quem olha foi convocado na rodada vigente: a tela mostra o formulário de parecer. */
+        boolean convocadoNoComite,
+        /** Quem olha pode registrar o resultado do comitê: dona, admin ou membro do comitê. */
+        boolean podeRegistrarResultado,
         /** Quem está olhando pode decidir: é a analista dona ou admin. Calculado pela mesma regra que autoriza. */
         boolean podeDecidir) {
+
+    public record Contrato(String nome, String telefone, String email) {
+    }
 }

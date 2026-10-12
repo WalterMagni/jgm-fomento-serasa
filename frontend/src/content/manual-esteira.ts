@@ -113,8 +113,28 @@ edita ou apaga o próprio comentário.
 **Cobrar o cliente.** Na mesma coluna, escolha **E-mail** ou **WhatsApp**, escreva o que foi
 cobrado e registre. Registrar a cobrança **zera o contador de silêncio**.
 
+**Comitê.** Com a documentação completa, a dona do card clica em **Enviar ao comitê** (ou
+arrasta o card para a coluna). Todos os usuários marcados como *Comitê* em Configurações são
+convocados numa **rodada**, e cada um recebe aviso. Quem foi convocado abre o card, aba
+**Comitê**, escolhe **Favorável**, **Com ressalvas** ou **Desfavorável** e, se quiser, comenta —
+dá para rever o próprio parecer enquanto o card estiver no comitê. Com ao menos um parecer, a
+dona ou um membro do comitê clica em **Registrar resultado**:
+
+| Resultado | O que acontece |
+|---|---|
+| **Aprovar** | O card segue para Contrato. |
+| **Devolver** | Volta para Em análise; a analista decide de novo e o card refaz o caminho. |
+| **Reprovar** | Encerra, com motivo da lista. |
+
+Quem não deu parecer fica dito no histórico. Voltar do Contrato para o Comitê abre rodada nova.
+
+**Contrato.** Na aba **Contrato**, preencha nome, telefone e e-mail de quem assina pelo cliente e
+salve. Com os três preenchidos, a dona clica em **Concluir: habilitado** — o card sai da esteira
+e as operações do cedente seguem na esteira de liberação.
+
 **Avisos.** O sino avisa a dona do card quando uma pendência é respondida e quando o cliente
-responde à proposta; as analistas recebem aviso de prospecção aberta à mão (as que entram pela
+responde à proposta; os membros do comitê são avisados quando o card chega para parecer, e a dona
+quando o comitê completa a rodada e quando sai o resultado; as analistas recebem aviso de prospecção aberta à mão (as que entram pela
 visão cedente não avisam, porque chegam em lote). O e-mail segue a mesma preferência da esteira de
 liberação, em *Configurações*.
 
@@ -217,19 +237,13 @@ cedente** depois de apagado.
 **Mesma empresa duas vezes.** Não dá: só existe um card aberto por CNPJ. Quando o card
 chega a um desfecho, o CNPJ é liberado para um card novo.
 
-**Quem pode o quê.** Todo mundo que entra no portal opera a esteira inteira. Toda ação
-fica registrada no histórico com autor e data. A exceção é o catálogo de documentos, que
-só o administrador altera.
+**Quem pode o quê.** Todo mundo que entra no portal abre card, anexa documento, edita dados
+comerciais, comenta, responde pendência e registra a resposta do cliente. Algumas ações são da
+**analista dona do card** (quem assumiu) ou do administrador: decidir, abrir pendência, enviar ao
+comitê e concluir o contrato. O **parecer** é de quem foi convocado ao comitê, e o **resultado do
+comitê** é da dona ou de um membro do comitê. Os catálogos (documentos e produtos) só o
+administrador altera. Toda ação fica registrada no histórico com autor e data.
 
 **Anexo não sobe.** Se a mensagem falar em compartilhamento indisponível, a pasta de rede
 não está acessível — o mesmo problema que afeta a pasta de documentos da empresa.
-
----
-
-## O que vem a seguir
-
-A esteira unificada está entrando por partes. Nas próximas:
-
-- **comitê com pareceres**: cada membro dá a posição dele, como na esteira de liberação;
-- **contrato**: contato de quem assina e conclusão do card.
 `;
