@@ -48,6 +48,11 @@ cnpja:
     authorization: ${CNPJA_API_KEY:}
 
 app:
+  documentos:
+    # Raiz do compartilhamento de documentos como aparece no Windows, para a tela mostrar e copiar
+    # o caminho do arquivo. Ex.: \\SRVGinfo\FM\Cadastro e Comercial\CLIENTES. Vazio: mostra a
+    # partir de CLIENTES.
+    caminho-rede: ${DOCUMENTOS_CAMINHO_REDE:}
   client:
     import:
       default-path: ${CLIENT_CSV_PATH:clientes.csv}

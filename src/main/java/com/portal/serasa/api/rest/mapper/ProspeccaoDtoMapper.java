@@ -27,6 +27,14 @@ public class ProspeccaoDtoMapper {
 
     private final ProspeccaoService prospeccaoService;
 
+    /**
+     * Raiz do compartilhamento como as pessoas veem no Windows, ex.:
+     * {@code \\SRVGinfo\FM\Cadastro e Comercial\CLIENTES}. Vazio: o caminho é mostrado a partir
+     * de {@code CLIENTES}. O caminho real dentro do container nunca vai para a tela.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.documentos.caminho-rede:}")
+    private String caminhoRede;
+
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
         return toResponse(card, analistaNome, documentos, null, 0, List.of(), List.of());
@@ -140,6 +148,15 @@ public class ProspeccaoDtoMapper {
                 p.getId(), p.getRodada(), p.getUsuarioId(), p.getUsuarioNome(), p.getPosicao(), p.getTexto(), p.getRegistradoEm());
     }
 
+    /** Relativo da base → caminho de Windows, com a raiz de rede quando configurada. */
+    String caminhoVisivel(String relativo) {
+        if (relativo == null) {
+            return null;
+        }
+        String raiz = caminhoRede == null || caminhoRede.isBlank() ? "CLIENTES" : caminhoRede.replaceAll("[\\\\/]+$", "");
+        return raiz + "\\" + relativo.replace('/', '\\');
+    }
+
     public DadosComerciaisDto toDto(DadosComerciais dados) {
         DadosComerciais d = dados != null ? dados : new DadosComerciais();
         return new DadosComerciaisDto(
@@ -176,12 +193,15 @@ public class ProspeccaoDtoMapper {
     }
 
     public ProspeccaoDocumentoResponse toResponse(ProspeccaoDocumentoEntity documento,
-                                                  Map<UUID, List<ProspeccaoArquivoEntity>> arquivosPorDocumento) {
+                                                  Map<UUID, List<ProspeccaoArquivoEntity>> arquivosPorDocumento,
+                                                  String cnpj) {
         List<ProspeccaoArquivoResponse> arquivos =
                 arquivosPorDocumento.getOrDefault(documento.getId(), List.of()).stream()
                         .map(this::toResponse)
                         .toList();
         return ProspeccaoDocumentoResponse.builder()
+                .pasta(cnpj == null ? null : caminhoVisivel(
+                        com.portal.serasa.application.service.prospeccao.ProspeccaoArquivoService.pastaDoDocumento(cnpj, documento)))
                 .id(documento.getId())
                 .codigo(documento.getCodigoSnapshot())
                 .nome(documento.getNomeSnapshot())
@@ -206,6 +226,7 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoArquivoResponse toResponse(ProspeccaoArquivoEntity arquivo) {
         return ProspeccaoArquivoResponse.builder()
+                .caminho(caminhoVisivel(arquivo.getCaminhoRelativo()))
                 .id(arquivo.getId())
                 .documentoId(arquivo.getDocumentoId())
                 .nomeOriginal(arquivo.getNomeOriginal())

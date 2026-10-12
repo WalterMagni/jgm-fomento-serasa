@@ -686,6 +686,48 @@ export async function baixarArquivo(arquivo: ProspeccaoArquivo) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Abre o arquivo numa aba nova quando o navegador sabe mostrar (PDF, imagem, texto); os demais
+ * tipos são baixados.
+ *
+ * <p>A aba é aberta antes do download, ainda no clique: aberta depois de um await, o bloqueador
+ * de pop-up do navegador a barraria. O endereço é um blob local, então o token nunca vai na URL.</p>
+ */
+export async function abrirArquivo(arquivo: ProspeccaoArquivo) {
+  // Word, Excel e CSV o navegador não mostra: abrir aba deixaria uma página em branco.
+  const mime = (arquivo.mimeType ?? "").toLowerCase();
+  const visivel = mime === "application/pdf" || mime.startsWith("image/") || mime === "text/plain";
+  if (!visivel) {
+    await baixarArquivo(arquivo);
+    return;
+  }
+  const aba = window.open("", "_blank");
+  const res = await fetch(`${API_BASE_URL}/prospeccao/arquivos/${arquivo.id}`, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    aba?.close();
+    toast.error(await extractErrorMessage(res, "Falha ao abrir o arquivo"));
+    return;
+  }
+  const blob = await res.blob();
+  const tipo = arquivo.mimeType ?? blob.type;
+  const url = URL.createObjectURL(tipo ? new Blob([blob], { type: tipo }) : blob);
+  if (aba) aba.location.href = url;
+  else window.location.assign(url);
+  // Dá tempo de a aba carregar antes de soltar o blob.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Copia o caminho do arquivo ou da pasta, para colar no Explorer. */
+export async function copiarCaminho(caminho: string | null | undefined) {
+  if (!caminho) return;
+  try {
+    await navigator.clipboard.writeText(caminho);
+    toast.success("Caminho copiado — cole no Explorer");
+  } catch {
+    toast.error("Não foi possível copiar o caminho");
+  }
+}
+
 export type ConteudoExport = "CARDS" | "DOCUMENTOS" | "EVENTOS";
 
 /**

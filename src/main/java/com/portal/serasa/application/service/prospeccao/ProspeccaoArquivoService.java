@@ -221,15 +221,20 @@ public class ProspeccaoArquivoService {
      */
     private String caminhoRelativo(ProspeccaoEntity card, ProspeccaoDocumentoEntity documento,
                                    MultipartFile file, int versao) {
+        return pastaDoDocumento(card.getCnpj(), documento) + "/v" + versao + "-" + nomeSanitizado(file);
+    }
+
+    /**
+     * Pasta do item do checklist, relativa à base: {@code {cnpj}/esteira/{categoria}/{codigo}}.
+     *
+     * <p>Pública para a tela mostrar onde o arquivo daquele item fica — inclusive quando ainda não
+     * há arquivo, como no item validado sem anexo.</p>
+     */
+    public static String pastaDoDocumento(String cnpj, ProspeccaoDocumentoEntity documento) {
         String categoria = documento.getEscopo() == EscopoDocumento.SOCIO
                 ? "socio-" + slug(documento.getSocioNome())
                 : "empresa";
-        return String.join("/",
-                card.getCnpj(),
-                "esteira",
-                categoria,
-                slug(documento.getCodigoSnapshot()),
-                "v" + versao + "-" + nomeSanitizado(file));
+        return String.join("/", cnpj, "esteira", categoria, slug(documento.getCodigoSnapshot()));
     }
 
     /**

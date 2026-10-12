@@ -513,7 +513,8 @@ public class ProspeccaoController {
 
         ProspeccaoDocumentoEntity documento = documentoService.atualizarStatus(
                 documentoId, request.status(), request.observacao(), request.motivo(), autor);
-        return ResponseEntity.ok(mapper.toResponse(documento, arquivosPorDocumento(documento.getProspeccaoId())));
+        return ResponseEntity.ok(mapper.toResponse(documento, arquivosPorDocumento(documento.getProspeccaoId()),
+                prospeccaoService.buscar(documento.getProspeccaoId()).getCnpj()));
     }
 
     /**
@@ -792,8 +793,9 @@ public class ProspeccaoController {
 
     private List<ProspeccaoDocumentoResponse> documentos(UUID prospeccaoId) {
         Map<UUID, List<ProspeccaoArquivoEntity>> arquivos = arquivosPorDocumento(prospeccaoId);
+        String cnpj = prospeccaoService.buscar(prospeccaoId).getCnpj();
         return documentoService.listar(prospeccaoId).stream()
-                .map(documento -> mapper.toResponse(documento, arquivos))
+                .map(documento -> mapper.toResponse(documento, arquivos, cnpj))
                 .toList();
     }
 
