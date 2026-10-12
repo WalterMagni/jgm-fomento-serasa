@@ -50,6 +50,7 @@ class ProspeccaoDecisaoServiceTest {
     @Mock private ProspeccaoDecisaoJpaRepository decisaoRepository;
     @Mock private ProspeccaoDecisaoCondicaoJpaRepository condicaoRepository;
     @Mock private ProspeccaoAceiteJpaRepository aceiteRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher acontecimentos;
 
     private final ProspeccaoAutorizacao autorizacao = new ProspeccaoAutorizacao();
     private ProspeccaoDecisaoService service;
@@ -58,7 +59,7 @@ class ProspeccaoDecisaoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ProspeccaoDecisaoService(prospeccaoService, autorizacao, decisaoRepository, condicaoRepository, aceiteRepository);
+        service = new ProspeccaoDecisaoService(prospeccaoService, autorizacao, decisaoRepository, condicaoRepository, aceiteRepository, acontecimentos);
         dona = UserEntity.builder().id(UUID.randomUUID()).name("Andressa").role("ROLE_USER").build();
         outra = UserEntity.builder().id(UUID.randomUUID()).name("Mychelly").role("ROLE_USER").build();
         when(decisaoRepository.save(any())).thenAnswer(inv -> {

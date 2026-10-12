@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { CAMPO, ROTULO } from "@/components/liberacao/Dialogo";
 import type { DadosComerciais } from "@/types/prospeccao";
 import InputMoeda from "./InputMoeda";
@@ -14,40 +15,54 @@ export default function DadosComerciaisForm({
   valor,
   onMudar,
   desabilitado = false,
+  exigidos,
 }: {
   valor: DadosComerciais;
   onMudar: (proximo: DadosComerciais) => void;
   desabilitado?: boolean;
+  /** Campos pedidos por pendência aberta: aparecem com asterisco. */
+  exigidos?: Set<string>;
 }) {
   function campo<K extends keyof DadosComerciais>(chave: K, novo: DadosComerciais[K]) {
     onMudar({ ...valor, [chave]: novo });
   }
 
+  /** Rótulo com asterisco quando uma pendência aberta pede o campo. */
+  function r(texto: string, chave: keyof DadosComerciais): React.ReactNode {
+    return exigidos?.has(chave) ? (
+      <>
+        {texto} <span className="font-semibold text-[#D1732C]" title="Pedido em pendência aberta">*</span>
+      </>
+    ) : (
+      texto
+    );
+  }
+
   return (
     <div className="space-y-5">
       <Grupo titulo="Volume">
-        <Moeda rotulo="Faturamento mensal" valor={valor.faturamentoMensal} onMudar={v => campo("faturamentoMensal", v)} desabilitado={desabilitado} />
-        <Moeda rotulo="Ticket médio" valor={valor.ticketMedio} onMudar={v => campo("ticketMedio", v)} desabilitado={desabilitado} />
-        <Moeda rotulo="Valor médio das operações" valor={valor.valorMedioOperacoes} onMudar={v => campo("valorMedioOperacoes", v)} desabilitado={desabilitado} />
+        <Moeda rotulo={r("Faturamento mensal", "faturamentoMensal")} valor={valor.faturamentoMensal} onMudar={v => campo("faturamentoMensal", v)} desabilitado={desabilitado} />
+        <Moeda rotulo={r("Ticket médio", "ticketMedio")} valor={valor.ticketMedio} onMudar={v => campo("ticketMedio", v)} desabilitado={desabilitado} />
+        <Moeda rotulo={r("Valor médio das operações", "valorMedioOperacoes")} valor={valor.valorMedioOperacoes} onMudar={v => campo("valorMedioOperacoes", v)} desabilitado={desabilitado} />
       </Grupo>
 
       <Grupo titulo="Prazos médios (dias)">
-        <Dias rotulo="Vendas" valor={valor.prazoMedioVendas} onMudar={v => campo("prazoMedioVendas", v)} desabilitado={desabilitado} />
-        <Dias rotulo="Pagamento a fornecedor" valor={valor.prazoMedioPgtoFornecedor} onMudar={v => campo("prazoMedioPgtoFornecedor", v)} desabilitado={desabilitado} />
-        <Dias rotulo="Entrega" valor={valor.prazoMedioEntrega} onMudar={v => campo("prazoMedioEntrega", v)} desabilitado={desabilitado} />
-        <Dias rotulo="Guarda canhotos há" valor={valor.possuiCanhotosDias} onMudar={v => campo("possuiCanhotosDias", v)} desabilitado={desabilitado} />
+        <Dias rotulo={r("Vendas", "prazoMedioVendas")} valor={valor.prazoMedioVendas} onMudar={v => campo("prazoMedioVendas", v)} desabilitado={desabilitado} />
+        <Dias rotulo={r("Pagamento a fornecedor", "prazoMedioPgtoFornecedor")} valor={valor.prazoMedioPgtoFornecedor} onMudar={v => campo("prazoMedioPgtoFornecedor", v)} desabilitado={desabilitado} />
+        <Dias rotulo={r("Entrega", "prazoMedioEntrega")} valor={valor.prazoMedioEntrega} onMudar={v => campo("prazoMedioEntrega", v)} desabilitado={desabilitado} />
+        <Dias rotulo={r("Guarda canhotos há", "possuiCanhotosDias")} valor={valor.possuiCanhotosDias} onMudar={v => campo("possuiCanhotosDias", v)} desabilitado={desabilitado} />
       </Grupo>
 
       <Grupo titulo="Como opera">
-        <SimNao rotulo="Mercadoria entregue" valor={valor.operaMercadoriaEntregue} onMudar={v => campo("operaMercadoriaEntregue", v)} desabilitado={desabilitado} />
-        <SimNao rotulo="Mercadoria embarcada" valor={valor.operaMercadoriaEmbarcada} onMudar={v => campo("operaMercadoriaEmbarcada", v)} desabilitado={desabilitado} />
+        <SimNao rotulo={r("Mercadoria entregue", "operaMercadoriaEntregue")} valor={valor.operaMercadoriaEntregue} onMudar={v => campo("operaMercadoriaEntregue", v)} desabilitado={desabilitado} />
+        <SimNao rotulo={r("Mercadoria embarcada", "operaMercadoriaEmbarcada")} valor={valor.operaMercadoriaEmbarcada} onMudar={v => campo("operaMercadoriaEmbarcada", v)} desabilitado={desabilitado} />
       </Grupo>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Texto rotulo="Região de atendimento" valor={valor.regiaoAtendimento} onMudar={v => campo("regiaoAtendimento", v)} desabilitado={desabilitado} />
-        <Texto rotulo="Opera com quais produtos?" valor={valor.produtos} onMudar={v => campo("produtos", v)} desabilitado={desabilitado} />
-        <Texto rotulo="Parceiros atuais" valor={valor.parceirosAtuais} onMudar={v => campo("parceirosAtuais", v)} desabilitado={desabilitado} />
-        <Texto rotulo="Outros" valor={valor.outros} onMudar={v => campo("outros", v)} desabilitado={desabilitado} />
+        <Texto rotulo={r("Região de atendimento", "regiaoAtendimento")} valor={valor.regiaoAtendimento} onMudar={v => campo("regiaoAtendimento", v)} desabilitado={desabilitado} />
+        <Texto rotulo={r("Opera com quais produtos?", "produtos")} valor={valor.produtos} onMudar={v => campo("produtos", v)} desabilitado={desabilitado} />
+        <Texto rotulo={r("Parceiros atuais", "parceirosAtuais")} valor={valor.parceirosAtuais} onMudar={v => campo("parceirosAtuais", v)} desabilitado={desabilitado} />
+        <Texto rotulo={r("Outros", "outros")} valor={valor.outros} onMudar={v => campo("outros", v)} desabilitado={desabilitado} />
       </div>
     </div>
   );
@@ -72,7 +87,7 @@ function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode
 
 /** Valor em reais com rótulo. */
 function Moeda({ rotulo, valor, onMudar, desabilitado }: {
-  rotulo: string;
+  rotulo: React.ReactNode;
   valor: number | null;
   onMudar: (v: number | null) => void;
   desabilitado: boolean;
@@ -86,7 +101,7 @@ function Moeda({ rotulo, valor, onMudar, desabilitado }: {
 }
 
 function Dias({ rotulo, valor, onMudar, desabilitado }: {
-  rotulo: string;
+  rotulo: React.ReactNode;
   valor: number | null;
   onMudar: (v: number | null) => void;
   desabilitado: boolean;
@@ -113,16 +128,17 @@ function Dias({ rotulo, valor, onMudar, desabilitado }: {
 
 /** Três estados: sim, não e não informado — "não" respondido é diferente de não perguntado. */
 function SimNao({ rotulo, valor, onMudar, desabilitado }: {
-  rotulo: string;
+  rotulo: React.ReactNode;
   valor: boolean | null;
   onMudar: (v: boolean | null) => void;
   desabilitado: boolean;
 }) {
   const opcoes: [boolean | null, string][] = [[true, "Sim"], [false, "Não"], [null, "—"]];
+  const id = useId();
   return (
     <div>
-      <span className={ROTULO}>{rotulo}</span>
-      <div role="radiogroup" aria-label={rotulo} className="inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-slate-700">
+      <span id={id} className={ROTULO}>{rotulo}</span>
+      <div role="radiogroup" aria-labelledby={id} className="inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-slate-700">
         {opcoes.map(([opcao, texto]) => (
           <button
             key={texto}
@@ -147,7 +163,7 @@ function SimNao({ rotulo, valor, onMudar, desabilitado }: {
 }
 
 function Texto({ rotulo, valor, onMudar, desabilitado }: {
-  rotulo: string;
+  rotulo: React.ReactNode;
   valor: string | null;
   onMudar: (v: string | null) => void;
   desabilitado: boolean;

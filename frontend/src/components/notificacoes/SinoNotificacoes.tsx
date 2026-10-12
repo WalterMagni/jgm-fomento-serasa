@@ -20,6 +20,7 @@ const VISUAL: Record<TipoNotificacao, { icone: string; cor: string }> = {
   MENCAO: { icone: "alternate_email", cor: "bg-[#2956E0]/10 text-[#2956E0] dark:bg-[#2956E0]/30 dark:text-[#b8caff]" },
   COMENTARIO: { icone: "chat", cor: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200" },
   DECISAO: { icone: "fact_check", cor: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
+  RESPOSTA_CLIENTE: { icone: "handshake", cor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
 };
 
 function Interruptor({

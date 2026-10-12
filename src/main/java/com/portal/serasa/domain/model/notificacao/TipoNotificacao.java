@@ -10,5 +10,7 @@ public enum TipoNotificacao {
     PENDENCIA_RESPONDIDA,
     MENCAO,
     COMENTARIO,
-    DECISAO
+    DECISAO,
+    /** Esteira de prospecção: o cliente respondeu à proposta. */
+    RESPOSTA_CLIENTE
 }

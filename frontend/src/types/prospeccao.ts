@@ -48,7 +48,10 @@ export type TipoEvento =
   | "REABERTURA"
   | "DADOS_COMERCIAIS"
   | "DECISAO"
-  | "ACEITE";
+  | "ACEITE"
+  | "PENDENCIA_ABERTA"
+  | "PENDENCIA_RESPONDIDA"
+  | "PENDENCIA_CANCELADA";
 
 export type Prospeccao = {
   id: string;
@@ -84,6 +87,8 @@ export type Prospeccao = {
   legado: boolean;
   /** Limite da decisão vigente, quando aprovada. */
   limiteVigente: number | null;
+  /** Pendências abertas: o card espera o comercial e o prazo está parado. */
+  pendenciasAbertas: number;
   version: number;
 };
 
@@ -115,6 +120,49 @@ export type Aceite = {
   registradoPorNome: string | null;
   emNomeDoComercial: boolean;
   registradoEm: string;
+};
+
+export type StatusPendencia = "ABERTA" | "RESPONDIDA" | "CANCELADA";
+
+export type Pendencia = {
+  id: string;
+  pergunta: string;
+  /** Nomes dos campos de DadosComerciais exigidos. */
+  camposExigidos: (keyof DadosComerciais)[];
+  documentosPedidos: string[];
+  status: StatusPendencia;
+  abertaPorNome: string | null;
+  abertaEm: string;
+  resposta: string | null;
+  respondidaPorNome: string | null;
+  emNomeDoComercial: boolean;
+  fechadaEm: string | null;
+};
+
+export type ComentarioProspeccao = {
+  id: string;
+  autorId: string | null;
+  autorNome: string;
+  texto: string;
+  criadoEm: string;
+  editadoEm: string | null;
+};
+
+/** Rótulo de cada campo comercial — usado na pendência para dizer o que falta. */
+export const ROTULO_CAMPO_COMERCIAL: Record<keyof DadosComerciais, string> = {
+  faturamentoMensal: "Faturamento mensal",
+  ticketMedio: "Ticket médio",
+  valorMedioOperacoes: "Valor médio das operações",
+  prazoMedioVendas: "Prazo médio de vendas",
+  prazoMedioPgtoFornecedor: "Prazo de pagamento a fornecedor",
+  prazoMedioEntrega: "Prazo médio de entrega",
+  possuiCanhotosDias: "Guarda canhotos há",
+  operaMercadoriaEntregue: "Opera mercadoria entregue",
+  operaMercadoriaEmbarcada: "Opera mercadoria embarcada",
+  regiaoAtendimento: "Região de atendimento",
+  produtos: "Produtos",
+  parceirosAtuais: "Parceiros atuais",
+  outros: "Outros",
 };
 
 export type ProdutoCatalogo = { id: string; nome: string; ordem: number; ativo: boolean };
@@ -218,6 +266,8 @@ export type ProspeccaoDetalhe = {
   /** Da mais nova para a mais antiga; a vigente vem marcada. */
   decisoes: Decisao[];
   aceites: Aceite[];
+  pendencias: Pendencia[];
+  comentarios: ComentarioProspeccao[];
   /** Quem olha é a analista dona ou admin — mesma regra que autoriza no servidor. */
   podeDecidir: boolean;
 };

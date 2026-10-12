@@ -298,6 +298,76 @@ export function useRegistrarAceite() {
   });
 }
 
+/** Chamada simples que devolve JSON, ou nada em 204. Erro vira a mensagem do servidor. */
+async function enviarJson<T>(url: string, metodo: string, corpo: unknown, falha: string): Promise<T> {
+  const res = await fetch(url, {
+    method: metodo,
+    headers: getAuthHeaders("application/json"),
+    body: corpo === undefined ? undefined : JSON.stringify(corpo),
+  });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, falha));
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+/** Mutação de card com o mesmo pós: invalida o card e mostra o erro do servidor. */
+function useMutacaoDoCard<V extends { id: string }, R = unknown>(
+  executar: (vars: V) => Promise<R>,
+  sucesso?: string,
+) {
+  const invalidar = useInvalidar();
+  return useMutation<R, Error, V>({
+    mutationFn: executar,
+    onSuccess: (_, vars) => {
+      invalidar(vars.id);
+      if (sucesso) toast.success(sucesso);
+    },
+    onError: error => toast.error(error.message, { duration: 6000 }),
+  });
+}
+
+export type NovaPendencia = { pergunta: string; camposExigidos: string[]; documentosPedidos: string[] };
+
+export function useAbrirPendencia() {
+  return useMutacaoDoCard<{ id: string; pendencia: NovaPendencia }>(
+    ({ id, pendencia }) => enviarJson(`${API_BASE_URL}/prospeccao/${id}/pendencias`, "POST", pendencia, "Falha ao abrir a pendência"),
+    "Pendência aberta — prazo parado até a resposta",
+  );
+}
+
+export function useResponderPendencia() {
+  return useMutacaoDoCard<{ id: string; pendenciaId: string; texto: string }>(
+    ({ pendenciaId, texto }) =>
+      enviarJson(`${API_BASE_URL}/prospeccao/pendencias/${pendenciaId}/resposta`, "PATCH", { texto }, "Falha ao responder a pendência"),
+    "Pendência respondida",
+  );
+}
+
+export function useCancelarPendencia() {
+  return useMutacaoDoCard<{ id: string; pendenciaId: string }>(
+    ({ pendenciaId }) =>
+      enviarJson(`${API_BASE_URL}/prospeccao/pendencias/${pendenciaId}/cancelar`, "PATCH", undefined, "Falha ao cancelar a pendência"),
+    "Pendência cancelada",
+  );
+}
+
+export function useComentarProspeccao() {
+  return useMutacaoDoCard<{ id: string; texto: string }>(({ id, texto }) =>
+    enviarJson(`${API_BASE_URL}/prospeccao/${id}/comentarios`, "POST", { texto }, "Falha ao comentar"),
+  );
+}
+
+export function useEditarComentarioProspeccao() {
+  return useMutacaoDoCard<{ id: string; comentarioId: string; texto: string }>(({ id, comentarioId, texto }) =>
+    enviarJson(`${API_BASE_URL}/prospeccao/${id}/comentarios/${comentarioId}`, "PUT", { texto }, "Falha ao editar o comentário"),
+  );
+}
+
+export function useApagarComentarioProspeccao() {
+  return useMutacaoDoCard<{ id: string; comentarioId: string }>(({ id, comentarioId }) =>
+    enviarJson(`${API_BASE_URL}/prospeccao/${id}/comentarios/${comentarioId}`, "DELETE", undefined, "Falha ao apagar o comentário"),
+  );
+}
+
 /** Substitui o perfil comercial do card pelo formulário inteiro. */
 export function useAtualizarDadosComerciais() {
   const invalidar = useInvalidar();

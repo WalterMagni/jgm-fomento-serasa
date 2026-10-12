@@ -89,6 +89,8 @@ public class ProspeccaoController {
     private final ProspeccaoExportService exportService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService decisaoService;
     private final com.portal.serasa.infrastructure.persistence.repository.ProdutoCatalogoJpaRepository produtoRepository;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoPendenciaService pendenciaService;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoComentarioService comentarioService;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final UserRepository userRepository;
@@ -175,6 +177,8 @@ public class ProspeccaoController {
                         .toList())
                 .decisoes(decisaoService.historico(id).stream().map(mapper::toResponse).toList())
                 .aceites(decisaoService.aceites(id).stream().map(mapper::toResponse).toList())
+                .pendencias(pendenciaService.listar(id).stream().map(mapper::toResponse).toList())
+                .comentarios(comentarioService.listar(id).stream().map(mapper::toResponse).toList())
                 .podeDecidir(autorizacao.ehDona(card, usuarioAutenticado()))
                 .build());
     }
@@ -229,6 +233,54 @@ public class ProspeccaoController {
                         request.resposta(), request.mensagem(), request.limiteSugerido(), request.condicoesSugeridas()),
                 usuarioAutenticado());
         return ResponseEntity.status(201).body(mapper.toResponse(aceite));
+    }
+
+    // ------------------------------------------------------------- pendências
+
+    /** Pedido ao comercial. Só a analista dona abre; o prazo do estágio para até a resposta. */
+    @PostMapping("/{id}/pendencias")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoPendenciaResponse> abrirPendencia(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoPendenciaRequest request) {
+        var pendencia = pendenciaService.abrir(id, request.pergunta(), request.camposExigidos(),
+                request.documentosPedidos(), usuarioAutenticado());
+        return ResponseEntity.status(201).body(mapper.toResponse(pendencia));
+    }
+
+    @PatchMapping("/pendencias/{pendenciaId}/resposta")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoPendenciaResponse> responderPendencia(
+            @PathVariable UUID pendenciaId,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoTextoRequest request) {
+        return ResponseEntity.ok(mapper.toResponse(pendenciaService.responder(pendenciaId, request.texto(), usuarioAutenticado())));
+    }
+
+    @PatchMapping("/pendencias/{pendenciaId}/cancelar")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoPendenciaResponse> cancelarPendencia(
+            @PathVariable UUID pendenciaId) {
+        return ResponseEntity.ok(mapper.toResponse(pendenciaService.cancelar(pendenciaId, usuarioAutenticado())));
+    }
+
+    // ------------------------------------------------------------ comentários
+
+    @PostMapping("/{id}/comentarios")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoComentarioResponse> comentar(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoTextoRequest request) {
+        return ResponseEntity.status(201).body(mapper.toResponse(comentarioService.comentar(id, request.texto(), usuarioAutenticado())));
+    }
+
+    @PutMapping("/{id}/comentarios/{comentarioId}")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoComentarioResponse> editarComentario(
+            @PathVariable UUID id,
+            @PathVariable UUID comentarioId,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoTextoRequest request) {
+        return ResponseEntity.ok(mapper.toResponse(comentarioService.editar(id, comentarioId, request.texto(), usuarioAutenticado())));
+    }
+
+    @DeleteMapping("/{id}/comentarios/{comentarioId}")
+    public ResponseEntity<Void> apagarComentario(@PathVariable UUID id, @PathVariable UUID comentarioId) {
+        comentarioService.apagar(id, comentarioId, usuarioAutenticado());
+        return ResponseEntity.noContent().build();
     }
 
     // --------------------------------------------------- catálogo de produtos
@@ -601,11 +653,12 @@ public class ProspeccaoController {
     private ProspeccaoResponse toResponse(ProspeccaoEntity card) {
         return mapper.toResponse(card, nomeDoUsuario(card.getAnalistaId()),
                 documentoService.listar(card.getId()),
-                decisaoService.limitesVigentes(List.of(card.getId())).get(card.getId()));
+                decisaoService.limitesVigentes(List.of(card.getId())).get(card.getId()),
+                pendenciaService.abertasPorCard(List.of(card.getId())).getOrDefault(card.getId(), 0L));
     }
 
     /**
-     * Converte a lista inteira com quatro consultas fixas, em vez de três por card.
+     * Converte a lista inteira com cinco consultas fixas, em vez de quatro por card.
      *
      * <p>O kanban abre com dezenas de cards e cada um mostra o progresso do checklist e o nome do
      * analista. Resolver card a card seria N+1 — a mesma conta que já custou uma correção de
@@ -619,6 +672,7 @@ public class ProspeccaoController {
         Map<UUID, List<ProspeccaoDocumentoEntity>> documentosPorCard =
                 documentoService.listarPorCards(ids);
         Map<UUID, java.math.BigDecimal> limites = decisaoService.limitesVigentes(ids);
+        Map<UUID, Long> pendencias = pendenciaService.abertasPorCard(ids);
 
         List<UUID> analistas = cards.stream()
                 .map(ProspeccaoEntity::getAnalistaId)
@@ -634,7 +688,8 @@ public class ProspeccaoController {
                 .map(card -> mapper.toResponse(card,
                         card.getAnalistaId() == null ? null : nomes.get(card.getAnalistaId()),
                         documentosPorCard.getOrDefault(card.getId(), List.of()),
-                        limites.get(card.getId())))
+                        limites.get(card.getId()),
+                        pendencias.getOrDefault(card.getId(), 0L)))
                 .toList();
     }
 

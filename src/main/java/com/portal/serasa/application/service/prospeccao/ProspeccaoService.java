@@ -53,6 +53,7 @@ public class ProspeccaoService {
     private final ProspeccaoEventoJpaRepository eventoRepository;
     private final ProspeccaoDocumentoJpaRepository documentoRepository;
     private final ProspeccaoChecklistService checklistService;
+    private final org.springframework.context.ApplicationEventPublisher acontecimentos;
 
     // ---------------------------------------------------------------- criação
 
@@ -75,6 +76,11 @@ public class ProspeccaoService {
         if (dadosComerciais != null) {
             card.setDadosComerciais(dadosComerciais);
             prospeccaoRepository.save(card);
+        }
+        // Só a entrada manual avisa as analistas. A automática chega em lote — puxar visão cedente
+        // cria dezenas de cards de uma vez — e viraria uma enxurrada de notificações.
+        if (autor != null) {
+            acontecimentos.publishEvent(new ProspeccaoAcontecimento.Criado(card, autor));
         }
         return card;
     }
@@ -249,8 +255,15 @@ public class ProspeccaoService {
     }
 
     private void aplicarEstagio(ProspeccaoEntity card, EstagioProspeccao destino, UserEntity autor) {
+        LocalDateTime agora = LocalDateTime.now();
         card.setEstagio(destino);
-        card.setEstagioDesde(LocalDateTime.now());
+        card.setEstagioDesde(agora);
+        // A pausa é do estágio: no novo, o que já passou não conta. Se ainda há pendência aberta,
+        // o novo estágio já nasce pausado.
+        card.setHorasPausadas(0);
+        if (card.getPausadoDesde() != null) {
+            card.setPausadoDesde(agora);
+        }
         card.setPrazoEstagioHoras(destino.prazoHorasUteis());
         card.setUpdatedAt(LocalDateTime.now());
         if (destino == EstagioProspeccao.EM_ANALISE && card.getAnalistaId() == null && autor != null) {
@@ -315,6 +328,8 @@ public class ProspeccaoService {
     public ProspeccaoEventoEntity registrarEvento(ProspeccaoEntity card, TipoEventoProspeccao tipo,
                                                   EstagioProspeccao de, EstagioProspeccao para,
                                                   CanalContato canal, String texto, UserEntity autor) {
+        // Tudo que entra na timeline mudou o card: quem está com o quadro aberto precisa ver.
+        acontecimentos.publishEvent(new ProspeccaoAcontecimento.Alterado(card, autor));
         return eventoRepository.save(ProspeccaoEventoEntity.builder()
                 .prospeccaoId(card.getId())
                 .tipo(tipo)
@@ -330,9 +345,39 @@ public class ProspeccaoService {
 
     // ------------------------------------------------------------------- SLA
 
-    /** Horas úteis paradas no estágio atual. */
+    /**
+     * Horas úteis paradas no estágio atual, descontado o tempo com pendência aberta.
+     *
+     * <p>Enquanto o card espera resposta do comercial, quem deve é o cliente, e o relógio da
+     * analista para. A pausa já fechada vem somada em {@code horasPausadas}; a corrente é contada
+     * agora.</p>
+     */
     public long horasNoEstagio(ProspeccaoEntity card) {
-        return DiasUteis.horasUteisEntre(card.getEstagioDesde(), LocalDateTime.now());
+        LocalDateTime agora = LocalDateTime.now();
+        long total = DiasUteis.horasUteisEntre(card.getEstagioDesde(), agora);
+        long pausadas = card.getHorasPausadas() == null ? 0 : card.getHorasPausadas();
+        if (card.getPausadoDesde() != null) {
+            pausadas += DiasUteis.horasUteisEntre(card.getPausadoDesde(), agora);
+        }
+        return Math.max(0, total - pausadas);
+    }
+
+    /** Começa a pausa do prazo, se ainda não estiver pausado. */
+    void pausar(ProspeccaoEntity card) {
+        if (card.getPausadoDesde() == null) {
+            card.setPausadoDesde(LocalDateTime.now());
+            prospeccaoRepository.save(card);
+        }
+    }
+
+    /** Encerra a pausa corrente e soma o tempo dela ao total pausado do estágio. */
+    void retomar(ProspeccaoEntity card) {
+        if (card.getPausadoDesde() != null) {
+            long horas = DiasUteis.horasUteisEntre(card.getPausadoDesde(), LocalDateTime.now());
+            card.setHorasPausadas((card.getHorasPausadas() == null ? 0 : card.getHorasPausadas()) + (int) horas);
+            card.setPausadoDesde(null);
+            prospeccaoRepository.save(card);
+        }
     }
 
     /** Estourou o prazo do estágio. Estágio sem prazo, como a coleta de documentos, nunca estoura. */

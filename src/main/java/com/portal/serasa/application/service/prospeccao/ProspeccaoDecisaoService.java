@@ -47,6 +47,7 @@ public class ProspeccaoDecisaoService {
     private final ProspeccaoDecisaoJpaRepository decisaoRepository;
     private final ProspeccaoDecisaoCondicaoJpaRepository condicaoRepository;
     private final ProspeccaoAceiteJpaRepository aceiteRepository;
+    private final org.springframework.context.ApplicationEventPublisher acontecimentos;
 
     /** Condição pedida na decisão: produto do catálogo e valor. */
     public record Condicao(String produto, BigDecimal valor) {
@@ -197,8 +198,11 @@ public class ProspeccaoDecisaoService {
                 .registradoEm(LocalDateTime.now())
                 .build());
 
-        prospeccaoService.registrarEvento(prospeccaoService.buscar(id), TipoEventoProspeccao.ACEITE, null, null, null,
+        ProspeccaoEntity atualizado = prospeccaoService.buscar(id);
+        prospeccaoService.registrarEvento(atualizado, TipoEventoProspeccao.ACEITE, null, null, null,
                 resumo(aceite), autor);
+        acontecimentos.publishEvent(new ProspeccaoAcontecimento.RespostaCliente(atualizado, aceite.getResposta(), autor,
+                aceite.getMensagem()));
         return aceite;
     }
 

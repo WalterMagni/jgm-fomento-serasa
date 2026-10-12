@@ -29,12 +29,12 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
-        return toResponse(card, analistaNome, documentos, null);
+        return toResponse(card, analistaNome, documentos, null, 0);
     }
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos,
-                                         java.math.BigDecimal limiteVigente) {
+                                         java.math.BigDecimal limiteVigente, long pendenciasAbertas) {
         long total = documentos == null ? 0 : documentos.stream()
                 .filter(doc -> !Boolean.TRUE.equals(doc.getInformativoSnapshot()))
                 .filter(doc -> Boolean.TRUE.equals(doc.getSocioAtivo()))
@@ -73,6 +73,7 @@ public class ProspeccaoDtoMapper {
                 .closedAt(card.getClosedAt())
                 .legado(Boolean.TRUE.equals(card.getLegado()))
                 .limiteVigente(limiteVigente)
+                .pendenciasAbertas(pendenciasAbertas)
                 .version(card.getVersion())
                 .build();
     }
@@ -102,6 +103,22 @@ public class ProspeccaoDtoMapper {
             com.portal.serasa.infrastructure.persistence.entity.ProdutoCatalogoEntity p) {
         return new com.portal.serasa.api.rest.dto.response.ProdutoCatalogoResponse(
                 p.getId(), p.getNome(), p.getOrdem() == null ? 0 : p.getOrdem(), Boolean.TRUE.equals(p.getAtivo()));
+    }
+
+    public com.portal.serasa.api.rest.dto.response.ProspeccaoPendenciaResponse toResponse(
+            com.portal.serasa.infrastructure.persistence.entity.ProspeccaoPendenciaEntity p) {
+        return new com.portal.serasa.api.rest.dto.response.ProspeccaoPendenciaResponse(
+                p.getId(), p.getPergunta(),
+                p.getCamposExigidos() == null ? List.of() : p.getCamposExigidos(),
+                p.getDocumentosPedidos() == null ? List.of() : p.getDocumentosPedidos(),
+                p.getStatus(), p.getAbertaPorNome(), p.getAbertaEm(), p.getResposta(), p.getRespondidaPorNome(),
+                Boolean.TRUE.equals(p.getEmNomeDoComercial()), p.getFechadaEm());
+    }
+
+    public com.portal.serasa.api.rest.dto.response.ProspeccaoComentarioResponse toResponse(
+            com.portal.serasa.infrastructure.persistence.entity.ProspeccaoComentarioEntity c) {
+        return new com.portal.serasa.api.rest.dto.response.ProspeccaoComentarioResponse(
+                c.getId(), c.getAutorId(), c.getAutorNome(), c.getTexto(), c.getCriadoEm(), c.getEditadoEm());
     }
 
     public DadosComerciaisDto toDto(DadosComerciais dados) {

@@ -20,5 +20,9 @@ public enum TipoEventoProspeccao {
     /** Analista aprovou com limite ou reprovou. Ver V75. */
     DECISAO,
     /** Resposta do cliente à proposta. Ver V75. */
-    ACEITE
+    ACEITE,
+    /** Pedido de informação ou documento ao comercial. Ver V76. */
+    PENDENCIA_ABERTA,
+    PENDENCIA_RESPONDIDA,
+    PENDENCIA_CANCELADA
 }

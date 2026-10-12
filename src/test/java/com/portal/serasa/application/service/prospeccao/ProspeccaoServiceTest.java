@@ -45,6 +45,7 @@ class ProspeccaoServiceTest {
     @Mock private ProspeccaoEventoJpaRepository eventoRepository;
     @Mock private ProspeccaoDocumentoJpaRepository documentoRepository;
     @Mock private ProspeccaoChecklistService checklistService;
+    @Mock private org.springframework.context.ApplicationEventPublisher acontecimentos;
 
     @InjectMocks private ProspeccaoService service;
 
@@ -346,6 +347,62 @@ class ProspeccaoServiceTest {
 
         assertThat(card.getUltimoContatoEm()).isNotNull();
         assertThat(service.silencioProlongado(card)).isFalse();
+    }
+
+    @Test
+    @DisplayName("prazo: tempo com pendência aberta não conta, nem a pausa fechada nem a corrente")
+    void shouldDiscountPausedHours() {
+        // Segunda-feira 9h até quarta 9h: 48 horas úteis corridas no estágio.
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        LocalDateTime segunda = LocalDateTime.of(2026, 10, 5, 9, 0);
+        card.setEstagioDesde(segunda);
+        long semPausa = service.horasNoEstagio(card);
+
+        card.setHorasPausadas(10);
+        assertThat(service.horasNoEstagio(card)).isEqualTo(semPausa - 10);
+
+        card.setPausadoDesde(segunda);
+        assertThat(service.horasNoEstagio(card)).isZero();
+    }
+
+    @Test
+    @DisplayName("pausar e retomar: a pausa fechada soma no total do estágio")
+    void shouldAccumulatePause() {
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        service.pausar(card);
+        assertThat(card.getPausadoDesde()).isNotNull();
+
+        card.setPausadoDesde(LocalDateTime.now().minusDays(3));
+        service.retomar(card);
+        assertThat(card.getPausadoDesde()).isNull();
+        assertThat(card.getHorasPausadas()).isPositive();
+    }
+
+    @Test
+    @DisplayName("trocar de estágio zera a pausa; com pendência aberta, o novo estágio nasce pausado")
+    void shouldResetPauseOnStageChange() {
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        card.setHorasPausadas(7);
+        card.setPausadoDesde(LocalDateTime.now().minusDays(2));
+
+        service.mover(card.getId(), EstagioProspeccao.NOVA, null, null, analista);
+
+        assertThat(card.getHorasPausadas()).isZero();
+        assertThat(card.getPausadoDesde()).isAfter(LocalDateTime.now().minusMinutes(1));
+    }
+
+    @Test
+    @DisplayName("abrir manualmente avisa as analistas; entrada automática não")
+    void shouldPublishCreationOnlyWhenManual() {
+        when(prospeccaoRepository.findAberta(any())).thenReturn(Optional.empty());
+        when(prospeccaoRepository.existsByCreditAnalysisId(any())).thenReturn(false);
+
+        service.criar("11222333000181", "ACME", null, null, null, analista);
+        service.criarPorAnalise("99888777000166", "BETA", 10L);
+
+        ArgumentCaptor<Object> eventos = ArgumentCaptor.forClass(Object.class);
+        verify(acontecimentos, org.mockito.Mockito.atLeastOnce()).publishEvent(eventos.capture());
+        assertThat(eventos.getAllValues()).filteredOn(e -> e instanceof ProspeccaoAcontecimento.Criado).hasSize(1);
     }
 
     private ProspeccaoDocumentoEntity doc(String nome, boolean obrigatorio,

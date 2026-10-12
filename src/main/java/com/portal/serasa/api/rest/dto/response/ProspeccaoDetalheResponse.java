@@ -18,6 +18,9 @@ public record ProspeccaoDetalheResponse(
         /** Todas as decisões, da mais nova para a mais antiga; a vigente vem marcada. */
         List<ProspeccaoDecisaoResponse> decisoes,
         List<ProspeccaoAceiteResponse> aceites,
+        /** Da mais nova para a mais antiga. */
+        List<ProspeccaoPendenciaResponse> pendencias,
+        List<ProspeccaoComentarioResponse> comentarios,
         /** Quem está olhando pode decidir: é a analista dona ou admin. Calculado pela mesma regra que autoriza. */
         boolean podeDecidir) {
 }

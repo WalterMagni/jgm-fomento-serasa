@@ -118,6 +118,15 @@ public class ProspeccaoEntity {
     @Embedded
     private DadosComerciais dadosComerciais;
 
+    /** Início da pausa corrente do prazo — há pendência aberta. Ver V76. */
+    @Column(name = "pausado_desde")
+    private LocalDateTime pausadoDesde;
+
+    /** Horas úteis já pausadas no estágio atual, descontadas do prazo. Ver V76. */
+    @Column(name = "horas_pausadas", nullable = false)
+    @Builder.Default
+    private Integer horasPausadas = 0;
+
     /** Trava otimista: a segunda edição concorrente recebe 409. */
     @Version
     private Long version;

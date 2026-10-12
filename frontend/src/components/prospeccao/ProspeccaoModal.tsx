@@ -19,6 +19,8 @@ import DecisaoDialog from "./DecisaoDialog";
 import DocumentChecklist from "./DocumentChecklist";
 import EsteiraTrilha from "./EsteiraTrilha";
 import MotivoDialog from "./MotivoDialog";
+import PendenciaDialog from "./PendenciaDialog";
+import PendenciasBloco from "./PendenciasBloco";
 import ProspeccaoTimeline from "./ProspeccaoTimeline";
 import ResumoAba from "./ResumoAba";
 import { TOTAL_CAMPOS_COMERCIAIS, camposPreenchidos } from "./DadosComerciaisForm";
@@ -74,6 +76,7 @@ export default function ProspeccaoModal({
   const [aba, setAba] = useState<Aba>("resumo");
   const [pergunta, setPergunta] = useState<Pergunta | null>(null);
   const [acao, setAcao] = useState<AcaoAberta | null>(acaoInicial);
+  const [abrindoPendencia, setAbrindoPendencia] = useState(false);
 
   const card = data?.card;
   const ocupado = transicionar.isPending || assumir.isPending || reabrir.isPending;
@@ -153,6 +156,11 @@ export default function ProspeccaoModal({
       <span className="font-medium text-slate-700 dark:text-slate-200">{ROTULO_ESTAGIO[card.estagio]}</span>
       <span aria-hidden>·</span>
       <span className={CLASSE_BADGE_SEMAFORO[semaforoDe(card)]}>{textoPrazo(card)}</span>
+      {card.pendenciasAbertas > 0 && (
+        <span className="rounded bg-[#D1732C]/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[#a8551a] dark:text-[#f0a46b]">
+          aguardando comercial
+        </span>
+      )}
       {card.reaberturas > 0 && (
         <>
           <span aria-hidden>·</span>
@@ -169,11 +177,11 @@ export default function ProspeccaoModal({
 
   const preenchidos = data ? camposPreenchidos(data.dadosComerciais) : 0;
   const abas: [Aba, string, string?][] = [
-    ["resumo", "Resumo"],
+    ["resumo", "Resumo", card && card.pendenciasAbertas > 0 ? `${card.pendenciasAbertas} pendente${card.pendenciasAbertas > 1 ? "s" : ""}` : undefined],
     ["dados", "Dados comerciais", preenchidos ? `${preenchidos}/${TOTAL_CAMPOS_COMERCIAIS}` : undefined],
     ["decisao", "Decisão e aceite", data && data.decisoes.length > 0 ? String(data.decisoes.length) : undefined],
     ["documentos", "Documentos", card && card.documentosTotal > 0 ? `${card.documentosResolvidos}/${card.documentosTotal}` : undefined],
-    ["historico", "Histórico"],
+    ["historico", "Atividade", data && data.comentarios.length > 0 ? String(data.comentarios.length) : undefined],
   ];
 
   return (
@@ -201,6 +209,12 @@ export default function ProspeccaoModal({
                   <span className="text-[11px] text-slate-400">
                     {card.analistaNome ? `Quem decide é ${card.analistaNome}` : "Assuma para decidir"}
                   </span>
+                )}
+                {data.podeDecidir && !ehTerminal(card.estagio) && (
+                  <button type="button" onClick={() => setAbrindoPendencia(true)} disabled={ocupado} className={SECUNDARIO}>
+                    <Icon name="hourglass_top" size={15} />
+                    Abrir pendência
+                  </button>
                 )}
                 {avancos.map(destino => (
                   <button key={destino} type="button" onClick={() => mover(destino)} disabled={ocupado} className={PRIMARIO}>
@@ -257,7 +271,17 @@ export default function ProspeccaoModal({
                   ))}
                 </nav>
                 <div className="p-5">
-                  {aba === "resumo" && <ResumoAba detalhe={data} onIrPara={setAba} />}
+                  {aba === "resumo" && (
+                    <div className="space-y-3">
+                      <PendenciasBloco
+                        cardId={cardId}
+                        pendencias={data.pendencias}
+                        documentos={data.documentos}
+                        podeCancelar={data.podeDecidir}
+                      />
+                      <ResumoAba detalhe={data} onIrPara={setAba} />
+                    </div>
+                  )}
                   {aba === "decisao" && (
                     <DecisaoAba
                       decisoes={data.decisoes}
@@ -268,15 +292,20 @@ export default function ProspeccaoModal({
                     />
                   )}
                   {aba === "dados" && (
-                    <DadosComerciaisAba cardId={cardId} dados={data.dadosComerciais} somenteLeitura={ehTerminal(card.estagio)} />
+                    <DadosComerciaisAba
+                      cardId={cardId}
+                      dados={data.dadosComerciais}
+                      somenteLeitura={ehTerminal(card.estagio)}
+                      exigidos={new Set(data.pendencias.filter(p => p.status === "ABERTA").flatMap(p => p.camposExigidos))}
+                    />
                   )}
                   {aba === "documentos" && <DocumentChecklist cardId={cardId} documentos={data.documentos} />}
-                  {aba === "historico" && <ProspeccaoTimeline cardId={cardId} eventos={data.timeline} />}
+                  {aba === "historico" && <ProspeccaoTimeline cardId={cardId} eventos={data.timeline} comentarios={data.comentarios} />}
                 </div>
               </div>
               <aside className="hidden border-l border-slate-100 p-5 lg:block dark:border-slate-800" aria-label="Histórico">
-                <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Histórico</h3>
-                <ProspeccaoTimeline cardId={cardId} eventos={data.timeline} />
+                <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Atividade</h3>
+                <ProspeccaoTimeline cardId={cardId} eventos={data.timeline} comentarios={data.comentarios} />
               </aside>
             </div>
           </div>
@@ -299,6 +328,15 @@ export default function ProspeccaoModal({
           proposta={propostaAberta}
           inicial={acao.resposta}
           onFechar={() => setAcao(null)}
+        />
+      )}
+
+      {card && data && abrindoPendencia && (
+        <PendenciaDialog
+          cardId={cardId}
+          razaoSocial={card.razaoSocial}
+          documentos={data.documentos}
+          onFechar={() => setAbrindoPendencia(false)}
         />
       )}
 

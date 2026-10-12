@@ -97,10 +97,26 @@ quem registra a resposta é a equipe; o histórico marca "pelo comercial".
 **Dados comerciais.** Aba *Dados comerciais* do card: faturamento, ticket médio, prazos,
 região, produtos e parceiros. Edite e clique em **Salvar**; a alteração fica no histórico.
 
-**Cobrar o cliente.** Coluna *Histórico*, à direita do card (no celular, aba *Histórico*):
-escreva o que aconteceu e escolha o canal, e-mail ou WhatsApp. Registrar a cobrança **zera o
-contador de silêncio**. Se for recado interno, deixe em "nota interna" — não conta como
-contato com o cliente.
+**Pedir algo ao comercial — pendência.** A dona do card clica em **Abrir pendência**: escreve o
+que precisa vir, e pode marcar quais dados comerciais e quais documentos do checklist faltam.
+Enquanto houver pendência aberta, o card mostra **aguardando comercial** e **o prazo da análise
+para** — quem deve a resposta é o cliente. Quando o comercial responder, qualquer pessoa da
+equipe clica em **Responder** na pendência (no Resumo do card) e registra o que chegou; a dona
+recebe aviso no sino. Fechada a última pendência, o relógio volta a correr. Os campos pedidos
+aparecem com **\*** na aba *Dados comerciais*.
+
+**Conversar sobre o card.** Coluna *Atividade*, à direita do card (no celular, aba
+*Atividade*). Em **Comentário**, escreva e use **@** para marcar alguém — a pessoa recebe aviso no
+sino e por e-mail. A dona do card e quem já comentou recebem aviso de comentário novo. Só o autor
+edita ou apaga o próprio comentário.
+
+**Cobrar o cliente.** Na mesma coluna, escolha **E-mail** ou **WhatsApp**, escreva o que foi
+cobrado e registre. Registrar a cobrança **zera o contador de silêncio**.
+
+**Avisos.** O sino avisa a dona do card quando uma pendência é respondida e quando o cliente
+responde à proposta; as analistas recebem aviso de prospecção aberta à mão (as que entram pela
+visão cedente não avisam, porque chegam em lote). O e-mail segue a mesma preferência da esteira de
+liberação, em *Configurações*.
 
 **Mover o card.** Arraste entre colunas — funciona também no toque, segurando o card um
 instante. A coluna que não aceita fica apagada — é a regra do fluxo, não um travamento. Pelo
@@ -214,7 +230,6 @@ não está acessível — o mesmo problema que afeta a pasta de documentos da em
 
 A esteira unificada está entrando por partes. Nas próximas:
 
-- **pendências e comentários**: pedir informação ou documento ao comercial, com aviso no sino;
 - **comitê com pareceres**: cada membro dá a posição dele, como na esteira de liberação;
 - **contrato**: contato de quem assina e conclusão do card.
 `;

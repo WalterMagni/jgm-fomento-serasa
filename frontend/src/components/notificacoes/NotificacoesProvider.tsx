@@ -77,6 +77,13 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
       if (cardId) queryClient.invalidateQueries({ queryKey: ["liberacaoDetalhe", cardId] });
     }
 
+    /** Mesma ideia para a esteira de prospecção: alguém mexeu num card, quem olha vê. */
+    function aoMudarProspeccao(cardId: string | undefined) {
+      queryClient.invalidateQueries({ queryKey: ["prospeccao"] });
+      queryClient.invalidateQueries({ queryKey: ["prospeccaoResumo"] });
+      if (cardId) queryClient.invalidateQueries({ queryKey: ["prospeccaoDetalhe", cardId] });
+    }
+
     async function conectar() {
       if (!ativo) return;
       if (!localStorage.getItem("serasa_token")) {
@@ -93,6 +100,7 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
           // O que chegou enquanto estava desconectado aparece agora.
           queryClient.invalidateQueries({ queryKey: NOTIFICACOES_KEY });
           aoMudarQuadro(undefined);
+          aoMudarProspeccao(undefined);
         });
         fonte.addEventListener("notificacao", evento => {
           aoNotificar(JSON.parse((evento as MessageEvent<string>).data) as EntregaNotificacao);
@@ -100,6 +108,10 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
         fonte.addEventListener("quadro", evento => {
           const dados = JSON.parse((evento as MessageEvent<string>).data) as { cardId?: string };
           aoMudarQuadro(dados.cardId);
+        });
+        fonte.addEventListener("prospeccao", evento => {
+          const dados = JSON.parse((evento as MessageEvent<string>).data) as { cardId?: string };
+          aoMudarProspeccao(dados.cardId);
         });
         fonte.onerror = () => {
           // O EventSource tentaria sozinho com a mesma URL, mas o ticket já foi usado.

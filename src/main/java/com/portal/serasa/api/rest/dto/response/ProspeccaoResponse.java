@@ -48,5 +48,7 @@ public record ProspeccaoResponse(
         boolean legado,
         /** Limite da decisão vigente, quando aprovada. Selo do quadro. */
         java.math.BigDecimal limiteVigente,
+        /** Pendências abertas: o card espera resposta do comercial e o prazo está parado. */
+        long pendenciasAbertas,
         Long version) {
 }

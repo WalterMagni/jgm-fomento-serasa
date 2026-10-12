@@ -43,6 +43,13 @@ export function CardFace({
           <Icon name={semaforo === "ok" ? "schedule" : "warning"} size={13} />
           {textoPrazo(card)}
         </span>
+        {card.pendenciasAbertas > 0 && (
+          <span className="inline-flex items-center gap-1 rounded bg-[#D1732C]/15 px-1.5 py-px font-medium text-[#a8551a] dark:text-[#f0a46b]"
+            title="Pendência aberta: o prazo está parado até o comercial responder">
+            <Icon name="hourglass_top" size={12} />
+            aguardando comercial
+          </span>
+        )}
         {card.limiteVigente != null && (
           <span className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-300" title="Limite da decisão vigente">
             <Icon name="account_balance_wallet" size={13} />

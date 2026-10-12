@@ -7,7 +7,8 @@ export type TipoNotificacao =
   | "PENDENCIA_RESPONDIDA"
   | "MENCAO"
   | "COMENTARIO"
-  | "DECISAO";
+  | "DECISAO"
+  | "RESPOSTA_CLIENTE";
 
 export type Notificacao = {
   id: string;

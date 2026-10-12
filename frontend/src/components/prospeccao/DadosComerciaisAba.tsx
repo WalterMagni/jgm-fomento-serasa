@@ -18,10 +18,13 @@ export default function DadosComerciaisAba({
   cardId,
   dados,
   somenteLeitura,
+  exigidos,
 }: {
   cardId: string;
   dados: DadosComerciais;
   somenteLeitura: boolean;
+  /** Campos pedidos por pendência aberta. */
+  exigidos?: Set<string>;
 }) {
   const salvar = useAtualizarDadosComerciais();
   const [rascunho, setRascunho] = useState<DadosComerciais | null>(null);
@@ -36,7 +39,13 @@ export default function DadosComerciaisAba({
           Card encerrado: reabra para editar.
         </p>
       )}
-      <DadosComerciaisForm valor={valor} onMudar={setRascunho} desabilitado={somenteLeitura || salvar.isPending} />
+      {exigidos && exigidos.size > 0 && (
+        <p className="flex items-center gap-2 rounded-lg bg-[#D1732C]/10 px-3 py-2 text-xs text-[#a8551a] dark:text-[#f0a46b]">
+          <Icon name="hourglass_top" size={14} />
+          Campos com * foram pedidos em pendência aberta.
+        </p>
+      )}
+      <DadosComerciaisForm valor={valor} onMudar={setRascunho} desabilitado={somenteLeitura || salvar.isPending} exigidos={exigidos} />
       {!somenteLeitura && (
         <div className="sticky bottom-0 -mx-1 flex items-center justify-end gap-2 bg-gradient-to-t from-white via-white px-1 pt-4
           dark:from-slate-900 dark:via-slate-900">
