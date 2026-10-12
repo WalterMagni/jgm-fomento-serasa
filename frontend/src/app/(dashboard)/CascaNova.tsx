@@ -92,7 +92,9 @@ export default function CascaNova({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col print:block">
-        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-linha bg-papel/85 px-5 backdrop-blur-md lg:px-8 print:hidden">
+        {/* z-20: o <main> abaixo cria a própria camada (z-0) e vem depois no HTML; sem isso o
+            popup do sino fica por baixo do conteúdo. */}
+        <header className="relative z-20 flex h-16 shrink-0 items-center gap-3 border-b border-linha bg-papel/85 px-5 backdrop-blur-md lg:px-8 print:hidden">
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
