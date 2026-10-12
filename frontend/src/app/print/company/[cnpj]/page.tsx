@@ -8,11 +8,13 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 }
 
-async function getProfile(cnpj: string) {
+/** @param analysisId consulta do histórico; sem ela, a mais recente */
+async function getProfile(cnpj: string, analysisId: string | null) {
   const headerStore = await headers();
   const authHeader = headerStore.get("authorization");
+  const consulta = analysisId && /^\d+$/.test(analysisId) ? `?analysisId=${analysisId}` : "";
 
-  const response = await fetch(`${getApiBaseUrl()}/company/${cnpj}/profile`, {
+  const response = await fetch(`${getApiBaseUrl()}/company/${cnpj}/profile${consulta}`, {
     headers: authHeader ? { Authorization: authHeader } : {},
     cache: "no-store",
   });
@@ -26,12 +28,15 @@ async function getProfile(cnpj: string) {
 
 export default async function PrintCompanyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ cnpj: string }>;
+  searchParams: Promise<{ analysisId?: string }>;
 }) {
   const { cnpj } = await params;
+  const { analysisId } = await searchParams;
   const cleanCnpj = cnpj.replace(/\D/g, "");
-  const profile = await getProfile(cleanCnpj);
+  const profile = await getProfile(cleanCnpj, analysisId ?? null);
 
   return (
     <main style={{ padding: 0, background: "#fff" }}>

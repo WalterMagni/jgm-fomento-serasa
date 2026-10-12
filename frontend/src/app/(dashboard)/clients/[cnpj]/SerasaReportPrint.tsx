@@ -247,10 +247,12 @@ export function SerasaReportPrint({
               <div style={{ fontWeight: "bold", fontSize: "10pt", marginTop: "2px" }}>
                 RELATO — RELATÓRIO DE COMPORTAMENTO EM NEGÓCIOS &nbsp;|&nbsp; VALORES EM REAIS
               </div>
-              {ca?.analysisDate && (
+              {/* Identifica a consulta do relatório: com o histórico, o PDF pode ser de uma consulta antiga. */}
+              {(ca?.analysisDate || ca?.consultaEm) && (
                 <div style={{ fontSize: "8pt", marginTop: "2px" }}>
-                  Análise realizada em: {fmtDate(ca.analysisDate)}
-                  {ca.consultaEm && ` &nbsp;|&nbsp; Consultado em: ${new Date(ca.consultaEm).toLocaleString("pt-BR")}`}
+                  {ca.consultaEm && <>Consulta Serasa de: {new Date(ca.consultaEm).toLocaleString("pt-BR")}</>}
+                  {ca.consultaEm && ca.analysisDate && <>&nbsp;|&nbsp;</>}
+                  {ca.analysisDate && <>Análise realizada em: {fmtDate(ca.analysisDate)}</>}
                 </div>
               )}
             </td>

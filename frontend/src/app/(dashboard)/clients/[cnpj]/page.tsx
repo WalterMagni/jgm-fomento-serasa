@@ -1117,6 +1117,17 @@ export default function ClientDashboardPage() {
   const visiblePredecessors = showPredecessors ? predecessors : predecessors.slice(0, 5);
   const hiddenPredecessorCount = Math.max(predecessors.length - 5, 0);
   const latestAnalysisId = analysisHistory[0]?.id ?? null;
+  // O PDF (e o e-mail de análise) sai da consulta em tela: sem escolha, a mais recente.
+  const consultaDoPdf = selectedAnalysisId != null ? `?analysisId=${selectedAnalysisId}` : "";
+  const indiceEmTela = selectedAnalysisId != null ? analysisHistory.findIndex(item => item.id === selectedAnalysisId) : -1;
+  const consultaEmTela =
+    indiceEmTela >= 0
+      ? `Consulta ${analysisHistory.length - indiceEmTela}${
+          analysisHistory[indiceEmTela].consultaEm || analysisHistory[indiceEmTela].createdAt
+            ? ` · ${new Date((analysisHistory[indiceEmTela].consultaEm || analysisHistory[indiceEmTela].createdAt)!).toLocaleDateString("pt-BR")}`
+            : ""
+        }`
+      : null;
   const fmt = formatCurrency;
   const handleGoPortfolio = () => {
     router.push("/");
@@ -1168,7 +1179,7 @@ export default function ClientDashboardPage() {
         cr?.companyName || companyDetail?.companyName || profile?.client?.name,
         cnpj
       );
-      const res = await fetch(`/api/company/${cnpj}/report-pdf`, {
+      const res = await fetch(`/api/company/${cnpj}/report-pdf${consultaDoPdf}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
@@ -1196,7 +1207,7 @@ export default function ClientDashboardPage() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
       const token = localStorage.getItem("serasa_token");
-      const pdfResponse = await fetch(`/api/company/${cnpj}/report-pdf`, {
+      const pdfResponse = await fetch(`/api/company/${cnpj}/report-pdf${consultaDoPdf}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
@@ -1303,7 +1314,12 @@ export default function ClientDashboardPage() {
                     className="w-full text-left inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-sans font-medium text-grafite dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
                     <Icon name="picture_as_pdf" size={18} />
-                    Gerar PDF
+                    <span className="flex flex-col">
+                      Gerar PDF
+                      <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">
+                        {consultaEmTela ?? "consulta mais recente"}
+                      </span>
+                    </span>
                   </button>
                   <AbrirProspeccaoMenuItem
                     cnpj={cleanCnpj}

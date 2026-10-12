@@ -16,6 +16,9 @@ export async function GET(
   const { cnpj } = await context.params;
   const cleanCnpj = cnpj.replace(/\D/g, "");
   const authHeader = request.headers.get("authorization");
+  // Consulta escolhida no histórico; sem ela, a página de impressão usa a mais recente.
+  const analysisId = request.nextUrl.searchParams.get("analysisId");
+  const consulta = analysisId && /^\d+$/.test(analysisId) ? `?analysisId=${analysisId}` : "";
 
   try {
     const browser = await chromium.launch({
@@ -30,7 +33,7 @@ export async function GET(
       }
 
       await page.emulateMedia({ media: "print" });
-      await page.goto(`${request.nextUrl.origin}/print/company/${cleanCnpj}`, {
+      await page.goto(`${request.nextUrl.origin}/print/company/${cleanCnpj}${consulta}`, {
         waitUntil: "networkidle",
       });
       await page.waitForLoadState("networkidle");
