@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Icon from "@/components/ui/Icon";
+import { useNovoVisual } from "@/hooks/useNovoVisual";
 import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
 import { useImportClientCodes } from "@/hooks/useImportClientCodes";
@@ -36,6 +37,7 @@ export default function SettingsPage() {
     return true;
   });
   const [canManageUsers, setCanManageUsers] = useState(false);
+  const [novoVisual, setNovoVisual] = useNovoVisual();
   const [managedUsers, setManagedUsers] = useState<Array<{
     id: string;
     name: string;
@@ -258,6 +260,38 @@ export default function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-sans font-bold text-grafite dark:text-white mb-1">Configurações do Sistema</h1>
         <p className="text-gray-500 font-sans">Gerencie suas preferências e custos da plataforma.</p>
+      </div>
+
+      {/* Interruptor da repaginação: vale para quem liga, neste navegador. Sai quando a casca nova for aprovada. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-secondary/30 bg-secondary/5 p-5">
+        <div className="min-w-0">
+          <p id="novo-visual-titulo" className="flex items-center gap-2 font-sans font-bold text-grafite">
+            Novo visual
+            <span className="rounded-md border border-secondary/40 px-1.5 py-px text-[10px] font-bold uppercase tracking-wider text-laranja-texto">
+              em teste
+            </span>
+          </p>
+          <p id="novo-visual-descricao" className="mt-1 max-w-2xl text-sm text-gray-500">
+            Menu lateral e topo da repaginação. Vale só para você, neste navegador. Se algo atrapalhar, é só desligar.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={novoVisual}
+          aria-labelledby="novo-visual-titulo"
+          aria-describedby="novo-visual-descricao"
+          onClick={() => setNovoVisual(!novoVisual)}
+          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+            novoVisual ? "bg-primary" : "bg-gray-300"
+          }`}
+        >
+          <span
+            className={`absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ${
+              novoVisual ? "translate-x-6" : ""
+            }`}
+          />
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">

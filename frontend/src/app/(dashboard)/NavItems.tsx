@@ -11,6 +11,8 @@ export type NavItem = {
   href: string;
   icon: string;
   label: string;
+  /** Rótulo na casca nova, onde o grupo já diz o contexto ("Esteiras" › "Prospecção"). */
+  rotuloCurto?: string;
   /** Sub-item de um grupo: recuado e com fonte menor. */
   sub?: boolean;
   /** Sub-itens do grupo, mostrados abaixo do pai quando o grupo está aberto. */
@@ -26,78 +28,101 @@ export type NavItem = {
   beta?: boolean;
 };
 
+const INFORMACOES_COMERCIAIS: NavItem = {
+  href: "/commercial-information",
+  icon: "business_center",
+  label: "Informações Comerciais",
+  isActive: p => p === "/commercial-information",
+};
+
+const PESSOAS_FISICAS: NavItem = {
+  href: "/individuals",
+  icon: "person_search",
+  label: "Pessoas Físicas",
+  isActive: p => p === "/individuals" || p.startsWith("/individuals/"),
+};
+
+const GESTAO_CARTEIRA: NavItem = {
+  href: "/",
+  icon: "folder_shared",
+  label: "Gestão de Carteira",
+  isActive: p => p === "/" || p.startsWith("/clients/"),
+};
+
+const VISAO_CEDENTE: NavItem = {
+  href: "/reports/visao-cedente",
+  icon: "swap_horiz",
+  label: "Visão Cedente",
+  isActive: p => p.startsWith("/reports"),
+};
+
+const PROSPECCAO: NavItem = {
+  href: "/prospeccao",
+  icon: "conveyor_belt",
+  label: "Esteira de Prospecção",
+  rotuloCurto: "Prospecção",
+  beta: true,
+  isActive: p => p.startsWith("/prospeccao"),
+};
+
+const LIBERACAO: NavItem = {
+  href: "/liberacao",
+  icon: "fact_check",
+  label: "Esteira de Liberação",
+  rotuloCurto: "Liberação",
+  beta: true,
+  isActive: p => p.startsWith("/liberacao"),
+};
+
+const PRACA_PAGAMENTO: NavItem = {
+  href: "/praca-pagamento",
+  icon: "account_balance",
+  label: "Praça de Pagamento",
+  isActive: p => p === "/praca-pagamento",
+  children: [
+    {
+      href: "/praca-pagamento/inconclusivos",
+      icon: "rule",
+      label: "Inconclusivos",
+      sub: true,
+      isActive: p => p === "/praca-pagamento/inconclusivos",
+    },
+    {
+      href: "/praca-pagamento/padroes",
+      icon: "psychology",
+      label: "Padrões",
+      sub: true,
+      isActive: p => p === "/praca-pagamento/padroes",
+    },
+    {
+      href: "/praca-pagamento/historico",
+      icon: "history",
+      label: "Histórico",
+      sub: true,
+      isActive: p => p === "/praca-pagamento/historico",
+    },
+  ],
+};
+
 export const NAV_ITEMS: NavItem[] = [
   {
-    href: "/",
-    icon: "folder_shared",
-    label: "Gestão de Carteira",
-    isActive: p => p === "/" || p.startsWith("/clients/"),
-    children: [
-      {
-        href: "/commercial-information",
-        icon: "business_center",
-        label: "Informações Comerciais",
-        sub: true,
-        isActive: p => p === "/commercial-information",
-      },
-      {
-        href: "/individuals",
-        icon: "person_search",
-        label: "Pessoas Físicas",
-        sub: true,
-        isActive: p => p === "/individuals" || p.startsWith("/individuals/"),
-      },
-    ],
+    ...GESTAO_CARTEIRA,
+    children: [{ ...INFORMACOES_COMERCIAIS, sub: true }, { ...PESSOAS_FISICAS, sub: true }],
   },
-  {
-    href: "/reports/visao-cedente",
-    icon: "swap_horiz",
-    label: "Visão Cedente",
-    isActive: p => p.startsWith("/reports"),
-  },
-  {
-    href: "/praca-pagamento",
-    icon: "account_balance",
-    label: "Praça de Pagamento",
-    isActive: p => p === "/praca-pagamento",
-    children: [
-      {
-        href: "/praca-pagamento/inconclusivos",
-        icon: "rule",
-        label: "Inconclusivos",
-        sub: true,
-        isActive: p => p === "/praca-pagamento/inconclusivos",
-      },
-      {
-        href: "/praca-pagamento/padroes",
-        icon: "psychology",
-        label: "Padrões",
-        sub: true,
-        isActive: p => p === "/praca-pagamento/padroes",
-      },
-      {
-        href: "/praca-pagamento/historico",
-        icon: "history",
-        label: "Histórico",
-        sub: true,
-        isActive: p => p === "/praca-pagamento/historico",
-      },
-    ],
-  },
-  {
-    href: "/prospeccao",
-    icon: "conveyor_belt",
-    label: "Esteira de Prospecção",
-    beta: true,
-    isActive: p => p.startsWith("/prospeccao"),
-  },
-  {
-    href: "/liberacao",
-    icon: "fact_check",
-    label: "Esteira de Liberação",
-    beta: true,
-    isActive: p => p.startsWith("/liberacao"),
-  },
+  VISAO_CEDENTE,
+  PRACA_PAGAMENTO,
+  PROSPECCAO,
+  LIBERACAO,
+];
+
+/**
+ * Menu da casca nova: os mesmos itens, agrupados por seção. Na Carteira os antigos filhos de
+ * Gestão de Carteira viram itens do grupo; a Praça continua com subitens.
+ */
+export const GRUPOS_NAV: { titulo: string; itens: NavItem[] }[] = [
+  { titulo: "Carteira", itens: [GESTAO_CARTEIRA, INFORMACOES_COMERCIAIS, PESSOAS_FISICAS, VISAO_CEDENTE] },
+  { titulo: "Operação", itens: [PRACA_PAGAMENTO] },
+  { titulo: "Esteiras", itens: [PROSPECCAO, LIBERACAO] },
 ];
 
 export const SETTINGS_ITEM: NavItem = {

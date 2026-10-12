@@ -66,6 +66,7 @@
   --animate-pulo: pulo 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
   --animate-surgir: surgir 0.25s ease-out both;
   --animate-deslizar: deslizar 0.45s var(--ease-saida) both;
+  --animate-entrar-esquerda: entrar-esquerda 0.35s var(--ease-saida) both;
   --animate-respirar: respirar 7s ease-in-out infinite;
   --animate-flutuar: flutuar 3s ease-in-out infinite;
   --animate-brilho: brilho 1.4s linear infinite;
@@ -98,6 +99,10 @@
     from { opacity: 0; transform: translateX(60px); }
     to   { opacity: 1; transform: none; }
   }
+  @keyframes entrar-esquerda {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: none; }
+  }
   @keyframes respirar {
     50% { transform: scale(1.15) translate(-10px, 10px); opacity: 0.7; }
   }
@@ -127,6 +132,11 @@
 .sidebar-marca .icone-duo [opacity="0.2"] {
   fill: #F0A46B;
   opacity: 0.55;
+}
+/* Item ativo da sidebar nova é pílula branca: volta o laranja da marca, mais suave. */
+.sidebar-marca .nav-ativo .icone-duo [opacity="0.2"] {
+  fill: var(--color-laranja);
+  opacity: 0.4;
 }
 
 /* Bloco "esqueleto" enquanto a lista carrega: brilho correndo no lugar do ícone girando. */
