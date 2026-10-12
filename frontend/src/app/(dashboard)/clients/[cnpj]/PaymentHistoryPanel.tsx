@@ -84,7 +84,7 @@ function ExpandSection({
 
 function FaixasGrid({ entries }: { entries: TitleQuantityEntry[] }) {
   const hasData = entries.some(e => e.range && e.range !== "-");
-  if (!hasData) return <p className="text-sm text-gray-400 font-serif">Sem dados de faixas.</p>;
+  if (!hasData) return <p className="text-sm text-gray-400">Sem dados de faixas.</p>;
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
       {entries.map((entry, i) => {
@@ -102,7 +102,7 @@ function FaixasGrid({ entries }: { entries: TitleQuantityEntry[] }) {
               {entry.range && entry.range !== "-" ? entry.range : "—"}
             </p>
             {entry.percentage && entry.percentage !== "0.0% e 0.0%" && (
-              <p className="text-[9px] text-gray-400 font-serif mt-0.5">{entry.percentage}</p>
+              <p className="text-[9px] text-gray-400 mt-0.5">{entry.percentage}</p>
             )}
           </div>
         );
@@ -114,7 +114,7 @@ function FaixasGrid({ entries }: { entries: TitleQuantityEntry[] }) {
 // ── MonthlyTable ──────────────────────────────────────────────────────────────
 
 function MonthlyTable({ months }: { months: MonthDetailItem[] }) {
-  if (!months.length) return <p className="text-sm text-gray-400 font-serif">Sem dados mensais.</p>;
+  if (!months.length) return <p className="text-sm text-gray-400">Sem dados mensais.</p>;
   const get = (m: MonthDetailItem, name: string) =>
     m.periodList?.find(p => p.name === name);
 
@@ -155,12 +155,12 @@ function MonthlyTable({ months }: { months: MonthDetailItem[] }) {
           {months.map((m, i) => (
             <tr key={i}>
               <td className="py-2 pr-4 font-sans font-bold text-grafite dark:text-gray-200 whitespace-nowrap">{fmtMonth(m.month)}</td>
-              <td className="py-2 px-2 text-center font-serif text-green-700 dark:text-green-400">{renderCell(m, "PONTUAL", "text-green-700 dark:text-green-400")}</td>
-              <td className="py-2 px-2 text-center font-serif text-grafite dark:text-gray-300">{renderCell(m, "8-15")}</td>
-              <td className="py-2 px-2 text-center font-serif text-grafite dark:text-gray-300">{renderCell(m, "16-30")}</td>
-              <td className="py-2 px-2 text-center font-serif text-grafite dark:text-gray-300">{renderCell(m, "31-60")}</td>
-              <td className="py-2 px-2 text-center font-serif text-grafite dark:text-gray-300">{renderCell(m, "+60")}</td>
-              <td className="py-2 px-2 text-center font-serif text-gray-500">{renderCell(m, "TOTAL MES")}</td>
+              <td className="py-2 px-2 text-center text-green-700 dark:text-green-400">{renderCell(m, "PONTUAL", "text-green-700 dark:text-green-400")}</td>
+              <td className="py-2 px-2 text-center text-grafite dark:text-gray-300">{renderCell(m, "8-15")}</td>
+              <td className="py-2 px-2 text-center text-grafite dark:text-gray-300">{renderCell(m, "16-30")}</td>
+              <td className="py-2 px-2 text-center text-grafite dark:text-gray-300">{renderCell(m, "31-60")}</td>
+              <td className="py-2 px-2 text-center text-grafite dark:text-gray-300">{renderCell(m, "+60")}</td>
+              <td className="py-2 px-2 text-center text-gray-500">{renderCell(m, "TOTAL MES")}</td>
             </tr>
           ))}
         </tbody>
@@ -233,15 +233,15 @@ function MonthDetailSummaryTable({ summary }: { summary: MonthDetailSummary }) {
             return (
               <tr key={key} className={isTotal ? "bg-gray-50 dark:bg-gray-800/40 font-bold" : ""}>
                 <td className={`py-2 pr-4 font-sans font-bold text-sm ${color}`}>{label}</td>
-                <td className="py-2 px-3 text-right font-serif text-grafite dark:text-gray-300 whitespace-nowrap">
+                <td className="py-2 px-3 text-right text-grafite dark:text-gray-300 whitespace-nowrap">
                   {(e.percentageValueFrom != null && e.percentageValueTo != null && (e.percentageValueFrom > 0 || e.percentageValueTo > 0))
                     ? `${e.percentageValueFrom}% – ${e.percentageValueTo}%`
                     : "—"}
                 </td>
-                <td className="py-2 px-3 text-right font-serif text-grafite dark:text-gray-300 whitespace-nowrap">
+                <td className="py-2 px-3 text-right text-grafite dark:text-gray-300 whitespace-nowrap">
                   {hasData ? e.totalValueRangeDescription : "—"}
                 </td>
-                <td className="py-2 pl-3 text-right font-serif text-grafite dark:text-gray-300 whitespace-nowrap">
+                <td className="py-2 pl-3 text-right text-grafite dark:text-gray-300 whitespace-nowrap">
                   {e.averageValueRangeDescription && e.averageValueRangeDescription !== "-"
                     ? e.averageValueRangeDescription : "—"}
                 </td>
@@ -257,7 +257,7 @@ function MonthDetailSummaryTable({ summary }: { summary: MonthDetailSummary }) {
 // ── EvoTable ──────────────────────────────────────────────────────────────────
 
 function EvoTable({ entries }: { entries: EvolutionCommitmentsEntry[] }) {
-  if (!entries.length) return <p className="text-sm text-gray-400 font-serif">Sem dados de evolução.</p>;
+  if (!entries.length) return <p className="text-sm text-gray-400">Sem dados de evolução.</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
@@ -277,13 +277,13 @@ function EvoTable({ entries }: { entries: EvolutionCommitmentsEntry[] }) {
                 <td className="py-2 pr-4 font-sans font-bold text-grafite dark:text-gray-200 whitespace-nowrap">
                   {e.descriptionMonthCommitment}/{e.yearCommitment}
                 </td>
-                <td className="py-2 pr-4 font-serif text-grafite dark:text-gray-300">
+                <td className="py-2 pr-4 text-grafite dark:text-gray-300">
                   {e.trackDescriptionToExpire && e.trackDescriptionToExpire !== "-" ? e.trackDescriptionToExpire : "—"}
                 </td>
-                <td className={`py-2 pr-4 font-serif ${hasOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-gray-400"}`}>
+                <td className={`py-2 pr-4 ${hasOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-gray-400"}`}>
                   {hasOverdue ? e.expiredTrackDescription : "—"}
                 </td>
-                <td className="py-2 font-serif text-grafite dark:text-gray-300">
+                <td className="py-2 text-grafite dark:text-gray-300">
                   {e.totalMonthRangeDescription ?? "—"}
                 </td>
               </tr>
@@ -298,7 +298,7 @@ function EvoTable({ entries }: { entries: EvolutionCommitmentsEntry[] }) {
 // ── RefCards ──────────────────────────────────────────────────────────────────
 
 function RefCards({ refs }: { refs: BusinessReferenceEntry[] }) {
-  if (!refs.length) return <p className="text-sm text-gray-400 font-serif">Sem referenciais registrados.</p>;
+  if (!refs.length) return <p className="text-sm text-gray-400">Sem referenciais registrados.</p>;
   const ICON_MAP: Record<string, string> = {
     "ULTIMA COMPRA": "shopping_cart",
     "MAIOR FATURA":  "receipt",
@@ -325,7 +325,7 @@ function RefCards({ refs }: { refs: BusinessReferenceEntry[] }) {
             <p className="text-xl font-sans font-bold text-grafite dark:text-white">
               {ref.potentialValueRangeDescription ?? "—"}
             </p>
-            {dateLabel && <p className="text-xs text-gray-400 font-serif">Referência: {dateLabel}</p>}
+            {dateLabel && <p className="text-xs text-gray-400">Referência: {dateLabel}</p>}
           </div>
         );
       })}
@@ -348,7 +348,7 @@ function RelationshipSuppliersCard({ data }: { data: RelationshipSuppliersPeriod
   const summary = data.summary;
 
   if (!periods.length && !summary) {
-    return <p className="text-sm text-gray-400 font-serif">Sem dados de relacionamento.</p>;
+    return <p className="text-sm text-gray-400">Sem dados de relacionamento.</p>;
   }
 
   return (
@@ -448,7 +448,7 @@ function VisaoTab({
     return (
       <div className="py-10 text-center">
         <Icon name="inbox" className="text-4xl text-gray-300 dark:text-gray-600" />
-        <p className="text-sm text-gray-400 font-serif mt-2">Sem dados para esta visão.</p>
+        <p className="text-sm text-gray-400 mt-2">Sem dados para esta visão.</p>
       </div>
     );
   }

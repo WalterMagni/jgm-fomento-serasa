@@ -441,7 +441,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
         <div>
           <div className="mb-1 flex items-center gap-2">
             <Icon name="folder_open" className="text-primary" />
-            <h2 className="font-serif text-xl font-bold text-primary">Documentos da Empresa</h2>
+            <h2 className="text-xl font-bold text-primary">Documentos da Empresa</h2>
           </div>
           <p className="text-sm font-sans text-gray-500">
             Navegação restrita à pasta mapeada desta empresa.
@@ -789,7 +789,7 @@ export function CompanyDocumentsPanel({ cnpj }: { cnpj: string }) {
             <div className="flex items-start justify-between gap-4 border-b border-border-light px-5 py-4">
               <div>
                 <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-primary">Documentos</p>
-                <h3 className="mt-1 font-serif text-xl font-bold text-grafite dark:text-white">Selecionar pasta da empresa</h3>
+                <h3 className="mt-1 text-xl font-bold text-grafite dark:text-white">Selecionar pasta da empresa</h3>
                 <p className="mt-1 max-w-2xl text-sm font-sans text-gray-500">
                   A navegação fica limitada à pasta base definida em Sistema.
                 </p>

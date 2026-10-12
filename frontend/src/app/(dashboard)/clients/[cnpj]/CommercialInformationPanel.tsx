@@ -411,7 +411,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border-light bg-white px-3 py-2 dark:border-border-dark dark:bg-gray-950">
       <p className="text-[10px] font-sans font-bold uppercase tracking-wide text-gray-400">{label}</p>
-      <p className="mt-1 text-sm font-serif text-grafite dark:text-gray-200">{value}</p>
+      <p className="mt-1 text-sm text-grafite dark:text-gray-200">{value}</p>
     </div>
   );
 }
@@ -502,7 +502,7 @@ function ExpandedCommercialRecord({
       </div>
       <div className="mt-3 rounded-lg border border-border-light bg-white px-3 py-2 dark:border-border-dark dark:bg-gray-950">
         <p className="text-[10px] font-sans font-bold uppercase tracking-wide text-gray-400">Observacao</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm font-serif text-grafite dark:text-gray-200">
+        <p className="mt-1 whitespace-pre-wrap text-sm text-grafite dark:text-gray-200">
           {record.observacao || "—"}
         </p>
       </div>
@@ -878,19 +878,19 @@ export function CommercialInformationPanel({ cnpj, companyName }: { cnpj: string
                           }
                         }}
                       >
-                        <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+                        <td className="px-4 py-3 text-grafite dark:text-gray-200 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5">
                             <Icon name={isExpanded ? "expand_less" : "expand_more"} className="text-sm text-gray-400" />
                             {formatDate(record.data)}
                           </span>
                         </td>
                         <td className="px-4 py-3 font-sans font-bold text-grafite dark:text-white">{record.parceiro || "—"}</td>
-                        <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200">{formatMoney(record.ultimaOperacaoValor)}</td>
-                        <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200">{formatMoney(record.limite)}</td>
-                        <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200">{summarizeRisk(record)}</td>
-                        <td className="px-4 py-3 font-serif text-red-600">{summarizeOverdue(record)}</td>
-                        <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200">{formatMoney(record.vop)}</td>
-                        <td className="px-4 py-3 font-serif text-grafite dark:text-gray-200">{formatPercent(record.pontual)}</td>
+                        <td className="px-4 py-3 text-grafite dark:text-gray-200">{formatMoney(record.ultimaOperacaoValor)}</td>
+                        <td className="px-4 py-3 text-grafite dark:text-gray-200">{formatMoney(record.limite)}</td>
+                        <td className="px-4 py-3 text-grafite dark:text-gray-200">{summarizeRisk(record)}</td>
+                        <td className="px-4 py-3 text-red-600">{summarizeOverdue(record)}</td>
+                        <td className="px-4 py-3 text-grafite dark:text-gray-200">{formatMoney(record.vop)}</td>
+                        <td className="px-4 py-3 text-grafite dark:text-gray-200">{formatPercent(record.pontual)}</td>
                       </tr>
                       {isExpanded && (
                         <tr className="bg-primary/5 dark:bg-primary/10">

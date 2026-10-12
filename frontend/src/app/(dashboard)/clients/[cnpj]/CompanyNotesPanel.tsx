@@ -440,7 +440,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               <h2 className="text-[15px] font-sans font-bold uppercase tracking-[0.14em] text-[#612035]">
                 Mural da Empresa
               </h2>
-              <p className="mt-1 text-sm font-serif text-[#7f6c74]">
+              <p className="mt-1 text-sm text-[#7f6c74]">
                 Registre decisões, contexto comercial e observações do time.
               </p>
             </div>
@@ -457,7 +457,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                     <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#8f7080]">
                       Citando {replyTarget.authorName}
                     </p>
-                    <p className="mt-1 line-clamp-3 whitespace-pre-wrap font-serif text-sm leading-6 text-[#705b64]">
+                    <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-[#705b64]">
                       {replyTarget.content}
                     </p>
                   </div>
@@ -487,7 +487,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               placeholder="Ex.: cliente pediu revisão do limite após apresentação de novos contratos."
               rows={6}
               maxLength={5000}
-              className="min-h-[156px] w-full resize-y rounded-[18px] border border-[#eadde3] bg-white px-4 py-3 font-serif text-[15px] leading-6 text-grafite outline-none transition focus:border-[#b86f8d] focus:ring-4 focus:ring-[#612035]/10"
+              className="min-h-[156px] w-full resize-y rounded-[18px] border border-[#eadde3] bg-white px-4 py-3 text-[15px] leading-6 text-grafite outline-none transition focus:border-[#b86f8d] focus:ring-4 focus:ring-[#612035]/10"
             />
             <div
               className={`mt-3 rounded-[18px] border border-dashed px-4 py-3 transition ${
@@ -513,10 +513,10 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                   <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#9b7f8b]">
                     Anexos opcionais
                   </p>
-                  <p className="mt-1 text-xs font-serif text-[#8e7a83]">
+                  <p className="mt-1 text-xs text-[#8e7a83]">
                     Imagens, PDFs ou arquivos de apoio com até 5 MB cada.
                   </p>
-                  <p className="mt-1 text-[11px] font-serif text-[#a08992]">
+                  <p className="mt-1 text-[11px] text-[#a08992]">
                     Você pode colar com Ctrl+V ou arrastar múltiplos arquivos para esta área.
                   </p>
                 </div>
@@ -566,7 +566,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-sans font-semibold text-grafite">{file.name}</p>
-                            <p className="text-xs font-serif text-[#8e7a83]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p className="text-xs text-[#8e7a83]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                           <button
                             type="button"
@@ -592,7 +592,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               )}
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-xs font-serif text-[#8e7a83]">
+              <p className="text-xs text-[#8e7a83]">
                 Cada anotação registra autor, data e hora.
               </p>
               <span className="text-[11px] font-sans font-bold tracking-[0.16em] text-[#b08d9a]">
@@ -617,7 +617,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               <h3 className="text-[15px] font-sans font-bold uppercase tracking-[0.14em] text-[#612035]">
                 Histórico da Equipe
               </h3>
-              <p className="mt-1 text-sm font-serif text-[#7f6c74]">
+              <p className="mt-1 text-sm text-[#7f6c74]">
                 Leituras e decisões ficam registradas em ordem cronológica.
               </p>
             </div>
@@ -630,7 +630,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#9b7f8b]">
                 Filtrar por autor
               </p>
-              <p className="mt-1 text-xs font-serif text-[#8e7a83]">
+              <p className="mt-1 text-xs text-[#8e7a83]">
                 Mostre todas as interações ou foque em uma pessoa específica.
               </p>
             </div>
@@ -666,7 +666,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
               <h4 className="mt-4 font-sans text-base font-semibold text-grafite">
                 Ainda não há anotações para esta empresa
               </h4>
-              <p className="mt-2 max-w-md font-serif text-sm leading-6 text-[#8a767f]">
+              <p className="mt-2 max-w-md text-sm leading-6 text-[#8a767f]">
                 Use este espaço para registrar contexto comercial, alertas internos e decisões tomadas pela equipe.
               </p>
             </div>
@@ -698,7 +698,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                             {formatNoteDate(note.createdAt)}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs font-serif text-[#8c7881]">{note.authorEmail}</p>
+                        <p className="mt-1 text-xs text-[#8c7881]">{note.authorEmail}</p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -740,7 +740,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                         <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#6a63a8]">
                           Citando {note.repliedToAuthorName}
                         </p>
-                        <p className="mt-1 line-clamp-3 whitespace-pre-wrap font-serif text-sm leading-6 text-[#625d86]">
+                        <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-[#625d86]">
                           {note.repliedToContent}
                         </p>
                       </div>
@@ -764,7 +764,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                             onDrop={handleEditTextAreaDrop}
                             rows={5}
                             maxLength={5000}
-                            className="min-h-[132px] w-full resize-y rounded-[16px] border border-[#eadde3] bg-white px-4 py-3 font-serif text-[15px] leading-6 text-grafite outline-none transition focus:border-[#b86f8d] focus:ring-4 focus:ring-[#612035]/10"
+                            className="min-h-[132px] w-full resize-y rounded-[16px] border border-[#eadde3] bg-white px-4 py-3 text-[15px] leading-6 text-grafite outline-none transition focus:border-[#b86f8d] focus:ring-4 focus:ring-[#612035]/10"
                           />
                           <div
                             className={`mt-3 rounded-[16px] border border-dashed px-4 py-3 transition ${
@@ -790,7 +790,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                 <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#9b7f8b]">
                                   Novos anexos
                                 </p>
-                                <p className="mt-1 text-xs font-serif text-[#8e7a83]">
+                                <p className="mt-1 text-xs text-[#8e7a83]">
                                   Adicione imagens, PDFs ou arquivos de apoio com até 5 MB cada.
                                 </p>
                               </div>
@@ -840,7 +840,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="min-w-0">
                                             <p className="truncate text-sm font-sans font-semibold text-grafite">{file.name}</p>
-                                            <p className="text-xs font-serif text-[#8e7a83]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            <p className="text-xs text-[#8e7a83]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                                           </div>
                                           <button
                                             type="button"
@@ -890,7 +890,7 @@ export function CompanyNotesPanel({ cnpj }: { cnpj: string }) {
                           </div>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-grafite">
+                        <p className="whitespace-pre-wrap text-[15px] leading-7 text-grafite">
                           {note.content}
                         </p>
                       )}

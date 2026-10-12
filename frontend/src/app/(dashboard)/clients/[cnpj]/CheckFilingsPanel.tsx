@@ -86,21 +86,21 @@ export function CheckFilingsPanel({ data }: { data?: CheckFilingsHistorical }) {
               <tbody className="divide-y divide-border-light dark:divide-border-dark">
                 {records.map((r, i) => (
                   <tr key={i}>
-                    <td className="whitespace-nowrap px-3 py-2 font-serif text-grafite dark:text-gray-200">
+                    <td className="whitespace-nowrap px-3 py-2 text-grafite dark:text-gray-200">
                       {formatDateTime(r.dateTimeInclusion)}
                     </td>
                     <td className="px-3 py-2 font-sans font-bold text-grafite dark:text-white">
                       {r.bankName || "—"}
-                      {r.agencyNumber ? <span className="ml-1 font-serif font-normal text-gray-500">ag. {r.agencyNumber}</span> : null}
+                      {r.agencyNumber ? <span className="ml-1 font-normal text-gray-500">ag. {r.agencyNumber}</span> : null}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 font-serif text-grafite dark:text-gray-200">
+                    <td className="whitespace-nowrap px-3 py-2 text-grafite dark:text-gray-200">
                       {r.accountNumberCheck ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 font-serif text-grafite dark:text-gray-200">{checkRange(r)}</td>
-                    <td className="px-3 py-2 font-serif text-grafite dark:text-gray-200">{r.quantityCheck ?? "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-2 font-serif text-grafite dark:text-gray-200">{formatMoney(r.checkAmount)}</td>
-                    <td className="px-3 py-2 font-serif text-red-600 dark:text-red-400">{r.briefDescriptionReason || "—"}</td>
-                    <td className="px-3 py-2 font-serif text-gray-500">{r.holderNameAccount || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-grafite dark:text-gray-200">{checkRange(r)}</td>
+                    <td className="px-3 py-2 text-grafite dark:text-gray-200">{r.quantityCheck ?? "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-grafite dark:text-gray-200">{formatMoney(r.checkAmount)}</td>
+                    <td className="px-3 py-2 text-red-600 dark:text-red-400">{r.briefDescriptionReason || "—"}</td>
+                    <td className="px-3 py-2 text-gray-500">{r.holderNameAccount || "—"}</td>
                   </tr>
                 ))}
               </tbody>
