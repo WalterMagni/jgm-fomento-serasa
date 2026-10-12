@@ -2,6 +2,11 @@
 
 import React from "react";
 import Icon from "@/components/ui/Icon";
+import { caixaTitulo, diasDesde, formatMoeda, iniciais, tempoRelativo, tomDoAvatar } from "@/lib/formatadores";
+import { BOTAO } from "@/components/ui/botao";
+import BlocoResumo from "@/components/ui/BlocoResumo";
+import IndiceSecoes, { irParaSecao, type SecaoIndice } from "@/components/ui/IndiceSecoes";
+import { DIAS_CONSULTA_VELHA, SITUACAO, classificarSituacao } from "@/types/pessoa-resumo";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
@@ -109,11 +114,9 @@ function isInactiveCompanyStatus(status?: string) {
 function InfoRow({ label, value }: { label: string; value: string | number | undefined | null }) {
   if (!value && value !== 0) return null;
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-border-light/50 dark:border-border-dark/50 last:border-0">
-      <dt className="text-[11px] font-sans font-bold text-gray-400 uppercase tracking-wide flex-shrink-0">
-        {label}
-      </dt>
-      <dd className="text-sm font-sans text-grafite dark:text-gray-200 text-right">{String(value)}</dd>
+    <div className="min-w-0">
+      <dt className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm text-grafite">{String(value)}</dd>
     </div>
   );
 }
@@ -130,11 +133,11 @@ function SectionCard({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-6">
+    <div className="rounded-cartao border border-linha bg-white p-6">
       <div className="flex items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-2">
-          <Icon name={icon} className="text-xl text-primary" />
-          <h2 className="text-base font-heading font-bold text-grafite dark:text-white">{title}</h2>
+          <Icon name={icon} className="text-lg text-primary" />
+          <h2 className="font-sans text-base font-bold text-primary">{title}</h2>
         </div>
         {actions}
       </div>
@@ -169,8 +172,8 @@ function NegativeCard({
       onClick={isClickable ? onToggle : undefined}
       className={`rounded-xl p-4 border w-full text-left transition-all ${
         hasData
-          ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10"
-          : "border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark"
+          ? "border-[#F0C9D2] bg-[#FBEEF1]"
+          : "border-linha bg-white"
       } ${isClickable ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-sm" : "cursor-default"} ${
         isOpen ? "ring-2 ring-red-300 dark:ring-red-700" : ""
       }`}
@@ -187,7 +190,7 @@ function NegativeCard({
         )}
       </div>
       <p
-        className={`text-2xl font-heading font-bold ${
+        className={`font-display text-[28px] font-semibold leading-none ${
           hasData ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
         }`}
       >
@@ -196,6 +199,58 @@ function NegativeCard({
       {balance > 0 && <p className="text-xs text-red-500 font-sans mt-0.5">{formatCurrency(balance)}</p>}
       {!hasData && <p className="text-xs text-green-600 dark:text-green-400 font-sans mt-0.5">Nada consta</p>}
     </button>
+  );
+}
+
+type ItemOcorrencia = {
+  id: string;
+  title: string;
+  icon: string;
+  section: PFNegativeSection | undefined;
+  hasDetail: boolean;
+};
+
+/** Só o que tem ocorrência vira card; o que está limpo vira uma linha de "nada consta". */
+function GradeOcorrencias({
+  itens,
+  abertos,
+  onAlternar,
+}: {
+  itens: ItemOcorrencia[];
+  abertos: Record<string, boolean>;
+  onAlternar: (id: string) => void;
+}) {
+  const comOcorrencia = itens.filter((item) => (item.section?.summary?.count ?? 0) > 0);
+  const limpos = itens.filter((item) => (item.section?.summary?.count ?? 0) === 0);
+  return (
+    <>
+      {limpos.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#CFE6DA] bg-[#EEF7F2] px-4 py-3 text-sm text-[#17583F]">
+          <Icon name="check_circle" size={18} />
+          <span className="font-semibold">Nada consta:</span>
+          {limpos.map((item) => (
+            <span key={item.id} className="rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-semibold">
+              {item.title}
+            </span>
+          ))}
+        </div>
+      )}
+      {comOcorrencia.length > 0 && (
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+          {comOcorrencia.map((item) => (
+            <NegativeCard
+              key={item.id}
+              title={item.title}
+              icon={item.icon}
+              section={item.section}
+              hasDetail={item.hasDetail}
+              isOpen={!!abertos[item.id]}
+              onToggle={() => onAlternar(item.id)}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -234,7 +289,7 @@ function PefinRefinTable({ records }: { records: PFPefinRefinRecord[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Inclusão</th>
           <th className="text-left pb-2 pr-3">Credor</th>
@@ -248,23 +303,23 @@ function PefinRefinTable({ records }: { records: PFPefinRefinRecord[] }) {
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.contractId ?? "debt"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {formatDate(record.inclusionDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200">
               {record.creditorName ?? "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.contractId ?? "—"}</td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.contractId ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {record.legalNature ?? record.legalNatureId ?? "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {record.bank?.bankName ?? "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
             <td className="py-1.5 text-right font-sans font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
               {record.amount != null ? formatCurrency(record.amount) : "—"}
             </td>
@@ -279,7 +334,7 @@ function CollectionDetailTable({ records }: { records: PFCollectionRecord[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Inclusão</th>
           <th className="text-left pb-2 pr-3">Credor</th>
@@ -292,18 +347,18 @@ function CollectionDetailTable({ records }: { records: PFCollectionRecord[] }) {
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.contractId ?? "collection"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {formatDate(record.inclusionDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200">
               {record.creditorName ?? "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.contractId ?? "—"}</td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.legalNature ?? "—"}</td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.contractId ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.legalNature ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
             <td className="py-1.5 text-right font-sans font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
               {record.amount != null ? formatCurrency(record.amount) : "—"}
             </td>
@@ -318,7 +373,7 @@ function CheckDetailTable({ records }: { records: PFCheckRecord[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Inclusão</th>
           <th className="text-left pb-2 pr-3">Banco</th>
@@ -330,15 +385,15 @@ function CheckDetailTable({ records }: { records: PFCheckRecord[] }) {
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.cadus ?? "check"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {formatDate(record.inclusionDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500">{record.bankName ?? record.bankCode ?? "—"}</td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500">{record.agency ?? "—"}</td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500">{record.bankName ?? record.bankCode ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500">{record.agency ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
             <td className="py-1.5 text-right font-sans font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
               {record.amount != null ? formatCurrency(record.amount) : "—"}
             </td>
@@ -353,7 +408,7 @@ function NotaryDetailTable({ records }: { records: PFNotaryRecord[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Inclusão</th>
           <th className="text-left pb-2 pr-3">Cartório</th>
@@ -365,19 +420,19 @@ function NotaryDetailTable({ records }: { records: PFNotaryRecord[] }) {
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.cadus ?? "notary"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {formatDate(record.inclusionDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500">
+            <td className="py-1.5 pr-3 text-gray-500">
               {record.officeNumber ? `Nº ${record.officeNumber}` : "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200">
               {[record.city, record.federalUnit].filter(Boolean).join(" / ") || "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">{record.cadus ?? "—"}</td>
             <td className="py-1.5 text-right font-sans font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
               {record.amount != null ? formatCurrency(record.amount) : "—"}
             </td>
@@ -392,7 +447,7 @@ function JudgementDetailTable({ records }: { records: PFJudgementFilingRecord[] 
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Inclusão</th>
           <th className="text-left pb-2 pr-3">Natureza</th>
@@ -404,19 +459,19 @@ function JudgementDetailTable({ records }: { records: PFJudgementFilingRecord[] 
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.distributor ?? "judgement"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {formatDate(record.inclusionDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500">
+            <td className="py-1.5 pr-3 text-gray-500">
               {record.legalNature ?? record.legalNatureId ?? "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {[record.distributor, record.civilCourt].filter(Boolean).join(" / ") || "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200">
               {[record.city, record.state].filter(Boolean).join(" / ") || "—"}
             </td>
             <td className="py-1.5 text-right font-sans font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
@@ -433,7 +488,7 @@ function BankruptDetailTable({ records }: { records: PFBankruptRecord[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Inclusão</th>
           <th className="text-left pb-2 pr-3">Natureza</th>
@@ -444,16 +499,16 @@ function BankruptDetailTable({ records }: { records: PFBankruptRecord[] }) {
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.city ?? "bankrupt"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
               {formatDate(record.inclusionDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500">
+            <td className="py-1.5 pr-3 text-gray-500">
               {record.legalNature ?? record.legalNatureId ?? "—"}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200">
               {[record.city, record.state].filter(Boolean).join(" / ") || "—"}
             </td>
             <td className="py-1.5 text-right font-sans font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
@@ -470,7 +525,7 @@ function StolenDocumentsTable({ records }: { records: PFStolenDocumentRecord[] }
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border-light dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
+        <tr className="border-b border-linha dark:border-border-dark text-[10px] font-sans font-bold text-gray-400 uppercase">
           <th className="text-left pb-2 pr-3">Ocorrência</th>
           <th className="text-left pb-2 pr-3">Tipo</th>
           <th className="text-left pb-2 pr-3">Documento</th>
@@ -480,14 +535,14 @@ function StolenDocumentsTable({ records }: { records: PFStolenDocumentRecord[] }
       <tbody className="divide-y divide-border-light dark:divide-border-dark">
         {records.map((record, index) => (
           <tr key={`${record.documentNumber ?? "stolen"}-${index}`}>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200 whitespace-nowrap">
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200 whitespace-nowrap">
               {formatDate(record.occurrenceDate)}
             </td>
-            <td className="py-1.5 pr-3 font-serif text-gray-500">{record.documentType ?? "—"}</td>
-            <td className="py-1.5 pr-3 font-serif text-grafite dark:text-gray-200">
+            <td className="py-1.5 pr-3 text-gray-500">{record.documentType ?? "—"}</td>
+            <td className="py-1.5 pr-3 text-grafite dark:text-gray-200">
               {record.documentNumber ?? "—"}
             </td>
-            <td className="py-1.5 font-serif text-gray-500">{record.sourceDescription ?? "—"}</td>
+            <td className="py-1.5 text-gray-500">{record.sourceDescription ?? "—"}</td>
           </tr>
         ))}
       </tbody>
@@ -601,6 +656,26 @@ export default function PersonDetailPage() {
     ? [...activePartnerCompanies, ...inactivePartnerCompanies]
     : activePartnerCompanies;
 
+  const situacaoInfo = SITUACAO[classificarSituacao(totalNeg, totalDebt)];
+  const tomAvatar = tomDoAvatar(profile.cpf);
+  const idade = reg.birthDate && !Number.isNaN(new Date(reg.birthDate).getTime())
+    ? Math.floor(diasDesde(reg.birthDate) / 365.25)
+    : null;
+  const localPessoa = [caixaTitulo(reg.address?.city ?? null), reg.address?.state].filter(Boolean).join(" · ");
+  const cadastroRegular = (reg.statusRegistration ?? "").trim().toUpperCase() === "REGULAR";
+  const empresasNaCarteira = activePartnerCompanies.filter((c) => registeredCompanyCnpjs.has(normalizeCnpj(c.businessDocument))).length;
+  const diasConsulta = diasDesde(profile.consultaEm);
+  const consultaVelha = diasConsulta > DIAS_CONSULTA_VELHA;
+  const temConsultas = inquiries.length > 0 || monthlyCreditInquiries.length > 0;
+  const secoesIndice: SecaoIndice[] = [
+    { id: "cadastro", rotulo: "Cadastro" },
+    { id: "contato", rotulo: "Endereço e contato" },
+    { id: "restricoes", rotulo: "Restrições" },
+    ...(temConsultas ? [{ id: "consultas", rotulo: "Consultas" }] : []),
+    ...(partnerCompanies.length > 0 ? [{ id: "empresas", rotulo: "Empresas" }] : []),
+    { id: "equipe", rotulo: "Equipe" },
+  ];
+
   const expandableIds = [
     { id: "pefin", hasRecords: pefinRecords.length > 0 },
     { id: "refin", hasRecords: refinRecords.length > 0 },
@@ -684,99 +759,146 @@ export default function PersonDetailPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col items-start gap-2">
-        <button
-          type="button"
-          onClick={handleGoIndividuals}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors"
-        >
-          <Icon name="arrow_back" className="text-base" />
-          Voltar para Pessoas Físicas
-        </button>
-        {contextualBackLabel && (
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
           <button
             type="button"
-            onClick={handleGoBack}
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-colors"
+            onClick={handleGoIndividuals}
+            className="inline-flex items-center gap-1 font-medium text-suave transition-colors hover:text-primary"
           >
-            <Icon name="arrow_back" className="text-base" />
-            {contextualBackLabel}
+            <Icon name="arrow_back" size={16} />
+            Voltar para Pessoas Físicas
           </button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 text-sm text-gray-400 font-sans">
-        <Link href="/individuals" className="hover:text-primary transition-colors">
-          Pessoas Físicas
-        </Link>
-        <Icon name="chevron_right" className="text-base" />
-        <span className="text-grafite dark:text-white font-medium truncate max-w-xs">
-          {profile.personName ?? formatCpf(profile.cpf)}
-        </span>
-      </div>
-
-      <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm border border-border-light dark:border-border-dark p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-          <div
-            className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-xl font-sans flex-shrink-0 ${
-              totalNeg > 0
-                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                : "bg-primary/10 text-primary"
-            }`}
-          >
-            {(profile.personName ?? "??").substring(0, 2).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-heading font-bold text-grafite dark:text-white">
-                {profile.personName ?? "Nome não disponível"}
-              </h1>
-              {totalNeg > 0 ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
-                  <Icon name="warning" size={11} />
-                  {totalNeg} restrição{totalNeg !== 1 ? "ões" : ""}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
-                  <Icon name="check_circle" size={11} />
-                  Sem restrições
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-gray-500 font-sans mt-1">CPF: {formatCpf(profile.cpf)}</p>
-            {totalDebt > 0 && (
-              <p className="text-sm font-sans mt-1">
-                <span className="text-red-600 dark:text-red-400 font-bold">
-                  Total em débitos: {formatCurrency(totalDebt)}
-                </span>
-              </p>
-            )}
-            <p className="text-xs text-gray-400 font-sans mt-2">Consultado em {formatDate(profile.consultaEm)}</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
+          {contextualBackLabel && (
             <button
-              onClick={() => consultSerasa()}
-              disabled={isConsulting}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-sans font-bold text-sm text-white transition-all self-start"
-              style={{ background: "#E4006F" }}
+              type="button"
+              onClick={handleGoBack}
+              className="inline-flex items-center gap-1 font-medium text-suave transition-colors hover:text-primary"
             >
-              <Icon name={isConsulting ? "hourglass_empty" : "refresh"} className="text-base" />
-              {isConsulting ? "Consultando..." : "Atualizar Serasa"}
+              <Icon name="arrow_back" size={16} />
+              {contextualBackLabel}
             </button>
-            <button
-              onClick={handleDownloadPdf}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-sans font-bold text-sm border border-gray-300 bg-white text-grafite dark:border-gray-600 dark:bg-gray-800 dark:text-white transition-all self-start"
+          )}
+        </div>
+
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex min-w-0 items-start gap-4 animate-subir motion-reduce:animate-none">
+            <span
+              className="grid h-16 w-16 shrink-0 place-items-center rounded-[20px] text-xl font-bold"
+              style={{ background: tomAvatar.fundo, color: tomAvatar.texto }}
             >
-              <Icon name="picture_as_pdf" className="text-base" />
+              {iniciais(profile.personName)}
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-laranja-texto">Pessoa física · análise Serasa</p>
+              <h1 className="mt-1.5 text-3xl font-semibold leading-[1.05] tracking-[-0.02em] text-grafite sm:text-[40px]">
+                {caixaTitulo(profile.personName) || "Nome não disponível"}
+              </h1>
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-suave">
+                <span className="font-mono text-[13px]">{formatCpf(profile.cpf)}</span>
+                {idade != null && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{idade} anos</span>
+                  </>
+                )}
+                {localPessoa && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{localPessoa}</span>
+                  </>
+                )}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold"
+                  style={{ background: situacaoInfo.fundo, color: situacaoInfo.texto }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: situacaoInfo.cor }} />
+                  {situacaoInfo.rotulo}
+                </span>
+                {reg.statusRegistration &&
+                  (cadastroRegular ? (
+                    <span className="rounded-md bg-[#E2F0E9] px-2 py-0.5 text-[11px] font-bold text-[#17583F]">CPF regular</span>
+                  ) : (
+                    <span className="rounded-md bg-[#F8E1E6] px-2 py-0.5 text-[11px] font-bold text-[#8E1B37]">
+                      CPF: {caixaTitulo(reg.statusRegistration)}
+                    </span>
+                  ))}
+                {activePartnerCompanies.length > 0 && (
+                  <span className="rounded-md bg-[#EFEDE6] px-2 py-0.5 text-[11px] font-bold text-[#5E5C55]">
+                    {activePartnerCompanies.length === 1 ? "1 empresa no QSA" : `${activePartnerCompanies.length} empresas no QSA`}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button onClick={() => consultSerasa()} disabled={isConsulting} className={BOTAO.serasa}>
+              <Icon name={isConsulting ? "progress_activity" : "refresh"} className={isConsulting ? "animate-spin" : ""} />
+              {isConsulting ? "Consultando…" : "Atualizar Serasa"}
+            </button>
+            <button onClick={handleDownloadPdf} className={BOTAO.fantasma}>
+              <Icon name="picture_as_pdf" />
               Gerar PDF
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
+      <section aria-label="Resumo da pessoa" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <BlocoResumo
+          icone="warning"
+          cor="#D1732C"
+          rotulo="Restrições"
+          atraso={60}
+          onClick={() => irParaSecao("restricoes")}
+          corValor={situacaoInfo.cor}
+          valor={totalNeg === 0 ? "Nada consta" : formatMoeda(totalDebt)}
+          apoio={totalNeg === 0 ? "Nenhuma ocorrência no relatório" : totalNeg === 1 ? "1 ocorrência" : `${totalNeg} ocorrências`}
+        />
+        <BlocoResumo
+          icone="badge"
+          cor="#612035"
+          rotulo="Situação do CPF"
+          atraso={120}
+          onClick={() => irParaSecao("cadastro")}
+          corValor={!reg.statusRegistration ? "#8A877E" : cadastroRegular ? "#1F7A5C" : "#B42345"}
+          valor={reg.statusRegistration ? (cadastroRegular ? "Regular" : caixaTitulo(reg.statusRegistration)) : "—"}
+          apoio={reg.statusDate ? `Situação desde ${formatDate(reg.statusDate)}` : "Situação cadastral do CPF"}
+        />
+        <BlocoResumo
+          icone="business"
+          cor="#612035"
+          rotulo="Empresas no QSA"
+          atraso={180}
+          onClick={() => irParaSecao(partnerCompanies.length > 0 ? "empresas" : "cadastro")}
+          valor={activePartnerCompanies.length.toLocaleString("pt-BR")}
+          apoio={
+            activePartnerCompanies.length === 0
+              ? "Não aparece em quadro societário"
+              : `${empresasNaCarteira} na carteira${inactivePartnerCompanies.length > 0 ? ` · ${inactivePartnerCompanies.length} baixada(s)` : ""}`
+          }
+        />
+        <BlocoResumo
+          icone="history"
+          cor={consultaVelha ? "#D1732C" : "#612035"}
+          rotulo="Consulta Serasa"
+          atraso={240}
+          onClick={() => irParaSecao(temConsultas ? "consultas" : "cadastro")}
+          corValor={consultaVelha ? "#944C17" : undefined}
+          valor={formatDate(profile.consultaEm)}
+          apoio={consultaVelha ? `${tempoRelativo(diasConsulta)} · vale reconsultar` : tempoRelativo(diasConsulta)}
+        />
+      </section>
+
+      <IndiceSecoes secoes={secoesIndice} />
+
+      <section id="cadastro" className="space-y-6 scroll-mt-20">
       <SectionCard title="Dados Pessoais" icon="person">
-        <dl className="space-y-0">
+        <dl className="grid gap-x-8 gap-y-3.5 sm:grid-cols-2 xl:grid-cols-3">
           <InfoRow label="CPF" value={formatCpf(reg.documentNumber ?? profile.cpf)} />
           <InfoRow label="Nome da Mãe" value={reg.motherName} />
           <InfoRow label="Data de Nascimento" value={formatDate(reg.birthDate)} />
@@ -819,7 +941,7 @@ export default function PersonDetailPage() {
 
       {(reg.alternativeDocumentNumber || reg.issuingAgency) && (
         <SectionCard title="Documentos" icon="badge">
-          <dl className="space-y-0">
+          <dl className="grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
             <InfoRow
               label={reg.alternativeDocumentDescription ?? "Documento Alternativo"}
               value={reg.alternativeDocumentNumber}
@@ -837,10 +959,13 @@ export default function PersonDetailPage() {
         </SectionCard>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      </section>
+
+      <section id="contato" className="space-y-6 scroll-mt-20">
+      <div className="grid grid-cols-1 items-start md:grid-cols-2 gap-6">
         {reg.address && (
           <SectionCard title="Endereço" icon="location_on">
-            <dl className="space-y-0">
+            <dl className="grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
               <InfoRow label="Logradouro" value={reg.address.addressLine} />
               <InfoRow label="Número" value={reg.address.addressNumber} />
               <InfoRow label="Complemento" value={reg.address.addressComplement} />
@@ -861,7 +986,7 @@ export default function PersonDetailPage() {
               {(reg.phones ?? []).map((phone, index) => (
                 <li
                   key={`${phone.phoneNumber ?? "phone"}-${index}`}
-                  className="flex items-center justify-between gap-4 py-2 border-b border-border-light/50 dark:border-border-dark/50 last:border-0"
+                  className="flex items-center justify-between gap-4 py-2 border-b border-linha/50 dark:border-border-dark/50 last:border-0"
                 >
                   <span className="text-sm font-sans text-grafite dark:text-gray-200">
                     {formatPhone(phone.areaCode, phone.phoneNumber)}
@@ -904,7 +1029,7 @@ export default function PersonDetailPage() {
               {addressHistory.map((address, index) => (
                 <li
                   key={`${address.addressLine ?? "address"}-${index}`}
-                  className="rounded-xl border border-border-light dark:border-border-dark p-4"
+                  className="rounded-xl border border-linha dark:border-border-dark p-4"
                 >
                   <p className="text-sm font-sans text-grafite dark:text-gray-200 leading-6">
                     {formatAddress(address)}
@@ -919,9 +1044,12 @@ export default function PersonDetailPage() {
         </SectionCard>
       )}
 
+      </section>
+
+      <section id="restricoes" className="space-y-6 scroll-mt-20">
       <div>
         <div className="flex items-center justify-between gap-4 mb-4">
-          <h2 className="text-base font-heading font-bold text-grafite dark:text-white">Dados Negativos</h2>
+          <h2 className="flex items-center gap-2 font-sans text-base font-bold text-primary"><Icon name="warning" className="text-lg" /> Dados Negativos</h2>
           {expandableIds.length > 0 && (
             <button
               type="button"
@@ -934,48 +1062,17 @@ export default function PersonDetailPage() {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <NegativeCard
-            title="PEFIN"
-            icon="receipt_long"
-            section={neg.pefin}
-            hasDetail={pefinRecords.length > 0}
-            isOpen={!!openSections.pefin}
-            onToggle={() => toggleSection("pefin")}
-          />
-          <NegativeCard
-            title="REFIN"
-            icon="account_balance"
-            section={neg.refin}
-            hasDetail={refinRecords.length > 0}
-            isOpen={!!openSections.refin}
-            onToggle={() => toggleSection("refin")}
-          />
-          <NegativeCard
-            title="Cheques"
-            icon="payment"
-            section={neg.check}
-            hasDetail={checkRecords.length > 0}
-            isOpen={!!openSections.check}
-            onToggle={() => toggleSection("check")}
-          />
-          <NegativeCard
-            title="Protestos"
-            icon="gavel"
-            section={neg.notary}
-            hasDetail={notaryRecords.length > 0}
-            isOpen={!!openSections.notary}
-            onToggle={() => toggleSection("notary")}
-          />
-          <NegativeCard
-            title="Dívidas Vencidas"
-            icon="request_quote"
-            section={neg.collectionRecords}
-            hasDetail={collectionRecords.length > 0}
-            isOpen={!!openSections.collection}
-            onToggle={() => toggleSection("collection")}
-          />
-        </div>
+        <GradeOcorrencias
+          abertos={openSections}
+          onAlternar={toggleSection}
+          itens={[
+            { id: "pefin", title: "PEFIN", icon: "receipt_long", section: neg.pefin, hasDetail: pefinRecords.length > 0 },
+            { id: "refin", title: "REFIN", icon: "account_balance", section: neg.refin, hasDetail: refinRecords.length > 0 },
+            { id: "check", title: "Cheques", icon: "payment", section: neg.check, hasDetail: checkRecords.length > 0 },
+            { id: "notary", title: "Protestos", icon: "gavel", section: neg.notary, hasDetail: notaryRecords.length > 0 },
+            { id: "collection", title: "Dívidas Vencidas", icon: "request_quote", section: neg.collectionRecords, hasDetail: collectionRecords.length > 0 },
+          ]}
+        />
 
         {openSections.pefin && pefinRecords.length > 0 && (
           <NegDetailTable title="PEFIN — Pendências Financeiras" shownCount={pefinRecords.length} totalCount={neg.pefin?.summary?.count}>
@@ -1005,32 +1102,15 @@ export default function PersonDetailPage() {
       </div>
 
       <SectionCard title="Fatos Relevantes" icon="balance">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <NegativeCard
-            title="Documentos Roubados"
-            icon="report"
-            section={{ summary: facts.stolenDocuments?.summary }}
-            hasDetail={stolenDocuments.length > 0}
-            isOpen={!!openSections.stolen}
-            onToggle={() => toggleSection("stolen")}
-          />
-          <NegativeCard
-            title="Ações Judiciais"
-            icon="gavel"
-            section={{ summary: facts.judgementFilings?.summary }}
-            hasDetail={judgementRecords.length > 0}
-            isOpen={!!openSections.judgement}
-            onToggle={() => toggleSection("judgement")}
-          />
-          <NegativeCard
-            title="Falências"
-            icon="do_not_disturb_on"
-            section={{ summary: facts.bankrupts?.summary }}
-            hasDetail={bankruptRecords.length > 0}
-            isOpen={!!openSections.bankrupt}
-            onToggle={() => toggleSection("bankrupt")}
-          />
-        </div>
+        <GradeOcorrencias
+          abertos={openSections}
+          onAlternar={toggleSection}
+          itens={[
+            { id: "stolen", title: "Documentos Roubados", icon: "report", section: { summary: facts.stolenDocuments?.summary }, hasDetail: stolenDocuments.length > 0 },
+            { id: "judgement", title: "Ações Judiciais", icon: "gavel", section: { summary: facts.judgementFilings?.summary }, hasDetail: judgementRecords.length > 0 },
+            { id: "bankrupt", title: "Falências", icon: "do_not_disturb_on", section: { summary: facts.bankrupts?.summary }, hasDetail: bankruptRecords.length > 0 },
+          ]}
+        />
 
         {openSections.stolen && stolenDocuments.length > 0 && (
           <NegDetailTable
@@ -1061,13 +1141,16 @@ export default function PersonDetailPage() {
         )}
       </SectionCard>
 
+      </section>
+
+      <section id="consultas" className="space-y-6 scroll-mt-20">
       {inquiries.length > 0 && (
         <SectionCard title="Consultas Recentes" icon="manage_search">
           <ul className="space-y-0">
             {inquiries.map((inquiry, index) => (
               <li
                 key={`${inquiry.occurrenceDate ?? "inq"}-${index}`}
-                className="flex items-center justify-between py-3 border-b border-border-light/50 dark:border-border-dark/50 last:border-0"
+                className="flex items-center justify-between py-3 border-b border-linha/50 dark:border-border-dark/50 last:border-0"
               >
                 <div className="flex items-center gap-3">
                   <Icon name="search" className="text-base text-gray-400" />
@@ -1087,7 +1170,7 @@ export default function PersonDetailPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px]">
               <thead>
-                <tr className="border-b border-border-light dark:border-border-dark">
+                <tr className="border-b border-linha dark:border-border-dark">
                   <th className="text-left py-3 pr-4 text-[11px] font-sans font-bold text-gray-400 uppercase tracking-wide">
                     Mês
                   </th>
@@ -1106,7 +1189,7 @@ export default function PersonDetailPage() {
                 {monthlyCreditInquiries.map((item: PFMonthlyInquiryItem, index) => (
                   <tr
                     key={`${item.inquiryDate ?? "month"}-${index}`}
-                    className="border-b border-border-light/50 dark:border-border-dark/50 last:border-0"
+                    className="border-b border-linha/50 dark:border-border-dark/50 last:border-0"
                   >
                     <td className="py-3 pr-4 text-sm font-sans text-grafite dark:text-gray-200">
                       {formatMonthLabel(item.inquiryDate)}
@@ -1128,6 +1211,9 @@ export default function PersonDetailPage() {
         </SectionCard>
       )}
 
+      </section>
+
+      <section id="empresas" className="scroll-mt-20">
       {partnerCompanies.length > 0 && (
         <SectionCard
           title={`Empresas — Sociedades (${partnerCompanies.length})`}
@@ -1137,7 +1223,7 @@ export default function PersonDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowInactiveCompanies((current) => !current)}
-                className="inline-flex items-center gap-1 rounded-full border border-border-light dark:border-border-dark px-3 py-1 text-[11px] font-sans font-bold uppercase tracking-wide text-gray-500 transition-colors hover:border-primary/30 hover:text-primary"
+                className="inline-flex items-center gap-1 rounded-full border border-linha dark:border-border-dark px-3 py-1 text-[11px] font-sans font-bold uppercase tracking-wide text-gray-500 transition-colors hover:border-primary/30 hover:text-primary"
               >
                 <Icon name={showInactiveCompanies ? "unfold_less" : "unfold_more"} className="text-sm" />
                 {showInactiveCompanies ? "Ocultar baixadas" : `Ver baixadas (${inactivePartnerCompanies.length})`}
@@ -1153,7 +1239,7 @@ export default function PersonDetailPage() {
               return (
                 <li
                   key={`${cnpjClean || "company"}-${index}`}
-                  className="flex items-center justify-between gap-4 py-3.5 border-b border-border-light/50 dark:border-border-dark/50 last:border-0"
+                  className="flex items-center justify-between gap-4 py-3.5 border-b border-linha/50 dark:border-border-dark/50 last:border-0"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-sans font-medium text-grafite dark:text-white truncate">
@@ -1221,7 +1307,11 @@ export default function PersonDetailPage() {
         </SectionCard>
       )}
 
-      <PersonNotesPanel cpf={cpf} />
+      </section>
+
+      <section id="equipe" className="scroll-mt-20">
+        <PersonNotesPanel cpf={cpf} />
+      </section>
     </div>
   );
 }

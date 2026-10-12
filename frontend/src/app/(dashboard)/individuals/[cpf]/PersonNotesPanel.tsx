@@ -286,35 +286,35 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
   };
 
   return (
-    <section className="mt-8 rounded-[28px] border border-[#e9d8df] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(250,245,247,0.92)_100%)] p-6 shadow-[0_18px_60px_-34px_rgba(97,32,53,0.35)]">
-      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div ref={composerRef} className="rounded-[24px] border border-[#ead8e0] bg-white/90 p-5 shadow-sm">
+    <section className="rounded-cartao border border-linha bg-white p-6">
+      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[400px_minmax(0,1fr)]">
+        <div ref={composerRef} className="rounded-2xl border border-linha bg-[#FBFAF7] p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#612035] text-white shadow-lg shadow-[#612035]/15">
               <Icon name="edit_note" size={22} />
             </div>
             <div>
-              <h2 className="text-[15px] font-sans font-bold uppercase tracking-[0.14em] text-[#612035]">
-                Mural da Pessoa Fisica
+              <h2 className="text-base font-sans font-bold text-primary">
+                Mural da Pessoa Física
               </h2>
-              <p className="mt-1 text-sm font-serif text-[#7f6c74]">
+              <p className="mt-1 text-sm text-[#7f6c74]">
                 Registre decisões, contexto operacional e observações do time.
               </p>
             </div>
           </div>
 
           <div className="mt-5 rounded-[22px] border border-[#f0e5e9] bg-[#fcfafb] p-4">
-            <label className="mb-2 block text-[11px] font-sans font-bold uppercase tracking-[0.18em] text-[#9b7f8b]">
+            <label className="mb-2 block text-[11px] font-sans font-bold uppercase tracking-[0.08em] text-[#9b7f8b]">
               Nova anotação
             </label>
             {replyTarget && (
               <div className="mb-3 rounded-[18px] border border-[#e5d2da] bg-[#f8f1f4] px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#8f7080]">
+                    <p className="text-[11px] font-sans font-bold uppercase tracking-[0.08em] text-[#8f7080]">
                       Citando {replyTarget.authorName}
                     </p>
-                    <p className="mt-1 line-clamp-3 whitespace-pre-wrap font-serif text-sm leading-6 text-[#705b64]">
+                    <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-[#705b64]">
                       {replyTarget.content}
                     </p>
                   </div>
@@ -344,7 +344,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
               placeholder="Ex.: cliente informou nova fonte de renda e pediu reavaliação interna."
               rows={6}
               maxLength={5000}
-              className="min-h-[156px] w-full resize-y rounded-[18px] border border-[#eadde3] bg-white px-4 py-3 font-serif text-[15px] leading-6 text-grafite outline-none transition focus:border-[#b86f8d] focus:ring-4 focus:ring-[#612035]/10"
+              className="min-h-[156px] w-full resize-y rounded-[18px] border border-[#eadde3] bg-white px-4 py-3 text-[15px] leading-6 text-grafite outline-none transition focus:border-[#b86f8d] focus:ring-4 focus:ring-[#612035]/10"
             />
             <div
               className={`mt-3 rounded-[18px] border border-dashed px-4 py-3 transition ${
@@ -365,19 +365,19 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
               }}
               onDrop={handleDrop}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col items-start gap-3">
                 <div>
-                  <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#9b7f8b]">
+                  <p className="text-[11px] font-sans font-bold uppercase tracking-[0.08em] text-[#9b7f8b]">
                     Anexos opcionais
                   </p>
-                  <p className="mt-1 text-xs font-serif text-[#8e7a83]">
+                  <p className="mt-1 text-xs text-[#8e7a83]">
                     Imagens, PDFs ou arquivos de apoio com até 5 MB cada.
                   </p>
-                  <p className="mt-1 text-[11px] font-serif text-[#a08992]">
+                  <p className="mt-1 text-[11px] text-[#a08992]">
                     Você pode colar com Ctrl+V ou arrastar múltiplos arquivos para esta área.
                   </p>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#e3d2da] bg-white px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#612035] transition hover:bg-[#f7eff2]">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#e3d2da] bg-white px-3 py-2 text-[11px] font-sans font-semibold text-[#612035] transition hover:bg-[#f7eff2]">
                   <Icon name="attach_file" size={16} />
                   Escolher arquivos
                   <input
@@ -392,16 +392,16 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                 <div className="mt-3 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[#eadde3] bg-[#fcfafb] px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-[#e4d2da] bg-white px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#7a5565]">
+                      <span className="rounded-full border border-[#e4d2da] bg-white px-2.5 py-1 text-[10px] font-sans font-bold text-[#7a5565]">
                         {selectedFiles.length} anexo{selectedFiles.length !== 1 ? "s" : ""}
                       </span>
                       {selectedImagesCount > 0 && (
-                        <span className="rounded-full border border-[#d7dff3] bg-[#f4f7ff] px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#5367a0]">
+                        <span className="rounded-full border border-[#d7dff3] bg-[#f4f7ff] px-2.5 py-1 text-[10px] font-sans font-bold text-[#5367a0]">
                           {selectedImagesCount} imagem{selectedImagesCount !== 1 ? "ns" : ""}
                         </span>
                       )}
                       {selectedOtherFilesCount > 0 && (
-                        <span className="rounded-full border border-[#e7dfd1] bg-[#fbf7ef] px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#8a6c43]">
+                        <span className="rounded-full border border-[#e7dfd1] bg-[#fbf7ef] px-2.5 py-1 text-[10px] font-sans font-bold text-[#8a6c43]">
                           {selectedOtherFilesCount} arquivo{selectedOtherFilesCount !== 1 ? "s" : ""}
                         </span>
                       )}
@@ -409,7 +409,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                     <button
                       type="button"
                       onClick={clearSelectedFiles}
-                      className="inline-flex items-center gap-1 rounded-full border border-[#e6d6dd] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#8f7080] transition hover:bg-[#f4ecef]"
+                      className="inline-flex items-center gap-1 rounded-full border border-[#e6d6dd] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold text-[#8f7080] transition hover:bg-[#f4ecef]"
                     >
                       <Icon name="layers_clear" size={14} />
                       Remover todos
@@ -423,7 +423,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-sans font-semibold text-grafite">{file.name}</p>
-                            <p className="text-xs font-serif text-[#8e7a83]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p className="text-xs text-[#8e7a83]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                           <button
                             type="button"
@@ -449,10 +449,10 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
               )}
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-xs font-serif text-[#8e7a83]">
+              <p className="text-xs text-[#8e7a83]">
                 Cada anotação registra autor, data e hora.
               </p>
-              <span className="text-[11px] font-sans font-bold tracking-[0.16em] text-[#b08d9a]">
+              <span className="text-[11px] font-sans font-bold tracking-[0.08em] text-[#b08d9a]">
                 {draft.length}/5000
               </span>
             </div>
@@ -468,26 +468,26 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-[#ead8e0] bg-white/88 p-5 shadow-sm">
+        <div className="rounded-2xl border border-linha bg-[#FBFAF7] p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-[15px] font-sans font-bold uppercase tracking-[0.14em] text-[#612035]">
+              <h3 className="text-base font-sans font-bold text-primary">
                 Histórico da Equipe
               </h3>
-              <p className="mt-1 text-sm font-serif text-[#7f6c74]">
+              <p className="mt-1 text-sm text-[#7f6c74]">
                 Leituras e decisões ficam registradas em ordem cronológica.
               </p>
             </div>
-            <div className="rounded-full border border-[#ecdfe4] bg-[#fbf7f8] px-3 py-1 text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#8b6f7a]">
-              {notes.length} anotação{notes.length === 1 ? "" : "ões"}
+            <div className="rounded-full border border-[#ecdfe4] bg-[#fbf7f8] px-3 py-1 text-[11px] font-sans font-bold uppercase tracking-[0.08em] text-[#8b6f7a]">
+              {notes.length} {notes.length === 1 ? "anotação" : "anotações"}
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-3 rounded-[18px] border border-[#efe2e7] bg-[#fcfafb] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#9b7f8b]">
+              <p className="text-[11px] font-sans font-bold uppercase tracking-[0.08em] text-[#9b7f8b]">
                 Filtrar por autor
               </p>
-              <p className="mt-1 text-xs font-serif text-[#8e7a83]">
+              <p className="mt-1 text-xs text-[#8e7a83]">
                 Mostre todas as interações ou foque em uma pessoa específica.
               </p>
             </div>
@@ -523,7 +523,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
               <h4 className="mt-4 font-sans text-base font-semibold text-grafite">
                 Ainda não há anotações para esta pessoa
               </h4>
-              <p className="mt-2 max-w-md font-serif text-sm leading-6 text-[#8a767f]">
+              <p className="mt-2 max-w-md text-sm leading-6 text-[#8a767f]">
                 Use este espaço para registrar contexto da pessoa física, alertas internos e decisões tomadas pela equipe.
               </p>
             </div>
@@ -543,26 +543,26 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-sans text-sm font-semibold uppercase tracking-[0.12em] text-[#612035]">
+                          <h4 className="font-sans text-sm font-semibold text-grafite">
                             {note.authorName}
                           </h4>
                           {index === 0 && selectedAuthor === "all" && (
-                            <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.16em] text-green-700">
+                            <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.08em] text-green-700">
                               Mais recente
                             </span>
                           )}
-                          <span className="rounded-full bg-[#f5eef1] px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.16em] text-[#8f7080]">
+                          <span className="rounded-full bg-[#f5eef1] px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.08em] text-[#8f7080]">
                             {formatNoteDate(note.createdAt)}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs font-serif text-[#8c7881]">{note.authorEmail}</p>
+                        <p className="mt-1 text-xs text-[#8c7881]">{note.authorEmail}</p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setReplyTarget(note)}
-                          className="inline-flex items-center gap-1 self-start rounded-full border border-[#dfd0d8] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2]"
+                          className="inline-flex items-center gap-1 self-start rounded-full border border-[#dfd0d8] bg-white px-3 py-1.5 text-[11px] font-sans font-semibold text-[#7a5565] transition hover:bg-[#f7eff2]"
                         >
                           <Icon name="reply" size={14} />
                           Citar
@@ -572,7 +572,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                             type="button"
                             onClick={() => handleDelete(note.id)}
                             disabled={isDeleting}
-                            className="inline-flex items-center gap-1 self-start rounded-full border border-red-200 bg-white px-3 py-1.5 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex items-center gap-1 self-start rounded-full border border-red-200 bg-white px-3 py-1.5 text-[11px] font-sans font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <Icon name="delete" size={14} />
                             Apagar
@@ -583,30 +583,30 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
 
                     {note.repliedToContent && (
                       <div className="mt-4 rounded-[18px] border border-[#d9d8f3] bg-[#f4f2ff] px-4 py-3">
-                        <p className="text-[11px] font-sans font-bold uppercase tracking-[0.16em] text-[#6a63a8]">
+                        <p className="text-[11px] font-sans font-bold uppercase tracking-[0.08em] text-[#6a63a8]">
                           Citando {note.repliedToAuthorName}
                         </p>
-                        <p className="mt-1 line-clamp-3 whitespace-pre-wrap font-serif text-sm leading-6 text-[#625d86]">
+                        <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-[#625d86]">
                           {note.repliedToContent}
                         </p>
                       </div>
                     )}
 
                     <div className="mt-4 rounded-[18px] border border-[#f0e5e9] bg-white/90 px-4 py-3">
-                      <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-grafite">
+                      <p className="whitespace-pre-wrap text-[15px] leading-7 text-grafite">
                         {note.content}
                       </p>
                       {(note.attachments ?? []).length > 0 && (
                         <div className="mt-4 space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-[#e4d2da] bg-white px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#7a5565]">
+                            <span className="rounded-full border border-[#e4d2da] bg-white px-2.5 py-1 text-[10px] font-sans font-bold text-[#7a5565]">
                               {(note.attachments ?? []).length} anexo{(note.attachments ?? []).length !== 1 ? "s" : ""}
                             </span>
                             {(note.attachments ?? []).length > 1 && (
                               <button
                                 type="button"
                                 onClick={() => toggleAttachments(note.id)}
-                                className="inline-flex items-center gap-1 rounded-full border border-[#dfd0d8] bg-white px-3 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.14em] text-[#7a5565] transition hover:bg-[#f7eff2]"
+                                className="inline-flex items-center gap-1 rounded-full border border-[#dfd0d8] bg-white px-3 py-1 text-[10px] font-sans font-bold text-[#7a5565] transition hover:bg-[#f7eff2]"
                               >
                                 <Icon name={expandedAttachmentNotes[note.id] ? "expand_less" : "expand_more"} size={13} />
                                 {expandedAttachmentNotes[note.id] ? "Recolher anexos" : "Expandir anexos"}
@@ -636,7 +636,7 @@ export function PersonNotesPanel({ cpf }: { cpf: string }) {
                                   type="button"
                                   onClick={() => handleDownloadAttachment(note, attachment)}
                                   disabled={isDownloadingAttachment === downloadKey}
-                                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#d8d4ec] bg-[#f8f6ff] px-3 py-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#5d4ea1] transition hover:bg-[#f0ecff] disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#d8d4ec] bg-[#f8f6ff] px-3 py-2 text-[11px] font-sans font-semibold text-[#5d4ea1] transition hover:bg-[#f0ecff] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   <Icon name={isDownloadingAttachment === downloadKey ? "sync" : "attach_file"} size={16} className={`${isDownloadingAttachment === downloadKey ? "animate-spin" : ""}`} />
                                   {isDownloadingAttachment === downloadKey ? "Baixando..." : attachmentLabel(attachment)}

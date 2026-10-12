@@ -6,7 +6,7 @@ import { openInNewTab } from "@/lib/newTab";
 import { caixaTitulo } from "@/lib/formatadores";
 import { BOTAO } from "@/components/ui/botao";
 import ResumoCliente from "./ResumoCliente";
-import IndiceSecoes, { irParaSecao, type SecaoIndice } from "./IndiceSecoes";
+import IndiceSecoes, { irParaSecao, type SecaoIndice } from "@/components/ui/IndiceSecoes";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";

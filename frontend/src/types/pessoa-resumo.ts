@@ -43,6 +43,16 @@ export const SITUACAO: Record<SituacaoPessoa, { rotulo: string; cor: string; fun
   CRITICO: { rotulo: "Crítico", cor: "#B42345", fundo: "#F8E1E6", texto: "#8E1B37" },
 };
 
+/**
+ * Mesma regra do SituacaoPessoa do backend, para telas que montam a situação a partir da análise
+ * completa (a lista já recebe pronta do resumo): crítico com 3+ ocorrências ou dívida > R$ 50 mil.
+ */
+export function classificarSituacao(ocorrencias: number, divida: number): SituacaoPessoa {
+  if (ocorrencias <= 0) return "LIMPO";
+  if (ocorrencias >= 3 || divida > 50000) return "CRITICO";
+  return "COM_RESTRICAO";
+}
+
 /** Consulta com mais dias que isso pede reconsulta antes de decidir crédito. */
 export const DIAS_CONSULTA_VELHA = 90;
 

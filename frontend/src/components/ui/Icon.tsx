@@ -19,6 +19,8 @@ import {
   ShieldIcon, ShieldWarningIcon, SignOutIcon, SparkleIcon, StackIcon, StorefrontIcon, SunIcon, TableIcon, TagIcon,
   ThumbsUpIcon, TrashIcon, TrayIcon, TreeStructureIcon, TrendUpIcon, UploadSimpleIcon, UserCheckIcon, UserIcon,
   UsersIcon, WalletIcon, WarningCircleIcon, XCircleIcon, XIcon,
+  ScalesIcon, ListBulletsIcon, HouseLineIcon, MapPinIcon, CreditCardIcon, ChartLineUpIcon, WarningOctagonIcon,
+  InvoiceIcon, ChartLineIcon,
   type Icon as PhosphorIcon, type IconWeight,
 } from "@phosphor-icons/react";
 
@@ -76,6 +78,10 @@ const ICONS: Record<string, PhosphorIcon> = {
   palette: PaletteIcon, contract: ScrollIcon, verified: SealCheckIcon, do_not_disturb_on: MinusCircleIcon, storefront: StorefrontIcon,
   // esteira de liberação
   chat: ChatCircleIcon, alternate_email: AtIcon,
+  // análise de PF, Visão Cedente e Padrões (antes caíam no "?")
+  balance: ScalesIcon, format_list_bulleted: ListBulletsIcon, home_work: HouseLineIcon, location_on: MapPinIcon,
+  payment: CreditCardIcon, query_stats: ChartLineUpIcon, report: WarningOctagonIcon, request_quote: InvoiceIcon,
+  timeline: ChartLineIcon,
 };
 
 /**
