@@ -9,7 +9,7 @@ import { useEnrichPersonSerasa } from "@/hooks/usePersonProfile";
 import { formatCpf } from "@/types/person-analysis";
 import { CUSTO_CONSULTA_PF, DIAS_CONSULTA_VELHA, SITUACAO, TIPO_RESTRICAO } from "@/types/pessoa-resumo";
 import type { PessoaNaLista } from "./LinhaPessoa";
-import { caixaTitulo, formatCnpj, formatData, formatMoeda, iniciais, tempoRelativo, tomDoAvatar } from "./formatadores";
+import { caixaTitulo, formatCnpj, formatData, formatMoeda, iniciais, tempoRelativo, tomDoAvatar } from "@/lib/formatadores";
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (

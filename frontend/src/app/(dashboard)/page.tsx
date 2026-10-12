@@ -1,673 +1,338 @@
 "use client";
 
-import Link from "next/link";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Icon from "@/components/ui/Icon";
-import { useState, useMemo, useRef, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useCompanyList } from "../../hooks/useCompanyList";
-import { useDashboardMetrics } from "../../hooks/useDashboardMetrics";
-import { totalPendingFromAnalysis, totalDebtFromAnalysis } from "../../types/company-detail";
-import { toast } from "sonner";
+import PageHeader from "@/components/ui/PageHeader";
+import KpiCard, { Medidor } from "@/components/ui/KpiCard";
+import Segmentos from "@/components/ui/Segmentos";
+import EstadoVazio from "@/components/ui/EstadoVazio";
+import Paginacao from "@/components/ui/Paginacao";
+import { BOTAO } from "@/components/ui/botao";
+import LinhaEmpresa, { CabecalhoEmpresas, EmpresasEsqueleto } from "@/components/carteira/LinhaEmpresa";
+import NovoCliente from "@/components/carteira/NovoCliente";
+import { useCompanyList } from "@/hooks/useCompanyList";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 
-// ─── Tooltip genérico com posicionamento inteligente ─────────────────────────
-function Tooltip({ content, children }: { content: React.ReactNode; children: React.ReactNode }) {
-  const [visible, setVisible] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
-  const [above, setAbove] = useState(false);
+type Cedente = "" | "SIM" | "NAO" | "PENDENTE";
+type Origem = "" | "CARTEIRA" | "SACADO_PRACA";
+type Analise = "" | "ANALYZED" | "PENDING";
+type Ordem = "recentes" | "nome";
 
-  useEffect(() => {
-    if (visible && ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setAbove(rect.bottom + 180 > window.innerHeight);
-    }
-  }, [visible]);
+const POR_PAGINA = [10, 50, 100, 200];
 
-  return (
-    <span
-      ref={ref}
-      className="relative inline-flex items-center"
-      onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
-      onFocus={() => setVisible(true)}
-      onBlur={() => setVisible(false)}
-    >
-      {children}
-      {visible && (
-        <span
-          role="tooltip"
-          className={`absolute z-50 left-1/2 -translate-x-1/2 w-64 rounded-lg bg-grafite dark:bg-gray-900 text-white text-xs leading-relaxed p-3 shadow-xl border border-gray-700 pointer-events-none ${
-            above ? "bottom-full mb-2" : "top-full mt-2"
-          }`}
-        >
-          {content}
-          <span
-            className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-grafite dark:bg-gray-900 border-gray-700 rotate-45 ${
-              above
-                ? "bottom-[-5px] border-b border-r"
-                : "top-[-5px] border-t border-l"
-            }`}
-          />
-        </span>
-      )}
-    </span>
-  );
-}
-
-
-// ─── Badge de Visão Cedente ───────────────────────────────────────────────────
-function VisaoCedenteBadge({ visaoCedente }: { visaoCedente: string | null | undefined }) {
-  if (!visaoCedente || visaoCedente === 'PENDENTE') {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-2.5 py-0.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block" />
-        Pendente
-      </span>
-    );
-  }
-  if (visaoCedente === 'SIM') {
-    return (
-      <Tooltip content={
-        <div>
-          <p className="font-bold mb-1">Visão Cedente — SIM</p>
-          <p className="text-gray-300 text-[11px]">Esta empresa possui histórico de operações como cedente em factoring/fomento. É um lead qualificado para prospecção comercial.</p>
-        </div>
-      }>
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full px-2.5 py-0.5 cursor-help">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-          Cedente
-        </span>
-      </Tooltip>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-full px-2.5 py-0.5">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-      Não
-    </span>
-  );
-}
-
-// ─── Badge de pendências ──────────────────────────────────────────────────────
-function PendenciaBadge({ analysis }: { analysis: import("../../types/company-detail").CreditAnalysisData | null | undefined }) {
-  if (!analysis) {
-    return <span className="text-xs text-gray-400 italic font-serif">Sem análise</span>;
-  }
-  const count = totalPendingFromAnalysis(analysis);
-  const debt  = totalDebtFromAnalysis(analysis);
-
-  if (count === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full px-2.5 py-0.5">
-        <Icon name="check_circle" size={12} />
-        Nada consta
-      </span>
-    );
-  }
-
-  const formatted = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(debt);
-  return (
-    <Tooltip content={
-      <div>
-        <p className="font-bold mb-1">Pendências Financeiras</p>
-        <p className="text-gray-300 text-[11px]">Total de ocorrências em PEFIN, REFIN, protestos, cheques sem fundo, cobranças e ações judiciais.</p>
-        <p className="mt-1 text-white font-bold">{count} ocorrência{count > 1 ? 's' : ''} · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(debt)}</p>
-      </div>
-    }>
-      <span
-        className="inline-flex items-center gap-1 text-xs font-bold text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-full px-2.5 py-0.5 cursor-help"
-        tabIndex={0}
-      >
-        <Icon name="warning_amber" size={12} />
-        {count} · {formatted}
-      </span>
-    </Tooltip>
-  );
-}
-
-function hasNadaConstaSignal(analysis: import("../../types/company-detail").CreditAnalysisData | null | undefined) {
-  return analysis?.negativeSummary?.message?.trim().toUpperCase() === "NADA CONSTA";
-}
-
-function NadaConstaIndicator({ analysis }: { analysis: import("../../types/company-detail").CreditAnalysisData | null | undefined }) {
-  if (!hasNadaConstaSignal(analysis)) return null;
-
-  return (
-    <Tooltip
-      content={
-        <div>
-          <p className="font-bold mb-1">Sinalização &quot;NADA CONSTA&quot;</p>
-          <p className="text-gray-300 text-[11px]">
-            A Serasa retornou a sinalização &quot;NADA CONSTA&quot;. Esse retorno deve ser tratado com atenção,
-            pois pode indicar restrição de exibição de ocorrências e não necessariamente ausência de risco.
-          </p>
-        </div>
-      }
-    >
-      <span
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 cursor-help"
-        aria-label='Empresa com sinalização "NADA CONSTA"'
-        tabIndex={0}
-      >
-        <Icon name="priority_high" size={14} className="leading-none" />
-      </span>
-    </Tooltip>
-  );
-}
+// A URL usa nomes curtos em português; a API, os valores do backend.
+const CEDENTE_URL: Record<string, Cedente> = { sim: "SIM", nao: "NAO", pendente: "PENDENTE" };
+const ORIGEM_URL: Record<string, Origem> = { carteira: "CARTEIRA", sacado: "SACADO_PRACA" };
+const ANALISE_URL: Record<string, Analise> = { feita: "ANALYZED", pendente: "PENDING" };
+const paraUrl = <T extends string>(mapa: Record<string, T>, valor: T) =>
+  Object.keys(mapa).find(chave => mapa[chave] === valor) ?? "";
 
 export default function GestaoCarteiraPage() {
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(50);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filteredCedente, setFilteredCedente] = useState("");
-  const [filteredOrigin, setFilteredOrigin] = useState("");
-  const [activeCardFilter, setActiveCardFilter] = useState<'' | 'analyzed' | 'cedente' | 'pending'>('');
-  const [nameSortDir, setNameSortDir] = useState<'asc' | 'desc' | null>(null);
-  
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newCnpj, setNewCnpj] = useState("");
-  const [isFetchingCnpja, setIsFetchingCnpja] = useState(false);
-  const [isFetchingSerasa, setIsFetchingSerasa] = useState(false);
-  const [modalError, setModalError] = useState("");
+  // useSearchParams exige Suspense no App Router.
+  return (
+    <Suspense fallback={null}>
+      <GestaoCarteira />
+    </Suspense>
+  );
+}
 
-  const queryClient = useQueryClient();
-  const { data: rawMetrics, isLoading: isMetricsLoading } = useDashboardMetrics();
+function GestaoCarteira() {
+  const params = useSearchParams();
+  const [busca, setBusca] = useState(() => params.get("q") ?? "");
+  const [buscaEnviada, setBuscaEnviada] = useState(busca);
+  const [cedente, setCedente] = useState<Cedente>(() => CEDENTE_URL[params.get("cedente") ?? ""] ?? "");
+  const [origem, setOrigem] = useState<Origem>(() => ORIGEM_URL[params.get("origem") ?? ""] ?? "");
+  const [analise, setAnalise] = useState<Analise>(() => ANALISE_URL[params.get("analise") ?? ""] ?? "");
+  const [ordem, setOrdem] = useState<Ordem>(() => (params.get("ordem") === "nome" ? "nome" : "recentes"));
+  const [pagina, setPagina] = useState(() => Math.max(0, Number(params.get("pagina") ?? "1") - 1) || 0);
+  const [porPagina, setPorPagina] = useState(() => {
+    const n = Number(params.get("por"));
+    return POR_PAGINA.includes(n) ? n : 50;
+  });
+  const [incluindo, setIncluindo] = useState(false);
 
-  const metrics = rawMetrics ?? null;
-  const effectiveVisaoCedente = filteredCedente || (activeCardFilter === 'cedente' ? 'SIM' : '');
-  const effectiveAnalysisStatus =
-    activeCardFilter === 'analyzed'
-      ? 'ANALYZED'
-      : activeCardFilter === 'pending'
-        ? 'PENDING'
-        : '';
-  const { companies, pageData, isLoading: isCompaniesLoading } = useCompanyList(
-    page,
-    pageSize,
-    searchQuery,
-    effectiveVisaoCedente,
-    effectiveAnalysisStatus,
-    filteredOrigin,
+  // A busca vai ao servidor: espera a pessoa parar de digitar.
+  useEffect(() => {
+    const espera = setTimeout(() => setBuscaEnviada(busca.trim()), 350);
+    return () => clearTimeout(espera);
+  }, [busca]);
+
+  // A URL espelha os filtros: voltar da Visão 360º devolve a lista como estava.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (buscaEnviada) p.set("q", buscaEnviada);
+    if (cedente) p.set("cedente", paraUrl(CEDENTE_URL, cedente));
+    if (origem) p.set("origem", paraUrl(ORIGEM_URL, origem));
+    if (analise) p.set("analise", paraUrl(ANALISE_URL, analise));
+    if (ordem !== "recentes") p.set("ordem", ordem);
+    if (pagina > 0) p.set("pagina", String(pagina + 1));
+    if (porPagina !== 50) p.set("por", String(porPagina));
+    const qs = p.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [buscaEnviada, cedente, origem, analise, ordem, pagina, porPagina]);
+
+  const { data: metricas, isLoading: carregandoMetricas } = useDashboardMetrics();
+  const { companies, pageData, isLoading, isError, refetch, isPlaceholderData } = useCompanyList(
+    pagina,
+    porPagina,
+    buscaEnviada,
+    cedente,
+    analise,
+    origem,
+    ordem === "nome" ? "nome" : "",
   );
 
-  const filteredCompanies = useMemo(() => {
-    const result = [...companies];
-    if (nameSortDir) {
-      result.sort((a, b) => {
-        const nameA = (a.companyDetail?.companyName || a.client?.name || "").toLowerCase();
-        const nameB = (b.companyDetail?.companyName || b.client?.name || "").toLowerCase();
-        return nameSortDir === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-      });
-    }
-    return result;
-  }, [companies, nameSortDir]);
+  const total = metricas?.totalClients ?? 0;
+  const analisadas = metricas?.analyzedClients ?? 0;
+  const cedentes = metricas?.cedenteSimCount ?? 0;
+  const aguardando = Math.max(total - analisadas, 0);
+  const fracao = (n: number, de = total) => (de ? n / de : 0);
+  const pct = (n: number, de = total) => `${Math.round(fracao(n, de) * 100)}%`;
 
-  const PROVIDER_LABEL: Record<'cnpja' | 'serasa', string> = { cnpja: 'CNPJ Já', serasa: 'Serasa' };
+  const totalFiltrado = pageData?.totalElements ?? 0;
+  const totalPaginas = pageData?.totalPages ?? 1;
+  const algumFiltro = !!(buscaEnviada || cedente || origem || analise);
 
-  /**
-   * Deixa legível o erro que veio do backend. Corpo bruto de provedor externo
-   * (ex.: {"code":500,"message":"unexpected error","traceId":"..."}) nunca vai para a tela.
-   */
-  const describeEnrichError = (status: number, body: Record<string, unknown>, provider: 'cnpja' | 'serasa') => {
-    const raw = typeof body?.message === 'string' ? body.message.trim() : '';
-    const isRawProviderBody = raw.startsWith('{') || raw.startsWith('[') || raw.length > 200;
-    if (raw && !isRawProviderBody) return raw;
-    if (status === 503 || status >= 500) return `${PROVIDER_LABEL[provider]} está fora do ar no momento.`;
-    if (status === 404) return `CNPJ não encontrado na base do ${PROVIDER_LABEL[provider]}.`;
-    if (status === 429) return `Limite de consultas do ${PROVIDER_LABEL[provider]} atingido. Tente em alguns minutos.`;
-    return `Falha ao buscar dados no ${PROVIDER_LABEL[provider]} (erro ${status}).`;
+  const mudar = <T,>(definir: (v: T) => void) => (valor: T) => {
+    definir(valor);
+    setPagina(0);
   };
-
-  const handleEnrich = async (provider: 'cnpja' | 'serasa') => {
-    if (!newCnpj.replace(/\D/g, '')) {
-      setModalError("Por favor, informe um CNPJ válido.");
-      return;
-    }
-    setModalError("");
-    if (provider === 'cnpja') setIsFetchingCnpja(true);
-    else setIsFetchingSerasa(true);
-
-    try {
-      const token = localStorage.getItem('serasa_token');
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
-      const cleanCnpj = newCnpj.replace(/\D/g, '');
-      const res = await fetch(`${baseUrl}/company/enrich/${provider}/${cleanCnpj}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(describeEnrichError(res.status, errBody, provider));
-      }
-
-      // Busca pelo CNPJ recém-adicionado para mostrar o resultado imediatamente
-      setPage(0);
-      setSearchQuery(cleanCnpj);
-      await queryClient.invalidateQueries({ queryKey: ['companyList'] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
-      toast.success(`Dados do ${PROVIDER_LABEL[provider]} adicionados com sucesso!`);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setModalError(err.message || 'Erro inesperado.');
-      } else {
-        setModalError('Não foi possível concluir a consulta. Verifique sua conexão e tente novamente.');
-      }
-    } finally {
-      if (provider === 'cnpja') setIsFetchingCnpja(false);
-      else setIsFetchingSerasa(false);
-    }
-  };
-
-  const cancelModal = () => {
-    setIsModalOpen(false);
-    setNewCnpj("");
-    setModalError("");
+  const alternarAnalise = (valor: Analise) => mudar(setAnalise)(analise === valor ? "" : valor);
+  const limparFiltros = () => {
+    setBusca("");
+    setBuscaEnviada("");
+    setCedente("");
+    setOrigem("");
+    setAnalise("");
+    setPagina(0);
   };
 
   return (
-    <>
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <nav className="mb-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
-            <span className="text-grafite dark:text-white font-medium">Carteira</span>
-          </nav>
-          <h1 className="font-sans text-3xl font-bold text-grafite dark:text-white">Gestão de Carteira</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Gerencie e analise o risco de crédito dos seus clientes.</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="relative inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-hover text-white text-sm font-medium rounded-lg transition-all duration-200 ease-out hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-[1px] shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(0,26,65,0.3)] active:scale-[0.98] active:translate-y-0 active:shadow-none focus:outline-none overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-            <Icon name="add" className="text-lg relative z-10" />
-            <span className="relative z-10">Novo Cliente</span>
+    <div className="mx-auto flex max-w-[1240px] flex-col gap-6 pb-10">
+      <PageHeader
+        rotulo="Carteira"
+        titulo="Gestão de Carteira"
+        resumo={
+          carregandoMetricas ? (
+            "Carregando carteira…"
+          ) : (
+            <>
+              <b className="text-grafite">{total.toLocaleString("pt-BR")}</b> empresas ·{" "}
+              <b className="text-grafite">{analisadas.toLocaleString("pt-BR")}</b> analisadas no Serasa
+            </>
+          )
+        }
+        acoes={
+          <button type="button" onClick={() => setIncluindo(v => !v)} aria-expanded={incluindo} className={BOTAO.primario}>
+            <Icon name="add" />
+            Novo cliente
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* KPIs / Dashboard Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-surface-dark p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] flex flex-col transition-transform duration-300 hover:-translate-y-1">
-          <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2">Total de Clientes</span>
-          <div className="flex items-center gap-3">
-             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border border-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-               <Icon name="business" />
-             </div>
-             {isCompaniesLoading ? (
-               <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
-             ) : (
-               <span className="text-3xl font-bold font-sans text-grafite dark:text-white">
-                 {metrics?.totalClients ?? 0}
-               </span>
-             )}
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            setPage(0);
-            setActiveCardFilter(f => f === 'analyzed' ? '' : 'analyzed');
+      {incluindo && (
+        <NovoCliente
+          onFechar={() => setIncluindo(false)}
+          onIncluido={cnpj => {
+            // Mostra a empresa recém-incluída: busca por ela, sem os outros filtros.
+            setCedente("");
+            setOrigem("");
+            setAnalise("");
+            setBusca(cnpj);
+            setBuscaEnviada(cnpj);
+            setPagina(0);
+            setIncluindo(false);
           }}
-          className={`text-left p-6 rounded-2xl border shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] flex flex-col transition-all duration-200 hover:-translate-y-1 cursor-pointer ${
-            activeCardFilter === 'analyzed'
-              ? 'bg-secondary/5 dark:bg-secondary/10 border-secondary/40 ring-2 ring-secondary/30'
-              : 'bg-white dark:bg-surface-dark border-gray-100 dark:border-gray-800'
-          }`}
-        >
-          <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2 flex items-center gap-1.5">
-            Empresas Analisadas
-            {activeCardFilter === 'analyzed' && <Icon name="filter_alt" size={14} className="text-secondary" />}
-          </span>
-          <div className="flex items-center gap-3">
-             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 border border-secondary/10 flex items-center justify-center text-secondary dark:text-secondary">
-               <Icon name="check_circle" />
-             </div>
-             {isMetricsLoading ? (
-               <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
-             ) : (
-               <span className="text-3xl font-bold font-sans text-grafite dark:text-white">
-                 {metrics?.analyzedClients ?? 0}
-               </span>
-             )}
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            setPage(0);
-            setActiveCardFilter(f => f === 'cedente' ? '' : 'cedente');
-          }}
-          className={`text-left p-6 rounded-2xl border shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] flex flex-col transition-all duration-200 hover:-translate-y-1 cursor-pointer ${
-            activeCardFilter === 'cedente'
-              ? 'bg-green-50 dark:bg-green-900/10 border-green-400/40 ring-2 ring-green-400/30'
-              : 'bg-white dark:bg-surface-dark border-gray-100 dark:border-gray-800'
-          }`}
-        >
-          <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2 flex items-center gap-1.5">
-            Visão Cedente
-            <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-            {activeCardFilter === 'cedente' && <Icon name="filter_alt" size={14} className="text-green-600" />}
-          </span>
-          <div className="flex items-center gap-3">
-             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/10 to-green-500/5 dark:from-green-500/20 dark:to-green-500/10 border border-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400">
-               <Icon name="swap_horiz" />
-             </div>
-             {isMetricsLoading ? (
-               <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
-             ) : (
-               <div className="flex flex-col">
-                 <span className="text-3xl font-bold font-sans text-grafite dark:text-white">
-                   {metrics?.cedenteSimCount ?? 0}
-                 </span>
-                 <span className="text-xs text-gray-400 font-sans">empresas cedentes</span>
-               </div>
-             )}
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            setPage(0);
-            setActiveCardFilter(f => f === 'pending' ? '' : 'pending');
-          }}
-          className={`text-left p-6 rounded-2xl border shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] flex flex-col transition-all duration-200 hover:-translate-y-1 cursor-pointer ${
-            activeCardFilter === 'pending'
-              ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-400/40 ring-2 ring-amber-400/30'
-              : 'bg-white dark:bg-surface-dark border-gray-100 dark:border-gray-800'
-          }`}
-        >
-          <span className="text-gray-500 dark:text-gray-400 font-sans text-sm font-medium mb-2 flex items-center gap-2">
-             Aguardando Análise
-             {activeCardFilter === 'pending' && <Icon name="filter_alt" size={14} className="text-amber-600" />}
-          </span>
-          <div className="flex items-center gap-3">
-             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border border-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-               <Icon name="hourglass_empty" />
-             </div>
-             {isMetricsLoading || isCompaniesLoading ? (
-               <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
-             ) : (
-               <span className="text-3xl font-bold font-sans text-grafite dark:text-white">
-                 {Math.max((metrics?.totalClients ?? 0) - (metrics?.analyzedClients ?? 0), 0)}
-               </span>
-             )}
-          </div>
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6 rounded-2xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] dark:bg-surface-dark border border-gray-100 dark:border-gray-800">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-          <div className="md:col-span-4 relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <Icon name="search" />
-            </span>
-            <input
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-grafite placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 outline-none transition-shadow hover:shadow-sm" 
-              placeholder="Buscar por nome, CNPJ ou cidade..." 
-              type="text"
-            />
-          </div>
-          <div className="md:col-span-3">
-            <select
-              value={filteredCedente}
-              onChange={(e) => {
-                setFilteredCedente(e.target.value);
-                setPage(0);
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-sm text-grafite focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none transition-shadow hover:shadow-sm"
-            >
-              <option value="">Visão Cedente — Todas</option>
-              <option value="SIM">✓ Cedente (SIM)</option>
-              <option value="NAO">✗ Não Cedente (NÃO)</option>
-              <option value="PENDENTE">⏳ Pendente</option>
-            </select>
-          </div>
-          <div className="md:col-span-3">
-            <select
-              value={filteredOrigin}
-              onChange={(e) => {
-                setFilteredOrigin(e.target.value);
-                setPage(0);
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-sm text-grafite focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none transition-shadow hover:shadow-sm"
-            >
-              <option value="">Origem — Todas</option>
-              <option value="SACADO_PRACA">🔵 Apenas sacado</option>
-              <option value="CARTEIRA">📁 Apenas carteira</option>
-            </select>
-          </div>
-          <div className="md:col-span-2 flex justify-end gap-2">
-            <select 
-              value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-sm text-grafite focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white outline-none transition-shadow hover:shadow-sm"
-            >
-              <option value={10}>10 por pág.</option>
-              <option value={50}>50 por pág.</option>
-              <option value={100}>100 por pág.</option>
-              <option value={200}>200 por pág.</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] dark:bg-surface-dark border border-gray-100 dark:border-gray-800">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50/50 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-800/50 dark:text-gray-400 font-sans border-b border-gray-100 dark:border-gray-800/60">
-              <tr>
-                <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors select-none"
-                  onClick={() => setNameSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
-                >
-                  <div className="flex items-center gap-1">
-                    Cliente / CNPJ
-                    {nameSortDir === 'asc' && <Icon name="arrow_upward" size={16} />}
-                    {nameSortDir === 'desc' && <Icon name="arrow_downward" size={16} />}
-                    {!nameSortDir && <Icon name="sort" size={16} className="opacity-20" />}
-                  </div>
-                </th>
-                <th className="px-6 py-4">Data / UF</th>
-                <th className="px-6 py-4">Visão Cedente</th>
-                <th className="px-6 py-4">Pendências</th>
-                <th className="px-6 py-4 text-right">Relatório</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {isCompaniesLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    <Icon name="sync" className="animate-spin text-2xl mb-2" />
-                    <p>Carregando clientes...</p>
-                  </td>
-                </tr>
-              ) : filteredCompanies.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    Nenhum cliente encontrado.
-                  </td>
-                </tr>
-              ) : (
-                filteredCompanies.map((profile) => {
-                   const company = profile.companyDetail;
-                   const analysis = profile.creditAnalysis;
-                   // Matriz/filial: usa o head do CNPJ Já; sem enriquecimento, cai na regra da
-                   // Receita (ordem do estabelecimento "0001" = matriz).
-                   const profileDoc = (company?.documentNumber || profile.client?.documentNumber || '').replace(/\D/g, '');
-                   const isHead = company?.head ?? (profileDoc.length === 14 ? profileDoc.slice(8, 12) === '0001' : null);
-                   
-                   return (
-                   <tr key={company?.id || profile.client?.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <div className="flex items-start gap-2">
-                          <Link href={`/clients/${company?.documentNumber || profile.client?.documentNumber}`} className="font-sans font-bold text-grafite dark:text-white hover:text-primary dark:hover:text-primary transition-colors">
-                            {company?.companyName || profile.client?.name || 'Razão Social não informada'}
-                          </Link>
-                          <NadaConstaIndicator analysis={analysis} />
-                          {isHead === null ? null : isHead ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary"
-                              title="Estabelecimento matriz (CNPJ terminado em 0001)"
-                            >
-                              <Icon name="business" size={12} />
-                              matriz
-                            </span>
-                          ) : (
-                            <span
-                              className="inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-700 dark:bg-sky-500/10 dark:text-sky-300"
-                              title="Estabelecimento filial"
-                            >
-                              <Icon name="store" size={12} />
-                              filial
-                            </span>
-                          )}
-                          {!profile.client?.clientCode && profile.client?.origin !== "SACADO_PRACA" ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
-                              title="Empresa sem código de cliente (ERP) — não cruza na Praça de Pagamento"
-                            >
-                              <Icon name="warning" size={12} />
-                              sem código
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1">
-                          {(company?.documentNumber || profile.client?.documentNumber || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-grafite dark:text-gray-300">
-                       <span className="block text-xs text-gray-500 dark:text-gray-400">
-                         {profile.client?.createdAt ? new Date(profile.client.createdAt).toLocaleDateString("pt-BR") : '-'}
-                       </span>
-                       {company?.city ? `${company.city}, ${company.state || ''}` : '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <VisaoCedenteBadge visaoCedente={analysis?.visaoCedente} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <PendenciaBadge analysis={analysis} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        href={`/clients/${company?.documentNumber || profile.client?.documentNumber}`}
-                        className="rounded-md p-1.5 text-gray-400 hover:bg-accent-blue/20 hover:text-grafite dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-white transition-colors"
-                        aria-label="Visualizar relatório"
-                      >
-                        <Icon name="visibility" className="text-lg" />
-                      </Link>
-                    </td>
-                  </tr>
-                )})
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination */ }
-        <div className="flex items-center justify-between border-t border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-surface-dark">
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-400">
-                        Mostrando <span className="font-medium text-grafite dark:text-white">{filteredCompanies.length > 0 ? page * pageSize + 1 : 0}</span> a <span className="font-medium text-grafite dark:text-white">{page * pageSize + filteredCompanies.length}</span> de <span className="font-medium text-grafite dark:text-white">{pageData?.totalElements ?? metrics?.totalClients ?? 0}</span> resultados
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                   <button 
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      disabled={page === 0}
-                      className="px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm">
-                      Anterior
-                   </button>
-                   <button 
-                      onClick={() => setPage(p => p + 1)}
-                      disabled={!pageData || page >= pageData.totalPages - 1}
-                      className="px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm">
-                      Próxima
-                   </button>
-                </div>
-            </div>
-        </div>
-      </div>
-
-      {/* New Client Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md bg-white dark:bg-surface-dark rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden" 
-               role="dialog" aria-modal="true" aria-labelledby="modal-title">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h3 id="modal-title" className="text-lg font-bold font-sans text-grafite dark:text-white">Adicionar Novo Cliente</h3>
-              <button onClick={cancelModal} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                <Icon name="close" />
-              </button>
-            </div>
-            <div className="p-6">
-              {modalError && (
-                <div className="mb-4 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400">
-                  <div className="flex items-start gap-2">
-                    <Icon name="error_outline" size={18} className="mt-[1px] shrink-0" />
-                    <span>{modalError}</span>
-                  </div>
-                </div>
-              )}
-              <div className="mb-5">
-                <label htmlFor="cnpj-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  CNPJ do Cliente
-                </label>
-                <input
-                  id="cnpj-input"
-                  type="text"
-                  value={newCnpj}
-                  onChange={(e) => setNewCnpj(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-grafite dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 border-l-2 border-primary pl-2">
-                Busque os dados nas bases abaixo. O cliente será adicionado automaticamente.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => handleEnrich('cnpja')}
-                  disabled={isFetchingCnpja || isFetchingSerasa}
-                  style={{ backgroundColor: "#2956E0" }}
-                  className="flex flex-col items-center justify-center py-3 px-4 rounded-lg text-white font-sans font-medium text-sm shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(41,86,224,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
-                >
-                  <Icon name={isFetchingCnpja ? 'autorenew' : 'domain'} size={24} className={`mb-1 text-white ${isFetchingCnpja ? 'animate-spin' : ''}`} />
-                  <span>CNPJ Já</span>
-                </button>
-                <button
-                  onClick={() => handleEnrich('serasa')}
-                  disabled={isFetchingCnpja || isFetchingSerasa}
-                  style={{ backgroundColor: "#E4006F" }}
-                  className="flex flex-col items-center justify-center py-3 px-4 rounded-lg text-white font-sans font-medium text-sm shadow-[0_1px_2px_rgba(0,0,0,0.1),_0_2px_4px_rgba(228,0,111,0.3)] hover:-translate-y-[1px] hover:brightness-110 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none disabled:brightness-100"
-                >
-                  <Icon name={isFetchingSerasa ? 'autorenew' : 'verified_user'} size={24} className={`mb-1 text-white ${isFetchingSerasa ? 'animate-spin' : ''}`} />
-                  <span>Serasa</span>
-                </button>
-              </div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-              <button
-                onClick={cancelModal}
-                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
-    </>
+
+      <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          icone="business"
+          cor="#612035"
+          rotulo="Empresas na carteira"
+          valor={total}
+          atraso={60}
+          rodape={`${(metricas?.cnpjaEnrichedCount ?? 0).toLocaleString("pt-BR")} com cadastro do CNPJ Já`}
+        >
+          <Medidor fracao={fracao(metricas?.cnpjaEnrichedCount ?? 0)} cor="#2956E0" />
+        </KpiCard>
+        <KpiCard
+          icone="verified_user"
+          cor="#E4006F"
+          rotulo="Analisadas no Serasa"
+          valor={analisadas}
+          atraso={120}
+          rodape={`${pct(analisadas)} da carteira`}
+          onClick={() => alternarAnalise("ANALYZED")}
+          ativo={analise === "ANALYZED"}
+        >
+          <Medidor fracao={fracao(analisadas)} cor="#E4006F" />
+        </KpiCard>
+        <KpiCard
+          icone="swap_horiz"
+          cor="#1F7A5C"
+          rotulo="Visão Cedente"
+          valor={cedentes}
+          atraso={180}
+          rodape={`${pct(cedentes, analisadas)} das analisadas operam como cedente`}
+          onClick={() => mudar(setCedente)(cedente === "SIM" ? "" : "SIM")}
+          ativo={cedente === "SIM"}
+        >
+          <Medidor fracao={fracao(cedentes, analisadas)} cor="#1F7A5C" />
+        </KpiCard>
+        <KpiCard
+          icone="hourglass_empty"
+          cor="#D1732C"
+          rotulo="Aguardando análise"
+          valor={aguardando}
+          atraso={240}
+          rodape={`${pct(aguardando)} nunca consultadas no Serasa`}
+          onClick={() => alternarAnalise("PENDING")}
+          ativo={analise === "PENDING"}
+        >
+          <Medidor fracao={fracao(aguardando)} cor="#D1732C" />
+        </KpiCard>
+      </section>
+
+      <section className="flex flex-wrap items-center gap-3 animate-subir motion-reduce:animate-none" style={{ animationDelay: "280ms" }}>
+        <label className="relative min-w-0 flex-1 basis-[260px]">
+          <span className="sr-only">Buscar por nome ou CNPJ</span>
+          <Icon name="search" size={20} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A877E]" />
+          <input
+            type="search"
+            value={busca}
+            onChange={e => {
+              setBusca(e.target.value);
+              setPagina(0);
+            }}
+            placeholder="Buscar por nome ou CNPJ"
+            className="h-[46px] w-full rounded-[13px] border border-linha bg-white pl-11 pr-3.5 text-[14.5px] font-medium text-grafite outline-none transition-[border-color,box-shadow] placeholder:text-[#9A978E] focus:border-primary focus:ring-4 focus:ring-primary/10"
+          />
+        </label>
+        <Segmentos
+          rotulo="Filtrar por Visão Cedente"
+          valor={cedente}
+          onChange={mudar(setCedente)}
+          opcoes={[
+            { valor: "", rotulo: "Todas" },
+            { valor: "SIM", rotulo: "Cedente", cor: "#1F7A5C" },
+            { valor: "NAO", rotulo: "Não", cor: "#B42345" },
+            { valor: "PENDENTE", rotulo: "Pendente", cor: "#A8A49A" },
+          ]}
+        />
+        <Segmentos
+          rotulo="Filtrar por origem"
+          valor={origem}
+          onChange={mudar(setOrigem)}
+          opcoes={[
+            { valor: "", rotulo: "Toda origem" },
+            { valor: "CARTEIRA", rotulo: "Carteira" },
+            { valor: "SACADO_PRACA", rotulo: "Só sacado" },
+          ]}
+        />
+        <label className="shrink-0">
+          <span className="sr-only">Ordenar</span>
+          <select
+            value={ordem}
+            onChange={e => mudar(setOrdem)(e.target.value as Ordem)}
+            className="h-[46px] rounded-[13px] border border-linha bg-white px-3 text-[13.5px] font-semibold text-grafite outline-none focus:border-primary"
+          >
+            <option value="recentes">Mais recentes</option>
+            <option value="nome">Nome A–Z</option>
+          </select>
+        </label>
+      </section>
+
+      <section
+        className="overflow-hidden rounded-painel border border-linha bg-white animate-subir motion-reduce:animate-none"
+        style={{ animationDelay: "340ms" }}
+        aria-busy={isLoading || isPlaceholderData}
+      >
+        <CabecalhoEmpresas />
+
+        {isLoading ? (
+          <EmpresasEsqueleto />
+        ) : isError ? (
+          <EstadoVazio
+            icone="error_outline"
+            titulo="Não foi possível carregar a carteira"
+            descricao="O servidor não respondeu agora. O resto do portal continua funcionando."
+            acoes={
+              <button type="button" onClick={() => refetch()} className={BOTAO.primario}>
+                Tentar de novo
+              </button>
+            }
+          />
+        ) : companies.length === 0 ? (
+          <EstadoVazio
+            icone="search_off"
+            titulo={algumFiltro ? "Nenhuma empresa com esses filtros" : "A carteira está vazia"}
+            descricao={
+              algumFiltro
+                ? "Confira a digitação ou limpe os filtros. Se a empresa ainda não está na carteira, inclua pelo CNPJ."
+                : "Inclua a primeira empresa pelo CNPJ."
+            }
+            acoes={
+              <>
+                {algumFiltro && (
+                  <button type="button" onClick={limparFiltros} className={BOTAO.fantasma}>
+                    Limpar filtros
+                  </button>
+                )}
+                <button type="button" onClick={() => setIncluindo(true)} className={BOTAO.primario}>
+                  Novo cliente
+                </button>
+              </>
+            }
+          />
+        ) : (
+          // A chave refaz a cascata de entrada a cada página ou filtro novo.
+          <div
+            key={`${pagina}-${porPagina}-${cedente}-${origem}-${analise}-${ordem}-${buscaEnviada}`}
+            className={`transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}
+          >
+            {companies.map((perfil, i) => (
+              <LinhaEmpresa
+                key={perfil.client?.id ?? perfil.companyDetail?.id ?? i}
+                perfil={perfil}
+                atraso={Math.min(i, 14) * 24}
+              />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && !isError && companies.length > 0 && (
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#F0EEE8] bg-[#FBFAF7] px-5 py-3 text-[13px] text-suave sm:px-6">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>
+                Mostrando{" "}
+                <b className="text-grafite">
+                  {(pagina * porPagina + 1).toLocaleString("pt-BR")}–
+                  {Math.min(totalFiltrado, (pagina + 1) * porPagina).toLocaleString("pt-BR")}
+                </b>{" "}
+                de <b className="text-grafite">{totalFiltrado.toLocaleString("pt-BR")}</b>
+              </span>
+              <label className="inline-flex items-center gap-1.5">
+                <select
+                  value={porPagina}
+                  onChange={e => mudar(setPorPagina)(Number(e.target.value))}
+                  className="h-9 rounded-[10px] border border-linha bg-white px-2 text-[13px] font-semibold text-grafite outline-none focus:border-primary"
+                >
+                  {POR_PAGINA.map(n => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                por página
+              </label>
+            </span>
+            <Paginacao pagina={pagina} totalPaginas={totalPaginas} onIr={setPagina} />
+          </footer>
+        )}
+      </section>
+    </div>
   );
 }

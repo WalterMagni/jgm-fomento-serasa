@@ -30,6 +30,8 @@ export default function KpiCard({
   valor,
   rodape,
   atraso = 0,
+  onClick,
+  ativo = false,
   children,
 }: {
   icone: string;
@@ -39,24 +41,53 @@ export default function KpiCard({
   rodape?: ReactNode;
   /** Atraso da entrada, em ms, para os cartões chegarem em sequência. */
   atraso?: number;
+  /** Com onClick o cartão vira filtro: um botão que fica marcado enquanto ativo. */
+  onClick?: () => void;
+  ativo?: boolean;
   children?: ReactNode;
 }) {
   const numero = useContagem(valor);
-  return (
-    <div
-      className="flex flex-col gap-2.5 overflow-hidden rounded-cartao border border-linha bg-white p-5 transition-[transform,box-shadow] duration-300 ease-saida hover:-translate-y-0.5 hover:shadow-elevado animate-subir motion-reduce:animate-none motion-reduce:hover:translate-y-0"
-      style={{ animationDelay: `${atraso}ms` }}
-    >
-      <p className="flex items-center gap-2 text-[12.5px] font-semibold text-suave">
+  const classes =
+    "flex flex-col gap-2.5 overflow-hidden rounded-cartao border bg-white p-5 text-left transition-[transform,box-shadow,border-color] duration-300 ease-saida hover:-translate-y-0.5 hover:shadow-elevado animate-subir motion-reduce:animate-none motion-reduce:hover:translate-y-0";
+  const conteudo = (
+    <>
+      <span className="flex items-center gap-2 text-[12.5px] font-semibold text-suave">
         <Icon name={icone} size={20} style={{ color: cor }} />
         {rotulo}
-      </p>
-      <p className="font-display text-[40px] font-semibold leading-none tracking-[-0.02em] text-grafite">
+        {ativo && (
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-grafite px-2 py-0.5 text-[10.5px] font-bold text-white">
+            <Icon name="filter_alt" size={11} />
+            filtrando
+          </span>
+        )}
+      </span>
+      <span className="block font-display text-[40px] font-semibold leading-none tracking-[-0.02em] text-grafite">
         {numero.toLocaleString("pt-BR")}
-      </p>
+      </span>
       {children}
-      {rodape && <p className="text-[12.5px] text-suave">{rodape}</p>}
-    </div>
+      {rodape && <span className="block text-[12.5px] text-suave">{rodape}</span>}
+    </>
+  );
+
+  if (!onClick) {
+    return (
+      <div className={`${classes} border-linha`} style={{ animationDelay: `${atraso}ms` }}>
+        {conteudo}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={ativo}
+      className={`${classes} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        ativo ? "border-grafite shadow-elevado" : "border-linha"
+      }`}
+      style={{ animationDelay: `${atraso}ms` }}
+    >
+      {conteudo}
+    </button>
   );
 }
 

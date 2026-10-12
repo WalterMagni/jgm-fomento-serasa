@@ -12,7 +12,7 @@ import { BOTAO } from "@/components/ui/botao";
 import LinhaPessoa, { CabecalhoPessoas, LinhasEsqueleto, type PessoaNaLista } from "@/components/pessoas/LinhaPessoa";
 import GavetaPessoa from "@/components/pessoas/GavetaPessoa";
 import NovaConsultaPF from "@/components/pessoas/NovaConsultaPF";
-import { diasDesde, normalizar } from "@/components/pessoas/formatadores";
+import { diasDesde, normalizar } from "@/lib/formatadores";
 import { usePessoasResumo } from "@/hooks/usePersonProfile";
 import { SITUACAO, type SituacaoPessoa } from "@/types/pessoa-resumo";
 

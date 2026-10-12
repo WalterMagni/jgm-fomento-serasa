@@ -3,7 +3,7 @@
 import Icon from "@/components/ui/Icon";
 import { formatCpf } from "@/types/person-analysis";
 import { DIAS_CONSULTA_VELHA, SITUACAO, TIPO_RESTRICAO, type PessoaResumo } from "@/types/pessoa-resumo";
-import { caixaTitulo, formatData, formatMoeda, iniciais, tempoRelativo, tomDoAvatar } from "./formatadores";
+import { caixaTitulo, formatData, formatMoeda, iniciais, tempoRelativo, tomDoAvatar } from "@/lib/formatadores";
 
 /**
  * Colunas da lista. Abaixo de lg somem vínculo e dívida; abaixo de md fica só a pessoa —

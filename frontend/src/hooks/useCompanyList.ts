@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { PageResponse, ClientProfile } from '../types/company-detail';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
@@ -12,9 +12,11 @@ const getAuthHeaders = () => {
   };
 };
 
-export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = '', analysisStatus = '', origin = '') {
+export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = '', analysisStatus = '', origin = '', ordem = '') {
   const listQuery = useQuery<PageResponse<ClientProfile>>({
-    queryKey: ['companyList', page, size, search, visaoCedente, analysisStatus, origin],
+    queryKey: ['companyList', page, size, search, visaoCedente, analysisStatus, origin, ordem],
+    // Mantém a página anterior na tela enquanto a próxima chega: sem piscar ao paginar/filtrar.
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
@@ -32,6 +34,9 @@ export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = 
       if (origin.trim()) {
         params.set('origin', origin.trim());
       }
+      if (ordem.trim()) {
+        params.set('ordem', ordem.trim());
+      }
       const res = await fetch(`${API_BASE_URL}/company/profiles?${params.toString()}`, {
         headers: getAuthHeaders(),
       });
@@ -46,6 +51,8 @@ export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = 
     companies: listQuery.data?.content || [],
     pageData: listQuery.data,
     isLoading: listQuery.isLoading,
+    /** Buscando outra página/filtro com a anterior ainda na tela. */
+    isPlaceholderData: listQuery.isPlaceholderData,
     isError: listQuery.isError,
     refetch: listQuery.refetch,
   };

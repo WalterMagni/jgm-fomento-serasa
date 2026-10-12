@@ -12,4 +12,7 @@ export const BOTAO = {
   primario: `${BASE} bg-primary text-white shadow-[0_10px_22px_-12px_rgba(97,32,53,0.8)] hover:bg-primary-hover`,
   fantasma: `${BASE} border border-linha bg-white text-grafite hover:border-[#C9C4B8]`,
   laranja: `${BASE} bg-secondary text-[#1D1408] hover:brightness-105`,
+  /** Cores das marcas dos provedores, as mesmas dos botões de consulta da Visão 360º. */
+  cnpja: `${BASE} bg-[#2956E0] text-white hover:bg-[#2148c0]`,
+  serasa: `${BASE} bg-[#E4006F] text-white hover:bg-[#c4005f]`,
 } as const;
