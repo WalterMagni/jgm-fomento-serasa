@@ -6,6 +6,7 @@ import com.portal.serasa.domain.model.prospeccao.EscopoDocumento;
 import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
 import com.portal.serasa.domain.model.prospeccao.MotivoRecusa;
 import com.portal.serasa.domain.model.prospeccao.StatusDocumento;
+import com.portal.serasa.infrastructure.persistence.entity.DadosComerciais;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDocumentoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEventoEntity;
@@ -78,26 +79,68 @@ class ProspeccaoServiceTest {
         ProspeccaoEntity aberta = card(EstagioProspeccao.EM_ANALISE);
         when(prospeccaoRepository.findAberta("11222333000181")).thenReturn(Optional.of(aberta));
 
-        assertThatThrownBy(() -> service.criar("11.222.333/0001-81", "ACME LTDA", null, "Gustavo", analista))
+        assertThatThrownBy(() -> service.criar("11.222.333/0001-81", "ACME LTDA", null, "Gustavo", null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining("EM_ANALISE");
     }
 
     @Test
-    @DisplayName("criar: normaliza o CNPJ formatado antes de gravar")
+    @DisplayName("criar: normaliza o CNPJ, nasce em Nova e já com checklist")
     void shouldNormalizeCnpj() {
         when(prospeccaoRepository.findAberta(any())).thenReturn(Optional.empty());
 
-        ProspeccaoEntity criado = service.criar("11.222.333/0001-81", "ACME LTDA", null, "Gustavo", analista);
+        ProspeccaoEntity criado = service.criar("11.222.333/0001-81", "ACME LTDA", null, "Gustavo", null, analista);
 
         assertThat(criado.getCnpj()).isEqualTo("11222333000181");
-        assertThat(criado.getEstagio()).isEqualTo(EstagioProspeccao.TRIAGEM);
+        assertThat(criado.getEstagio()).isEqualTo(EstagioProspeccao.NOVA);
+        // A equipe anexa documento desde o primeiro dia; a trava fica na saída da documentação.
+        verify(checklistService).materializar(criado);
+    }
+
+    @Test
+    @DisplayName("criar: grava os dados comerciais informados na abertura")
+    void shouldKeepCommercialDataOnCreate() {
+        when(prospeccaoRepository.findAberta(any())).thenReturn(Optional.empty());
+        DadosComerciais dados = DadosComerciais.builder()
+                .faturamentoMensal(new java.math.BigDecimal("250000"))
+                .regiaoAtendimento("Interior de SP")
+                .build();
+
+        ProspeccaoEntity criado = service.criar("11222333000181", "ACME LTDA", null, null, dados, analista);
+
+        assertThat(criado.getDadosComerciais()).isEqualTo(dados);
+        assertThat(criado.getComercialId()).isNull();
+    }
+
+    @Test
+    @DisplayName("dados comerciais: card encerrado não aceita edição")
+    void shouldRejectCommercialDataOnClosedCard() {
+        ProspeccaoEntity card = card(EstagioProspeccao.HABILITADO);
+
+        assertThatThrownBy(() -> service.atualizarDadosComerciais(card.getId(), new DadosComerciais(), analista))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessageContaining("reabra");
+    }
+
+    @Test
+    @DisplayName("dados comerciais: substitui o perfil e registra na timeline")
+    void shouldReplaceCommercialData() {
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        DadosComerciais dados = DadosComerciais.builder().ticketMedio(new java.math.BigDecimal("1200")).build();
+
+        ProspeccaoEntity resultado = service.atualizarDadosComerciais(card.getId(), dados, analista);
+
+        assertThat(resultado.getDadosComerciais()).isEqualTo(dados);
+        ArgumentCaptor<ProspeccaoEventoEntity> evento = ArgumentCaptor.forClass(ProspeccaoEventoEntity.class);
+        verify(eventoRepository).save(evento.capture());
+        assertThat(evento.getValue().getTipo())
+                .isEqualTo(com.portal.serasa.domain.model.prospeccao.TipoEventoProspeccao.DADOS_COMERCIAIS);
     }
 
     @Test
     @DisplayName("assumir: segunda analista recebe 409 em vez de roubar o card")
     void shouldRejectStealingAnAssignedCard() {
-        ProspeccaoEntity card = card(EstagioProspeccao.TRIAGEM);
+        ProspeccaoEntity card = card(EstagioProspeccao.NOVA);
         card.setAnalistaId(UUID.randomUUID());
         when(prospeccaoRepository.assumirAnalise(any(), any(), anyInt(), any())).thenReturn(0);
 
@@ -109,10 +152,10 @@ class ProspeccaoServiceTest {
     @Test
     @DisplayName("transicionar: bloqueia salto de estágio")
     void shouldRejectStageSkip() {
-        ProspeccaoEntity card = card(EstagioProspeccao.TRIAGEM);
+        ProspeccaoEntity card = card(EstagioProspeccao.NOVA);
 
         assertThatThrownBy(() -> service.transicionar(
-                card.getId(), EstagioProspeccao.DOCS_COMPLETOS, null, null, analista))
+                card.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining("não é permitida");
     }
@@ -140,51 +183,42 @@ class ProspeccaoServiceTest {
     }
 
     @Test
-    @DisplayName("aprovar: materializa o checklist e cai direto em documentos pendentes")
-    void shouldMaterializeChecklistOnApproval() {
+    @DisplayName("entrar na documentação: completa o checklist com o que o QSA já tiver")
+    void shouldCompleteChecklistWhenEnteringDocumentation() {
+        ProspeccaoEntity card = card(EstagioProspeccao.AGUARDANDO_ACEITE);
+
+        ProspeccaoEntity resultado = service.transicionar(
+                card.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, analista);
+
+        verify(checklistService).materializar(card);
+        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.DOCUMENTACAO);
+        // A coleta de documentos não tem prazo de estágio: quem envia é o cliente.
+        assertThat(resultado.getPrazoEstagioHoras()).isZero();
+    }
+
+    @Test
+    @DisplayName("aprovar na análise leva a aguardando aceite, sem mexer no checklist")
+    void shouldMoveToAwaitingAcceptance() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
 
         ProspeccaoEntity resultado = service.transicionar(
-                card.getId(), EstagioProspeccao.APROVADO, null, null, analista);
+                card.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, analista);
 
-        verify(checklistService).materializar(card);
-        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.DOCS_PENDENTES);
-        // A coleta de documentos não tem prazo de estágio: quem envia é o cliente.
-        assertThat(resultado.getPrazoEstagioHoras()).isZero();
-
-        ArgumentCaptor<ProspeccaoEventoEntity> eventos = ArgumentCaptor.forClass(ProspeccaoEventoEntity.class);
-        verify(eventoRepository, org.mockito.Mockito.atLeast(2)).save(eventos.capture());
-        assertThat(eventos.getAllValues())
-                .extracting(ProspeccaoEventoEntity::getEstagioPara)
-                .contains(EstagioProspeccao.APROVADO, EstagioProspeccao.DOCS_PENDENTES);
+        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.AGUARDANDO_ACEITE);
+        verify(checklistService, never()).materializar(any());
     }
 
     @Test
-    @DisplayName("voltar para aprovado não cria o checklist de novo")
-    void shouldNotRebuildChecklistWhenReturningToApproved() {
-        // DOCS_PENDENTES -> APROVADO é transição válida. Sem guarda, a materialização rodaria
-        // outra vez e duplicaria cada item, levando junto status e observação já preenchidos.
-        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
-        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
-                doc("Receita Federal", true, StatusDocumento.VALIDADO, null)));
-
-        service.transicionar(card.getId(), EstagioProspeccao.APROVADO, null, null, analista);
-
-        // O serviço continua chamando; quem protege é a checagem dentro do checklist.
-        verify(checklistService).materializar(card);
-    }
-
-    @Test
-    @DisplayName("fechar documentos: lista o que falta em vez de deixar passar")
+    @DisplayName("enviar ao comitê: lista o que falta em vez de deixar passar")
     void shouldListMissingRequiredDocuments() {
-        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
         when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
                 doc("Receita Federal", true, StatusDocumento.VALIDADO, null),
                 doc("Curva ABC", true, StatusDocumento.PENDENTE, null),
                 doc("IRPF", true, StatusDocumento.RECEBIDO, "Antonio")));
 
         assertThatThrownBy(() -> service.transicionar(
-                card.getId(), EstagioProspeccao.DOCS_COMPLETOS, null, null, analista))
+                card.getId(), EstagioProspeccao.COMITE, null, null, analista))
                 .isInstanceOf(DocumentacaoIncompletaException.class)
                 .hasMessageContaining("Curva ABC")
                 .hasMessageContaining("IRPF (Antonio)");
@@ -197,7 +231,7 @@ class ProspeccaoServiceTest {
     void shouldAllowClosingWithJustifiedException() {
         // Endividamento e curva ABC o cliente pode legitimamente não ter; a autorização SCR ele pode
         // não aceitar assinar. O time libera com motivo, e o card segue.
-        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
         ProspeccaoDocumentoEntity curvaAbc = doc("Curva ABC", true, StatusDocumento.DISPENSADO, null);
         curvaAbc.setAdmiteExcecaoSnapshot(true);
         curvaAbc.setMotivo("Cliente não possui");
@@ -205,39 +239,39 @@ class ProspeccaoServiceTest {
                 doc("Contrato social", true, StatusDocumento.VALIDADO, null),
                 curvaAbc));
 
-        assertThat(service.transicionar(card.getId(), EstagioProspeccao.DOCS_COMPLETOS, null, null, analista)
-                .getEstagio()).isEqualTo(EstagioProspeccao.DOCS_COMPLETOS);
+        assertThat(service.transicionar(card.getId(), EstagioProspeccao.COMITE, null, null, analista)
+                .getEstagio()).isEqualTo(EstagioProspeccao.COMITE);
     }
 
     @Test
     @DisplayName("fechar documentos: dispensado e não aplicável não travam o avanço")
     void shouldAllowClosingWithWaivedDocuments() {
-        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
         when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
                 doc("Receita Federal", true, StatusDocumento.VALIDADO, null),
                 doc("Certidão simplificada", true, StatusDocumento.NAO_APLICAVEL, null),
                 doc("Balanço", true, StatusDocumento.DISPENSADO, null)));
 
         ProspeccaoEntity resultado = service.transicionar(
-                card.getId(), EstagioProspeccao.DOCS_COMPLETOS, null, null, analista);
+                card.getId(), EstagioProspeccao.COMITE, null, null, analista);
 
-        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.DOCS_COMPLETOS);
+        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.COMITE);
     }
 
     @Test
     @DisplayName("fechar documentos: sócio inativo não trava — a planilha registra sócio que saiu ou faleceu")
     void shouldIgnoreInactivePartner() {
-        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
         ProspeccaoDocumentoEntity doSocioQueSaiu = doc("IRPF", true, StatusDocumento.PENDENTE, "Paulo");
         doSocioQueSaiu.setSocioAtivo(false);
         when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(doSocioQueSaiu));
 
-        assertThat(service.transicionar(card.getId(), EstagioProspeccao.DOCS_COMPLETOS, null, null, analista)
-                .getEstagio()).isEqualTo(EstagioProspeccao.DOCS_COMPLETOS);
+        assertThat(service.transicionar(card.getId(), EstagioProspeccao.COMITE, null, null, analista)
+                .getEstagio()).isEqualTo(EstagioProspeccao.COMITE);
     }
 
     @Test
-    @DisplayName("reabrir: devolve para triagem, conta a reabertura e solta o analista anterior")
+    @DisplayName("reabrir: devolve para Nova, conta a reabertura e solta o analista anterior")
     void shouldReopenRejectedCard() {
         ProspeccaoEntity card = card(EstagioProspeccao.REPROVADO);
         card.setAnalistaId(UUID.randomUUID());
@@ -246,26 +280,46 @@ class ProspeccaoServiceTest {
 
         ProspeccaoEntity resultado = service.reabrir(card.getId(), "Cliente quitou as restrições", analista);
 
-        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.TRIAGEM);
+        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.NOVA);
         assertThat(resultado.getReaberturas()).isEqualTo(1);
         assertThat(resultado.getAnalistaId()).isNull();
         assertThat(resultado.getClosedAt()).isNull();
     }
 
     @Test
-    @DisplayName("reabrir: não reabre card que já foi repassado para a habilitação")
-    void shouldNotReopenHandedOverCard() {
-        ProspeccaoEntity card = card(EstagioProspeccao.PRONTO_HABILITACAO);
+    @DisplayName("reabrir: card em aberto não é reaberto")
+    void shouldNotReopenOpenCard() {
+        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
 
         assertThatThrownBy(() -> service.reabrir(card.getId(), "voltar", analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
-                .hasMessageContaining("habilitação");
+                .hasMessageContaining("terminal");
+    }
+
+    @Test
+    @DisplayName("reabrir: habilitado também volta, para nova análise de limite")
+    void shouldReopenEnabledCard() {
+        ProspeccaoEntity card = card(EstagioProspeccao.HABILITADO);
+        when(prospeccaoRepository.findAberta(card.getCnpj())).thenReturn(Optional.empty());
+
+        assertThat(service.reabrir(card.getId(), "Revisão de limite", analista).getEstagio())
+                .isEqualTo(EstagioProspeccao.NOVA);
+    }
+
+    @Test
+    @DisplayName("silêncio corre também no aguardando aceite")
+    void shouldCountSilenceWhileAwaitingAcceptance() {
+        ProspeccaoEntity card = card(EstagioProspeccao.AGUARDANDO_ACEITE);
+        card.setEstagioDesde(LocalDateTime.now().minusDays(31));
+
+        assertThat(service.silencioEmAtencao(card)).isTrue();
+        assertThat(service.diasEmSilencio(card(EstagioProspeccao.EM_ANALISE))).isZero();
     }
 
     @Test
     @DisplayName("cobrança: zera o relógio de silêncio do card")
     void shouldResetSilenceClockOnFollowUp() {
-        ProspeccaoEntity card = card(EstagioProspeccao.DOCS_PENDENTES);
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
         card.setEstagioDesde(LocalDateTime.now().minusDays(45));
         assertThat(service.silencioProlongado(card)).isTrue();
 
@@ -296,7 +350,7 @@ class ProspeccaoServiceTest {
     @Test
     @DisplayName("excluir: apaga só os cards que existem e devolve quantos foram")
     void shouldDeleteOnlyExistingCards() {
-        ProspeccaoEntity existente = card(EstagioProspeccao.TRIAGEM);
+        ProspeccaoEntity existente = card(EstagioProspeccao.NOVA);
         UUID sumido = UUID.randomUUID();
         when(prospeccaoRepository.findAllById(List.of(existente.getId(), sumido))).thenReturn(List.of(existente));
 

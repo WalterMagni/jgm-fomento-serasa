@@ -26,7 +26,7 @@ class ProspeccaoAutorizacaoTest {
         return ProspeccaoEntity.builder()
                 .id(UUID.randomUUID())
                 .cnpj("11222333000181")
-                .estagio(EstagioProspeccao.DOCS_PENDENTES)
+                .estagio(EstagioProspeccao.DOCUMENTACAO)
                 .comercialId(comercialId)
                 .build();
     }

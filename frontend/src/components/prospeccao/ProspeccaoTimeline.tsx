@@ -19,6 +19,7 @@ const ICONE_EVENTO: Record<TipoEvento, string> = {
   ARQUIVO_REMOVIDO: "delete",
   ANALISTA_ALTERADO: "person",
   REABERTURA: "restart_alt",
+  DADOS_COMERCIAIS: "storefront",
 };
 
 /**

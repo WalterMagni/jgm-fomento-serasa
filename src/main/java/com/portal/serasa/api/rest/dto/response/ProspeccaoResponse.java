@@ -43,5 +43,8 @@ public record ProspeccaoResponse(
         int documentosResolvidos,
         int documentosTotal,
         LocalDateTime createdAt,
-        LocalDateTime closedAt) {
+        LocalDateTime closedAt,
+        /** Migrado da esteira antiga sem decisão registrada. Ver V74. */
+        boolean legado,
+        Long version) {
 }

@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * Entrada automática na esteira: análise de crédito que resulta {@code visaoCedente = SIM} vira
- * card em TRIAGEM.
+ * card em NOVA.
  *
  * <p>O sinal é <b>calculado</b> a partir do histórico de pagamentos do Serasa, não é ato humano de
  * aprovação. Por isso ele só abre o card no primeiro estágio, e quem aprova ou reprova continua

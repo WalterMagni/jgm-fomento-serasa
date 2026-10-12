@@ -115,7 +115,7 @@ public class ProspeccaoDocumentoEntity {
     @Column(name = "atualizado_em", nullable = false)
     private LocalDateTime atualizadoEm;
 
-    /** Trava o avanço para DOCS_COMPLETOS enquanto verdadeiro. */
+    /** Trava a passagem da documentação para o comitê enquanto verdadeiro. */
     public boolean bloqueiaFechamento() {
         return Boolean.TRUE.equals(obrigatorioSnapshot)
                 && !Boolean.TRUE.equals(informativoSnapshot)

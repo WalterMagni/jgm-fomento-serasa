@@ -4,11 +4,13 @@ import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
 import com.portal.serasa.domain.model.prospeccao.MotivoRecusa;
 import com.portal.serasa.domain.model.prospeccao.OrigemProspeccao;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -100,4 +102,27 @@ public class ProspeccaoEntity {
 
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
+
+    /**
+     * Card migrado da esteira antiga que já tinha passado da aprovação sem decisão registrada.
+     * O time revisa e completa limite, condições e aceite. Ver V74.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean legado = false;
+
+    /**
+     * Perfil comercial. Nulo quando nenhum campo foi preenchido — o Hibernate devolve embutido
+     * nulo quando todas as colunas são nulas; quem lê usa {@link #dadosComerciaisOuVazio()}.
+     */
+    @Embedded
+    private DadosComerciais dadosComerciais;
+
+    /** Trava otimista: a segunda edição concorrente recebe 409. */
+    @Version
+    private Long version;
+
+    public DadosComerciais dadosComerciaisOuVazio() {
+        return dadosComerciais != null ? dadosComerciais : new DadosComerciais();
+    }
 }

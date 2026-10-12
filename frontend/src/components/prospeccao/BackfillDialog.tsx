@@ -15,7 +15,7 @@ const LIMITES = [10, 25, 50, 100];
 /**
  * "Puxar visão cedente": escolher empresas, ou trazer um lote.
  *
- * <p>A ação é de mão única — cada empresa vira um card em triagem e não há desfazer em massa. Em
+ * <p>A ação é de mão única — cada empresa vira um card em Nova e não há desfazer em massa. Em
  * produção são centenas de análises com visão cedente, então o caminho normal é buscar a empresa
  * pelo nome ou CNPJ e marcar o que se quer. O lote continua disponível para a carga inicial, com
  * teto e recorte por data.</p>
@@ -78,7 +78,7 @@ export default function BackfillDialog({ onFechar }: { onFechar: () => void }) {
           <div>
             <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">Puxar visão cedente</h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Empresas cuja análise indicou perfil de cedente. Cada uma vira um card em triagem.
+              Empresas cuja análise indicou perfil de cedente. Cada uma vira um card em Nova.
             </p>
           </div>
           <button
@@ -298,7 +298,7 @@ export default function BackfillDialog({ onFechar }: { onFechar: () => void }) {
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {entrarao === 0
                   ? "Nada novo para trazer."
-                  : `Vai criar ${entrarao} card${entrarao > 1 ? "s" : ""} em triagem.`}
+                  : `Vai criar ${entrarao} card${entrarao > 1 ? "s" : ""} em Nova.`}
               </p>
               <div className="flex gap-2">
                 <button

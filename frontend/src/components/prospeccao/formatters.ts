@@ -1,4 +1,4 @@
-import { EstagioProspeccao, Prospeccao } from "@/types/prospeccao";
+import { ACAO_PARA_ESTAGIO, EstagioProspeccao, Prospeccao } from "@/types/prospeccao";
 
 export function formatCnpj(cnpj: string) {
   return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
@@ -12,6 +12,12 @@ export function formatDate(iso: string | null | undefined) {
 export function formatDateTime(iso: string | null | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+export function formatMoeda(valor: number | null | undefined) {
+  return valor == null ? "—" : MOEDA.format(valor);
 }
 
 export function formatBytes(bytes: number | null | undefined) {
@@ -53,11 +59,11 @@ export const CLASSE_BADGE_SEMAFORO: Record<Semaforo, string> = {
 /**
  * Texto do prazo.
  *
- * <p>Na coleta de documentos não existe prazo — depende do cliente — então o que se mostra é há
- * quanto tempo ele está em silêncio, que é o número pelo qual o time age.</p>
+ * <p>No aceite e na coleta de documentos não existe prazo — depende do cliente — então o que se
+ * mostra é há quanto tempo ele está em silêncio, que é o número pelo qual o time age.</p>
  */
 export function textoPrazo(card: Prospeccao) {
-  if (card.estagio === "DOCS_PENDENTES") {
+  if (card.estagio === "AGUARDANDO_ACEITE" || card.estagio === "DOCUMENTACAO") {
     if (card.diasEmSilencio <= 0) return "aguardando o cliente";
     const dias = `${card.diasEmSilencio} dia${card.diasEmSilencio > 1 ? "s" : ""}`;
     if (card.silencioProlongado) return `${dias} sem retorno — encaminhar para inerte`;
@@ -71,22 +77,47 @@ export function textoPrazo(card: Prospeccao) {
 }
 
 export const ICONE_ESTAGIO: Record<EstagioProspeccao, string> = {
-  TRIAGEM: "inbox",
+  NOVA: "inbox",
   EM_ANALISE: "search",
-  APROVADO: "task_alt",
-  DOCS_PENDENTES: "folder_open",
-  DOCS_COMPLETOS: "folder_supervised",
-  PRONTO_HABILITACAO: "flag",
+  AGUARDANDO_ACEITE: "handshake",
+  DOCUMENTACAO: "folder_open",
+  COMITE: "groups",
+  CONTRATO: "contract",
+  HABILITADO: "verified",
   REPROVADO: "block",
-  REMOVIDO_RADAR: "visibility_off",
+  RECUSADO_CLIENTE: "do_not_disturb_on",
+  INERTE: "visibility_off",
 };
+
+/**
+ * Texto do botão que move o card, conforme de onde ele sai.
+ *
+ * <p>Voltar para a análise é contraproposta quando sai do aceite e devolução quando sai do
+ * comitê: o mesmo destino com intenções diferentes, e o botão precisa dizer qual.</p>
+ */
+export function rotuloAcao(de: EstagioProspeccao, para: EstagioProspeccao) {
+  if (para === "EM_ANALISE") {
+    if (de === "AGUARDANDO_ACEITE") return "Contraproposta: voltar para análise";
+    if (de === "COMITE") return "Comitê devolveu para análise";
+  }
+  if (para === "COMITE" && de === "CONTRATO") return "Voltar para o comitê";
+  return ACAO_PARA_ESTAGIO[para];
+}
+
+/** Destinos que levam o card para trás ou para fora: aparecem depois, em botão discreto. */
+export function ehAvanco(de: EstagioProspeccao, para: EstagioProspeccao) {
+  const ordem: EstagioProspeccao[] = ["NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO", "COMITE", "CONTRATO", "HABILITADO"];
+  const i = ordem.indexOf(de);
+  const j = ordem.indexOf(para);
+  return i >= 0 && j > i;
+}
 
 /**
  * Ordenação de uma coluna do quadro.
  *
  * <p>O padrão é por urgência: quem está parado há mais tempo aparece primeiro, que é a ordem em
  * que o trabalho deveria sair. Ordenar por nome serve para achar uma empresa específica numa
- * coluna cheia — em Triagem, depois de puxar visão cedente, são dezenas de cards.</p>
+ * coluna cheia — em Nova, depois de puxar visão cedente, são dezenas de cards.</p>
  */
 export type Ordenacao = "urgencia" | "nome" | "nome_desc";
 
@@ -126,7 +157,7 @@ export function ordenarCards<T extends { razaoSocial: string; horasNoEstagio: nu
 
 /**
  * Confirmação antes de apagar. Lista até cinco nomes para quem selecionou em lote enxergar o que
- * vai sumir, e lembra a alternativa: quem desistiu da empresa deveria reprovar ou remover do radar.
+ * vai sumir, e lembra a alternativa: quem desistiu da empresa deveria reprovar ou mover para inerte.
  */
 export function confirmarExclusao(cards: { razaoSocial: string }[]): boolean {
   if (cards.length === 0) return false;
@@ -136,6 +167,6 @@ export function confirmarExclusao(cards: { razaoSocial: string }[]): boolean {
   return window.confirm(
     `${titulo}\n\n${nomes}${resto}\n\n` +
       "Checklist e histórico somem junto e não dá para desfazer. Arquivos enviados continuam na pasta CLIENTES.\n\n" +
-      "Se a empresa só não vai seguir, use Reprovar ou Remover do radar.",
+      "Se a empresa só não vai seguir, use Reprovar ou Mover para inerte.",
   );
 }

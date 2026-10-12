@@ -66,6 +66,7 @@ const ICONS: Record<string, LucideIcon> = {
   block: Ban, visibility_off: EyeOff, notifications_off: BellOff, campaign: Megaphone,
   add_circle: CirclePlus, remove_circle: MinusCircle, restart_alt: RotateCw,
   help: HelpCircle, help_outline: HelpCircle, menu_book: BookOpen,
+  contract: ScrollText, verified: BadgeCheck, do_not_disturb_on: MinusCircle, storefront: Store,
   // esteira de liberação
   chat: MessageSquare, alternate_email: AtSign,
 };

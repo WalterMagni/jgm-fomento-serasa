@@ -1,11 +1,13 @@
 package com.portal.serasa.api.rest.mapper;
 
+import com.portal.serasa.api.rest.dto.DadosComerciaisDto;
 import com.portal.serasa.api.rest.dto.response.DocumentoTipoResponse;
 import com.portal.serasa.api.rest.dto.response.ProspeccaoArquivoResponse;
 import com.portal.serasa.api.rest.dto.response.ProspeccaoDocumentoResponse;
 import com.portal.serasa.api.rest.dto.response.ProspeccaoEventoResponse;
 import com.portal.serasa.api.rest.dto.response.ProspeccaoResponse;
 import com.portal.serasa.application.service.prospeccao.ProspeccaoService;
+import com.portal.serasa.infrastructure.persistence.entity.DadosComerciais;
 import com.portal.serasa.infrastructure.persistence.entity.DocumentoTipoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoArquivoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDocumentoEntity;
@@ -63,7 +65,44 @@ public class ProspeccaoDtoMapper {
                 .documentosTotal((int) total)
                 .createdAt(card.getCreatedAt())
                 .closedAt(card.getClosedAt())
+                .legado(Boolean.TRUE.equals(card.getLegado()))
+                .version(card.getVersion())
                 .build();
+    }
+
+    public DadosComerciaisDto toDto(DadosComerciais dados) {
+        DadosComerciais d = dados != null ? dados : new DadosComerciais();
+        return new DadosComerciaisDto(
+                d.getFaturamentoMensal(), d.getTicketMedio(), d.getValorMedioOperacoes(),
+                d.getPrazoMedioVendas(), d.getPrazoMedioPgtoFornecedor(), d.getPrazoMedioEntrega(),
+                d.getPossuiCanhotosDias(), d.getOperaMercadoriaEntregue(), d.getOperaMercadoriaEmbarcada(),
+                d.getRegiaoAtendimento(), d.getProdutos(), d.getParceirosAtuais(), d.getOutros());
+    }
+
+    /** Texto em branco vira nulo: campo apagado na tela não pode ficar gravado como "". */
+    public DadosComerciais toEntity(DadosComerciaisDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        return DadosComerciais.builder()
+                .faturamentoMensal(dto.faturamentoMensal())
+                .ticketMedio(dto.ticketMedio())
+                .valorMedioOperacoes(dto.valorMedioOperacoes())
+                .prazoMedioVendas(dto.prazoMedioVendas())
+                .prazoMedioPgtoFornecedor(dto.prazoMedioPgtoFornecedor())
+                .prazoMedioEntrega(dto.prazoMedioEntrega())
+                .possuiCanhotosDias(dto.possuiCanhotosDias())
+                .operaMercadoriaEntregue(dto.operaMercadoriaEntregue())
+                .operaMercadoriaEmbarcada(dto.operaMercadoriaEmbarcada())
+                .regiaoAtendimento(limpar(dto.regiaoAtendimento()))
+                .produtos(limpar(dto.produtos()))
+                .parceirosAtuais(limpar(dto.parceirosAtuais()))
+                .outros(limpar(dto.outros()))
+                .build();
+    }
+
+    private static String limpar(String texto) {
+        return texto == null || texto.isBlank() ? null : texto.trim();
     }
 
     public ProspeccaoDocumentoResponse toResponse(ProspeccaoDocumentoEntity documento,

@@ -41,6 +41,7 @@ import { CommercialInformationPanel } from "./CommercialInformationPanel";
 import { CompanyDocumentsPanel } from "./CompanyDocumentsPanel";
 import { CompanyBranchesPanel } from "./CompanyBranchesPanel";
 import { CompanyPartnersPanel } from "./CompanyPartnersPanel";
+import ProspeccaoEmpresaBloco from "@/components/prospeccao/ProspeccaoEmpresaBloco";
 import { useEconomicGroup, type RelatedCompany } from "./useEconomicGroup";
 import { useEnrichPersonSerasa } from "../../../../hooks/usePersonProfile";
 import type { PersonAnalysisSummary } from "../../../../types/person-analysis";
@@ -1412,6 +1413,9 @@ export default function ClientDashboardPage() {
 
       {/* ── Progress Bar ──────────────────────────────────────────────────── */}
       <DataProgressBar hasCnpja={hasCnpjaData} hasSerasa={hasSerasaData} />
+
+      {/* ── Esteira de prospecção: card em aberto ou botão para abrir ─────── */}
+      <ProspeccaoEmpresaBloco cnpj={cleanCnpj} razaoSocial={companyLabel === "Empresa" ? undefined : companyLabel} />
 
       {/* ── Praça de Pagamento: resumo sacado/cedente ─────────────────────── */}
       {pracaSummary && pracaSummary.totalCount > 0 ? (

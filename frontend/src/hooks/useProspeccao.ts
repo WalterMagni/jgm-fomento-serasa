@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   CanalContato,
+  DadosComerciais,
   DocumentoTipo,
   EstagioProspeccao,
   MotivoRecusa,
@@ -122,9 +123,39 @@ function useInvalidar() {
   };
 }
 
+/**
+ * Cards de um CNPJ, do mais novo ao mais antigo, incluindo os encerrados.
+ *
+ * <p>Alimenta o bloco de prospecção da página da empresa: mostra o card em aberto, se houver, e
+ * deixa ver que a empresa já passou pela esteira antes.</p>
+ */
+export function useProspeccoesDoCnpj(cnpj?: string | null) {
+  const digitos = (cnpj ?? "").replace(/\D/g, "");
+  return useQuery<Prospeccao[]>({
+    queryKey: [...LISTA_KEY, "cnpj", digitos],
+    enabled: digitos.length === 14,
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao?cnpj=${digitos}`, {
+        headers: getAuthHeaders("application/json"),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao carregar a prospecção da empresa"));
+      return res.json();
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export type NovaProspeccao = {
+  cnpj: string;
+  razaoSocial: string;
+  comercialId?: string;
+  comercialNome?: string;
+  dadosComerciais?: DadosComerciais;
+};
+
 export function useCriarProspeccao() {
   const invalidar = useInvalidar();
-  return useMutation<Prospeccao, Error, { cnpj: string; razaoSocial: string; comercialId?: string; comercialNome?: string }>({
+  return useMutation<Prospeccao, Error, NovaProspeccao>({
     mutationFn: async body => {
       const res = await fetch(`${API_BASE_URL}/prospeccao`, {
         method: "POST",
@@ -184,6 +215,27 @@ export function useTransicionarProspeccao() {
   });
 }
 
+/** Substitui o perfil comercial do card pelo formulário inteiro. */
+export function useAtualizarDadosComerciais() {
+  const invalidar = useInvalidar();
+  return useMutation<DadosComerciais, Error, { id: string; dados: DadosComerciais }>({
+    mutationFn: async ({ id, dados }) => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/${id}/dados-comerciais`, {
+        method: "PUT",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify(dados),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao salvar os dados comerciais"));
+      return res.json();
+    },
+    onSuccess: (_, { id }) => {
+      invalidar(id);
+      toast.success("Dados comerciais salvos");
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useReabrirProspeccao() {
   const invalidar = useInvalidar();
   return useMutation<Prospeccao, Error, { id: string; texto: string }>({
@@ -198,7 +250,7 @@ export function useReabrirProspeccao() {
     },
     onSuccess: card => {
       invalidar(card.id);
-      toast.success("Card reaberto em triagem");
+      toast.success("Card reaberto em Nova");
     },
     onError: error => toast.error(error.message),
   });
@@ -432,7 +484,7 @@ export type PreviaBackfill = {
  * Quantas empresas o backfill traria, sem criar nada.
  *
  * <p>Em produção há centenas de análises com visão cedente SIM. Apertar o botão sem saber o
- * número despejaria a fila inteira em triagem, e não há desfazer em massa.</p>
+ * número despejaria a fila inteira em Nova, e não há desfazer em massa.</p>
  */
 export function usePreviaBackfill(desde?: string, habilitado = false) {
   return useQuery<PreviaBackfill>({
@@ -494,8 +546,8 @@ export function useTrazerEscolhidas() {
       invalidar();
       toast.success(
         data.cardsCriados === 1
-          ? "1 empresa trazida para a triagem"
-          : `${data.cardsCriados} empresas trazidas para a triagem`,
+          ? "1 empresa trazida para Nova"
+          : `${data.cardsCriados} empresas trazidas para Nova`,
       );
     },
     onError: error => toast.error(error.message),

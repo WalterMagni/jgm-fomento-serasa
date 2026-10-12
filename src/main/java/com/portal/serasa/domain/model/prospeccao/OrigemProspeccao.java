@@ -1,6 +1,6 @@
 package com.portal.serasa.domain.model.prospeccao;
 
-/** Como o card entrou na esteira. Ambos caem em {@link EstagioProspeccao#TRIAGEM}. */
+/** Como o card entrou na esteira. Ambos caem em {@link EstagioProspeccao#NOVA}. */
 public enum OrigemProspeccao {
     /** O comercial criou informando o CNPJ. */
     MANUAL,

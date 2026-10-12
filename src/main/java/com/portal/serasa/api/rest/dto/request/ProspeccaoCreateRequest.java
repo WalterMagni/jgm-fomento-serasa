@@ -1,5 +1,7 @@
 package com.portal.serasa.api.rest.dto.request;
 
+import com.portal.serasa.api.rest.dto.DadosComerciaisDto;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -12,7 +14,10 @@ import java.util.UUID;
 public record ProspeccaoCreateRequest(
         @NotBlank @Size(min = 14, max = 18) String cnpj,
         @NotBlank @Size(max = 500) String razaoSocial,
-        /** Comercial responsável. Nulo quando a entrada é "DIRETO", sem intermediário. */
+        /** Comercial responsável, quando é usuário do portal. Nulo em cliente direto. */
         UUID comercialId,
-        @Size(max = 200) String comercialNome) {
+        /** Nome do comercial. Preenchido sozinho quando há {@code comercialId}. */
+        @Size(max = 200) String comercialNome,
+        /** Perfil comercial já conhecido na abertura. Opcional. */
+        @Valid DadosComerciaisDto dadosComerciais) {
 }

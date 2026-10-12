@@ -1,5 +1,6 @@
 package com.portal.serasa.api.rest.controller;
 
+import com.portal.serasa.api.rest.dto.DadosComerciaisDto;
 import com.portal.serasa.api.rest.dto.request.DocumentoTipoRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoCreateRequest;
 import com.portal.serasa.api.rest.dto.request.ProspeccaoDocumentoStatusRequest;
@@ -65,11 +66,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Esteira de prospecção: da solicitação da análise até a documentação completa.
+ * Esteira de prospecção unificada: da abertura até o cedente habilitado.
  *
- * <p>Substitui as abas VISÃO CEDENTE e DOC'S PENDENTES da planilha de controle. A esteira de
- * habilitação (dossiê, comitê, contrato, SEC, QITech) continua fora daqui — o card sai em
- * PRONTO_HABILITACAO.</p>
+ * <p>Substitui as abas VISÃO CEDENTE e DOC'S PENDENTES da planilha de controle e absorve o fluxo
+ * do Portal Comercial — decisão com limite, aceite do cliente, comitê e contrato. Design em
+ * {@code docs/plans/2026-10-11-esteira-unificada-design.md}.</p>
  *
  * <p>Toda pessoa autenticada opera a esteira inteira — ver {@link ProspeccaoAutorizacao} para o
  * porquê. A exceção é o catálogo de documentos, que é configuração e não operação.</p>
@@ -164,6 +165,7 @@ public class ProspeccaoController {
         ProspeccaoEntity card = prospeccaoService.buscar(id);
         return ResponseEntity.ok(ProspeccaoDetalheResponse.builder()
                 .card(toResponse(card))
+                .dadosComerciais(mapper.toDto(card.getDadosComerciais()))
                 .documentos(documentos(id))
                 .timeline(prospeccaoService.timeline(id).stream().map(mapper::toResponse).toList())
                 .destinosPossiveis(card.getEstagio().destinos().stream()
@@ -179,15 +181,28 @@ public class ProspeccaoController {
         UserEntity autor = usuarioAutenticado();
         autorizacao.exigirCriador(autor);
 
-        // Comercial que abre sem informar o responsável fica como responsável — evita card órfão.
-        UUID comercialId = request.comercialId() != null ? request.comercialId() : autor.getId();
+        // O comercial é opcional: quem abre é a equipe interna, e cliente direto não tem
+        // intermediário. Com id, o nome vem do cadastro; sem id, vale o nome digitado.
+        UUID comercialId = request.comercialId();
         String comercialNome = request.comercialNome() != null && !request.comercialNome().isBlank()
-                ? request.comercialNome()
-                : nomeDoUsuario(comercialId);
+                ? request.comercialNome().trim()
+                : comercialId != null ? nomeDoUsuario(comercialId) : null;
 
         ProspeccaoEntity card = prospeccaoService.criar(
-                request.cnpj(), request.razaoSocial(), comercialId, comercialNome, autor);
+                request.cnpj(), request.razaoSocial(), comercialId, comercialNome,
+                mapper.toEntity(request.dadosComerciais()), autor);
         return ResponseEntity.status(201).body(toResponse(card));
+    }
+
+    /** Substitui o perfil comercial do card pelo formulário enviado. */
+    @PutMapping("/{id}/dados-comerciais")
+    public ResponseEntity<DadosComerciaisDto> atualizarDadosComerciais(
+            @PathVariable UUID id,
+            @Valid @RequestBody DadosComerciaisDto request) {
+        UserEntity autor = usuarioAutenticado();
+        autorizacao.exigirEscrita(prospeccaoService.buscar(id), autor);
+        ProspeccaoEntity card = prospeccaoService.atualizarDadosComerciais(id, mapper.toEntity(request), autor);
+        return ResponseEntity.ok(mapper.toDto(card.getDadosComerciais()));
     }
 
     /** O analista puxa o card da fila. Quem chegar primeiro fica com ele. */

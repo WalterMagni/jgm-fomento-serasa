@@ -10,8 +10,9 @@ export const MANUAL_ESTEIRA = `# Esteira de prospecção — manual de uso
 Para quem acompanha a prospecção no portal: comercial, analista de crédito e backoffice.
 
 A esteira substitui as abas \`VISÃO CEDENTE\` e \`DOC'S PENDENTES\` da planilha
-\`CONTROLE DE EMPRESAS\`. Cada empresa vira um card, e o card anda da análise do cedente
-até a documentação completa.
+\`CONTROLE DE EMPRESAS\` e absorve o fluxo do antigo Portal Comercial. Cada empresa vira um
+card, e o card anda da abertura até o cedente habilitado: análise, aceite do cliente,
+documentação, comitê e contrato.
 
 A tela está marcada como **beta**: o fluxo ainda pode mudar conforme o time usar.
 
@@ -26,12 +27,17 @@ precisa de atenção hoje — atrasado ou sem resposta do cliente.
 
 ## Como uma empresa entra
 
-**Você mesmo abre.** Botão **Nova prospecção**, informe o CNPJ e a razão social. O CNPJ é
-obrigatório: é por ele que a esteira conversa com a análise de crédito, com as filiais e
-com a pasta de documentos no compartilhamento.
+**Você mesmo abre.** Botão **Nova prospecção** no topo da esteira, ou **Abrir prospecção**
+na página da empresa (lá o CNPJ e o nome já vêm preenchidos). O CNPJ é obrigatório: é por ele
+que a esteira conversa com a análise de crédito, com as filiais e com a pasta de documentos
+no compartilhamento.
+
+O **comercial** é opcional: escolha da lista, digite o nome de quem ainda não tem acesso ao
+portal, ou deixe "sem comercial" para cliente direto. Os **dados comerciais** (faturamento,
+ticket médio, prazos…) também podem ser preenchidos já na abertura, ou depois.
 
 **O sistema abre sozinho.** Sempre que uma consulta ao Serasa indica perfil de cedente,
-a empresa aparece em Triagem automaticamente. O card mostra "visão cedente" no rodapé.
+a empresa aparece em Nova automaticamente. O card mostra "VC" no rodapé.
 
 **Você traz o que já existia.** Botão **puxar visão cedente**, aba *Escolher empresas*:
 busque por razão social ou CNPJ, marque o que quiser e traga. A aba *Trazer um lote* serve
@@ -44,34 +50,43 @@ limita o tamanho do lote, porque não há como desfazer em massa.
 
 | Coluna | O que significa |
 |---|---|
-| **Triagem** | Chegou. Ninguém pegou ainda. |
-| **Em análise** | Uma analista assumiu. O nome dela fica no card. |
-| **Aprovado** | Passagem rápida: ao aprovar, o checklist é criado e o card segue sozinho. |
-| **Documentos pendentes** | Coleta em andamento. É aqui que a maioria fica. |
-| **Documentos completos** | Tudo que era obrigatório foi resolvido. |
-| **Pronto p/ habilitação** | Sai da esteira. Daqui em diante é a habilitação. |
+| **Nova** | Chegou. Ninguém pegou ainda. |
+| **Em análise** | Uma analista assumiu e é a dona do card até o fim. |
+| **Aguardando aceite** | Aprovado pela analista; falta o cliente responder. |
+| **Documentação** | Coleta e conferência dos documentos. |
+| **Comitê** | O comitê avalia a empresa. |
+| **Contrato** | Aprovado no comitê; falta fechar o contrato. |
 
-**Reprovados e inertes** ficam na faixa recolhível no pé da página, com o motivo ao lado.
-Aparecem por 90 dias.
+Os **desfechos** — Habilitado, Reprovado, Recusado pelo cliente e Inerte — ficam na faixa
+recolhível no pé da página, com o motivo ao lado. Aparecem por 90 dias.
+
+Cards marcados **legado** vieram da esteira antiga já aprovados, antes de existir a decisão
+com limite. Revise com o time o que faltar.
 
 ---
 
 ## O dia a dia
 
-**Pegar uma análise.** Abra o card em Triagem e clique em **Assumir análise**. Se outra
-pessoa pegar no mesmo instante, o sistema avisa quem ficou com ele — ninguém trabalha em
-dobro sem saber.
+**Pegar uma análise.** Abra o card em Nova e clique em **Assumir análise** (ou arraste para
+Em análise). Se outra pessoa pegar no mesmo instante, o sistema avisa quem ficou com ele —
+ninguém trabalha em dobro sem saber.
 
-**Decidir.** Dentro do card, os botões mostram só para onde ele pode ir. Ao **Aprovar**, o
-checklist de documentos é criado na hora. Ao **Reprovar**, o sistema pede o motivo de uma
-lista fechada; se escolher "Outro", descreva.
+**Andar com o card.** No topo do card, a trilha mostra por onde ele passou e quando. Logo
+abaixo, os botões mostram só o que vale naquele estágio: o próximo passo em destaque, e ao
+lado os retrocessos (devolver, contraproposta, comitê devolveu) e as saídas. **Reprovar** e
+**Mover para inerte** pedem o motivo de uma lista fechada; se escolher "Outro", descreva.
 
-**Cobrar o cliente.** Aba *Histórico* do card: escreva o que aconteceu e escolha o canal,
-e-mail ou WhatsApp. Registrar a cobrança **zera o contador de silêncio**.
-Se for recado interno, deixe em "nota interna" — não conta como contato com o cliente.
+**Dados comerciais.** Aba *Dados comerciais* do card: faturamento, ticket médio, prazos,
+região, produtos e parceiros. Edite e clique em **Salvar**; a alteração fica no histórico.
 
-**Mover o card.** Arraste entre colunas. A coluna que não aceita fica apagada — é a regra
-do fluxo, não um travamento. Quem prefere não arrastar usa o botão **Mover** no card.
+**Cobrar o cliente.** Coluna *Histórico*, à direita do card (no celular, aba *Histórico*):
+escreva o que aconteceu e escolha o canal, e-mail ou WhatsApp. Registrar a cobrança **zera o
+contador de silêncio**. Se for recado interno, deixe em "nota interna" — não conta como
+contato com o cliente.
+
+**Mover o card.** Arraste entre colunas — funciona também no toque, segurando o card um
+instante. A coluna que não aceita fica apagada — é a regra do fluxo, não um travamento. Pelo
+teclado: Tab até o card, Espaço pega e solta; Enter abre.
 
 ---
 
@@ -86,21 +101,22 @@ do fluxo, não um travamento. Quem prefere não arrastar usa o botão **Mover** 
 Prazos da análise: **12 horas úteis** para alguém pegar e **24 horas úteis** para decidir.
 Fim de semana e feriado nacional não contam.
 
-**A coleta de documentos não tem prazo** — quem envia é o cliente. O que corre ali é o
-silêncio, em dias corridos: **30 dias** sem retorno deixa o card âmbar, **45 dias** marca para
-inerte. O sistema **sugere**; quem decide é o analista.
+**Aguardando aceite e Documentação não têm prazo** — quem responde é o cliente. O que corre
+ali é o silêncio, em dias corridos: **30 dias** sem retorno deixa o card âmbar, **45 dias**
+marca para inerte. O sistema **sugere**; quem decide é o analista.
 
 ---
 
 ## O checklist
 
-Nasce quando a análise é aprovada, em dois blocos: **documentos da empresa** e um bloco
+Nasce junto com o card — a equipe pode anexar desde o primeiro dia —, em dois blocos: **documentos da empresa** e um bloco
 **por sócio**, montado a partir do quadro societário. Sócio pessoa jurídica não gera bloco.
 
 Quando a participação no capital é conhecida, ela aparece ao lado do nome, e quem está **abaixo
 de 15%** já nasce fora do checklist, com o motivo. Na maioria das empresas o percentual não é
 conhecido — a Receita não publica esse dado —, então o bloco nasce ativo e vocês tiram quem não
-interessa.
+interessa. Se o quadro societário ainda não estava carregado quando o card nasceu, o bloco de
+sócios é completado quando o card entra em Documentação.
 
 **Avalista** entra pelo botão *adicionar avalista*, no fim do checklist. Recebe os mesmos itens
 do sócio. Ele não vem automático porque não consta do quadro societário.
@@ -114,8 +130,9 @@ do sócio. Ele não vem automático porque não consta do quadro societário.
 | Não se aplica | automático, como a certidão da JUCESP para empresa fora de São Paulo |
 | Liberado com justificativa | a casa abriu mão do item, com o porquê registrado |
 
-Só **Validado**, **Não se aplica** e **Liberado com justificativa** liberam o avanço. Se tentar
-fechar com pendência, o sistema diz exatamente quais documentos faltam.
+Só **Validado**, **Não se aplica** e **Liberado com justificativa** liberam a passagem de
+Documentação para o Comitê. Se tentar enviar com pendência, o sistema diz exatamente quais
+documentos faltam.
 
 Três itens são obrigatórios mas admitem exceção: **endividamento**, **curva ABC** e
 **autorização SCR**. O cliente pode legitimamente não ter os dois primeiros, ou não aceitar
@@ -151,14 +168,15 @@ atual: os cards, o checklist item a item e o histórico de cobranças.
 
 ## Casos que costumam gerar dúvida
 
-**Empresa reprovada que melhorou.** Abra o card na faixa de reprovados e use **Reabrir em
-triagem**. O motivo anterior fica no histórico e o card passa a mostrar "reanálise".
+**Empresa reprovada que melhorou.** Abra o card na faixa de desfechos e use **Reabrir em
+Nova**. O motivo anterior fica no histórico e o card passa a mostrar "reanálise". Vale também
+para Habilitado, quando for preciso rever o limite.
 
 **Card criado por engano ou fila para limpar.** Dentro do card, **Apagar**. Para vários de
 uma vez, botão **selecionar** no topo: clique nos cards (ou no ícone do cabeçalho para marcar
 a coluna inteira) e **Apagar** na barra de baixo. Só entra o que está visível no filtro
 atual. Apagar não tem volta: checklist e histórico somem junto, os arquivos ficam na pasta
-\`CLIENTES\`. Se a empresa só não vai seguir, prefira **Reprovar** ou **Remover do radar**,
+\`CLIENTES\`. Se a empresa só não vai seguir, prefira **Reprovar** ou **Mover para inerte**,
 que guardam o motivo. Card que veio da visão cedente volta a aparecer em **puxar visão
 cedente** depois de apagado.
 
@@ -174,13 +192,13 @@ não está acessível — o mesmo problema que afeta a pasta de documentos da em
 
 ---
 
-## Ainda em discussão
+## O que vem a seguir
 
-Dois pontos não foram confirmados com o time e podem mudar:
+A esteira unificada está entrando por partes. Nas próximas:
 
-- **de quais sócios** exigir documento — hoje o checklist é criado para todos os sócios
-  pessoa física do quadro societário;
-- **quem confere** o documento recebido — hoje qualquer pessoa pode validar.
-
-Os prazos de 1, 2 e 10 dias úteis também são uma proposta, não um número acordado.
+- **decisão com limite**: ao aprovar, a analista registra limite, condições por produto e
+  parecer; o aceite do cliente aceita contraproposta;
+- **pendências e comentários**: pedir informação ou documento ao comercial, com aviso no sino;
+- **comitê com pareceres**: cada membro dá a posição dele, como na esteira de liberação;
+- **contrato**: contato de quem assina e conclusão do card.
 `;

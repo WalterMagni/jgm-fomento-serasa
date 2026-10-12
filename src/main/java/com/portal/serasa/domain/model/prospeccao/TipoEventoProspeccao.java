@@ -14,5 +14,7 @@ public enum TipoEventoProspeccao {
     ARQUIVO_ENVIADO,
     ARQUIVO_REMOVIDO,
     ANALISTA_ALTERADO,
-    REABERTURA
+    REABERTURA,
+    /** Perfil comercial do card alterado. Ver V74. */
+    DADOS_COMERCIAIS
 }

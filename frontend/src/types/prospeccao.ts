@@ -1,14 +1,16 @@
 /** Tipos da esteira de prospecção. Espelham os DTOs de /api/v1/prospeccao. */
 
 export type EstagioProspeccao =
-  | "TRIAGEM"
+  | "NOVA"
   | "EM_ANALISE"
-  | "APROVADO"
-  | "DOCS_PENDENTES"
-  | "DOCS_COMPLETOS"
-  | "PRONTO_HABILITACAO"
+  | "AGUARDANDO_ACEITE"
+  | "DOCUMENTACAO"
+  | "COMITE"
+  | "CONTRATO"
+  | "HABILITADO"
   | "REPROVADO"
-  | "REMOVIDO_RADAR";
+  | "RECUSADO_CLIENTE"
+  | "INERTE";
 
 export type MotivoRecusa =
   | "QUANTIDADE_DE_RESTRICOES"
@@ -43,7 +45,8 @@ export type TipoEvento =
   | "ARQUIVO_ENVIADO"
   | "ARQUIVO_REMOVIDO"
   | "ANALISTA_ALTERADO"
-  | "REABERTURA";
+  | "REABERTURA"
+  | "DADOS_COMERCIAIS";
 
 export type Prospeccao = {
   id: string;
@@ -75,6 +78,42 @@ export type Prospeccao = {
   documentosTotal: number;
   createdAt: string;
   closedAt: string | null;
+  /** Migrado da esteira antiga sem decisão registrada: o time revisa e completa. */
+  legado: boolean;
+  version: number;
+};
+
+/** Perfil comercial da empresa. Todos opcionais; valores em reais, prazos em dias. */
+export type DadosComerciais = {
+  faturamentoMensal: number | null;
+  ticketMedio: number | null;
+  valorMedioOperacoes: number | null;
+  prazoMedioVendas: number | null;
+  prazoMedioPgtoFornecedor: number | null;
+  prazoMedioEntrega: number | null;
+  possuiCanhotosDias: number | null;
+  operaMercadoriaEntregue: boolean | null;
+  operaMercadoriaEmbarcada: boolean | null;
+  regiaoAtendimento: string | null;
+  produtos: string | null;
+  parceirosAtuais: string | null;
+  outros: string | null;
+};
+
+export const DADOS_COMERCIAIS_VAZIOS: DadosComerciais = {
+  faturamentoMensal: null,
+  ticketMedio: null,
+  valorMedioOperacoes: null,
+  prazoMedioVendas: null,
+  prazoMedioPgtoFornecedor: null,
+  prazoMedioEntrega: null,
+  possuiCanhotosDias: null,
+  operaMercadoriaEntregue: null,
+  operaMercadoriaEmbarcada: null,
+  regiaoAtendimento: null,
+  produtos: null,
+  parceirosAtuais: null,
+  outros: null,
 };
 
 export type ProspeccaoArquivo = {
@@ -129,6 +168,7 @@ export type ProspeccaoEvento = {
 
 export type ProspeccaoDetalhe = {
   card: Prospeccao;
+  dadosComerciais: DadosComerciais;
   documentos: ProspeccaoDocumento[];
   timeline: ProspeccaoEvento[];
   /** Destinos válidos vindos da máquina de estados do backend. */
@@ -160,23 +200,46 @@ export type DocumentoTipo = {
 
 /** Colunas do kanban, na ordem do fluxo. Terminais ficam fora do board. */
 export const COLUNAS: EstagioProspeccao[] = [
-  "TRIAGEM",
+  "NOVA",
   "EM_ANALISE",
-  "APROVADO",
-  "DOCS_PENDENTES",
-  "DOCS_COMPLETOS",
-  "PRONTO_HABILITACAO",
+  "AGUARDANDO_ACEITE",
+  "DOCUMENTACAO",
+  "COMITE",
+  "CONTRATO",
 ];
 
+/** Desfechos: ficam na seção recolhida abaixo do quadro. */
+export const TERMINAIS: EstagioProspeccao[] = ["HABILITADO", "REPROVADO", "RECUSADO_CLIENTE", "INERTE"];
+
+export function ehTerminal(estagio: EstagioProspeccao) {
+  return TERMINAIS.includes(estagio);
+}
+
 export const ROTULO_ESTAGIO: Record<EstagioProspeccao, string> = {
-  TRIAGEM: "Triagem",
+  NOVA: "Nova",
   EM_ANALISE: "Em análise",
-  APROVADO: "Aprovado",
-  DOCS_PENDENTES: "Documentos pendentes",
-  DOCS_COMPLETOS: "Documentos completos",
-  PRONTO_HABILITACAO: "Pronto p/ habilitação",
+  AGUARDANDO_ACEITE: "Aguardando aceite",
+  DOCUMENTACAO: "Documentação",
+  COMITE: "Comitê",
+  CONTRATO: "Contrato",
+  HABILITADO: "Habilitado",
   REPROVADO: "Reprovado",
-  REMOVIDO_RADAR: "Inerte",
+  RECUSADO_CLIENTE: "Recusado pelo cliente",
+  INERTE: "Inerte",
+};
+
+/** Verbo do botão que leva o card a cada estágio, na barra de ações do detalhe. */
+export const ACAO_PARA_ESTAGIO: Record<EstagioProspeccao, string> = {
+  NOVA: "Devolver para Nova",
+  EM_ANALISE: "Voltar para análise",
+  AGUARDANDO_ACEITE: "Aprovar e aguardar aceite",
+  DOCUMENTACAO: "Cliente aceitou",
+  COMITE: "Enviar ao comitê",
+  CONTRATO: "Aprovado no comitê",
+  HABILITADO: "Concluir: habilitado",
+  REPROVADO: "Reprovar",
+  RECUSADO_CLIENTE: "Cliente recusou",
+  INERTE: "Mover para inerte",
 };
 
 export const ROTULO_MOTIVO: Record<MotivoRecusa, string> = {

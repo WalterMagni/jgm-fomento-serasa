@@ -2,25 +2,51 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "@/components/liberacao/Dialogo";
 import { useCriarProspeccao } from "@/hooks/useProspeccao";
+import { useDiretorio } from "@/hooks/useLiberacao";
+import { DADOS_COMERCIAIS_VAZIOS, type DadosComerciais, type Prospeccao } from "@/types/prospeccao";
+import DadosComerciaisForm, { camposPreenchidos } from "./DadosComerciaisForm";
+import { formatCnpj } from "./formatters";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
+/** Sem comercial: cliente direto. Outro: nome digitado, para quem ainda não tem login. */
+const DIRETO = "__direto__";
+const OUTRO = "__outro__";
+
 /**
- * Abertura de card. O CNPJ é obrigatório: é a chave que amarra esteira, análise, partes ligadas
- * e filiais, e é o nome da pasta no compartilhamento.
+ * Abertura de card, pelo quadro ou pela página da empresa.
+ *
+ * <p>O CNPJ é obrigatório: é a chave que amarra esteira, análise, partes ligadas e filiais, e é o
+ * nome da pasta no compartilhamento. Comercial e dados comerciais são opcionais — a equipe
+ * interna abre prospecção sem depender de ninguém de fora, e o que faltar vira pendência.</p>
  */
-export default function NovaProspeccaoDialog({ onFechar }: { onFechar: () => void }) {
+export default function NovaProspeccaoDialog({
+  onFechar,
+  onCriado,
+  inicial,
+}: {
+  onFechar: () => void;
+  onCriado?: (card: Prospeccao) => void;
+  /** Vindo da página da empresa: CNPJ e nome já conhecidos. */
+  inicial?: { cnpj: string; razaoSocial?: string };
+}) {
   const criar = useCriarProspeccao();
-  const [cnpj, setCnpj] = useState("");
-  const [razaoSocial, setRazaoSocial] = useState("");
+  const { data: diretorio = [] } = useDiretorio();
+  const [cnpj, setCnpj] = useState(inicial ? formatCnpj(inicial.cnpj) : "");
+  const [razaoSocial, setRazaoSocial] = useState(inicial?.razaoSocial ?? "");
   const [buscando, setBuscando] = useState(false);
+  const [comercial, setComercial] = useState<string>(DIRETO);
+  const [comercialNome, setComercialNome] = useState("");
+  const [dados, setDados] = useState<DadosComerciais>(DADOS_COMERCIAIS_VAZIOS);
 
   const digitos = cnpj.replace(/\D/g, "");
+  const cnpjTravado = Boolean(inicial?.cnpj);
 
   /** Puxa a razão social do que o portal já conhece, para não digitar o nome à mão. */
   async function buscarNome() {
-    if (digitos.length !== 14) return;
+    if (digitos.length !== 14 || razaoSocial.trim()) return;
     setBuscando(true);
     try {
       const token = typeof window === "undefined" ? null : localStorage.getItem("serasa_token");
@@ -39,81 +65,124 @@ export default function NovaProspeccaoDialog({ onFechar }: { onFechar: () => voi
     }
   }
 
+  const comercialValido = comercial !== OUTRO || comercialNome.trim().length > 0;
+  const podeCriar = digitos.length === 14 && razaoSocial.trim().length > 0 && comercialValido && !criar.isPending;
+  const preenchidos = camposPreenchidos(dados);
+
+  function enviar() {
+    if (!podeCriar) return;
+    criar.mutate(
+      {
+        cnpj: digitos,
+        razaoSocial: razaoSocial.trim(),
+        comercialId: comercial !== DIRETO && comercial !== OUTRO ? comercial : undefined,
+        comercialNome: comercial === OUTRO ? comercialNome.trim() : undefined,
+        dadosComerciais: preenchidos > 0 ? dados : undefined,
+      },
+      {
+        onSuccess: card => {
+          onFechar();
+          onCriado?.(card);
+        },
+      },
+    );
+  }
+
   return (
-    <div
-      className="esteira-fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4
-        backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Nova prospecção"
-      onClick={event => {
-        if (event.target === event.currentTarget) onFechar();
-      }}
+    <Dialogo
+      titulo="Nova prospecção"
+      subtitulo="O card entra em Nova, com o checklist de documentos já montado."
+      onFechar={onFechar}
+      largura="lg"
+      rodape={
+        <>
+          <button type="button" onClick={onFechar} className={BOTAO_SECUNDARIO}>Cancelar</button>
+          <button type="button" onClick={enviar} disabled={!podeCriar} className={BOTAO_PRIMARIO}>
+            <Icon name="add" size={16} />
+            {criar.isPending ? "Abrindo…" : "Abrir prospecção"}
+          </button>
+        </>
+      }
     >
-      <div className="esteira-modal-in w-full max-w-md rounded-xl border border-slate-200 bg-white p-5
-        shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">Nova prospecção</h2>
-          <button
-            type="button"
-            onClick={onFechar}
-            aria-label="Fechar"
-            className="cursor-pointer rounded p-1 text-slate-400 transition-colors hover:bg-slate-100
-              hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
-              dark:hover:bg-slate-700"
-          >
-            <Icon name="close" />
-          </button>
+      <form
+        className="space-y-4 px-5 py-4"
+        onSubmit={event => {
+          event.preventDefault();
+          enviar();
+        }}
+      >
+        <div className="grid gap-3 sm:grid-cols-[14rem_1fr]">
+          <label className="block">
+            <span className={ROTULO}>CNPJ</span>
+            <input
+              data-autofocus={cnpjTravado ? undefined : true}
+              value={cnpj}
+              readOnly={cnpjTravado}
+              onChange={event => setCnpj(event.target.value)}
+              onBlur={buscarNome}
+              inputMode="numeric"
+              placeholder="00.000.000/0000-00"
+              className={`${CAMPO} font-mono ${cnpjTravado ? "bg-slate-50 dark:bg-slate-800/60" : ""}`}
+            />
+            {digitos.length > 0 && digitos.length !== 14 && (
+              <span className="mt-1 block text-[11px] text-[#D1732C]">Faltam {14 - digitos.length} dígito(s).</span>
+            )}
+          </label>
+          <label className="block">
+            <span className={ROTULO}>Razão social</span>
+            <input
+              data-autofocus={cnpjTravado ? true : undefined}
+              value={razaoSocial}
+              onChange={event => setRazaoSocial(event.target.value)}
+              placeholder={buscando ? "buscando…" : "nome da empresa"}
+              className={CAMPO}
+            />
+          </label>
         </div>
 
-        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
-          CNPJ
-          <input
-            autoFocus
-            value={cnpj}
-            onChange={event => setCnpj(event.target.value)}
-            onBlur={buscarNome}
-            placeholder="00.000.000/0000-00"
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-sm
-              dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-          />
-        </label>
-        {digitos.length > 0 && digitos.length !== 14 && (
-          <p className="mt-1 text-[11px] text-[#D1732C]">Faltam {14 - digitos.length} dígito(s).</p>
-        )}
-
-        <label className="mt-3 block text-xs font-medium text-slate-600 dark:text-slate-300">
-          Razão social
-          <input
-            value={razaoSocial}
-            onChange={event => setRazaoSocial(event.target.value)}
-            placeholder={buscando ? "buscando…" : "nome da empresa"}
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm
-              dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-          />
-        </label>
-
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onFechar} className="rounded px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300">
-            Cancelar
-          </button>
-          <button
-            type="button"
-            disabled={digitos.length !== 14 || !razaoSocial.trim() || criar.isPending}
-            onClick={() =>
-              criar.mutate(
-                { cnpj: digitos, razaoSocial: razaoSocial.trim() },
-                { onSuccess: onFechar },
-              )
-            }
-            className="cursor-pointer rounded bg-[#612035] px-3 py-1.5 text-xs text-white transition-colors
-              hover:bg-[#4d1a2a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
-              focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {criar.isPending ? "abrindo…" : "Abrir na triagem"}
-          </button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className={ROTULO}>Comercial</span>
+            <select value={comercial} onChange={event => setComercial(event.target.value)} className={`${CAMPO} cursor-pointer`}>
+              <option value={DIRETO}>Sem comercial (cliente direto)</option>
+              {diretorio.map(pessoa => (
+                <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>
+              ))}
+              <option value={OUTRO}>Outro — digitar o nome</option>
+            </select>
+          </label>
+          {comercial === OUTRO && (
+            <label className="block">
+              <span className={ROTULO}>Nome do comercial</span>
+              <input
+                value={comercialNome}
+                onChange={event => setComercialNome(event.target.value)}
+                placeholder="quem trouxe a empresa"
+                className={CAMPO}
+              />
+            </label>
+          )}
         </div>
-      </div>
-    </div>
+
+        <details className="group rounded-xl border border-slate-200 dark:border-slate-700">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-medium
+            text-slate-700 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              <Icon name="storefront" size={16} className="text-slate-400" />
+              Dados comerciais
+              <span className="text-xs font-normal text-slate-400">
+                {preenchidos > 0 ? `${preenchidos} preenchido${preenchidos > 1 ? "s" : ""}` : "opcional — dá para completar depois"}
+              </span>
+            </span>
+            <Icon name="expand_more" size={16} className="text-slate-400 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-slate-100 px-4 py-4 dark:border-slate-800">
+            <DadosComerciaisForm valor={dados} onMudar={setDados} />
+          </div>
+        </details>
+        {/* Enter no formulário envia; o botão de verdade fica no rodapé do diálogo. */}
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Dialogo>
   );
 }

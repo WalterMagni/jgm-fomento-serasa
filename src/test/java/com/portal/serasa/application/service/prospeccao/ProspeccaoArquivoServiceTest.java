@@ -62,7 +62,7 @@ class ProspeccaoArquivoServiceTest {
                 .id(UUID.randomUUID())
                 .cnpj("11222333000181")
                 .razaoSocial("ACME LTDA")
-                .estagio(EstagioProspeccao.DOCS_PENDENTES)
+                .estagio(EstagioProspeccao.DOCUMENTACAO)
                 .estagioDesde(LocalDateTime.now())
                 .prazoEstagioHoras(10)
                 .build();

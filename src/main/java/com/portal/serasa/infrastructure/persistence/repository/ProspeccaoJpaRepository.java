@@ -14,14 +14,15 @@ import java.util.UUID;
 
 public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity, UUID> {
 
-    /** Card em aberto de um CNPJ. O índice parcial da V56 garante que seja no máximo um. */
+    /** Card em aberto de um CNPJ. O índice parcial da V74 garante que seja no máximo um. */
     @Query("""
             SELECT p FROM ProspeccaoEntity p
              WHERE p.cnpj = :cnpj
                AND p.estagio NOT IN (
+                   com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.HABILITADO,
                    com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.REPROVADO,
-                   com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.REMOVIDO_RADAR,
-                   com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.PRONTO_HABILITACAO)
+                   com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.RECUSADO_CLIENTE,
+                   com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.INERTE)
             """)
     Optional<ProspeccaoEntity> findAberta(@Param("cnpj") String cnpj);
 
@@ -50,6 +51,8 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
      * segunda tentativa não afeta linha nenhuma, devolvendo 0. O default é que o analista puxe
      * da fila, e não que alguém distribua — ver os defaults de 2026-09-28.
      */
+    // A versão sobe à mão: UPDATE em JPQL não passa pelo @Version, e uma edição aberta antes de
+    // assumir gravaria por cima sem conflito.
     // clearAutomatically é obrigatório aqui: o UPDATE em JPQL não passa pelo contexto de
     // persistência, então uma leitura posterior na mesma transação devolveria a entidade antiga
     // em cache — o card apareceria como não assumido logo depois de ser assumido.
@@ -60,10 +63,11 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
                    p.estagio = com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.EM_ANALISE,
                    p.estagioDesde = :agora,
                    p.prazoEstagioHoras = :prazo,
-                   p.updatedAt = :agora
+                   p.updatedAt = :agora,
+                   p.version = p.version + 1
              WHERE p.id = :id
                AND p.analistaId IS NULL
-               AND p.estagio = com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.TRIAGEM
+               AND p.estagio = com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.NOVA
             """)
     int assumirAnalise(@Param("id") UUID id,
                        @Param("analistaId") UUID analistaId,

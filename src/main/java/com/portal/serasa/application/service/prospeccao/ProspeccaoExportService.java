@@ -227,14 +227,16 @@ public class ProspeccaoExportService {
 
     static String rotulo(EstagioProspeccao estagio) {
         return switch (estagio) {
-            case TRIAGEM -> "Triagem";
+            case NOVA -> "Nova";
             case EM_ANALISE -> "Em análise";
-            case APROVADO -> "Aprovado";
-            case DOCS_PENDENTES -> "Documentos pendentes";
-            case DOCS_COMPLETOS -> "Documentos completos";
-            case PRONTO_HABILITACAO -> "Pronto p/ habilitação";
+            case AGUARDANDO_ACEITE -> "Aguardando aceite";
+            case DOCUMENTACAO -> "Documentação";
+            case COMITE -> "Comitê";
+            case CONTRATO -> "Contrato";
+            case HABILITADO -> "Habilitado";
             case REPROVADO -> "Reprovado";
-            case REMOVIDO_RADAR -> "Inerte";
+            case RECUSADO_CLIENTE -> "Recusado pelo cliente";
+            case INERTE -> "Inerte";
         };
     }
 

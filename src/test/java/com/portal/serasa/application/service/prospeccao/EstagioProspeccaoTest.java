@@ -6,85 +6,108 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.AGUARDANDO_ACEITE;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.COMITE;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.CONTRATO;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.DOCUMENTACAO;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.EM_ANALISE;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.HABILITADO;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.INERTE;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.NOVA;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.RECUSADO_CLIENTE;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.REPROVADO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EstagioProspeccaoTest {
 
     @Test
-    @DisplayName("caminho feliz: triagem até pronto para habilitação")
+    @DisplayName("caminho feliz: nova até habilitado")
     void shouldAllowHappyPath() {
-        assertThat(EstagioProspeccao.TRIAGEM.aceita(EstagioProspeccao.EM_ANALISE)).isTrue();
-        assertThat(EstagioProspeccao.EM_ANALISE.aceita(EstagioProspeccao.APROVADO)).isTrue();
-        assertThat(EstagioProspeccao.APROVADO.aceita(EstagioProspeccao.DOCS_PENDENTES)).isTrue();
-        assertThat(EstagioProspeccao.DOCS_PENDENTES.aceita(EstagioProspeccao.DOCS_COMPLETOS)).isTrue();
-        assertThat(EstagioProspeccao.DOCS_COMPLETOS.aceita(EstagioProspeccao.PRONTO_HABILITACAO)).isTrue();
+        assertThat(NOVA.aceita(EM_ANALISE)).isTrue();
+        assertThat(EM_ANALISE.aceita(AGUARDANDO_ACEITE)).isTrue();
+        assertThat(AGUARDANDO_ACEITE.aceita(DOCUMENTACAO)).isTrue();
+        assertThat(DOCUMENTACAO.aceita(COMITE)).isTrue();
+        assertThat(COMITE.aceita(CONTRATO)).isTrue();
+        assertThat(CONTRATO.aceita(HABILITADO)).isTrue();
     }
 
     @Test
-    @DisplayName("não dá para pular a análise nem a coleta de documentos")
+    @DisplayName("não dá para pular decisão, aceite, documentação nem comitê")
     void shouldRejectSkippingStages() {
-        assertThat(EstagioProspeccao.TRIAGEM.aceita(EstagioProspeccao.APROVADO)).isFalse();
-        assertThat(EstagioProspeccao.TRIAGEM.aceita(EstagioProspeccao.DOCS_COMPLETOS)).isFalse();
-        assertThat(EstagioProspeccao.EM_ANALISE.aceita(EstagioProspeccao.DOCS_PENDENTES)).isFalse();
-        assertThat(EstagioProspeccao.APROVADO.aceita(EstagioProspeccao.PRONTO_HABILITACAO)).isFalse();
+        assertThat(NOVA.aceita(AGUARDANDO_ACEITE)).isFalse();
+        assertThat(EM_ANALISE.aceita(DOCUMENTACAO)).isFalse();
+        assertThat(AGUARDANDO_ACEITE.aceita(COMITE)).isFalse();
+        assertThat(DOCUMENTACAO.aceita(CONTRATO)).isFalse();
+        assertThat(COMITE.aceita(HABILITADO)).isFalse();
     }
 
     @Test
-    @DisplayName("retrocesso declarado corrige engano de operação sem exigir card novo")
+    @DisplayName("retrocessos declarados: devolver, contraproposta, comitê devolve, contrato volta")
     void shouldAllowDeclaredBacksteps() {
-        assertThat(EstagioProspeccao.EM_ANALISE.aceita(EstagioProspeccao.TRIAGEM)).isTrue();
-        assertThat(EstagioProspeccao.APROVADO.aceita(EstagioProspeccao.EM_ANALISE)).isTrue();
-        assertThat(EstagioProspeccao.DOCS_PENDENTES.aceita(EstagioProspeccao.APROVADO)).isTrue();
-        assertThat(EstagioProspeccao.DOCS_COMPLETOS.aceita(EstagioProspeccao.DOCS_PENDENTES)).isTrue();
+        assertThat(EM_ANALISE.aceita(NOVA)).isTrue();
+        assertThat(AGUARDANDO_ACEITE.aceita(EM_ANALISE)).isTrue();
+        assertThat(DOCUMENTACAO.aceita(EM_ANALISE)).isTrue();
+        assertThat(COMITE.aceita(EM_ANALISE)).isTrue();
+        assertThat(CONTRATO.aceita(COMITE)).isTrue();
+    }
+
+    @Test
+    @DisplayName("saídas negativas: reprovar na análise ou no comitê, recusa só no aceite")
+    void shouldExposeNegativeExits() {
+        assertThat(EM_ANALISE.aceita(REPROVADO)).isTrue();
+        assertThat(COMITE.aceita(REPROVADO)).isTrue();
+        assertThat(AGUARDANDO_ACEITE.aceita(RECUSADO_CLIENTE)).isTrue();
+        assertThat(DOCUMENTACAO.aceita(REPROVADO)).isFalse();
+        assertThat(EM_ANALISE.aceita(RECUSADO_CLIENTE)).isFalse();
     }
 
     @ParameterizedTest
-    @EnumSource(value = EstagioProspeccao.class,
-            names = {"TRIAGEM", "EM_ANALISE", "APROVADO", "DOCS_PENDENTES", "DOCS_COMPLETOS"})
-    @DisplayName("remover do radar é possível de qualquer estágio em aberto")
-    void shouldAllowRemovalFromAnyOpenStage(EstagioProspeccao estagio) {
-        assertThat(estagio.aceita(EstagioProspeccao.REMOVIDO_RADAR)).isTrue();
+    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO"})
+    @DisplayName("inerte é possível enquanto o cliente ainda pode sumir")
+    void shouldAllowInertWhileClientCanVanish(EstagioProspeccao estagio) {
+        assertThat(estagio.aceita(INERTE)).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstagioProspeccao.class, names = {"HABILITADO", "REPROVADO", "RECUSADO_CLIENTE", "INERTE"})
+    @DisplayName("terminais liberam o CNPJ e só voltam por reabertura")
+    void shouldMarkTerminals(EstagioProspeccao estagio) {
+        assertThat(estagio.terminal()).isTrue();
+        assertThat(estagio.destinos()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO", "COMITE", "CONTRATO"})
+    @DisplayName("estágios de trabalho não são terminais")
+    void shouldNotMarkWorkStagesAsTerminal(EstagioProspeccao estagio) {
+        assertThat(estagio.terminal()).isFalse();
     }
 
     @Test
-    @DisplayName("terminais liberam o CNPJ para um card novo")
-    void shouldMarkTerminals() {
-        assertThat(EstagioProspeccao.REPROVADO.terminal()).isTrue();
-        assertThat(EstagioProspeccao.REMOVIDO_RADAR.terminal()).isTrue();
-        assertThat(EstagioProspeccao.PRONTO_HABILITACAO.terminal()).isTrue();
-        assertThat(EstagioProspeccao.DOCS_PENDENTES.terminal()).isFalse();
-    }
-
-    @Test
-    @DisplayName("reprovado e removido voltam só para triagem; pronto para habilitação não volta")
-    void shouldReopenOnlyToTriage() {
-        assertThat(EstagioProspeccao.REPROVADO.destinos()).containsExactly(EstagioProspeccao.TRIAGEM);
-        assertThat(EstagioProspeccao.REMOVIDO_RADAR.destinos()).containsExactly(EstagioProspeccao.TRIAGEM);
-        assertThat(EstagioProspeccao.PRONTO_HABILITACAO.destinos()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("só os terminais com desfecho negativo exigem motivo")
+    @DisplayName("só reprovar e inerte exigem motivo")
     void shouldRequireReasonOnNegativeOutcomes() {
-        assertThat(EstagioProspeccao.REPROVADO.exigeMotivo()).isTrue();
-        assertThat(EstagioProspeccao.REMOVIDO_RADAR.exigeMotivo()).isTrue();
-        assertThat(EstagioProspeccao.PRONTO_HABILITACAO.exigeMotivo()).isFalse();
+        assertThat(REPROVADO.exigeMotivo()).isTrue();
+        assertThat(INERTE.exigeMotivo()).isTrue();
+        assertThat(RECUSADO_CLIENTE.exigeMotivo()).isFalse();
+        assertThat(HABILITADO.exigeMotivo()).isFalse();
     }
 
     @Test
     @DisplayName("prazos em horas úteis, conforme o time pratica: 12 para pegar, 24 para decidir")
     void shouldExposeSlaWindows() {
-        assertThat(EstagioProspeccao.TRIAGEM.prazoHorasUteis()).isEqualTo(12);
-        assertThat(EstagioProspeccao.EM_ANALISE.prazoHorasUteis()).isEqualTo(24);
-        assertThat(EstagioProspeccao.PRONTO_HABILITACAO.contaSla()).isFalse();
-        assertThat(EstagioProspeccao.REPROVADO.contaSla()).isFalse();
+        assertThat(NOVA.prazoHorasUteis()).isEqualTo(12);
+        assertThat(EM_ANALISE.prazoHorasUteis()).isEqualTo(24);
+        assertThat(DOCUMENTACAO.contaSla()).isFalse();
+        assertThat(REPROVADO.contaSla()).isFalse();
     }
 
     @Test
-    @DisplayName("coleta de documentos não tem prazo: depende do cliente, não do time")
-    void shouldNotTimeDocumentCollection() {
-        assertThat(EstagioProspeccao.DOCS_PENDENTES.prazoHorasUteis()).isZero();
-        assertThat(EstagioProspeccao.DOCS_PENDENTES.contaSla()).isFalse();
+    @DisplayName("silêncio corre onde quem deve resposta é o cliente: aceite e documentação")
+    void shouldCountSilenceWhereClientOwesAnswer() {
+        assertThat(AGUARDANDO_ACEITE.contaSilencio()).isTrue();
+        assertThat(DOCUMENTACAO.contaSilencio()).isTrue();
+        assertThat(EM_ANALISE.contaSilencio()).isFalse();
+        assertThat(COMITE.contaSilencio()).isFalse();
     }
 
     @ParameterizedTest

@@ -8,6 +8,7 @@ import com.portal.serasa.domain.model.prospeccao.EstagioProspeccao;
 import com.portal.serasa.domain.model.prospeccao.MotivoRecusa;
 import com.portal.serasa.domain.model.prospeccao.OrigemProspeccao;
 import com.portal.serasa.domain.model.prospeccao.TipoEventoProspeccao;
+import com.portal.serasa.infrastructure.persistence.entity.DadosComerciais;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoDocumentoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEventoEntity;
@@ -55,24 +56,34 @@ public class ProspeccaoService {
 
     // ---------------------------------------------------------------- criação
 
-    /** Entrada manual: o comercial informa o CNPJ. */
+    /**
+     * Entrada manual, pelo quadro ou pela página da empresa.
+     *
+     * <p>O comercial é opcional: cliente direto não tem intermediário, e a equipe interna abre
+     * prospecção sem depender de ninguém de fora.</p>
+     */
     @Transactional
     public ProspeccaoEntity criar(String cnpj, String razaoSocial, UUID comercialId,
-                                  String comercialNome, UserEntity autor) {
+                                  String comercialNome, DadosComerciais dadosComerciais, UserEntity autor) {
         String normalizado = normalizarCnpj(cnpj);
         prospeccaoRepository.findAberta(normalizado).ifPresent(aberta -> {
             throw new TransicaoInvalidaException(
                     "Já existe card aberto para este CNPJ em " + aberta.getEstagio() + ".");
         });
-        return nascer(normalizado, razaoSocial, OrigemProspeccao.MANUAL, null,
+        ProspeccaoEntity card = nascer(normalizado, razaoSocial, OrigemProspeccao.MANUAL, null,
                 comercialId, comercialNome, autor);
+        if (dadosComerciais != null) {
+            card.setDadosComerciais(dadosComerciais);
+            prospeccaoRepository.save(card);
+        }
+        return card;
     }
 
     /**
      * Entrada automática: uma análise resultou {@code visaoCedente = SIM}.
      *
      * <p>O sinal é calculado a partir do Serasa, não é veredito humano — por isso ele só cria o
-     * card em TRIAGEM, e quem aprova ou reprova continua sendo a analista. Se já houver card
+     * card em NOVA, e quem aprova ou reprova continua sendo a analista. Se já houver card
      * aberto para o CNPJ, ou se a mesma análise já tiver gerado um, nada acontece: importar de
      * novo não pode duplicar.</p>
      */
@@ -94,13 +105,13 @@ public class ProspeccaoService {
         ProspeccaoEntity card = prospeccaoRepository.save(ProspeccaoEntity.builder()
                 .cnpj(cnpj)
                 .razaoSocial(razaoSocial)
-                .estagio(EstagioProspeccao.TRIAGEM)
+                .estagio(EstagioProspeccao.NOVA)
                 .origem(origem)
                 .creditAnalysisId(creditAnalysisId)
                 .comercialId(comercialId)
                 .comercialNome(comercialNome)
                 .estagioDesde(agora)
-                .prazoEstagioHoras(EstagioProspeccao.TRIAGEM.prazoHorasUteis())
+                .prazoEstagioHoras(EstagioProspeccao.NOVA.prazoHorasUteis())
                 .reaberturas(0)
                 .createdAt(agora)
                 .updatedAt(agora)
@@ -111,6 +122,10 @@ public class ProspeccaoService {
                         ? "Criado automaticamente por visão cedente SIM"
                         : "Criado manualmente",
                 autor);
+
+        // O checklist nasce junto com o card: a equipe pode anexar documento desde o primeiro
+        // dia, e a exigência só trava a passagem da documentação para o comitê.
+        checklistService.materializar(card);
         return card;
     }
 
@@ -130,11 +145,11 @@ public class ProspeccaoService {
         if (afetadas == 0) {
             throw new TransicaoInvalidaException(card.getAnalistaId() != null
                     ? "Card já assumido por outro analista."
-                    : "Card não está em triagem.");
+                    : "Card não está em Nova.");
         }
         ProspeccaoEntity atualizado = buscar(id);
         registrarEvento(atualizado, TipoEventoProspeccao.TRANSICAO,
-                EstagioProspeccao.TRIAGEM, EstagioProspeccao.EM_ANALISE, null,
+                EstagioProspeccao.NOVA, EstagioProspeccao.EM_ANALISE, null,
                 "Análise assumida", analista);
         return atualizado;
     }
@@ -143,9 +158,8 @@ public class ProspeccaoService {
      * Move o card de estágio.
      *
      * <p>Avanço é validado pela máquina de estados; retrocesso declarado é permitido, para
-     * corrigir engano de operação sem exigir card novo. Aprovar materializa o checklist e cai
-     * direto em DOCS_PENDENTES — não existe estado em que o card está aprovado e ninguém sabe
-     * o que pedir.</p>
+     * corrigir engano de operação sem exigir card novo. A passagem da documentação para o
+     * comitê exige todos os obrigatórios resolvidos.</p>
      */
     @Transactional
     public ProspeccaoEntity transicionar(UUID id, EstagioProspeccao destino, MotivoRecusa motivo,
@@ -166,7 +180,7 @@ public class ProspeccaoService {
         if (motivo == MotivoRecusa.OUTRO && (observacao == null || observacao.isBlank())) {
             throw new TransicaoInvalidaException("Motivo OUTRO exige observação preenchida.");
         }
-        if (destino == EstagioProspeccao.DOCS_COMPLETOS) {
+        if (origem == EstagioProspeccao.DOCUMENTACAO && destino == EstagioProspeccao.COMITE) {
             exigirDocumentacaoCompleta(card);
         }
 
@@ -183,20 +197,16 @@ public class ProspeccaoService {
 
         registrarEvento(card, TipoEventoProspeccao.TRANSICAO, origem, destino, null, observacao, autor);
 
-        // Aprovar sem checklist deixaria o card num limbo: aprovado e sem nada a cobrar.
-        if (destino == EstagioProspeccao.APROVADO) {
+        // Card aberto antes de o QSA ser carregado nasceu sem bloco de sócio. Ao entrar na
+        // documentação o checklist é completado com o que o quadro societário já tiver.
+        if (destino == EstagioProspeccao.DOCUMENTACAO) {
             checklistService.materializar(card);
-            aplicarEstagio(card, EstagioProspeccao.DOCS_PENDENTES, autor);
-            prospeccaoRepository.save(card);
-            registrarEvento(card, TipoEventoProspeccao.TRANSICAO,
-                    EstagioProspeccao.APROVADO, EstagioProspeccao.DOCS_PENDENTES, null,
-                    "Checklist gerado", autor);
         }
         return card;
     }
 
     /**
-     * Reabre um card terminal, devolvendo-o para triagem.
+     * Reabre um card terminal, devolvendo-o para Nova.
      *
      * <p>Existe porque a planilha tem empresa reprovada que depois foi habilitada. Sem
      * reabertura o time criaria card duplicado, que é pior: o motivo da recusa anterior fica na
@@ -208,22 +218,18 @@ public class ProspeccaoService {
         if (!card.getEstagio().terminal()) {
             throw new TransicaoInvalidaException("Só card em estágio terminal pode ser reaberto.");
         }
-        if (card.getEstagio() == EstagioProspeccao.PRONTO_HABILITACAO) {
-            throw new TransicaoInvalidaException(
-                    "Card já foi repassado para a habilitação; reabrir aqui não teria efeito.");
-        }
         prospeccaoRepository.findAberta(card.getCnpj()).ifPresent(aberta -> {
             throw new TransicaoInvalidaException("Já existe card aberto para este CNPJ.");
         });
 
         EstagioProspeccao origem = card.getEstagio();
-        aplicarEstagio(card, EstagioProspeccao.TRIAGEM, autor);
+        aplicarEstagio(card, EstagioProspeccao.NOVA, autor);
         card.setReaberturas(card.getReaberturas() + 1);
         card.setClosedAt(null);
         card.setAnalistaId(null);
         prospeccaoRepository.save(card);
 
-        registrarEvento(card, TipoEventoProspeccao.REABERTURA, origem, EstagioProspeccao.TRIAGEM,
+        registrarEvento(card, TipoEventoProspeccao.REABERTURA, origem, EstagioProspeccao.NOVA,
                 null, justificativa, autor);
         return card;
     }
@@ -248,6 +254,29 @@ public class ProspeccaoService {
         if (!pendentes.isEmpty()) {
             throw new DocumentacaoIncompletaException(pendentes);
         }
+    }
+
+    // ------------------------------------------------------- dados comerciais
+
+    /**
+     * Substitui o perfil comercial do card.
+     *
+     * <p>Substitui em vez de mesclar: a tela manda o formulário inteiro, e campo apagado lá
+     * precisa sair daqui. A timeline registra que houve alteração, não o diff — o formulário é a
+     * fonte, e o histórico de valor por valor não é pergunta que o time faz.</p>
+     */
+    @Transactional
+    public ProspeccaoEntity atualizarDadosComerciais(UUID id, DadosComerciais dados, UserEntity autor) {
+        ProspeccaoEntity card = buscar(id);
+        if (card.getEstagio().terminal()) {
+            throw new TransicaoInvalidaException("Card encerrado: reabra antes de editar os dados comerciais.");
+        }
+        card.setDadosComerciais(dados);
+        card.setUpdatedAt(LocalDateTime.now());
+        ProspeccaoEntity salvo = prospeccaoRepository.save(card);
+        registrarEvento(salvo, TipoEventoProspeccao.DADOS_COMERCIAIS, null, null, null,
+                "Dados comerciais atualizados", autor);
+        return salvo;
     }
 
     // --------------------------------------------------------------- timeline
@@ -307,7 +336,7 @@ public class ProspeccaoService {
 
     /** Dias corridos desde a última cobrança, ou desde a entrada no estágio se nunca houve. */
     public long diasEmSilencio(ProspeccaoEntity card) {
-        if (card.getEstagio() != EstagioProspeccao.DOCS_PENDENTES) {
+        if (!card.getEstagio().contaSilencio()) {
             return 0;
         }
         LocalDateTime referencia = card.getUltimoContatoEm() != null

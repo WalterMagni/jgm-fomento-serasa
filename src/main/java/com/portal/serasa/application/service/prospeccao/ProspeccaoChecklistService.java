@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 /**
  * Materializa o checklist de um card a partir do catálogo vigente.
  *
- * <p>Roda uma vez, na aprovação. O card guarda cópia de nome e obrigatoriedade para que mexer
- * no catálogo depois não reescreva o que já foi cobrado.</p>
+ * <p>Roda na abertura do card e de novo ao entrar na documentação. O card guarda cópia de nome
+ * e obrigatoriedade para que mexer no catálogo depois não reescreva o que já foi cobrado.</p>
  */
 @Slf4j
 @Service
@@ -64,14 +64,13 @@ public class ProspeccaoChecklistService {
      */
     @Transactional
     public List<ProspeccaoDocumentoEntity> materializar(ProspeccaoEntity card) {
-        // Idempotente de propósito. Voltar o card para APROVADO é transição legítima da máquina de
-        // estados, e sem esta guarda o checklist seria criado de novo por cima do antigo —
-        // duplicando cada item e levando junto o status e a observação já preenchidos.
+        // Idempotente de propósito: roda na abertura e de novo ao entrar na documentação, e
+        // recriar por cima duplicaria cada item, levando junto status e observação preenchidos.
+        // A única coisa que a segunda passada acrescenta é o bloco de sócio que faltou porque o
+        // QSA ainda não estava carregado quando o card nasceu.
         List<ProspeccaoDocumentoEntity> existente = documentoRepository.findByProspeccaoId(card.getId());
         if (!existente.isEmpty()) {
-            log.debug("Checklist do card {} já existe com {} itens; materialização ignorada",
-                    card.getId(), existente.size());
-            return existente;
+            return completarSocios(card, existente);
         }
 
         List<DocumentoTipoEntity> catalogo = documentoTipoRepository.findByAtivoTrueOrderByEscopoAscOrdemAsc();
@@ -101,6 +100,40 @@ public class ProspeccaoChecklistService {
         }
 
         return documentoRepository.saveAll(itens);
+    }
+
+    /**
+     * Acrescenta os sócios do QSA a um checklist que nasceu sem eles.
+     *
+     * <p>Só age quando não há nenhum item de sócio vindo do quadro: se a analista já mexeu no
+     * bloco — inclusive desligando sócios —, refazer a partir do QSA desfaria o trabalho dela.
+     * Avalista adicionado à mão não conta, porque não veio do quadro.</p>
+     */
+    private List<ProspeccaoDocumentoEntity> completarSocios(ProspeccaoEntity card,
+                                                            List<ProspeccaoDocumentoEntity> existente) {
+        boolean temSocioDoQuadro = existente.stream()
+                .anyMatch(item -> item.getEscopo() == EscopoDocumento.SOCIO
+                        && item.getPessoaPapel() != PapelPessoa.AVALISTA);
+        if (temSocioDoQuadro) {
+            return existente;
+        }
+        List<Socio> socios = sociosPessoaFisica(card.getCnpj());
+        if (socios.isEmpty()) {
+            return existente;
+        }
+        LocalDateTime agora = LocalDateTime.now();
+        List<ProspeccaoDocumentoEntity> novos = new ArrayList<>();
+        List<DocumentoTipoEntity> tiposDeSocio =
+                documentoTipoRepository.findByEscopoAndAtivoTrueOrderByOrdemAsc(EscopoDocumento.SOCIO);
+        for (Socio socio : socios) {
+            for (DocumentoTipoEntity tipo : tiposDeSocio) {
+                novos.add(itemDoSocio(card, tipo, socio, agora));
+            }
+        }
+        log.info("Checklist do card {} completado com {} sócio(s) do QSA", card.getId(), socios.size());
+        List<ProspeccaoDocumentoEntity> todos = new ArrayList<>(existente);
+        todos.addAll(documentoRepository.saveAll(novos));
+        return todos;
     }
 
     private ProspeccaoDocumentoEntity itemDaEmpresa(ProspeccaoEntity card,

@@ -48,14 +48,14 @@ class ProspeccaoChecklistServiceTest {
                 .id(UUID.randomUUID())
                 .cnpj("11222333000181")
                 .razaoSocial("ACME LTDA")
-                .estagio(EstagioProspeccao.APROVADO)
+                .estagio(EstagioProspeccao.NOVA)
                 .estagioDesde(LocalDateTime.now())
                 .prazoEstagioHoras(1)
                 .build();
     }
 
     @Test
-    @DisplayName("checklist já existente não é criado de novo — voltar para aprovado duplicaria tudo")
+    @DisplayName("checklist já existente não é criado de novo — a segunda passada duplicaria tudo")
     void shouldNotDuplicateExistingChecklist() {
         ProspeccaoEntity card = card();
         ProspeccaoDocumentoEntity jaExiste = ProspeccaoDocumentoEntity.builder()
@@ -150,5 +150,53 @@ class ProspeccaoChecklistServiceTest {
 
         verify(documentoTipoRepository).findByAtivoTrueOrderByEscopoAscOrdemAsc();
         verify(documentoRepository).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("card que nasceu antes do QSA ganha o bloco de sócio ao entrar na documentação")
+    void shouldCompletePartnersWhenQsaArrivesLater() {
+        ProspeccaoEntity card = card();
+        ProspeccaoDocumentoEntity daEmpresa = ProspeccaoDocumentoEntity.builder()
+                .id(UUID.randomUUID()).prospeccaoId(card.getId())
+                .codigoSnapshot("contrato-social").nomeSnapshot("Contrato social")
+                .obrigatorioSnapshot(true).informativoSnapshot(false)
+                .escopo(EscopoDocumento.EMPRESA).socioAtivo(true)
+                .status(StatusDocumento.VALIDADO).atualizadoEm(LocalDateTime.now()).build();
+        UUID socioId = UUID.randomUUID();
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(daEmpresa));
+        when(shareholderCompanyRepository.findByCnpjRaiz("11222333")).thenReturn(List.of(
+                com.portal.serasa.infrastructure.persistence.entity.ShareholderCompanyEntity.builder()
+                        .shareholderId(socioId).cnpjRaiz("11222333").build()));
+        when(shareholderRepository.findAllById(List.of(socioId))).thenReturn(List.of(
+                com.portal.serasa.infrastructure.persistence.entity.ShareholderEntity.builder()
+                        .id(socioId).name("Antonio Souza")
+                        .documentType(com.portal.serasa.infrastructure.persistence.entity.ShareholderEntity.TYPE_CPF)
+                        .build()));
+        when(documentoTipoRepository.findByEscopoAndAtivoTrueOrderByOrdemAsc(EscopoDocumento.SOCIO))
+                .thenReturn(List.of(tipoSocio("socio-identidade"), tipoSocio("socio-irpf")));
+        when(documentoRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        List<ProspeccaoDocumentoEntity> resultado = service.materializar(card);
+
+        assertThat(resultado).hasSize(3).contains(daEmpresa);
+        assertThat(resultado).filteredOn(item -> item.getEscopo() == EscopoDocumento.SOCIO)
+                .allSatisfy(item -> assertThat(item.getSocioNome()).isEqualTo("Antonio Souza"));
+    }
+
+    @Test
+    @DisplayName("bloco de sócio já mexido pela analista não é refeito a partir do QSA")
+    void shouldNotRebuildPartnersTouchedByAnalyst() {
+        ProspeccaoEntity card = card();
+        ProspeccaoDocumentoEntity socioDesligado = ProspeccaoDocumentoEntity.builder()
+                .id(UUID.randomUUID()).prospeccaoId(card.getId())
+                .codigoSnapshot("socio-identidade").nomeSnapshot("RG")
+                .obrigatorioSnapshot(true).informativoSnapshot(false)
+                .escopo(EscopoDocumento.SOCIO).pessoaPapel(PapelPessoa.SOCIO)
+                .socioNome("Paulo").socioAtivo(false)
+                .status(StatusDocumento.PENDENTE).atualizadoEm(LocalDateTime.now()).build();
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(socioDesligado));
+
+        assertThat(service.materializar(card)).containsExactly(socioDesligado);
+        verify(shareholderCompanyRepository, never()).findByCnpjRaiz(any());
     }
 }

@@ -86,7 +86,7 @@ public class ClientProfileService {
             emailService.notificarCedenteAsync(saved);
         }
 
-        // Visão cedente SIM também abre card na esteira de prospecção, em TRIAGEM. O sinal é
+        // Visão cedente SIM também abre card na esteira de prospecção, em NOVA. O sinal é
         // calculado, não é veredito: quem aprova ou reprova continua sendo a analista.
         prospeccaoEntradaAutomatica.aoSalvarAnalise(saved);
 
