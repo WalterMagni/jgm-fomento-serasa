@@ -109,7 +109,8 @@ function GestaoCarteira() {
   };
 
   return (
-    <div className="mx-auto flex max-w-[1240px] flex-col gap-6 pb-10">
+    // Largura total, como era antes da repaginação: a carteira é a tela de trabalho e usa o espaço todo.
+    <div className="flex flex-col gap-6 pb-10">
       <PageHeader
         rotulo="Carteira"
         titulo="Gestão de Carteira"
