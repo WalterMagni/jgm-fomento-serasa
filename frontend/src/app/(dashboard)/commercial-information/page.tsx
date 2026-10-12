@@ -1,82 +1,82 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-
-type CommercialRecord = {
-  id: string;
-  cnpj?: string | null;
-  empresa?: string | null;
-  data?: string | null;
-  tipo?: string | null;
-  parceiro?: string | null;
-  clienteDesde?: string | null;
-  ultimaOperacaoData?: string | null;
-  ultimaOperacaoValor?: string | null;
-  limite?: string | null;
-  riscoDuplicata?: string | null;
-  riscoCheque?: string | null;
-  riscoComissaria?: string | null;
-  vencidosData?: string | null;
-  vencidosValorMonetario?: string | null;
-  vencidosValor?: string | null;
-  vop?: string | null;
-  pontual?: string | null;
-  atraso?: string | null;
-  recompra?: string | null;
-  cartorio?: string | null;
-  observacao?: string | null;
-};
+import Icon from "@/components/ui/Icon";
+import PageHeader from "@/components/ui/PageHeader";
+import KpiCard, { Medidor, MiniBarras } from "@/components/ui/KpiCard";
+import Segmentos from "@/components/ui/Segmentos";
+import EstadoVazio from "@/components/ui/EstadoVazio";
+import Paginacao from "@/components/ui/Paginacao";
+import { BOTAO } from "@/components/ui/botao";
+import LinhaFicha, { CabecalhoFichas, LinhasEsqueletoFichas, type FichaNaLista } from "@/components/comercial/LinhaFicha";
+import GavetaFicha from "@/components/comercial/GavetaFicha";
+import TabelaFichas from "@/components/comercial/TabelaFichas";
+import { diasDesde, formatCnpj, formatMoeda, normalizar } from "@/lib/formatadores";
+import { prepararFicha, type FichaComercialApi } from "@/types/informacao-comercial";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+const POR_PAGINA = 20;
 
-function getAuthHeaders() {
-  const token = localStorage.getItem("serasa_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+type Ordem = "recentes" | "risco" | "vencido" | "nome";
+type Visao = "fichas" | "tabela";
+
+const ORDENS: Record<Ordem, { rotulo: string; comparar: (a: FichaNaLista, b: FichaNaLista) => number }> = {
+  recentes: { rotulo: "Mais recentes", comparar: (a, b) => b.dataT - a.dataT || (b.createdAt ?? "").localeCompare(a.createdAt ?? "") },
+  risco: { rotulo: "Maior risco", comparar: (a, b) => b.riscoN - a.riscoN },
+  vencido: { rotulo: "Maior vencido", comparar: (a, b) => b.vencidoN - a.vencidoN || b.dataT - a.dataT },
+  nome: { rotulo: "Empresa A–Z", comparar: (a, b) => (a.empresa ?? "").localeCompare(b.empresa ?? "", "pt-BR") },
+};
+
+function lerOrdem(valor: string | null): Ordem {
+  return valor && valor in ORDENS ? (valor as Ordem) : "recentes";
 }
 
-function clean(value: string | null | undefined) {
-  return value && value.trim() ? value : "-";
+/** "2026-05-08" do campo de data → início do dia local. */
+function dataDoFiltro(valor: string) {
+  if (!valor) return 0;
+  const [ano, mes, dia] = valor.split("-").map(Number);
+  return new Date(ano, mes - 1, dia).getTime();
 }
 
-function normalizeSearch(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
+// Fichas ou tabela: preferência de cada pessoa, neste navegador. useSyncExternalStore evita
+// que o servidor e o navegador desenhem visões diferentes na primeira pintura.
+const CHAVE_VISAO = "jgm_comercial_visao";
+const ouvintesVisao = new Set<() => void>();
+function lerVisao(): Visao {
+  try {
+    return localStorage.getItem(CHAVE_VISAO) === "tabela" ? "tabela" : "fichas";
+  } catch {
+    return "fichas";
+  }
 }
-
-function formatCnpj(cnpj: string | null | undefined) {
-  if (!cnpj) return "-";
-  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+function gravarVisao(visao: Visao) {
+  try {
+    localStorage.setItem(CHAVE_VISAO, visao);
+  } catch {
+    // Sem armazenamento (aba anônima, bloqueio): a escolha vale só até recarregar.
+  }
+  ouvintesVisao.forEach(avisar => avisar());
 }
-
-function parseBrDate(value: string | null | undefined) {
-  if (!value) return 0;
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return 0;
-  return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])).getTime();
-}
-
-function parseFilterDate(value: string) {
-  if (!value) return 0;
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day).getTime();
+function useVisao(): [Visao, (v: Visao) => void] {
+  const visao = useSyncExternalStore(
+    avisar => {
+      ouvintesVisao.add(avisar);
+      return () => ouvintesVisao.delete(avisar);
+    },
+    lerVisao,
+    () => "fichas" as Visao,
+  );
+  return [visao, gravarVisao];
 }
 
 function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function exportXls(records: CommercialRecord[]) {
+function exportXls(records: FichaComercialApi[]) {
+  const clean = (value: string | null | undefined) => (value && value.trim() ? value : "-");
   const headers = [
     "Cedente",
     "CNPJ",
@@ -102,7 +102,7 @@ function exportXls(records: CommercialRecord[]) {
 
   const rows = records.map((record) => [
     clean(record.empresa),
-    formatCnpj(record.cnpj),
+    record.cnpj ? formatCnpj(record.cnpj) : "-",
     clean(record.data),
     clean(record.tipo),
     clean(record.parceiro),
@@ -147,256 +147,396 @@ function exportXls(records: CommercialRecord[]) {
 }
 
 function useCommercialInformation() {
-  return useQuery<CommercialRecord[]>({
+  return useQuery<FichaComercialApi[]>({
     queryKey: ["allCommercialInformation"],
     queryFn: async () => {
+      const token = localStorage.getItem("serasa_token");
       const response = await fetch(`${API_BASE_URL}/company/commercial-information`, {
-        headers: getAuthHeaders(),
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-
-      if (!response.ok) {
-        throw new Error("Erro ao carregar informações comerciais");
-      }
-
+      if (!response.ok) throw new Error("Erro ao carregar informações comerciais");
       return response.json();
     },
     staleTime: 60 * 1000,
   });
 }
 
-export default function CommercialInformationPage() {
-  const { data = [], isLoading, isError, error } = useCommercialInformation();
-  const [companyFilter, setCompanyFilter] = useState("");
-  const [partnerFilter, setPartnerFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+/** Fichas por mês nos últimos 12 meses, o mês atual por último. */
+function fichasPorMes(fichas: FichaNaLista[], hoje: Date) {
+  const meses = new Array(12).fill(0);
+  const atual = hoje.getFullYear() * 12 + hoje.getMonth();
+  for (const f of fichas) {
+    if (!f.dataT) continue;
+    const d = new Date(f.dataT);
+    const distancia = atual - (d.getFullYear() * 12 + d.getMonth());
+    if (distancia >= 0 && distancia < 12) meses[11 - distancia]++;
+  }
+  return meses;
+}
 
-  const partners = useMemo(
-    () => Array.from(new Set(data.map((record) => record.parceiro).filter(Boolean) as string[])).sort(),
-    [data],
+export default function InformacoesComerciaisPage() {
+  // useSearchParams exige Suspense no App Router.
+  return (
+    <Suspense fallback={null}>
+      <InformacoesComerciais />
+    </Suspense>
+  );
+}
+
+function InformacoesComerciais() {
+  const params = useSearchParams();
+  const [busca, setBusca] = useState(() => params.get("q") ?? "");
+  const [parceiro, setParceiro] = useState(() => params.get("parceiro") ?? "");
+  const [tipo, setTipo] = useState(() => params.get("tipo") ?? "");
+  const [de, setDe] = useState(() => params.get("de") ?? "");
+  const [ate, setAte] = useState(() => params.get("ate") ?? "");
+  const [soVencido, setSoVencido] = useState(() => params.get("vencido") === "1");
+  const [ordem, setOrdem] = useState<Ordem>(() => lerOrdem(params.get("ordem")));
+  const [pagina, setPagina] = useState(() => Math.max(0, Number(params.get("pagina") ?? "1") - 1) || 0);
+  const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [visao, setVisao] = useVisao();
+  const [hoje] = useState(() => new Date());
+
+  const { data, isLoading, isError, refetch, isFetching } = useCommercialInformation();
+
+  // A URL espelha os filtros: voltar da Visão 360º devolve a lista como estava.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (busca.trim()) p.set("q", busca.trim());
+    if (parceiro) p.set("parceiro", parceiro);
+    if (tipo) p.set("tipo", tipo);
+    if (de) p.set("de", de);
+    if (ate) p.set("ate", ate);
+    if (soVencido) p.set("vencido", "1");
+    if (ordem !== "recentes") p.set("ordem", ordem);
+    if (pagina > 0) p.set("pagina", String(pagina + 1));
+    const qs = p.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [busca, parceiro, tipo, de, ate, soVencido, ordem, pagina]);
+
+  const fichas = useMemo<FichaNaLista[]>(
+    () =>
+      (data ?? []).map(f => {
+        const ficha = prepararFicha(f, normalizar);
+        return { ...ficha, dias: ficha.dataT ? diasDesde(new Date(ficha.dataT).toISOString(), hoje) : null };
+      }),
+    [data, hoje],
   );
 
-  const types = useMemo(
-    () => Array.from(new Set(data.map((record) => record.tipo).filter(Boolean) as string[])).sort(),
-    [data],
+  const resumo = useMemo(() => {
+    const porEmpresa = new Map<string, Set<string>>();
+    const porParceiro = new Map<string, number>();
+    let comVencido = 0;
+    let totalVencido = 0;
+    for (const f of fichas) {
+      const empresa = f.cnpj || f.empresa || f.id;
+      if (!porEmpresa.has(empresa)) porEmpresa.set(empresa, new Set());
+      if (f.parceiro) {
+        porEmpresa.get(empresa)!.add(f.parceiro);
+        porParceiro.set(f.parceiro, (porParceiro.get(f.parceiro) ?? 0) + 1);
+      }
+      if (f.vencidoN > 0) {
+        comVencido++;
+        totalVencido += f.vencidoN;
+      }
+    }
+    const [topo] = [...porParceiro.entries()].sort((a, b) => b[1] - a[1]);
+    return {
+      empresas: porEmpresa.size,
+      variosParceiros: [...porEmpresa.values()].filter(p => p.size > 1).length,
+      parceiros: [...porParceiro.keys()].sort((a, b) => a.localeCompare(b, "pt-BR")),
+      topo,
+      comVencido,
+      totalVencido,
+    };
+  }, [fichas]);
+
+  const tipos = useMemo(
+    () => [...new Set(fichas.map(f => f.tipo).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [fichas],
   );
 
-  const filteredRecords = useMemo(() => {
-    const companyQuery = normalizeSearch(companyFilter);
-    const from = parseFilterDate(dateFrom);
-    const to = parseFilterDate(dateTo);
+  const lista = useMemo(() => {
+    const termo = normalizar(busca.trim());
+    const digitos = busca.replace(/\D/g, "");
+    const desde = dataDoFiltro(de);
+    const ateDia = dataDoFiltro(ate);
+    return fichas
+      .filter(
+        f =>
+          (!termo || f.chave.includes(termo) || (digitos.length >= 3 && (f.cnpj ?? "").includes(digitos))) &&
+          (!parceiro || f.parceiro === parceiro) &&
+          (!tipo || f.tipo === tipo) &&
+          (!desde || (f.dataT && f.dataT >= desde)) &&
+          (!ateDia || (f.dataT && f.dataT <= ateDia)) &&
+          (!soVencido || f.vencidoN > 0),
+      )
+      .sort(ORDENS[ordem].comparar);
+  }, [fichas, busca, parceiro, tipo, de, ate, soVencido, ordem]);
 
-    return data.filter((record) => {
-      const companyText = normalizeSearch(`${record.empresa ?? ""} ${record.cnpj ?? ""}`);
-      const recordDate = parseBrDate(record.data);
-      const matchesCompany = !companyQuery || companyText.includes(companyQuery);
-      const matchesPartner = !partnerFilter || record.parceiro === partnerFilter;
-      const matchesType = !typeFilter || record.tipo === typeFilter;
-      const matchesFrom = !from || (recordDate && recordDate >= from);
-      const matchesTo = !to || (recordDate && recordDate <= to);
-      return matchesCompany && matchesPartner && matchesType && matchesFrom && matchesTo;
-    });
-  }, [companyFilter, data, dateFrom, dateTo, partnerFilter, typeFilter]);
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas - 1);
+  const visiveis = lista.slice(paginaAtual * POR_PAGINA, paginaAtual * POR_PAGINA + POR_PAGINA);
+  const aberta = selecionada ? fichas.find(f => f.id === selecionada) : undefined;
+  const outras = aberta?.cnpj
+    ? fichas.filter(f => f.cnpj === aberta.cnpj && f.id !== aberta.id).sort(ORDENS.recentes.comparar)
+    : [];
+  const fecharGaveta = useCallback(() => setSelecionada(null), []);
 
-  const totalCompanies = useMemo(
-    () => new Set(filteredRecords.map((record) => record.cnpj).filter(Boolean)).size,
-    [filteredRecords],
-  );
-
-  const clearFilters = () => {
-    setCompanyFilter("");
-    setPartnerFilter("");
-    setTypeFilter("");
-    setDateFrom("");
-    setDateTo("");
+  const total = fichas.length;
+  const algumFiltro = !!(busca.trim() || parceiro || tipo || de || ate || soVencido);
+  const mudar = <T,>(definir: (v: T) => void) => (v: T) => {
+    definir(v);
+    setPagina(0);
+  };
+  const limparFiltros = () => {
+    setBusca("");
+    setParceiro("");
+    setTipo("");
+    setDe("");
+    setAte("");
+    setSoVencido(false);
+    setPagina(0);
   };
 
+  const CAMPO =
+    "h-[46px] rounded-[13px] border border-linha bg-white px-3 text-[13.5px] font-semibold text-grafite outline-none transition-[border-color,box-shadow] focus:border-primary focus:ring-4 focus:ring-primary/10";
+
   return (
-    <div className="mx-auto max-w-[1800px] space-y-5">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <nav className="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Link href="/" className="transition-colors hover:text-primary">Carteira</Link>
-            <span>/</span>
-            <span className="font-medium text-grafite dark:text-white">Informações Comerciais</span>
-          </nav>
-          <h1 className="font-sans text-3xl font-bold text-grafite dark:text-white">Informações Comerciais</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-            Visão consolidada das fichas comerciais cadastradas nas páginas das empresas.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => exportXls(data)}
-          disabled={data.length === 0}
-          className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+    <div className="flex flex-col gap-6 pb-10">
+      <PageHeader
+        rotulo="Gestão de Carteira"
+        titulo="Informações Comerciais"
+        resumo={
+          isLoading ? (
+            "Carregando fichas…"
+          ) : (
+            <>
+              <b className="text-grafite">{total.toLocaleString("pt-BR")}</b> {total === 1 ? "ficha" : "fichas"} de{" "}
+              <b className="text-grafite">{resumo.empresas.toLocaleString("pt-BR")}</b> {resumo.empresas === 1 ? "empresa" : "empresas"},
+              informadas por <b className="text-grafite">{resumo.parceiros.length.toLocaleString("pt-BR")}</b>{" "}
+              {resumo.parceiros.length === 1 ? "parceiro" : "parceiros"}
+            </>
+          )
+        }
+        acoes={
+          <button
+            type="button"
+            onClick={() => exportXls(lista)}
+            disabled={lista.length === 0}
+            title={algumFiltro ? "Exporta só as fichas filtradas" : "Exporta todas as fichas"}
+            className={BOTAO.fantasma}
+          >
+            <Icon name="download" />
+            {algumFiltro ? `Exportar ${lista.length} em XLS` : "Exportar XLS"}
+          </button>
+        }
+      />
+
+      <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          icone="request_quote"
+          cor="#612035"
+          rotulo="Fichas"
+          valor={total}
+          atraso={60}
+          rodape={
+            <>
+              <b className="text-grafite">{fichas.filter(f => f.dias != null && f.dias < 30).length}</b> nos últimos 30 dias
+            </>
+          }
         >
-          Exportar XLS
-        </button>
-      </header>
-
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Registros</p>
-          <p className="mt-2 text-2xl font-bold text-grafite dark:text-white">{filteredRecords.length}</p>
-        </div>
-        <div className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Empresas</p>
-          <p className="mt-2 text-2xl font-bold text-grafite dark:text-white">{totalCompanies}</p>
-        </div>
-        <div className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Parceiros</p>
-          <p className="mt-2 text-2xl font-bold text-grafite dark:text-white">{partners.length}</p>
-        </div>
+          <MiniBarras valores={fichasPorMes(fichas, hoje)} rotulo="Fichas por mês nos últimos 12 meses" />
+        </KpiCard>
+        <KpiCard
+          icone="business"
+          cor="#612035"
+          rotulo="Empresas"
+          valor={resumo.empresas}
+          atraso={120}
+          rodape={
+            resumo.variosParceiros === 1
+              ? "1 com ficha de mais de um parceiro"
+              : `${resumo.variosParceiros} com fichas de mais de um parceiro`
+          }
+        >
+          <Medidor fracao={resumo.empresas ? resumo.variosParceiros / resumo.empresas : 0} cor="#612035" />
+        </KpiCard>
+        <KpiCard
+          icone="handshake"
+          cor="#D1732C"
+          rotulo="Parceiros"
+          valor={resumo.parceiros.length}
+          atraso={180}
+          rodape={resumo.topo ? `Mais fichas: ${resumo.topo[0]} (${resumo.topo[1]})` : "Nenhum parceiro informado"}
+        />
+        <KpiCard
+          icone="warning"
+          cor="#B42345"
+          rotulo="Com vencido"
+          valor={resumo.comVencido}
+          atraso={240}
+          onClick={() => {
+            setSoVencido(v => !v);
+            setPagina(0);
+          }}
+          ativo={soVencido}
+          rodape={resumo.comVencido > 0 ? `${formatMoeda(resumo.totalVencido)} vencidos nos parceiros` : "Nenhum vencido informado"}
+        >
+          <Medidor fracao={total ? resumo.comVencido / total : 0} cor="#B42345" />
+        </KpiCard>
       </section>
 
-      <section className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1.4fr)_minmax(180px,1fr)_minmax(160px,0.8fr)_150px_150px_auto]">
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Empresa ou CNPJ</span>
-            <input
-              value={companyFilter}
-              onChange={(event) => setCompanyFilter(event.target.value)}
-              placeholder="Buscar cedente"
-              className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition-colors placeholder:text-gray-300 focus:border-primary dark:border-border-dark dark:bg-gray-900 dark:text-white"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Parceiro</span>
-            <select
-              value={partnerFilter}
-              onChange={(event) => setPartnerFilter(event.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition-colors focus:border-primary dark:border-border-dark dark:bg-gray-900 dark:text-white"
-            >
-              <option value="">Todos</option>
-              {partners.map((partner) => (
-                <option key={partner} value={partner}>{partner}</option>
+      <section className="flex flex-wrap items-center gap-3 animate-subir motion-reduce:animate-none" style={{ animationDelay: "280ms" }}>
+        <label className="relative min-w-0 flex-1 basis-[260px]">
+          <span className="sr-only">Buscar por empresa ou CNPJ</span>
+          <Icon name="search" size={20} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A877E]" />
+          <input
+            type="search"
+            value={busca}
+            onChange={e => mudar(setBusca)(e.target.value)}
+            placeholder="Buscar por empresa ou CNPJ"
+            className="h-[46px] w-full rounded-[13px] border border-linha bg-white pl-11 pr-3.5 text-[14.5px] font-medium text-grafite outline-none transition-[border-color,box-shadow] placeholder:text-[#9A978E] focus:border-primary focus:ring-4 focus:ring-primary/10"
+          />
+        </label>
+        <label className="shrink-0">
+          <span className="sr-only">Parceiro</span>
+          <select value={parceiro} onChange={e => mudar(setParceiro)(e.target.value)} className={`${CAMPO} max-w-[220px]`}>
+            <option value="">Todos os parceiros</option>
+            {resumo.parceiros.map(p => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
+        {tipos.length > 1 && (
+          <label className="shrink-0">
+            <span className="sr-only">Tipo</span>
+            <select value={tipo} onChange={e => mudar(setTipo)(e.target.value)} className={CAMPO}>
+              <option value="">Todos os tipos</option>
+              {tipos.map(t => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Tipo</span>
-            <select
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition-colors focus:border-primary dark:border-border-dark dark:bg-gray-900 dark:text-white"
-            >
-              <option value="">Todos</option>
-              {types.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">De</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition-colors focus:border-primary dark:border-border-dark dark:bg-gray-900 dark:text-white"
+        )}
+        <div className="flex h-[46px] shrink-0 items-center gap-1.5 rounded-[13px] border border-linha bg-white pl-3 pr-1.5 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+          <Icon name="event" size={18} className="text-[#8A877E]" />
+          <span className="sr-only">Período da ficha</span>
+          <input
+            type="date"
+            aria-label="Fichas a partir de"
+            value={de}
+            max={ate || undefined}
+            onChange={e => mudar(setDe)(e.target.value)}
+            className="h-9 rounded-lg px-1.5 text-[13px] font-semibold text-grafite outline-none"
+          />
+          <span className="text-[#B5B1A6]">até</span>
+          <input
+            type="date"
+            aria-label="Fichas até"
+            value={ate}
+            min={de || undefined}
+            onChange={e => mudar(setAte)(e.target.value)}
+            className="h-9 rounded-lg px-1.5 text-[13px] font-semibold text-grafite outline-none"
+          />
+        </div>
+        <label className="shrink-0">
+          <span className="sr-only">Ordenar</span>
+          <select value={ordem} onChange={e => mudar(setOrdem)(e.target.value as Ordem)} className={CAMPO}>
+            {(Object.keys(ORDENS) as Ordem[]).map(o => (
+              <option key={o} value={o}>
+                {ORDENS[o].rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Segmentos
+          rotulo="Ver como"
+          valor={visao}
+          onChange={setVisao}
+          opcoes={[
+            { valor: "fichas", rotulo: "Fichas" },
+            { valor: "tabela", rotulo: "Tabela" },
+          ]}
+        />
+        {algumFiltro && (
+          <button type="button" onClick={limparFiltros} className="h-[46px] shrink-0 px-2 text-[13px] font-bold text-primary hover:underline">
+            Limpar filtros
+          </button>
+        )}
+      </section>
+
+      <section
+        className="overflow-hidden rounded-painel border border-linha bg-white animate-subir motion-reduce:animate-none"
+        style={{ animationDelay: "340ms" }}
+        aria-busy={isLoading}
+      >
+        {visao === "fichas" && <CabecalhoFichas />}
+
+        {isLoading ? (
+          <LinhasEsqueletoFichas />
+        ) : isError ? (
+          <EstadoVazio
+            icone="error_outline"
+            titulo="Não foi possível carregar as fichas"
+            descricao="O servidor não respondeu agora. O resto do portal continua funcionando."
+            acoes={
+              <button type="button" onClick={() => refetch()} disabled={isFetching} className={BOTAO.primario}>
+                {isFetching ? "Tentando…" : "Tentar de novo"}
+              </button>
+            }
+          />
+        ) : visiveis.length === 0 ? (
+          total === 0 ? (
+            <EstadoVazio
+              icone="request_quote"
+              titulo="Nenhuma ficha comercial ainda"
+              descricao="As fichas são cadastradas na Visão 360º de cada empresa, na seção Informações comerciais."
             />
-          </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Até</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-border-light bg-white px-3 text-sm text-grafite outline-none transition-colors focus:border-primary dark:border-border-dark dark:bg-gray-900 dark:text-white"
+          ) : (
+            <EstadoVazio
+              icone="search_off"
+              titulo="Nenhuma ficha com esses filtros"
+              descricao="Confira a digitação, troque o parceiro ou amplie o período."
+              acoes={
+                <button type="button" onClick={limparFiltros} className={BOTAO.fantasma}>
+                  Limpar filtros
+                </button>
+              }
             />
-          </label>
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="h-10 whitespace-nowrap rounded-lg border border-border-light px-3 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-50 hover:text-primary dark:border-border-dark dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              Limpar filtros
-            </button>
+          )
+        ) : visao === "tabela" ? (
+          <TabelaFichas fichas={visiveis} onAbrir={setSelecionada} />
+        ) : (
+          // A chave refaz a cascata de entrada ao trocar filtro, ordem ou página — não a cada tecla da busca.
+          <div key={`${parceiro}-${tipo}-${soVencido}-${ordem}-${paginaAtual}`}>
+            {visiveis.map((f, i) => (
+              <LinhaFicha key={f.id} ficha={f} atraso={i * 28} onAbrir={() => setSelecionada(f.id)} />
+            ))}
           </div>
-        </div>
+        )}
+
+        {!isLoading && !isError && lista.length > 0 && (
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#F0EEE8] bg-[#FBFAF7] px-5 py-3 text-[13px] text-suave sm:px-6">
+            <span>
+              Mostrando{" "}
+              <b className="text-grafite">
+                {paginaAtual * POR_PAGINA + 1}–{Math.min(lista.length, (paginaAtual + 1) * POR_PAGINA)}
+              </b>{" "}
+              de <b className="text-grafite">{lista.length.toLocaleString("pt-BR")}</b>
+            </span>
+            <Paginacao pagina={paginaAtual} totalPaginas={totalPaginas} onIr={setPagina} />
+          </footer>
+        )}
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1600px] border-collapse text-left text-xs">
-            <thead className="bg-[#f4ece7] dark:bg-gray-900">
-              <tr className="border-b border-border-light dark:border-border-dark">
-                {[
-                  "Cedente",
-                  "CNPJ",
-                  "Data",
-                  "Tipo",
-                  "Parceiro",
-                  "Desde",
-                  "Última operação",
-                  "Valor",
-                  "Risco dupl.",
-                  "Risco cheque",
-                  "Risco comiss.",
-                  "Últ. venc.",
-                  "Valor venc.",
-                  "Limite",
-                  "VOP",
-                  "Pontual",
-                ].map((header) => (
-                  <th key={header} className="border-r border-border-light px-3 py-2 font-bold uppercase tracking-wide text-[#26365c] last:border-r-0 dark:border-border-dark dark:text-gray-300">
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-light dark:divide-border-dark">
-              {isLoading && (
-                <tr>
-                  <td colSpan={16} className="px-4 py-10 text-center text-sm text-gray-500">Carregando informações comerciais...</td>
-                </tr>
-              )}
-              {isError && (
-                <tr>
-                  <td colSpan={16} className="px-4 py-10 text-center text-sm text-red-600">
-                    {(error as Error)?.message || "Erro ao carregar informações comerciais"}
-                  </td>
-                </tr>
-              )}
-              {!isLoading && !isError && filteredRecords.length === 0 && (
-                <tr>
-                  <td colSpan={16} className="px-4 py-10 text-center text-sm text-gray-500">
-                    Nenhuma informação comercial encontrada.
-                  </td>
-                </tr>
-              )}
-              {!isLoading && !isError && filteredRecords.map((record) => (
-                <tr key={record.id} className="transition-colors hover:bg-background-light dark:hover:bg-background-dark">
-                  <td className="border-r border-border-light px-3 py-2 font-bold text-[#26365c] dark:border-border-dark dark:text-white">
-                    {record.cnpj ? (
-                      <Link href={`/clients/${record.cnpj}`} className="underline-offset-2 hover:text-primary hover:underline">
-                        {clean(record.empresa)}
-                      </Link>
-                    ) : clean(record.empresa)}
-                  </td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif text-gray-600 dark:border-border-dark dark:text-gray-300">{formatCnpj(record.cnpj)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.data)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.tipo)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-bold text-[#26365c] dark:border-border-dark dark:text-gray-100">{clean(record.parceiro)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.clienteDesde)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.ultimaOperacaoData)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.ultimaOperacaoValor)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.riscoDuplicata)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.riscoCheque)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.riscoComissaria)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif text-red-600 dark:border-border-dark">{clean(record.vencidosValor)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif text-red-600 dark:border-border-dark">{clean(record.vencidosValorMonetario)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.limite)}</td>
-                  <td className="border-r border-border-light px-3 py-2 font-serif dark:border-border-dark">{clean(record.vop)}</td>
-                  <td className="px-3 py-2 font-serif">{clean(record.pontual)}{record.pontual ? "%" : ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {aberta && (
+        <GavetaFicha key={aberta.id} ficha={aberta} outras={outras} onAbrirOutra={setSelecionada} onFechar={fecharGaveta} />
+      )}
     </div>
   );
 }
