@@ -29,13 +29,14 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
-        return toResponse(card, analistaNome, documentos, null, 0, List.of());
+        return toResponse(card, analistaNome, documentos, null, 0, List.of(), List.of());
     }
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos,
                                          java.math.BigDecimal limiteVigente, long pendenciasAbertas,
-                                         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodadaVigente) {
+                                         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodadaVigente,
+                                         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity> etiquetas) {
         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodada =
                 rodadaVigente == null ? List.of() : rodadaVigente;
         long total = documentos == null ? 0 : documentos.stream()
@@ -77,6 +78,13 @@ public class ProspeccaoDtoMapper {
                 .legado(Boolean.TRUE.equals(card.getLegado()))
                 .limiteVigente(limiteVigente)
                 .pendenciasAbertas(pendenciasAbertas)
+                .cor(card.getCor())
+                .etiquetas((etiquetas == null ? List.<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity>of() : etiquetas)
+                        .stream()
+                        .sorted(java.util.Comparator.comparing(com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity::getNome))
+                        .map(etiqueta -> new com.portal.serasa.api.rest.dto.response.ProspeccaoEtiquetaResponse(
+                                etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()))
+                        .toList())
                 .pareceresRegistrados((int) rodada.stream().filter(p -> p.registrado()).count())
                 .pareceresEsperados(rodada.size())
                 .version(card.getVersion())

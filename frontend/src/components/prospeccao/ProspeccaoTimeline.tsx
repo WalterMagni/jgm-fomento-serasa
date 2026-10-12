@@ -22,6 +22,8 @@ import {
   type ProspeccaoEvento,
   type TipoEvento,
 } from "@/types/prospeccao";
+import MarcaCanal, { GlifoCanal } from "./MarcaCanal";
+import { COR_CANAL, COR_ESTAGIO } from "./estilo";
 
 const ICONE_EVENTO: Record<TipoEvento, string> = {
   CRIACAO: "add_circle",
@@ -123,25 +125,33 @@ export default function ProspeccaoTimeline({
   return (
     <div>
       <div className="space-y-2">
-        <div className="flex gap-1" role="tablist" aria-label="Tipo de registro">
-          {(["comentario", ...CANAIS] as const).map(opcao => (
-            <button
-              key={opcao}
-              type="button"
-              role="tab"
-              aria-selected={modo === opcao}
-              onClick={() => setModo(opcao)}
-              title={opcao === "comentario" ? "Conversa da equipe, avisa no sino" : `Registrar cobrança ao cliente por ${ROTULO_CANAL[opcao]}`}
-              className={`inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors ${
-                modo === opcao
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                  : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Icon name={opcao === "comentario" ? "chat" : "campaign"} size={13} />
-              {opcao === "comentario" ? "Comentário" : ROTULO_CANAL[opcao]}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Tipo de registro">
+          {(["comentario", ...CANAIS] as const).map(opcao => {
+            const ativo = modo === opcao;
+            const estilo =
+              opcao === "comentario"
+                ? ativo
+                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                : ativo
+                  ? COR_CANAL[opcao].ativo
+                  : `${COR_CANAL[opcao].texto} hover:bg-white/70 dark:hover:bg-slate-900/50`;
+            return (
+              <button
+                key={opcao}
+                type="button"
+                role="tab"
+                aria-selected={ativo}
+                onClick={() => setModo(opcao)}
+                title={opcao === "comentario" ? "Conversa da equipe, avisa no sino" : `Registrar cobrança ao cliente por ${ROTULO_CANAL[opcao]}`}
+                className={`inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-all
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] ${estilo}`}
+              >
+                {opcao === "comentario" ? <Icon name="chat" size={13} /> : <GlifoCanal canal={opcao} size={13} />}
+                {opcao === "comentario" ? "Comentário" : ROTULO_CANAL[opcao]}
+              </button>
+            );
+          })}
         </div>
         {modo === "comentario" ? (
           <MentionTextarea
@@ -159,17 +169,30 @@ export default function ProspeccaoTimeline({
             rows={2}
             placeholder={`O que foi cobrado do cliente por ${ROTULO_CANAL[modo]}…`}
             aria-label="Registro de cobrança"
-            className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#612035]
-              focus:outline-none focus:ring-2 focus:ring-[#612035]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className={`w-full resize-y rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2
+              dark:bg-slate-800 dark:text-white ${
+                modo === "WHATSAPP"
+                  ? "border-[#25D366]/50 focus:border-[#25D366] focus:ring-[#25D366]/25"
+                  : "border-[#2956E0]/40 focus:border-[#2956E0] focus:ring-[#2956E0]/20"
+              }`}
           />
         )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] text-slate-400">
             {modo === "comentario" ? "Ctrl + Enter envia" : "Zera o contador de silêncio do card"}
           </span>
-          <button type="button" disabled={!texto.trim() || enviando} onClick={enviar} className={BOTAO_PRIMARIO}>
+          <button
+            type="button"
+            disabled={!texto.trim() || enviando}
+            onClick={enviar}
+            className={
+              modo === "comentario"
+                ? BOTAO_PRIMARIO
+                : `${BOTAO_PRIMARIO} ${modo === "WHATSAPP" ? "!bg-[#1faa53] hover:!bg-[#178f45]" : "!bg-[#2956E0] hover:!bg-[#1f43b8]"}`
+            }
+          >
             {enviando && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-            {modo === "comentario" ? "Comentar" : "Registrar cobrança"}
+            {modo === "comentario" ? "Comentar" : "Registrar"}
           </button>
         </div>
       </div>
@@ -224,14 +247,28 @@ export default function ProspeccaoTimeline({
 
 function ItemEvento({ evento }: { evento: ProspeccaoEvento }) {
   const titulo = descricao(evento);
+  const canal = evento.tipo === "COBRANCA" && evento.canal && evento.canal !== "SISTEMA" ? evento.canal : null;
+  const destino = evento.tipo === "TRANSICAO" || evento.tipo === "REABERTURA" ? evento.estagioPara : null;
+
   return (
     <li className="flex gap-2.5">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800">
-        <Icon name={ICONE_EVENTO[evento.tipo]} size={13} />
-      </span>
+      {canal ? (
+        <MarcaCanal canal={canal} tamanho="sm" />
+      ) : destino ? (
+        <span
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white ${COR_ESTAGIO[destino].faixa}`}
+          title={ROTULO_ESTAGIO[destino]}
+        >
+          <Icon name={ICONE_EVENTO[evento.tipo]} size={11} strokeWidth={2.5} />
+        </span>
+      ) : (
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800">
+          <Icon name={ICONE_EVENTO[evento.tipo]} size={11} />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-slate-700 dark:text-slate-200">
-          {titulo && <span className="font-medium">{titulo}</span>}
+        <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+          {titulo && <span className={`font-semibold ${canal ? COR_CANAL[canal].texto : ""}`}>{titulo}</span>}
           {titulo && evento.texto && " · "}
           {evento.texto}
         </p>

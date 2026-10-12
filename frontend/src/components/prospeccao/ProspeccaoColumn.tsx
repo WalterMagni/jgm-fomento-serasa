@@ -3,7 +3,8 @@
 import { useDroppable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
 import { ROTULO_ESTAGIO, type EstagioProspeccao, type Prospeccao } from "@/types/prospeccao";
-import { ICONE_ESTAGIO, ICONE_ORDENACAO, PROXIMA_ORDENACAO, ROTULO_ORDENACAO, type Ordenacao } from "./formatters";
+import { COR_ESTAGIO } from "./estilo";
+import { ICONE_ESTAGIO, ICONE_ORDENACAO, PROXIMA_ORDENACAO, ROTULO_ORDENACAO, formatMoedaCurta, type Ordenacao } from "./formatters";
 import ProspeccaoCard from "./ProspeccaoCard";
 
 type Props = {
@@ -44,67 +45,83 @@ export default function ProspeccaoColumn({
   const { setNodeRef, isOver } = useDroppable({ id: estagio, disabled: !alvo?.permitido });
   const todosMarcados = cards.length > 0 && cards.every(card => selecionados.has(card.id));
   const ehOrigem = alvo?.origem ?? false;
+  const cor = COR_ESTAGIO[estagio];
+  const somaLimites = cards.reduce((total, card) => total + (card.limiteVigente ?? 0), 0);
+  const atrasados = cards.filter(card => card.slaEstourado || card.silencioProlongado).length;
 
   return (
     <section
       ref={setNodeRef}
       aria-label={`${ROTULO_ESTAGIO[estagio]}: ${cards.length} card(s)`}
-      className={`flex min-h-0 flex-col rounded-2xl border transition-[background-color,border-color,opacity,box-shadow] duration-200
+      className={`relative flex min-h-0 flex-col rounded-2xl border transition-[background-color,border-color,opacity,box-shadow] duration-200
         ${larguraTotal ? "w-full" : "min-w-[12.5rem] max-w-[22rem] flex-1 basis-0"}
         ${alvo?.permitido && isOver
-          ? "border-transparent bg-white/90 shadow-lg ring-2 ring-[#612035]/60 dark:bg-slate-800/90"
+          ? `border-transparent bg-white/90 shadow-lg ring-2 ${cor.anel} dark:bg-slate-800/90`
           : alvo?.permitido
             ? "border-dashed border-slate-300 bg-white/70 dark:border-slate-600 dark:bg-slate-800/50"
             : "border-slate-200/70 bg-slate-100/70 dark:border-slate-700/60 dark:bg-slate-900/50"}
         ${alvo && !alvo.permitido && !ehOrigem ? "opacity-45" : ""}`}
     >
-      <header className="flex items-center justify-between gap-2 px-3.5 pb-2 pt-3">
-        <h2 className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600 dark:text-slate-300">
-          <Icon name={ICONE_ESTAGIO[estagio]} size={14} />
-          <span className="truncate" title={ROTULO_ESTAGIO[estagio]}>{ROTULO_ESTAGIO[estagio]}</span>
-          <span className="rounded-full bg-white px-1.5 py-px text-[11px] font-semibold tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            {cards.length}
+      <span className={`absolute inset-x-4 top-0 h-[3px] rounded-b-full ${cor.faixa}`} aria-hidden />
+
+      <header className="px-3.5 pb-2 pt-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className={`inline-flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] ${cor.texto}`}>
+            <Icon name={ICONE_ESTAGIO[estagio]} size={14} />
+            <span className="truncate" title={ROTULO_ESTAGIO[estagio]}>{ROTULO_ESTAGIO[estagio]}</span>
+          </h2>
+          <div className="-my-1 flex shrink-0 items-center">
+            {selecionando && cards.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onSelecionarColuna(cards.map(card => card.id), !todosMarcados)}
+                title={todosMarcados ? "Desmarcar todos da coluna" : "Marcar todos da coluna"}
+                aria-label={`${todosMarcados ? "Desmarcar" : "Marcar"} todos de ${ROTULO_ESTAGIO[estagio]}`}
+                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors
+                  hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:hover:bg-slate-800"
+              >
+                <Icon name={todosMarcados ? "check_circle" : "done_all"} size={15} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onOrdenar(PROXIMA_ORDENACAO[ordenacao])}
+              title={ROTULO_ORDENACAO[ordenacao]}
+              aria-label={`Ordenar ${ROTULO_ESTAGIO[estagio]}. Atual: ${ROTULO_ORDENACAO[ordenacao]}`}
+              className={`inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors focus:outline-none
+                focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                  ordenacao === "urgencia"
+                    ? "text-slate-400 hover:bg-white hover:text-slate-600 dark:hover:bg-slate-800"
+                    : "bg-white text-[#612035] dark:bg-slate-800 dark:text-[#D1732C]"
+                }`}
+            >
+              <Icon name={ICONE_ORDENACAO[ordenacao]} size={14} />
+            </button>
+            {onNovo && (
+              <button
+                type="button"
+                onClick={onNovo}
+                aria-label="Nova prospecção"
+                title="Nova prospecção"
+                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors
+                  hover:bg-white hover:text-[#612035] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
+                  dark:hover:bg-slate-800 dark:hover:text-[#e8a3b6]"
+              >
+                <Icon name="add" size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="font-display text-2xl font-semibold leading-none text-slate-900 dark:text-white">{cards.length}</span>
+          <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+            {somaLimites > 0 ? `${formatMoedaCurta(somaLimites)} em limites` : cards.length === 1 ? "card" : "cards"}
           </span>
-        </h2>
-        <div className="flex shrink-0 items-center">
-          {selecionando && cards.length > 0 && (
-            <button
-              type="button"
-              onClick={() => onSelecionarColuna(cards.map(card => card.id), !todosMarcados)}
-              title={todosMarcados ? "Desmarcar todos da coluna" : "Marcar todos da coluna"}
-              aria-label={`${todosMarcados ? "Desmarcar" : "Marcar"} todos de ${ROTULO_ESTAGIO[estagio]}`}
-              className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors
-                hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:hover:bg-slate-800"
-            >
-              <Icon name={todosMarcados ? "check_circle" : "done_all"} size={15} />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => onOrdenar(PROXIMA_ORDENACAO[ordenacao])}
-            title={ROTULO_ORDENACAO[ordenacao]}
-            aria-label={`Ordenar ${ROTULO_ESTAGIO[estagio]}. Atual: ${ROTULO_ORDENACAO[ordenacao]}`}
-            className={`inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors focus:outline-none
-              focus-visible:ring-2 focus-visible:ring-[#612035] ${
-                ordenacao === "urgencia"
-                  ? "text-slate-400 hover:bg-white hover:text-slate-600 dark:hover:bg-slate-800"
-                  : "bg-white text-[#612035] dark:bg-slate-800 dark:text-[#D1732C]"
-              }`}
-          >
-            <Icon name={ICONE_ORDENACAO[ordenacao]} size={14} />
-          </button>
-          {onNovo && (
-            <button
-              type="button"
-              onClick={onNovo}
-              aria-label="Nova prospecção"
-              title="Nova prospecção"
-              className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors
-                hover:bg-white hover:text-[#612035] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035]
-                dark:hover:bg-slate-800 dark:hover:text-[#e8a3b6]"
-            >
-              <Icon name="add" size={16} />
-            </button>
+          {atrasados > 0 && (
+            <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-1.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-900/40 dark:text-rose-200"
+              title="Atrasados ou sem resposta do cliente">
+              {atrasados}
+            </span>
           )}
         </div>
       </header>

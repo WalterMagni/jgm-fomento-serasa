@@ -142,6 +142,11 @@ public class ProspeccaoEntity {
     @Column(name = "contrato_contato_email", length = 200)
     private String contratoContatoEmail;
 
+    /** Faixa colorida no topo do card. Nulo = sem cor. Paleta da liberação. Ver V78. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 12)
+    private com.portal.serasa.domain.model.liberacao.CorLiberacao cor;
+
     /** Trava otimista: a segunda edição concorrente recebe 409. */
     @Version
     private Long version;

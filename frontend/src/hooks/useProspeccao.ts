@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import {
   Aceite,
   CanalContato,
+  CorLiberacao,
+  Etiqueta,
   Condicao,
   ContratoContato,
   PosicaoParecer,
@@ -235,6 +237,56 @@ export function useProdutos() {
     },
     staleTime: 10 * 60 * 1000,
   });
+}
+
+// ------------------------------------------------------------ cor e etiquetas
+
+const ETIQUETAS_KEY = ["prospeccaoEtiquetas"] as const;
+
+export function useEtiquetasProspeccao() {
+  return useQuery<Etiqueta[]>({
+    queryKey: ETIQUETAS_KEY,
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/etiquetas`, { headers: getAuthHeaders("application/json") });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao carregar as etiquetas"));
+      return res.json();
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useCriarEtiquetaProspeccao() {
+  const queryClient = useQueryClient();
+  return useMutation<Etiqueta, Error, { nome: string; cor: CorLiberacao }>({
+    mutationFn: corpo => enviarJson(`${API_BASE_URL}/prospeccao/etiquetas`, "POST", corpo, "Falha ao criar a etiqueta"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ETIQUETAS_KEY }),
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useApagarEtiquetaProspeccao() {
+  const queryClient = useQueryClient();
+  const invalidar = useInvalidar();
+  return useMutation<void, Error, string>({
+    mutationFn: id => enviarJson(`${API_BASE_URL}/prospeccao/etiquetas/${id}`, "DELETE", undefined, "Falha ao apagar a etiqueta"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ETIQUETAS_KEY });
+      invalidar();
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+export function useDefinirEtiquetasProspeccao() {
+  return useMutacaoDoCard<{ id: string; ids: string[] }>(({ id, ids }) =>
+    enviarJson(`${API_BASE_URL}/prospeccao/${id}/etiquetas`, "PUT", { ids }, "Falha ao marcar as etiquetas"),
+  );
+}
+
+export function useDefinirCorProspeccao() {
+  return useMutacaoDoCard<{ id: string; cor: CorLiberacao | null }>(({ id, cor }) =>
+    enviarJson(`${API_BASE_URL}/prospeccao/${id}/cor`, "PUT", { cor }, "Falha ao trocar a cor"),
+  );
 }
 
 /** Catálogo de produtos: só o admin altera; o servidor confere. */

@@ -50,6 +50,9 @@ public record ProspeccaoResponse(
         java.math.BigDecimal limiteVigente,
         /** Pendências abertas: o card espera resposta do comercial e o prazo está parado. */
         long pendenciasAbertas,
+        /** Faixa de cor do card, quando escolhida. */
+        com.portal.serasa.domain.model.liberacao.CorLiberacao cor,
+        java.util.List<ProspeccaoEtiquetaResponse> etiquetas,
         /** Pareceres registrados e esperados na rodada vigente do comitê — o "2/3" do quadro. */
         int pareceresRegistrados,
         int pareceresEsperados,

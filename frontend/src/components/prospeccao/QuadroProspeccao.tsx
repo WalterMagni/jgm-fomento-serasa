@@ -38,6 +38,7 @@ import {
   exportarEsteira,
   useAssumirProspeccao,
   useEnviarComite,
+  useEtiquetasProspeccao,
   useEstagios,
   useExcluirProspeccoes,
   useProspeccaoResumo,
@@ -102,6 +103,7 @@ export default function QuadroProspeccao() {
   const [origem, setOrigem] = useState<"" | "MANUAL" | "AUTOMATICA">("");
   const [soMinhas, setSoMinhas] = useState(false);
   const [aguardandoComercial, setAguardandoComercial] = useState(false);
+  const [etiqueta, setEtiqueta] = useState("");
   const [produtosAberto, setProdutosAberto] = useState(false);
   const [ordenacoes, setOrdenacoes] = useState<Record<string, Ordenacao>>({});
   const [selecionando, setSelecionando] = useState(false);
@@ -123,6 +125,7 @@ export default function QuadroProspeccao() {
   const excluir = useExcluirProspeccoes();
   const ehCelular = useEhCelular();
   const { data: eu } = useUsuarioAtual();
+  const { data: etiquetas = [] } = useEtiquetasProspeccao();
 
   const abrir = useCallback(
     (id: string | null) => {
@@ -165,13 +168,14 @@ export default function QuadroProspeccao() {
       if (origem && card.origem !== origem) return false;
       if (soMinhas && card.analistaId !== eu?.id) return false;
       if (aguardandoComercial && card.pendenciasAbertas === 0) return false;
+      if (etiqueta && !card.etiquetas.some(item => item.id === etiqueta)) return false;
       if (!termo) return true;
       if (digitos.length >= 2 && card.cnpj.includes(digitos)) return true;
       return card.razaoSocial.toLowerCase().includes(termo);
     });
-  }, [cards, busca, responsavel, origem, soMinhas, aguardandoComercial, eu?.id]);
+  }, [cards, busca, responsavel, origem, soMinhas, aguardandoComercial, etiqueta, eu?.id]);
 
-  const temFiltro = Boolean(busca.trim() || responsavel || origem || apenasAtrasados || soMinhas || aguardandoComercial);
+  const temFiltro = Boolean(busca.trim() || responsavel || origem || apenasAtrasados || soMinhas || aguardandoComercial || etiqueta);
 
   function limparFiltros() {
     setBusca("");
@@ -180,6 +184,7 @@ export default function QuadroProspeccao() {
     setApenasAtrasados(false);
     setSoMinhas(false);
     setAguardandoComercial(false);
+    setEtiqueta("");
   }
 
   const porEstagio = useMemo(() => {
@@ -398,6 +403,14 @@ export default function QuadroProspeccao() {
           <option value="MANUAL">Manual</option>
           <option value="AUTOMATICA">Visão cedente</option>
         </select>
+        {etiquetas.length > 0 && (
+          <select value={etiqueta} onChange={event => setEtiqueta(event.target.value)} aria-label="Etiqueta" className={FILTRO}>
+            <option value="">Toda etiqueta</option>
+            {etiquetas.map(item => (
+              <option key={item.id} value={item.id}>{item.nome}</option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           onClick={() => setApenasAtrasados(valor => !valor)}

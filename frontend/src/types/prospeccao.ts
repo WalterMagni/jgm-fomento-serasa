@@ -1,5 +1,8 @@
 /** Tipos da esteira de prospecção. Espelham os DTOs de /api/v1/prospeccao. */
 
+import type { CorLiberacao, Etiqueta } from "./liberacao";
+export type { CorLiberacao, Etiqueta };
+
 export type EstagioProspeccao =
   | "NOVA"
   | "EM_ANALISE"
@@ -93,6 +96,9 @@ export type Prospeccao = {
   limiteVigente: number | null;
   /** Pendências abertas: o card espera o comercial e o prazo está parado. */
   pendenciasAbertas: number;
+  /** Faixa de cor do card; paleta da esteira de liberação. */
+  cor: CorLiberacao | null;
+  etiquetas: Etiqueta[];
   /** Rodada vigente do comitê: o "2/3" do quadro. */
   pareceresRegistrados: number;
   pareceresEsperados: number;

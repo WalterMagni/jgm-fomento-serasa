@@ -92,6 +92,7 @@ public class ProspeccaoController {
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoPendenciaService pendenciaService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoComentarioService comentarioService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoComiteService comiteService;
+    private final com.portal.serasa.application.service.prospeccao.ProspeccaoOrganizacaoService organizacaoService;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final UserRepository userRepository;
@@ -310,6 +311,44 @@ public class ProspeccaoController {
     @PostMapping("/{id}/concluir")
     public ResponseEntity<ProspeccaoResponse> concluir(@PathVariable UUID id) {
         return ResponseEntity.ok(toResponse(comiteService.concluir(id, usuarioAutenticado())));
+    }
+
+    // ------------------------------------------------------- cor e etiquetas
+
+    @GetMapping("/etiquetas")
+    public ResponseEntity<List<com.portal.serasa.api.rest.dto.response.ProspeccaoEtiquetaResponse>> etiquetas() {
+        return ResponseEntity.ok(organizacaoService.etiquetas().stream()
+                .map(e -> new com.portal.serasa.api.rest.dto.response.ProspeccaoEtiquetaResponse(e.getId(), e.getNome(), e.getCor()))
+                .toList());
+    }
+
+    /** Criar com nome existente devolve a existente. */
+    @PostMapping("/etiquetas")
+    public ResponseEntity<com.portal.serasa.api.rest.dto.response.ProspeccaoEtiquetaResponse> criarEtiqueta(
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoEtiquetaRequest request) {
+        var e = organizacaoService.criarEtiqueta(request.nome(), request.cor(), usuarioAutenticado());
+        return ResponseEntity.ok(new com.portal.serasa.api.rest.dto.response.ProspeccaoEtiquetaResponse(e.getId(), e.getNome(), e.getCor()));
+    }
+
+    @DeleteMapping("/etiquetas/{etiquetaId}")
+    public ResponseEntity<Void> apagarEtiqueta(@PathVariable UUID etiquetaId) {
+        organizacaoService.apagarEtiqueta(etiquetaId, usuarioAutenticado());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/etiquetas")
+    public ResponseEntity<Void> definirEtiquetas(@PathVariable UUID id, @RequestBody Map<String, List<UUID>> corpo) {
+        organizacaoService.definirEtiquetas(id, corpo.get("ids"), usuarioAutenticado());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/cor")
+    public ResponseEntity<Void> definirCor(@PathVariable UUID id, @RequestBody Map<String, String> corpo) {
+        String cor = corpo.get("cor");
+        organizacaoService.definirCor(id,
+                cor == null || cor.isBlank() ? null : com.portal.serasa.domain.model.liberacao.CorLiberacao.valueOf(cor),
+                usuarioAutenticado());
+        return ResponseEntity.noContent().build();
     }
 
     // ------------------------------------------------------------ comentários
@@ -707,11 +746,12 @@ public class ProspeccaoController {
                 documentoService.listar(card.getId()),
                 decisaoService.limitesVigentes(List.of(card.getId())).get(card.getId()),
                 pendenciaService.abertasPorCard(List.of(card.getId())).getOrDefault(card.getId(), 0L),
-                comiteService.rodadaVigente(List.of(card.getId())).getOrDefault(card.getId(), List.of()));
+                comiteService.rodadaVigente(List.of(card.getId())).getOrDefault(card.getId(), List.of()),
+                organizacaoService.etiquetasPorCard(List.of(card.getId())).getOrDefault(card.getId(), List.of()));
     }
 
     /**
-     * Converte a lista inteira com seis consultas fixas, em vez de cinco por card.
+     * Converte a lista inteira com sete consultas fixas, em vez de seis por card.
      *
      * <p>O kanban abre com dezenas de cards e cada um mostra o progresso do checklist e o nome do
      * analista. Resolver card a card seria N+1 — a mesma conta que já custou uma correção de
@@ -727,6 +767,7 @@ public class ProspeccaoController {
         Map<UUID, java.math.BigDecimal> limites = decisaoService.limitesVigentes(ids);
         Map<UUID, Long> pendencias = pendenciaService.abertasPorCard(ids);
         var rodadas = comiteService.rodadaVigente(ids);
+        var etiquetas = organizacaoService.etiquetasPorCard(ids);
 
         List<UUID> analistas = cards.stream()
                 .map(ProspeccaoEntity::getAnalistaId)
@@ -744,7 +785,8 @@ public class ProspeccaoController {
                         documentosPorCard.getOrDefault(card.getId(), List.of()),
                         limites.get(card.getId()),
                         pendencias.getOrDefault(card.getId(), 0L),
-                        rodadas.getOrDefault(card.getId(), List.of())))
+                        rodadas.getOrDefault(card.getId(), List.of()),
+                        etiquetas.getOrDefault(card.getId(), List.of())))
                 .toList();
     }
 

@@ -31,6 +31,8 @@ import DecisaoDialog from "./DecisaoDialog";
 import DocumentChecklist from "./DocumentChecklist";
 import EsteiraTrilha from "./EsteiraTrilha";
 import MotivoDialog from "./MotivoDialog";
+import OrganizacaoProspeccao from "./OrganizacaoProspeccao";
+import { COR_ESTAGIO } from "./estilo";
 import PendenciaDialog from "./PendenciaDialog";
 import PendenciasBloco from "./PendenciasBloco";
 import ProspeccaoTimeline from "./ProspeccaoTimeline";
@@ -218,9 +220,10 @@ export default function ProspeccaoModal({
       <Link href={`/clients/${card.cnpj}`} className="font-mono text-[#2956E0] hover:underline dark:text-sky-400">
         {formatCnpj(card.cnpj)}
       </Link>
-      <span aria-hidden>·</span>
-      <span className="font-medium text-slate-700 dark:text-slate-200">{ROTULO_ESTAGIO[card.estagio]}</span>
-      <span aria-hidden>·</span>
+      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-px text-[11px] font-semibold ring-1 ${COR_ESTAGIO[card.estagio].chip}`}>
+        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: COR_ESTAGIO[card.estagio].hex }} />
+        {ROTULO_ESTAGIO[card.estagio]}
+      </span>
       <span className={CLASSE_BADGE_SEMAFORO[semaforoDe(card)]}>{textoPrazo(card)}</span>
       {card.pendenciasAbertas > 0 && (
         <span className="rounded bg-[#D1732C]/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[#a8551a] dark:text-[#f0a46b]">
@@ -265,7 +268,8 @@ export default function ProspeccaoModal({
         {card && data && (
           <div className="flex min-h-0 flex-col">
             {/* ------------------------------------------------ trilha e ações */}
-            <div className="space-y-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+            <div className="space-y-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+              <OrganizacaoProspeccao card={card} admin={eu?.admin ?? false} />
               <EsteiraTrilha estagio={card.estagio} timeline={data.timeline} criadoEm={card.createdAt} />
 
               <div className="flex flex-wrap items-center gap-2">

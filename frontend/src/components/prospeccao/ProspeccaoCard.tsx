@@ -2,10 +2,29 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
+import Avatar from "@/components/liberacao/Avatar";
+import { TOM } from "@/components/liberacao/cores";
 import type { Prospeccao } from "@/types/prospeccao";
-import { CLASSE_BADGE_SEMAFORO, CLASSE_SEMAFORO, formatCnpj, formatMoedaCurta, semaforoDe, textoPrazo } from "./formatters";
+import { COR_ESTAGIO } from "./estilo";
+import { formatCnpj, formatMoedaCurta, semaforoDe, textoPrazo } from "./formatters";
 
-/** O que o card mostra, sem o comportamento de arraste — reaproveitado na cópia que segue o ponteiro. */
+function iniciais(nome: string) {
+  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map(parte => parte[0]?.toUpperCase() ?? "").join("");
+}
+
+const PRAZO = {
+  ok: "text-slate-500 dark:text-slate-400",
+  atencao: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+  estourado: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
+} as const;
+
+/**
+ * Face do card, sem o comportamento de arraste — reaproveitada na cópia que segue o ponteiro.
+ *
+ * <p>Lê de cima para baixo na ordem em que a analista decide o que fazer: etiquetas e cor para
+ * organizar, a empresa, o número que importa naquele estágio (limite, documentos, pareceres), o
+ * prazo e quem está com o card.</p>
+ */
 export function CardFace({
   card,
   sobreposicao = false,
@@ -18,82 +37,128 @@ export function CardFace({
   selecionado?: boolean;
 }) {
   const semaforo = semaforoDe(card);
-  const progresso = card.documentosTotal > 0 ? `${card.documentosResolvidos}/${card.documentosTotal}` : null;
+  const estilo = COR_ESTAGIO[card.estagio];
+  const progresso = card.documentosTotal > 0 ? card.documentosResolvidos / card.documentosTotal : 0;
+  const mostraDocumentos = card.documentosTotal > 0 && (card.estagio === "DOCUMENTACAO" || card.estagio === "AGUARDANDO_ACEITE");
+  const mostraComite = card.estagio === "COMITE" && card.pareceresEsperados > 0;
 
   return (
     <div
-      className={`rounded-xl border border-l-4 bg-white p-3 text-left dark:bg-slate-800 ${CLASSE_SEMAFORO[semaforo]}
+      className={`relative overflow-hidden rounded-xl border bg-white text-left transition-shadow dark:bg-slate-800
+        ${semaforo === "estourado" ? "border-rose-300 dark:border-rose-900/70" : "border-slate-200/90 dark:border-slate-700"}
+        ${card.cor ? "pt-1.5" : ""}
         ${sobreposicao ? "rotate-[1.5deg] shadow-2xl ring-1 ring-black/5" : "shadow-[0_1px_2px_rgba(15,23,42,0.06)]"}
-        ${selecionado ? "ring-2 ring-[#612035] dark:ring-[#D1732C]" : ""}`}
+        ${selecionado ? "ring-2 ring-[#612035] dark:ring-[#e8a3b6]" : ""}`}
     >
-      <h3 className="flex items-start gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-        {selecionando && (
-          <Icon
-            name={selecionado ? "check_circle" : "add_circle"}
-            size={16}
-            className={`mt-px shrink-0 ${selecionado ? "text-[#612035] dark:text-[#D1732C]" : "text-slate-300"}`}
-          />
-        )}
-        <span className="line-clamp-2">{card.razaoSocial}</span>
-      </h3>
-      <p className="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">{formatCnpj(card.cnpj)}</p>
+      {card.cor && <span className={`absolute inset-x-0 top-0 h-1.5 ${TOM[card.cor].faixa}`} aria-label={`Cor ${TOM[card.cor].nome}`} />}
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-        <span className={`inline-flex items-center gap-1 ${CLASSE_BADGE_SEMAFORO[semaforo]}`}>
-          <Icon name={semaforo === "ok" ? "schedule" : "warning"} size={13} />
-          {textoPrazo(card)}
-        </span>
-        {card.pendenciasAbertas > 0 && (
-          <span className="inline-flex items-center gap-1 rounded bg-[#D1732C]/15 px-1.5 py-px font-medium text-[#a8551a] dark:text-[#f0a46b]"
-            title="Pendência aberta: o prazo está parado até o comercial responder">
-            <Icon name="hourglass_top" size={12} />
-            aguardando comercial
-          </span>
+      <div className="space-y-2 p-3">
+        {card.etiquetas.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {card.etiquetas.map(etiqueta => (
+              <span key={etiqueta.id} className={`max-w-full truncate rounded-full px-2 py-px text-[10px] font-semibold ${TOM[etiqueta.cor].chip}`}>
+                {etiqueta.nome}
+              </span>
+            ))}
+          </div>
         )}
-        {card.estagio === "COMITE" && card.pareceresEsperados > 0 && (
-          <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300" title="Pareceres do comitê nesta rodada">
-            <Icon name="groups" size={13} />
-            {card.pareceresRegistrados}/{card.pareceresEsperados} pareceres
-          </span>
-        )}
+
+        <div>
+          <h3 className="flex items-start gap-1.5 text-[13px] font-semibold leading-snug text-slate-900 dark:text-white">
+            {selecionando && (
+              <Icon
+                name={selecionado ? "check_circle" : "add_circle"}
+                size={15}
+                className={`mt-px shrink-0 ${selecionado ? "text-[#612035] dark:text-[#e8a3b6]" : "text-slate-300"}`}
+              />
+            )}
+            <span className="line-clamp-2">{card.razaoSocial}</span>
+          </h3>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono text-[10.5px] text-slate-400">
+            <span className="whitespace-nowrap">{formatCnpj(card.cnpj)}</span>
+            {card.origem === "AUTOMATICA" && (
+              <span className="rounded bg-[#2956E0]/10 px-1 font-sans text-[9px] font-bold uppercase tracking-wide text-[#2956E0] dark:text-[#9db4ff]" title="Entrou por visão cedente SIM">
+                VC
+              </span>
+            )}
+            {card.legado && (
+              <span className="rounded bg-amber-100 px-1 font-sans text-[9px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                title="Migrado da esteira antiga sem decisão registrada">
+                legado
+              </span>
+            )}
+            {card.reaberturas > 0 && (
+              <span className="rounded bg-slate-100 px-1 font-sans text-[9px] font-bold uppercase text-slate-500 dark:bg-slate-700" title="Já passou pela esteira antes">
+                {card.reaberturas}ª vez
+              </span>
+            )}
+          </p>
+        </div>
+
         {card.limiteVigente != null && (
-          <span className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-300" title="Limite da decisão vigente">
-            <Icon name="account_balance_wallet" size={13} />
-            {formatMoedaCurta(card.limiteVigente)}
-          </span>
+          <p className="flex items-baseline gap-1.5">
+            <span className="font-display text-lg font-semibold leading-none text-slate-900 dark:text-white">{formatMoedaCurta(card.limiteVigente)}</span>
+            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">limite</span>
+          </p>
         )}
-        {progresso && (
-          <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400" title="Documentos resolvidos">
-            <Icon name="checklist" size={13} />
-            {progresso}
-          </span>
+
+        {mostraDocumentos && (
+          <div title={`${card.documentosResolvidos} de ${card.documentosTotal} documentos resolvidos`}>
+            <div className="mb-1 flex items-center justify-between text-[10.5px] text-slate-500">
+              <span className="inline-flex items-center gap-1"><Icon name="folder_open" size={11} /> Documentos</span>
+              <span className="tabular-nums">{card.documentosResolvidos}/{card.documentosTotal}</span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+              <div className={`h-full rounded-full ${estilo.faixa} transition-[width] duration-500`} style={{ width: `${Math.round(progresso * 100)}%` }} />
+            </div>
+          </div>
         )}
+
+        {mostraComite && (
+          <div className="flex items-center gap-2 text-[10.5px] text-slate-500" title="Pareceres do comitê nesta rodada">
+            <span className="inline-flex items-center gap-1"><Icon name="groups" size={11} /> Comitê</span>
+            <span className="flex gap-0.5">
+              {Array.from({ length: card.pareceresEsperados }, (_, i) => (
+                <span key={i} className={`h-1.5 w-4 rounded-full ${i < card.pareceresRegistrados ? estilo.faixa : "bg-slate-200 dark:bg-slate-700"}`} />
+              ))}
+            </span>
+            <span className="tabular-nums">{card.pareceresRegistrados}/{card.pareceresEsperados}</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
+          <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium ${PRAZO[semaforo]}`}>
+            <Icon name={semaforo === "ok" ? "schedule" : "warning"} size={11} />
+            {textoPrazo(card)}
+          </span>
+          {card.pendenciasAbertas > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-[#D1732C]/12 px-1.5 py-0.5 font-semibold text-[#8f4714] dark:bg-[#D1732C]/25 dark:text-[#f7c9a6]"
+              title="Pendência aberta: o prazo está parado até o comercial responder">
+              <Icon name="hourglass_top" size={11} />
+              aguardando comercial
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-        <span className="min-w-0 truncate" title={`Comercial: ${card.comercialNome ?? "direto"} · Analista: ${card.analistaNome ?? "—"}`}>
-          {card.analistaNome ?? <span className="italic">ninguém assumiu</span>}
-          {card.comercialNome && <span className="text-slate-400"> · {card.comercialNome}</span>}
-        </span>
-        <span className="flex shrink-0 items-center gap-1">
-          {card.legado && (
-            <span className="rounded bg-amber-100 px-1.5 py-px text-[10px] font-semibold uppercase text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-              title="Migrado da esteira antiga sem decisão registrada">
-              legado
-            </span>
-          )}
-          {card.reaberturas > 0 && (
-            <span className="rounded bg-slate-100 px-1.5 py-px dark:bg-slate-700" title="Já passou pela esteira antes">
-              {card.reaberturas}ª
-            </span>
-          )}
-          {card.origem === "AUTOMATICA" && (
-            <span className="rounded bg-[#2956E0]/10 px-1.5 py-px text-[10px] font-medium text-[#2956E0] dark:text-sky-300" title="Entrou por visão cedente SIM">
-              VC
+      <footer className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2 dark:border-slate-700/70">
+        <span className="flex min-w-0 items-center gap-1.5 text-[11px]">
+          {card.analistaNome ? (
+            <>
+              <Avatar nome={card.analistaNome} iniciais={iniciais(card.analistaNome)} tamanho="xs" />
+              <span className="truncate font-medium text-slate-700 dark:text-slate-200">{card.analistaNome.split(" ")[0]}</span>
+            </>
+          ) : (
+            <span className="inline-flex items-center gap-1 italic text-slate-400">
+              <span className="h-5 w-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600" />
+              ninguém assumiu
             </span>
           )}
         </span>
-      </div>
+        <span className="truncate text-[10.5px] text-slate-400" title="Comercial">
+          {card.comercialNome ?? "direto"}
+        </span>
+      </footer>
     </div>
   );
 }
@@ -129,7 +194,8 @@ export default function ProspeccaoCard({ card, onAbrir, selecionando = false, se
       onClick={selecionando ? onAlternarSelecao : onAbrir}
       aria-label={selecionando ? `Selecionar ${card.razaoSocial}` : `Abrir ${card.razaoSocial}`}
       aria-pressed={selecionando ? selecionado : undefined}
-      className={`esteira-card-in block w-full rounded-xl text-left transition-[opacity,box-shadow] duration-200 hover:shadow-md
+      className={`esteira-card-in block w-full rounded-xl text-left transition-[opacity,box-shadow,transform] duration-200
+        hover:-translate-y-px hover:shadow-[0_6px_16px_-6px_rgba(15,23,42,0.18)] motion-reduce:hover:translate-y-0
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900
         ${selecionando ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"} ${isDragging ? "opacity-30" : ""}`}
     >
