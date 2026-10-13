@@ -33,6 +33,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -139,9 +140,36 @@ class ProspeccaoServiceTest {
     }
 
     @Test
+    @DisplayName("devolver para Nova solta a analista: o card volta para a fila e qualquer uma assume")
+    void shouldReleaseAnalystWhenReturnedToNew() {
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        card.setAnalistaId(analista.getId());
+
+        service.transicionar(card.getId(), EstagioProspeccao.NOVA, null, null, analista);
+
+        assertThat(card.getEstagio()).isEqualTo(EstagioProspeccao.NOVA);
+        assertThat(card.getAnalistaId()).isNull();
+    }
+
+    @Test
+    @DisplayName("assumir: card devolvido que ficou com a analista antiga é liberado antes de assumir")
+    void shouldReleaseStaleAnalystBeforeAssuming() {
+        ProspeccaoEntity card = card(EstagioProspeccao.NOVA);
+        card.setAnalistaId(UUID.randomUUID());
+        when(prospeccaoRepository.assumirAnalise(any(), any(), anyInt(), any())).thenReturn(1);
+
+        service.assumir(card.getId(), analista);
+
+        var ordem = org.mockito.Mockito.inOrder(prospeccaoRepository);
+        ordem.verify(prospeccaoRepository).soltarAnalistaEmNova(card.getId());
+        ordem.verify(prospeccaoRepository).assumirAnalise(eq(card.getId()), eq(analista.getId()), anyInt(), any());
+    }
+
+    @Test
     @DisplayName("assumir: segunda analista recebe 409 em vez de roubar o card")
     void shouldRejectStealingAnAssignedCard() {
-        ProspeccaoEntity card = card(EstagioProspeccao.NOVA);
+        // Assumido de verdade é card em análise: a liberação de card devolvido não mexe nele.
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
         card.setAnalistaId(UUID.randomUUID());
         when(prospeccaoRepository.assumirAnalise(any(), any(), anyInt(), any())).thenReturn(0);
 

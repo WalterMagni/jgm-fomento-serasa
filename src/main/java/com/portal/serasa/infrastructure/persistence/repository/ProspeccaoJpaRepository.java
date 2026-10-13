@@ -74,6 +74,22 @@ public interface ProspeccaoJpaRepository extends JpaRepository<ProspeccaoEntity,
                        @Param("prazo") int prazo,
                        @Param("agora") LocalDateTime agora);
 
+    /**
+     * Solta a analista de um card que voltou para Nova sem soltar — antes da correção de
+     * 2026-10-13, devolver para Nova mantinha a dona, e o card ficava preso: ninguém assumia.
+     * Só mexe em card que ainda está em Nova; um card já assumido de verdade está em análise.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE ProspeccaoEntity p
+               SET p.analistaId = NULL,
+                   p.version = p.version + 1
+             WHERE p.id = :id
+               AND p.analistaId IS NOT NULL
+               AND p.estagio = com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.NOVA
+            """)
+    int soltarAnalistaEmNova(@Param("id") UUID id);
+
     /** Cards parados além do prazo, para o job de SLA. Dias úteis são contados fora daqui. */
     @Query("""
             SELECT p FROM ProspeccaoEntity p

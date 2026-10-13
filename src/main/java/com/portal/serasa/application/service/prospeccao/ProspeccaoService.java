@@ -145,6 +145,8 @@ public class ProspeccaoService {
      */
     @Transactional
     public ProspeccaoEntity assumir(UUID id, UserEntity analista) {
+        // Card em Nova com analista gravada é card devolvido que não soltou a dona: libera antes.
+        prospeccaoRepository.soltarAnalistaEmNova(id);
         ProspeccaoEntity card = buscar(id);
         int afetadas = prospeccaoRepository.assumirAnalise(
                 id, analista.getId(), EstagioProspeccao.EM_ANALISE.prazoHorasUteis(), LocalDateTime.now());
@@ -291,6 +293,10 @@ public class ProspeccaoService {
         }
         card.setPrazoEstagioHoras(destino.prazoHorasUteis());
         card.setUpdatedAt(LocalDateTime.now());
+        // Devolver para Nova é devolver para a fila: o card solta a analista e qualquer uma assume.
+        if (destino == EstagioProspeccao.NOVA) {
+            card.setAnalistaId(null);
+        }
         if (destino == EstagioProspeccao.EM_ANALISE && card.getAnalistaId() == null && autor != null) {
             card.setAnalistaId(autor.getId());
         }
