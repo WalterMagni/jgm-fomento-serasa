@@ -1875,92 +1875,6 @@ export default function ClientDashboardPage() {
 
       {/* ── Serasa ──────────────────────────────────────────────────────── */}
       <section id="serasa" className="scroll-mt-20">
-      {analysisHistory.length > 0 && (
-        <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark print:hidden mb-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div>
-              <h2 className="font-sans font-bold text-base text-primary flex items-center gap-2">
-                <Icon name="history" className="text-lg" />
-                Histórico de Consultas
-              </h2>
-              <p className="text-xs text-gray-500 font-sans mt-1">
-                As consultas ficam salvas no banco. Clique em uma versão para carregá-la na tela.
-              </p>
-            </div>
-            <span className="text-xs text-gray-400 font-sans">
-              {analysisHistory.length} consulta{analysisHistory.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {analysisHistory.map((item, index) => {
-              const isLatest = item.id === latestAnalysisId;
-              const isSelected = selectedAnalysisId == null ? isLatest : selectedAnalysisId === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedAnalysisId(isLatest ? null : item.id)}
-                  className={`w-full text-left rounded-lg border px-4 py-3 transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5 dark:bg-primary/10"
-                      : "border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark hover:border-primary/40"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-sans font-bold text-grafite dark:text-white">
-                          Consulta {analysisHistory.length - index}
-                        </p>
-                        {isLatest && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
-                            Mais recente
-                          </span>
-                        )}
-                        {isSelected && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-primary/10 text-primary">
-                            Em tela
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 font-sans mt-1">
-                        {item.consultaEm ? formatDateTime(item.consultaEm) : "Data não disponível"}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        {item.riskClass && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-sans font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                            Risco {riskLabel(item.riskClass)}
-                          </span>
-                        )}
-                        {item.visaoCedente && (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-sans font-bold ${
-                            item.visaoCedente === "SIM"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                              : item.visaoCedente === "NAO"
-                                ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
-                          }`}>
-                            Visão Cedente: {item.visaoCedente}
-                          </span>
-                        )}
-                        {item.status && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-sans font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                            {item.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Icon name="chevron_right" className={`text-sm flex-shrink-0 mt-1 ${ isSelected ? "text-primary" : "text-gray-300" }`} />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* ── Serasa: chamada ou pendências ────────────────────────────────── */}
       {(!hasSerasaData || totalPendingFromAnalysis(ca) > 0) && (
         <div className="mb-6">
@@ -2462,7 +2376,7 @@ export default function ClientDashboardPage() {
         </div>
       ) : null}
 
-      {/* ── Praça de Pagamento: lançamentos (último bloco antes da Zona de Perigo) ── */}
+      {/* ── Praça de Pagamento: lançamentos ─────────────────────────────── */}
       {pracaSummary && pracaSummary.totalCount > 0 ? (
         <div className="mb-6 rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark print:hidden">
           <div className="flex flex-wrap items-center gap-2 border-b border-border-light p-5 dark:border-border-dark">
@@ -2589,6 +2503,93 @@ export default function ClientDashboardPage() {
       {pracaViewer ? (
         <AttachmentViewerModal entryId={pracaViewer.id} title={pracaViewer.titleNumber ?? undefined} onClose={() => setPracaViewer(null)} />
       ) : null}
+
+      {/* ── Histórico de Consultas Serasa (último bloco antes da Zona de Perigo) ── */}
+      {analysisHistory.length > 0 && (
+        <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark print:hidden mb-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="font-sans font-bold text-base text-primary flex items-center gap-2">
+                <Icon name="history" className="text-lg" />
+                Histórico de Consultas
+              </h2>
+              <p className="text-xs text-gray-500 font-sans mt-1">
+                As consultas ficam salvas no banco. Clique em uma versão para carregá-la na tela.
+              </p>
+            </div>
+            <span className="text-xs text-gray-400 font-sans">
+              {analysisHistory.length} consulta{analysisHistory.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {analysisHistory.map((item, index) => {
+              const isLatest = item.id === latestAnalysisId;
+              const isSelected = selectedAnalysisId == null ? isLatest : selectedAnalysisId === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setSelectedAnalysisId(isLatest ? null : item.id)}
+                  className={`w-full text-left rounded-lg border px-4 py-3 transition-all ${
+                    isSelected
+                      ? "border-primary bg-primary/5 dark:bg-primary/10"
+                      : "border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-sans font-bold text-grafite dark:text-white">
+                          Consulta {analysisHistory.length - index}
+                        </p>
+                        {isLatest && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                            Mais recente
+                          </span>
+                        )}
+                        {isSelected && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-primary/10 text-primary">
+                            Em tela
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 font-sans mt-1">
+                        {item.consultaEm ? formatDateTime(item.consultaEm) : "Data não disponível"}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {item.riskClass && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-sans font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            Risco {riskLabel(item.riskClass)}
+                          </span>
+                        )}
+                        {item.visaoCedente && (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-sans font-bold ${
+                            item.visaoCedente === "SIM"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                              : item.visaoCedente === "NAO"
+                                ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+                          }`}>
+                            Visão Cedente: {item.visaoCedente}
+                          </span>
+                        )}
+                        {item.status && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-sans font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            {item.status}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Icon name="chevron_right" className={`text-sm flex-shrink-0 mt-1 ${ isSelected ? "text-primary" : "text-gray-300" }`} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-10 rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/20 p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

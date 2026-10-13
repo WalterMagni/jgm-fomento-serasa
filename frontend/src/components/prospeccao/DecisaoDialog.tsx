@@ -153,7 +153,7 @@ export default function DecisaoDialog({
                   type="checkbox"
                   checked={comRessalva}
                   onChange={event => setComRessalva(event.target.checked)}
-                  className="h-4 w-4 accent-[#7A8B26]"
+                  className="h-4 w-4 accent-yellow-500"
                 />
                 Aprovar com ressalva
               </label>
@@ -166,7 +166,7 @@ export default function DecisaoDialog({
                   autoFocus
                   placeholder="Qual é a ressalva? Ex.: exigir aval dos sócios, limitar a duplicata…"
                   aria-label="Texto da ressalva"
-                  className="mt-2 w-full resize-y rounded-md border border-[#C9D28F] bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-[#7A8B26] dark:bg-slate-900 dark:text-slate-100"
+                  className="mt-2 w-full resize-y rounded-md border border-yellow-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-yellow-500 dark:bg-slate-900 dark:text-slate-100"
                 />
               )}
             </div>
