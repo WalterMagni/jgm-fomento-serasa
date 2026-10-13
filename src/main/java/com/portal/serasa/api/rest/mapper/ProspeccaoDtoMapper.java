@@ -29,12 +29,12 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
-        return toResponse(card, analistaNome, documentos, null, 0, List.of(), List.of());
+        return toResponse(card, analistaNome, documentos, null, null, 0, List.of(), List.of());
     }
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos,
-                                         java.math.BigDecimal limiteVigente, long pendenciasAbertas,
+                                         java.math.BigDecimal limiteVigente, String ressalvaVigente, long pendenciasAbertas,
                                          List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodadaVigente,
                                          List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity> etiquetas) {
         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodada =
@@ -82,6 +82,7 @@ public class ProspeccaoDtoMapper {
                 .closedAt(card.getClosedAt())
                 .legado(Boolean.TRUE.equals(card.getLegado()))
                 .limiteVigente(limiteVigente)
+                .ressalva(ressalvaVigente)
                 .pendenciasAbertas(pendenciasAbertas)
                 .cor(card.getCor())
                 .etiquetas((etiquetas == null ? List.<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity>of() : etiquetas)
@@ -104,7 +105,7 @@ public class ProspeccaoDtoMapper {
                 completa.condicoes().stream()
                         .map(c -> new com.portal.serasa.api.rest.dto.response.ProspeccaoDecisaoResponse.Condicao(c.getProduto(), c.getValor()))
                         .toList(),
-                d.getParecer(), d.getMotivoRecusa(), Boolean.TRUE.equals(d.getVigente()),
+                d.getParecer(), d.getRessalva(), d.getMotivoRecusa(), Boolean.TRUE.equals(d.getVigente()),
                 d.getDecididoPorNome(), d.getDecididoEm());
     }
 

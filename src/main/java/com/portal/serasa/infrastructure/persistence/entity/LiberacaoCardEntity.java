@@ -144,4 +144,8 @@ public class LiberacaoCardEntity {
 
     @Version
     private Long version;
+
+    /** Ressalva da aprovação, escrita por quem aprovou. Nula sem ressalva. Ver V86. */
+    @Column(columnDefinition = "TEXT")
+    private String ressalva;
 }

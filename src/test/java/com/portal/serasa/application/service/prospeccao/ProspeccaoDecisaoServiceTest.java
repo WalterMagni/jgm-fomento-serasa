@@ -84,7 +84,7 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     private ComandoDecisao aprovacao(String limite, Condicao... condicoes) {
-        return new ComandoDecisao(ResultadoDecisao.APROVADO, new BigDecimal(limite), List.of(condicoes), "Bom pagador", null, null);
+        return new ComandoDecisao(ResultadoDecisao.APROVADO, new BigDecimal(limite), List.of(condicoes), "Bom pagador", null, null, null);
     }
 
     @Test
@@ -104,6 +104,36 @@ class ProspeccaoDecisaoServiceTest {
         verify(decisaoRepository).encerrarVigencia(card.getId());
         verify(prospeccaoService).mover(eq(card.getId()), eq(EstagioProspeccao.APROVADO), isNull(), isNull(), eq(dona));
         verify(acontecimentos).publishEvent(any(ProspeccaoAcontecimento.AprovadoNaAnalise.class));
+    }
+
+    @Test
+    @DisplayName("aprovar com ressalva: a ressalva fica na decisão e no resumo da timeline")
+    void shouldApproveWithReservation() {
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        when(decisaoRepository.ultimaVersao(card.getId())).thenReturn(0);
+
+        var completa = service.decidir(card.getId(), new ComandoDecisao(ResultadoDecisao.APROVADO, new BigDecimal("200000"),
+                List.of(new Condicao("DUPLICATA", new BigDecimal("200000"))), "ok", null, null, "  Exigir aval dos sócios  "), dona);
+
+        assertThat(completa.decisao().getRessalva()).isEqualTo("Exigir aval dos sócios");
+        assertThat(ProspeccaoDecisaoService.resumo(completa.decisao(), completa.condicoes()))
+                .startsWith("Aprovado com ressalva").contains("Exigir aval dos sócios");
+    }
+
+    @Test
+    @DisplayName("comitê ajusta o limite e a ressalva da análise continua valendo")
+    void shouldKeepReservationWhenCommitteeAdjusts() {
+        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
+        when(decisaoRepository.ultimaVersao(card.getId())).thenReturn(1);
+        ProspeccaoDecisaoEntity daAnalise = ProspeccaoDecisaoEntity.builder().id(UUID.randomUUID()).prospeccaoId(card.getId())
+                .resultado(ResultadoDecisao.APROVADO).ressalva("Exigir aval dos sócios").vigente(true).build();
+        when(decisaoRepository.findByProspeccaoIdAndVigenteTrue(card.getId())).thenReturn(java.util.Optional.of(daAnalise));
+
+        var completa = service.ajustarPeloComite(card.getId(), new BigDecimal("150000"),
+                List.of(new Condicao("DUPLICATA", new BigDecimal("150000"))), null, dona);
+
+        assertThat(completa.decisao().getRessalva()).isEqualTo("Exigir aval dos sócios");
+        assertThat(completa.decisao().getLimite()).isEqualByComparingTo("150000");
     }
 
     @Test
@@ -156,7 +186,7 @@ class ProspeccaoDecisaoServiceTest {
 
         var completa = service.decidir(card.getId(),
                 new ComandoDecisao(ResultadoDecisao.REPROVADO, new BigDecimal("999"), List.of(), "Muitas restrições",
-                        MotivoRecusa.QUANTIDADE_DE_RESTRICOES, null),
+                        MotivoRecusa.QUANTIDADE_DE_RESTRICOES, null, null),
                 dona);
 
         assertThat(completa.decisao().getLimite()).isNull();

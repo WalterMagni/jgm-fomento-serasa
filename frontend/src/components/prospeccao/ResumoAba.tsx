@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { RESSALVA } from "@/lib/ressalva";
 import { ROTULO_MOTIVO, ROTULO_RESPOSTA, type ProspeccaoDetalhe } from "@/types/prospeccao";
 import { TOTAL_CAMPOS_COMERCIAIS, camposPreenchidos } from "./DadosComerciaisForm";
 import { formatDate, formatMoeda } from "./formatters";
@@ -70,6 +71,11 @@ export default function ResumoAba({
             </span>
             {vigente.condicoes.length > 0 && (
               <span className="ml-2 text-xs text-slate-500">{vigente.condicoes.map(c => c.produto).join(" · ")}</span>
+            )}
+            {vigente.ressalva && (
+              <span className={`mt-1.5 block rounded-md border px-2 py-1 text-xs ${RESSALVA.caixa}`}>
+                <span className="font-semibold">Com ressalva:</span> {vigente.ressalva}
+              </span>
             )}
           </span>
           <span className="text-xs text-slate-500">

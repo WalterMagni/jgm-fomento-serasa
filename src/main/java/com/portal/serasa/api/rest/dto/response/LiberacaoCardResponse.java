@@ -52,6 +52,8 @@ public record LiberacaoCardResponse(
         String arquivadoPorNome,
         /** Só em Finalizados: sai das decisões dos sacados. */
         com.portal.serasa.domain.model.liberacao.ResultadoLiberacao resultado,
+        /** Ressalva da aprovação; o card ganha a etiqueta "Aprovado c/ ressalva". Nula sem ressalva. */
+        String ressalva,
         /** Aprovados inteiros mais o valor aprovado dos parciais; nulo sem nenhuma decisão. */
         BigDecimal valorAprovado,
         /** O mais recente entre edição, evento e comentário: base de "ordenar por atividade". */

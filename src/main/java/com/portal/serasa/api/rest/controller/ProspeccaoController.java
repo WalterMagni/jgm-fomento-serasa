@@ -235,7 +235,7 @@ public class ProspeccaoController {
         var decisao = decisaoService.decidir(id,
                 new com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.ComandoDecisao(
                         request.resultado(), request.limite(), condicoes, request.parecer(),
-                        request.motivoRecusa(), request.observacao()),
+                        request.motivoRecusa(), request.observacao(), request.ressalva()),
                 usuarioAutenticado());
         return ResponseEntity.status(201).body(mapper.toResponse(decisao));
     }
@@ -795,6 +795,7 @@ public class ProspeccaoController {
         return mapper.toResponse(card, nomeDoUsuario(card.getAnalistaId()),
                 documentoService.listar(card.getId()),
                 decisaoService.limitesVigentes(List.of(card.getId())).get(card.getId()),
+                decisaoService.ressalvasVigentes(List.of(card.getId())).get(card.getId()),
                 pendenciaService.abertasPorCard(List.of(card.getId())).getOrDefault(card.getId(), 0L),
                 comiteService.rodadaVigente(List.of(card.getId())).getOrDefault(card.getId(), List.of()),
                 organizacaoService.etiquetasPorCard(List.of(card.getId())).getOrDefault(card.getId(), List.of()));
@@ -815,6 +816,7 @@ public class ProspeccaoController {
         Map<UUID, List<ProspeccaoDocumentoEntity>> documentosPorCard =
                 documentoService.listarPorCards(ids);
         Map<UUID, java.math.BigDecimal> limites = decisaoService.limitesVigentes(ids);
+        Map<UUID, String> ressalvas = decisaoService.ressalvasVigentes(ids);
         Map<UUID, Long> pendencias = pendenciaService.abertasPorCard(ids);
         var rodadas = comiteService.rodadaVigente(ids);
         var etiquetas = organizacaoService.etiquetasPorCard(ids);
@@ -834,6 +836,7 @@ public class ProspeccaoController {
                         card.getAnalistaId() == null ? null : nomes.get(card.getAnalistaId()),
                         documentosPorCard.getOrDefault(card.getId(), List.of()),
                         limites.get(card.getId()),
+                        ressalvas.get(card.getId()),
                         pendencias.getOrDefault(card.getId(), 0L),
                         rodadas.getOrDefault(card.getId(), List.of()),
                         etiquetas.getOrDefault(card.getId(), List.of())))

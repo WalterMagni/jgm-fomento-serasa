@@ -97,6 +97,8 @@ export type Prospeccao = {
   legado: boolean;
   /** Limite da decisão vigente, quando aprovada. */
   limiteVigente: number | null;
+  /** Ressalva da aprovação vigente: etiqueta e faixa verde-oliva no card. */
+  ressalva: string | null;
   /** Pendências abertas: o card espera o comercial e o prazo está parado. */
   pendenciasAbertas: number;
   /** Faixa de cor do card; paleta da esteira de liberação. */
@@ -120,6 +122,8 @@ export type Decisao = {
   limite: number | null;
   condicoes: Condicao[];
   parecer: string | null;
+  /** Texto da aprovação com ressalva; nulo sem ressalva. */
+  ressalva: string | null;
   motivoRecusa: MotivoRecusa | null;
   vigente: boolean;
   decididoPorNome: string | null;

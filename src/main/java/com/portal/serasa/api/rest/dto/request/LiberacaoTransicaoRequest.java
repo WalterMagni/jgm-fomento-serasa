@@ -19,7 +19,9 @@ public record LiberacaoTransicaoRequest(
         @Valid @Size(max = 20) List<LiberacaoPendenciaRequest> pendencias,
         @Size(max = 5000) String observacao,
         /** Ao aprovar: situação de cada sacado. Reprovar reprova todos sem precisar mandar. */
-        @Valid @Size(max = 200) List<DecisaoSacado> decisoes) {
+        @Valid @Size(max = 200) List<DecisaoSacado> decisoes,
+        /** Aprovação com ressalva: o texto de quem aprova. Só vale indo para Aprovado. */
+        @Size(max = 4000) String ressalva) {
 
     public record DecisaoSacado(@jakarta.validation.constraints.NotBlank String documento,
                                 com.portal.serasa.domain.model.liberacao.ResultadoLiberacao situacao,

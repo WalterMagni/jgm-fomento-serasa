@@ -15,6 +15,8 @@ public record ProspeccaoDecisaoResponse(
         BigDecimal limite,
         List<Condicao> condicoes,
         String parecer,
+        /** Texto da aprovação com ressalva; nulo sem ressalva. */
+        String ressalva,
         MotivoRecusa motivoRecusa,
         boolean vigente,
         String decididoPorNome,

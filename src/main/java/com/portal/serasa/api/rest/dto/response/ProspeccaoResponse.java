@@ -50,6 +50,8 @@ public record ProspeccaoResponse(
         boolean legado,
         /** Limite da decisão vigente, quando aprovada. Selo do quadro. */
         java.math.BigDecimal limiteVigente,
+        /** Ressalva da aprovação vigente; o card ganha a etiqueta "Aprovado c/ ressalva". */
+        String ressalva,
         /** Pendências abertas: o card espera resposta do comercial e o prazo está parado. */
         long pendenciasAbertas,
         /** Faixa de cor do card, quando escolhida. */

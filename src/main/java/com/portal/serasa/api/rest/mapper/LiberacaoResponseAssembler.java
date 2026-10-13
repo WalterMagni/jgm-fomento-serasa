@@ -250,6 +250,7 @@ public class LiberacaoResponseAssembler {
                 .arquivadoEm(card.getArquivadoEm())
                 .arquivadoPorNome(card.getArquivadoPorNome())
                 .resultado(card.getResultado())
+                .ressalva(card.getRessalva())
                 .valorAprovado(valorAprovado)
                 .etiquetas(etiquetas)
                 .ultimaAtividade(ultimaAtividade)

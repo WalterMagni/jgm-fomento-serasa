@@ -68,4 +68,8 @@ public class ProspeccaoDecisaoEntity {
 
     @Column(name = "decidido_em", nullable = false)
     private LocalDateTime decididoEm;
+
+    /** Texto da analista quando a aprovação vem com ressalva. Ver V86. */
+    @Column(columnDefinition = "TEXT")
+    private String ressalva;
 }

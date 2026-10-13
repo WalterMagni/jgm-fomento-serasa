@@ -1022,6 +1022,31 @@ class LiberacaoServiceTest {
     }
 
     @Test
+    @DisplayName("transicionar Comitê→Aprovado com ressalva: o card guarda a ressalva e o histórico diz qual")
+    void shouldApproveWithReservation() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.COM_RESSALVAS));
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
+                EtapaLiberacao.APROVADO, null, null, List.of(), "  Só com nota fiscal conferida  ", analista);
+
+        assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.APROVADO);
+        assertThat(movido.getRessalva()).isEqualTo("Só com nota fiscal conferida");
+        assertThat(ultimoEvento().getTexto()).isEqualTo("Aprovado com ressalva: Só com nota fiscal conferida");
+    }
+
+    @Test
+    @DisplayName("ressalva só vale indo para Aprovado")
+    void shouldRejectReservationOutsideApproval() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO,
+                null, "não", List.of(), "ressalva", analista))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Ressalva só ao aprovar");
+    }
+
+    @Test
     @DisplayName("transicionar Comitê→Aprovado: vários pareceres faltando são unidos por ' e '")
     void shouldListEveryMissingParecerInTheHistory() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);

@@ -52,7 +52,7 @@ export function useMovimento(euId?: string) {
   function executar(
     card: LiberacaoCard,
     para: EtapaLiberacao,
-    extra?: { pendencias?: NovaPendencia[]; observacao?: string; decisoes?: DecisaoSacado[] },
+    extra?: { pendencias?: NovaPendencia[]; observacao?: string; decisoes?: DecisaoSacado[]; ressalva?: string },
   ) {
     mover.mutate(
       { id: card.id, de: card.etapa, para, ...extra },

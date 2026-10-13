@@ -19,7 +19,9 @@ public record ProspeccaoDecisaoRequest(
         @Valid @Size(max = 30) List<CondicaoRequest> condicoes,
         @Size(max = 8000) String parecer,
         MotivoRecusa motivoRecusa,
-        @Size(max = 4000) String observacao) {
+        @Size(max = 4000) String observacao,
+        /** Aprovação com ressalva: o texto da analista. Sem ele, aprovação comum. */
+        @Size(max = 4000) String ressalva) {
 
     public record CondicaoRequest(@Size(max = 120) String produto, BigDecimal valor) {
     }

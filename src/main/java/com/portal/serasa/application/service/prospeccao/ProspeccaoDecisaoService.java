@@ -55,8 +55,9 @@ public class ProspeccaoDecisaoService {
     public record Condicao(String produto, BigDecimal valor) {
     }
 
+    /** @param ressalva texto da analista quando aprova com ressalva; ignorado ao reprovar */
     public record ComandoDecisao(ResultadoDecisao resultado, BigDecimal limite, List<Condicao> condicoes,
-                                 String parecer, MotivoRecusa motivoRecusa, String observacao) {
+                                 String parecer, MotivoRecusa motivoRecusa, String observacao, String ressalva) {
     }
 
     public record ComandoAceite(RespostaCliente resposta, String mensagem, BigDecimal limiteSugerido,
@@ -109,7 +110,10 @@ public class ProspeccaoDecisaoService {
     @Transactional
     public DecisaoCompleta ajustarPeloComite(UUID id, BigDecimal limite, List<Condicao> condicoes,
                                              String parecer, UserEntity autor) {
-        ComandoDecisao comando = new ComandoDecisao(ResultadoDecisao.APROVADO, limite, condicoes, parecer, null, null);
+        // A ressalva é da análise: o ajuste do comitê muda limite e condições, não a ressalva.
+        String ressalva = decisaoRepository.findByProspeccaoIdAndVigenteTrue(id)
+                .map(ProspeccaoDecisaoEntity::getRessalva).orElse(null);
+        ComandoDecisao comando = new ComandoDecisao(ResultadoDecisao.APROVADO, limite, condicoes, parecer, null, null, ressalva);
         List<Condicao> validas = validarAprovacao(comando);
         DecisaoCompleta completa = gravar(id, comando, validas, limpar(parecer), autor);
         prospeccaoService.registrarEvento(prospeccaoService.buscar(id), TipoEventoProspeccao.DECISAO, null, null, null,
@@ -128,6 +132,7 @@ public class ProspeccaoDecisaoService {
                 .resultado(comando.resultado())
                 .limite(aprova ? comando.limite() : null)
                 .parecer(parecer)
+                .ressalva(aprova ? limpar(comando.ressalva()) : null)
                 .motivoRecusa(aprova ? null : comando.motivoRecusa())
                 .vigente(true)
                 .decididoPor(autor.getId())
@@ -261,6 +266,17 @@ public class ProspeccaoDecisaoService {
         return aceiteRepository.findByProspeccaoIdOrderByRegistradoEmDesc(id);
     }
 
+    /** Ressalva da decisão vigente de cada card; só aparecem os que têm. */
+    @Transactional(readOnly = true)
+    public Map<UUID, String> ressalvasVigentes(Collection<UUID> cardIds) {
+        if (cardIds.isEmpty()) {
+            return Map.of();
+        }
+        return decisaoRepository.findByProspeccaoIdInAndVigenteTrue(cardIds).stream()
+                .filter(decisao -> decisao.getRessalva() != null)
+                .collect(Collectors.toMap(ProspeccaoDecisaoEntity::getProspeccaoId, ProspeccaoDecisaoEntity::getRessalva));
+    }
+
     /** Limite vigente de cada card, numa consulta só, para o selo no quadro. */
     @Transactional(readOnly = true)
     public Map<UUID, BigDecimal> limitesVigentes(Collection<UUID> cardIds) {
@@ -323,8 +339,10 @@ public class ProspeccaoDecisaoService {
         String produtos = condicoes.stream()
                 .map(c -> c.getProduto() + " " + reais(c.getValor()))
                 .collect(Collectors.joining(", "));
-        return "Aprovado com limite de " + reais(decisao.getLimite()) + " — " + produtos
-                + (decisao.getVersao() > 1 ? " (decisão " + decisao.getVersao() + ")" : "");
+        return (decisao.getRessalva() != null ? "Aprovado com ressalva, limite de " : "Aprovado com limite de ")
+                + reais(decisao.getLimite()) + " — " + produtos
+                + (decisao.getVersao() > 1 ? " (decisão " + decisao.getVersao() + ")" : "")
+                + (decisao.getRessalva() != null ? ". Ressalva: " + decisao.getRessalva() : "");
     }
 
     static String resumo(ProspeccaoAceiteEntity aceite) {

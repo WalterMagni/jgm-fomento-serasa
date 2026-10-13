@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
+import { RESSALVA } from "@/lib/ressalva";
 import Avatar from "@/components/liberacao/Avatar";
 import { TOM } from "@/components/liberacao/cores";
 import type { Prospeccao } from "@/types/prospeccao";
@@ -55,6 +56,7 @@ export function CardFace({
         ${selecionado ? "ring-2 ring-[#612035] dark:ring-[#e8a3b6]" : ""}`}
     >
       {card.cor && <span className={`absolute inset-x-0 top-0 h-1.5 ${TOM[card.cor].faixa}`} aria-label={`Cor ${TOM[card.cor].nome}`} />}
+      {card.ressalva && <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ background: RESSALVA.hex }} />}
 
       <div className="space-y-2 p-3">
         {card.etiquetas.length > 0 && (
@@ -103,6 +105,15 @@ export function CardFace({
           <p className="flex items-baseline gap-1.5">
             <span className="font-display text-lg font-semibold leading-none text-slate-900 dark:text-white">{formatMoedaCurta(card.limiteVigente)}</span>
             <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">limite</span>
+          </p>
+        )}
+        {card.ressalva && (
+          <p
+            title={`Ressalva: ${card.ressalva}`}
+            className={`inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${RESSALVA.chip}`}
+          >
+            <Icon name={RESSALVA.icone} size={11} className="shrink-0" />
+            <span className="truncate">{RESSALVA.rotulo}</span>
           </p>
         )}
 

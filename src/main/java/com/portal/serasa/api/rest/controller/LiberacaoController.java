@@ -147,7 +147,7 @@ public class LiberacaoController {
                         .map(decisao -> new LiberacaoService.DecisaoSacado(decisao.documento(), decisao.situacao(), decisao.valorAprovado()))
                         .toList();
         return ResponseEntity.ok(assembler.card(liberacaoService.transicionar(
-                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, autor), autor));
+                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, request.ressalva(), autor), autor));
     }
 
     /** Arquiva ou desarquiva um card finalizado. */

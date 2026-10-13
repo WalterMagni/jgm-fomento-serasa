@@ -307,6 +307,8 @@ export type NovaDecisao = {
   parecer?: string;
   motivoRecusa?: MotivoRecusa;
   observacao?: string;
+  /** Aprovação com ressalva: o texto da analista. */
+  ressalva?: string;
 };
 
 /** Decisão da análise. A analista dona aprova com limite e condições, ou reprova com motivo. */
@@ -324,7 +326,11 @@ export function useDecidir() {
     },
     onSuccess: (decisao, { id }) => {
       invalidar(id);
-      toast.success(decisao.resultado === "APROVADO" ? "Aprovado — o comercial já pode juntar os documentos" : "Card reprovado");
+      toast.success(
+        decisao.resultado === "APROVADO"
+          ? `${decisao.ressalva ? "Aprovado com ressalva" : "Aprovado"} — o comercial já pode juntar os documentos`
+          : "Card reprovado",
+      );
     },
     onError: error => toast.error(error.message, { duration: 6000 }),
   });

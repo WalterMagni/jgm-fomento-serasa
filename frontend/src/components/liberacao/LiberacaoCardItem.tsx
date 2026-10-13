@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
+import { RESSALVA } from "@/lib/ressalva";
 import { ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
@@ -65,6 +66,7 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
         ${sobreposicao ? "rotate-[1.5deg] shadow-2xl ring-1 ring-black/5" : "shadow-[0_1px_2px_rgba(15,23,42,0.06)]"}`}
     >
       {card.cor && <span className={`absolute inset-x-0 top-0 h-1.5 ${TOM[card.cor].faixa}`} aria-label={`Cor ${TOM[card.cor].nome}`} />}
+      {card.ressalva && <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ background: RESSALVA.hex }} />}
       {card.etiquetas.length > 0 && (
         <div className="mb-1.5 flex flex-wrap gap-1">
           {card.etiquetas.map(etiqueta => (
@@ -117,7 +119,16 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
         </p>
       )}
 
-      {card.resultado && (
+      {card.resultado && card.ressalva && card.resultado !== "REPROVADO" ? (
+        <p
+          title={`Ressalva: ${card.ressalva}`}
+          className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${RESSALVA.chip}`}
+        >
+          <Icon name={RESSALVA.icone} size={11} />
+          {card.resultado === "PARCIAL" ? "Parcial c/ ressalva" : RESSALVA.rotulo}
+          {card.resultado === "PARCIAL" && card.valorAprovado != null && <span className="font-normal">· {formatMoeda(card.valorAprovado)}</span>}
+        </p>
+      ) : card.resultado && (
         <p className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${COR_RESULTADO[card.resultado]}`}>
           <Icon name={ICONE_RESULTADO[card.resultado]} size={11} />
           {ROTULO_RESULTADO[card.resultado]}

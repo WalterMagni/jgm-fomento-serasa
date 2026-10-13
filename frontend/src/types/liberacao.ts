@@ -130,6 +130,8 @@ export type LiberacaoCard = {
   arquivadoEm: string | null;
   arquivadoPorNome: string | null;
   resultado: Resultado | null;
+  /** Ressalva da aprovação: o card fica em Aprovado com a etiqueta verde-oliva. */
+  ressalva: string | null;
   /** Aprovados inteiros mais o aprovado dos parciais; nulo sem nenhuma decisão. */
   valorAprovado: number | null;
   ultimaAtividade: string | null;

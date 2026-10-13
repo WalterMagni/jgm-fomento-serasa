@@ -379,6 +379,22 @@ public class LiberacaoService {
     public LiberacaoCardEntity transicionar(UUID id, EtapaLiberacao de, EtapaLiberacao para,
                                             List<NovaPendencia> pendencias, String observacao,
                                             List<DecisaoSacado> decisoes, UserEntity autor) {
+        return transicionar(id, de, para, pendencias, observacao, decisoes, null, autor);
+    }
+
+    /**
+     * Move o card; indo para Aprovado, pode levar a ressalva de quem aprova.
+     *
+     * @param ressalva texto da aprovação com ressalva; o card continua Aprovado e ganha a etiqueta
+     */
+    @Transactional
+    public LiberacaoCardEntity transicionar(UUID id, EtapaLiberacao de, EtapaLiberacao para,
+                                            List<NovaPendencia> pendencias, String observacao,
+                                            List<DecisaoSacado> decisoes, String ressalva, UserEntity autor) {
+        String ressalvaLimpa = textoOuNulo(ressalva);
+        if (ressalvaLimpa != null && para != EtapaLiberacao.APROVADO) {
+            throw new IllegalArgumentException("Ressalva só ao aprovar.");
+        }
         LiberacaoCardEntity card = buscar(id);
         if (card.getEtapa() != de) {
             throw new ConflitoEdicaoException("O card já está em " + LiberacaoAutorizacao.rotulo(card.getEtapa())
@@ -432,6 +448,13 @@ public class LiberacaoService {
             card.setFinalizadoEm(null);
         }
         card.setResultado(resultado);
+        // A ressalva nasce na decisão e acompanha Assinatura e Finalizados; reprovar ou voltar
+        // para antes da decisão a desfaz, como o resultado.
+        if (para.decisao()) {
+            card.setRessalva(resultado == ResultadoLiberacao.REPROVADO ? null : ressalvaLimpa);
+        } else if (!para.decidida()) {
+            card.setRessalva(null);
+        }
         card.setArquivadoEm(null);
         card.setArquivadoPorNome(null);
         tocar(card, autor);
@@ -445,6 +468,10 @@ public class LiberacaoService {
 
         // Saiu do Comitê com parecer faltando: fica dito no histórico, junto da observação.
         String texto = textoOuNulo(observacao);
+        if (para.decisao() && salvo.getRessalva() != null) {
+            String comRessalva = "Aprovado com ressalva: " + salvo.getRessalva();
+            texto = texto == null ? comRessalva : comRessalva + "\n\n" + texto;
+        }
         if (EtapaLiberacao.decisaoDoComite(de, para) && !faltando.isEmpty()) {
             String aviso = "Movido sem o parecer de " + LiberacaoAutorizacao.juntar(faltando) + ".";
             texto = texto == null ? aviso : texto + "\n\n" + aviso;

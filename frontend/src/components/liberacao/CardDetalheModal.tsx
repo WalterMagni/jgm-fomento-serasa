@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMarcarLidasDoLink } from "@/hooks/useNotificacoes";
 import Icon from "@/components/ui/Icon";
+import { RESSALVA } from "@/lib/ressalva";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useArquivarCard, useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
 import { ETAPAS_DECIDIDAS, ROTULO_ETAPA, ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard } from "@/types/liberacao";
@@ -226,6 +227,11 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                         <Icon name={ICONE_RESULTADO[card.resultado]} size={12} />
                         {ROTULO_RESULTADO[card.resultado]}
                       </span>
+                      {card.ressalva && (
+                        <span className={`mt-1.5 block rounded-md border px-2 py-1.5 text-xs ${RESSALVA.caixa}`}>
+                          <span className="font-semibold">Com ressalva:</span> {card.ressalva}
+                        </span>
+                      )}
                       {card.resultado === "PARCIAL" && card.valorAprovado != null && (
                         <span className="mt-1 block text-xs tabular-nums text-slate-500">
                           {formatMoeda(card.valorAprovado)} aprovados{card.valor != null && ` de ${formatMoeda(card.valor)}`}

@@ -210,6 +210,8 @@ type Mover = {
   observacao?: string;
   /** Ao aprovar: decisão de cada sacado. */
   decisoes?: DecisaoSacado[];
+  /** Ao aprovar com ressalva: o texto de quem aprova. */
+  ressalva?: string;
 };
 
 /**

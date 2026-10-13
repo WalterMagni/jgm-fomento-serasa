@@ -1,6 +1,7 @@
 "use client";
 
 import Icon from "@/components/ui/Icon";
+import { RESSALVA } from "@/lib/ressalva";
 import { ROTULO_MOTIVO, ROTULO_RESPOSTA, type Aceite, type Decisao } from "@/types/prospeccao";
 import { formatDateTime, formatMoeda } from "./formatters";
 
@@ -86,7 +87,9 @@ function DecisaoCard({ decisao, destaque = false, emRevisao = false, acao }: {
       <header className="flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
           <Icon name={aprovada ? "check_circle" : "block"} size={16} className={aprovada ? "text-emerald-600" : "text-rose-600"} />
-          {aprovada ? `Aprovado — limite de ${formatMoeda(decisao.limite)}` : `Reprovado${decisao.motivoRecusa ? ` · ${ROTULO_MOTIVO[decisao.motivoRecusa]}` : ""}`}
+          {aprovada
+            ? `${decisao.ressalva ? "Aprovado com ressalva" : "Aprovado"} — limite de ${formatMoeda(decisao.limite)}`
+            : `Reprovado${decisao.motivoRecusa ? ` · ${ROTULO_MOTIVO[decisao.motivoRecusa]}` : ""}`}
           {destaque && (
             <span className={`rounded px-1.5 py-px text-[10px] font-semibold uppercase ${
               emRevisao ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" : "bg-white/80 text-slate-500 dark:bg-slate-900/60"
@@ -113,6 +116,11 @@ function DecisaoCard({ decisao, destaque = false, emRevisao = false, acao }: {
         </table>
       )}
 
+      {decisao.ressalva && (
+        <p className={`mt-3 rounded-md border px-3 py-2 text-sm ${RESSALVA.caixa}`}>
+          <span className="font-semibold">Ressalva:</span> {decisao.ressalva}
+        </p>
+      )}
       {decisao.parecer && <p className="mt-3 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">{decisao.parecer}</p>}
       {acao && <div className="mt-3 flex justify-end">{acao}</div>}
     </article>

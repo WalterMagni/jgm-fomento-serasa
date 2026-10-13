@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import { RESSALVA } from "@/lib/ressalva";
 import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "@/components/liberacao/Dialogo";
 import { useDecidir } from "@/hooks/useProspeccao";
 import { ROTULO_MOTIVO, type Decisao, type MotivoRecusa, type ResultadoDecisao } from "@/types/prospeccao";
@@ -49,11 +50,13 @@ export default function DecisaoDialog({
   const [parecer, setParecer] = useState("");
   const [motivo, setMotivo] = useState<MotivoRecusa | "">("");
   const [observacao, setObservacao] = useState("");
+  const [comRessalva, setComRessalva] = useState(Boolean(base?.ressalva));
+  const [ressalva, setRessalva] = useState(base?.ressalva ?? "");
 
   const aprova = resultado === "APROVADO";
   const condicoes = condicoesValidas(linhas);
   const valido = aprova
-    ? limite != null && limite > 0 && condicoes.length > 0
+    ? limite != null && limite > 0 && condicoes.length > 0 && (!comRessalva || ressalva.trim().length > 0)
     : motivo !== "" && (motivo !== "OUTRO" || observacao.trim().length > 0);
 
   function enviar() {
@@ -62,7 +65,7 @@ export default function DecisaoDialog({
       {
         id: cardId,
         decisao: aprova
-          ? { resultado, limite, condicoes, parecer: parecer.trim() || undefined }
+          ? { resultado, limite, condicoes, parecer: parecer.trim() || undefined, ressalva: comRessalva ? ressalva.trim() : undefined }
           : {
               resultado,
               motivoRecusa: motivo as MotivoRecusa,
@@ -143,6 +146,29 @@ export default function DecisaoDialog({
             <div>
               <span className={ROTULO}>Condições (destinação do limite por produto)</span>
               <CondicoesEditor linhas={linhas} onMudar={setLinhas} limite={limite} />
+            </div>
+            <div className={`rounded-lg border px-3 py-2.5 ${comRessalva ? RESSALVA.caixa : "border-slate-200 dark:border-slate-700"}`}>
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={comRessalva}
+                  onChange={event => setComRessalva(event.target.checked)}
+                  className="h-4 w-4 accent-[#7A8B26]"
+                />
+                Aprovar com ressalva
+              </label>
+              {comRessalva && (
+                <textarea
+                  value={ressalva}
+                  onChange={event => setRessalva(event.target.value)}
+                  rows={2}
+                  maxLength={4000}
+                  autoFocus
+                  placeholder="Qual é a ressalva? Ex.: exigir aval dos sócios, limitar a duplicata…"
+                  aria-label="Texto da ressalva"
+                  className="mt-2 w-full resize-y rounded-md border border-[#C9D28F] bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-[#7A8B26] dark:bg-slate-900 dark:text-slate-100"
+                />
+              )}
             </div>
           </>
         ) : (

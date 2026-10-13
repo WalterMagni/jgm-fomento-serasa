@@ -4,6 +4,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { useLiberacaoDetalhe } from "@/hooks/useLiberacao";
+import { RESSALVA } from "@/lib/ressalva";
 import {
   ROTULO_RESULTADO,
   ROTULO_RESULTADO_CURTO,
@@ -33,7 +34,7 @@ type Props = {
   /** Aviso de parecer faltando no Comitê, quando houver. */
   aviso: string | null;
   enviando: boolean;
-  onConfirmar: (dados: { decisoes: DecisaoSacado[]; observacao?: string }) => void;
+  onConfirmar: (dados: { decisoes: DecisaoSacado[]; observacao?: string; ressalva?: string }) => void;
   onFechar: () => void;
 };
 
@@ -48,6 +49,8 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
   const sacados = data?.sacados ?? [];
   const [escolhas, setEscolhas] = useState<Record<string, Escolha>>({});
   const [observacao, setObservacao] = useState("");
+  const [comRessalva, setComRessalva] = useState(false);
+  const [ressalva, setRessalva] = useState("");
 
   const escolha = (documento: string): Escolha => {
     if (escolhas[documento]) return escolhas[documento];
@@ -69,7 +72,8 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
     if (atual.situacao === "PARCIAL") return total + (parseMoeda(atual.valorAprovado) ?? 0);
     return total;
   }, 0);
-  const pronto = !!resultado && !todosReprovados && !parcialSemValor && !isLoading;
+  const ressalvaFaltando = comRessalva && !ressalva.trim();
+  const pronto = !!resultado && !todosReprovados && !parcialSemValor && !ressalvaFaltando && !isLoading;
 
   function confirmar() {
     if (!pronto) return;
@@ -83,6 +87,7 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
         };
       }),
       observacao: observacao.trim() || undefined,
+      ressalva: comRessalva ? ressalva.trim() : undefined,
     });
   }
 
@@ -185,13 +190,39 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
             Todos os sacados reprovados: use <strong>Reprovar</strong> no lugar de Aprovar.
           </p>
         ) : resultado && (
-          <p className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${COR_RESULTADO[resultado]}`}>
-            <Icon name={ICONE_RESULTADO[resultado]} size={16} />
-            Resultado: {ROTULO_RESULTADO[resultado]}
+          <p className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${comRessalva ? RESSALVA.chip : COR_RESULTADO[resultado]}`}>
+            <Icon name={comRessalva ? RESSALVA.icone : ICONE_RESULTADO[resultado]} size={16} />
+            Resultado: {ROTULO_RESULTADO[resultado]}{comRessalva && " com ressalva"}
             {sacados.length > 0 && <span className="ml-auto tabular-nums">aprovado {formatMoeda(valorAprovado)}</span>}
           </p>
         )}
         {parcialSemValor && <p className="text-xs text-amber-700 dark:text-amber-300">Informe o valor aprovado de cada sacado parcial.</p>}
+
+        {!todosReprovados && (
+          <div className={`rounded-lg border px-3 py-2.5 ${comRessalva ? RESSALVA.caixa : "border-slate-200 dark:border-slate-700"}`}>
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={comRessalva}
+                onChange={event => setComRessalva(event.target.checked)}
+                className="h-4 w-4 accent-[#7A8B26]"
+              />
+              Aprovar com ressalva
+            </label>
+            {comRessalva && (
+              <textarea
+                value={ressalva}
+                onChange={event => setRessalva(event.target.value)}
+                rows={2}
+                maxLength={4000}
+                autoFocus
+                placeholder="Qual é a ressalva? Ex.: só com nota fiscal conferida, limitar ao sacado X…"
+                aria-label="Texto da ressalva"
+                className="mt-2 w-full resize-y rounded-md border border-[#C9D28F] bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-[#7A8B26] dark:bg-slate-900 dark:text-slate-100"
+              />
+            )}
+          </div>
+        )}
 
         <div>
           <label htmlFor="fin-obs" className={ROTULO}>
