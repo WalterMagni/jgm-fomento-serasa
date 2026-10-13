@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import Icon from "@/components/ui/Icon";
+import { AUTH_API_BASE_URL } from "./comum";
 import { CAMPO } from "./FormularioLogin";
 
-const AUTH_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1").replace(/\/api\/v1\/?$/, "");
 
 /** Cadastro de conta, igual ao de antes: cria e volta para o login depois de 2 segundos. */
 export default function FormularioCadastro() {

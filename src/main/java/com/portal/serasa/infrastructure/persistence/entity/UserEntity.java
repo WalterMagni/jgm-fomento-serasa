@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -70,4 +71,8 @@ public class UserEntity {
     @Column(name = "email_liberacao", nullable = false)
     @Builder.Default
     private boolean emailLiberacao = true;
+
+    /** Última troca de senha: login emitido antes disso deixa de valer. Ver V84. */
+    @Column(name = "senha_alterada_em")
+    private Instant senhaAlteradaEm;
 }

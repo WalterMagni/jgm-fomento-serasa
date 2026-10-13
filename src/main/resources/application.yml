@@ -102,6 +102,9 @@ email:
   # Avisos da esteira de liberação. Desligado fora da produção: o docker-compose liga.
   liberacao:
     enabled: ${EMAIL_LIBERACAO_ENABLED:false}
+  # Link de redefinição de senha. Desligado fora da produção (o link sai no log): o docker-compose liga.
+  senha:
+    enabled: ${EMAIL_SENHA_ENABLED:false}
 
 server:
   compression:

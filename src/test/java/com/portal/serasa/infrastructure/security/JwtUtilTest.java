@@ -63,6 +63,16 @@ class JwtUtilTest {
     }
 
     @Test
+    @DisplayName("emitidoEm: token novo leva a data de emissão, para a troca de senha derrubar sessões antigas")
+    void shouldCarryIssuedAt() {
+        java.time.Instant antes = java.time.Instant.now().minusSeconds(1);
+        String token = jwtUtil.generateToken("user@test.com", "ROLE_USER");
+
+        assertThat(jwtUtil.emitidoEm(token)).isAfter(antes);
+        assertThat(jwtUtil.emitidoEm("not-a-jwt")).isNull();
+    }
+
+    @Test
     @DisplayName("validateTokenAndGetSubject: token assinado com secret diferente deve ser rejeitado")
     void shouldRejectToken_signedWithDifferentSecret() {
         JwtUtil outroJwt = new JwtUtil("outro-secret-completamente-diferente-123456");

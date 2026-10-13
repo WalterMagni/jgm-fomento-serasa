@@ -50,6 +50,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        // Redefinição de senha: quem esqueceu a senha não está logado.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/senha/esqueci", "/api/auth/senha/validar",
+                                "/api/auth/senha/redefinir").permitAll()
                         .requestMatchers("/actuator/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         // EventSource não manda Authorization: o canal confere um ticket de uso
                         // único emitido com JWT. Ver TicketSse.

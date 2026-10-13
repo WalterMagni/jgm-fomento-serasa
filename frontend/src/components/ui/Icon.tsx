@@ -6,7 +6,7 @@ import {
   ArrowsInLineVerticalIcon, ArrowsLeftRightIcon, ArrowsOutIcon, AtIcon, BankIcon, BellSlashIcon, BookOpenIcon,
   BracketsCurlyIcon, BrainIcon, BriefcaseIcon, BuildingsIcon, CalendarBlankIcon, CalendarIcon, CaretDoubleLeftIcon,
   CaretDoubleRightIcon, CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpDownIcon, CaretUpIcon,
-  ChartBarIcon, ChatCenteredTextIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, ChecksIcon, CircleNotchIcon,
+  ChartBarIcon, ChatCenteredTextIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, ChecksIcon, CircleIcon, CircleNotchIcon,
   ClockCounterClockwiseIcon, ClockIcon, CloudArrowUpIcon, CopyIcon, DatabaseIcon, DotsThreeIcon,
   DotsThreeVerticalIcon, DownloadSimpleIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon, FileArrowUpIcon, FileIcon,
   FilePdfIcon, FileTextIcon, FileZipIcon, FlagIcon, FloppyDiskIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon,
@@ -43,7 +43,7 @@ const ICONS: Record<string, PhosphorIcon> = {
   link_off: LinkBreakIcon, visibility: EyeIcon, settings: GearSixIcon, more: DotsThreeIcon, upload: UploadSimpleIcon,
   layers_clear: StackIcon, progress_activity: CircleNotchIcon,
   // status / feedback
-  check_circle: CheckCircleIcon, how_to_reg: UserCheckIcon, warning: WarningCircleIcon, warning_amber: WarningCircleIcon,
+  check_circle: CheckCircleIcon, radio_button_unchecked: CircleIcon, how_to_reg: UserCheckIcon, warning: WarningCircleIcon, warning_amber: WarningCircleIcon,
   error: WarningCircleIcon, error_outline: WarningCircleIcon, priority_high: WarningCircleIcon, info: InfoIcon,
   hourglass_empty: HourglassIcon, schedule: ClockIcon, lock_clock: ClockIcon, fact_check: SealCheckIcon,
   thumb_up: ThumbsUpIcon, security_update_warning: ShieldWarningIcon, security: ShieldCheckIcon, shield: ShieldIcon,

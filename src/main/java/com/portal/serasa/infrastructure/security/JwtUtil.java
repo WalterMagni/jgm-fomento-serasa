@@ -26,6 +26,8 @@ public class JwtUtil {
                 .withIssuer("portal-serasa")
                 .withSubject(email)
                 .withClaim("role", role)
+                // Momento da emissão: login anterior a uma troca de senha é recusado (SecurityFilter).
+                .withIssuedAt(Instant.now())
                 .withExpiresAt(getExpirationDate())
                 .sign(algorithm);
     }
@@ -40,6 +42,18 @@ public class JwtUtil {
                     .getSubject();
         } catch (JWTVerificationException exception) {
             return "";
+        }
+    }
+
+    /**
+     * Quando o token foi emitido. Só lê o conteúdo, sem conferir assinatura: chamar depois de
+     * {@link #validateTokenAndGetSubject}. Nulo em token antigo, emitido sem a data.
+     */
+    public Instant emitidoEm(String token) {
+        try {
+            return JWT.decode(token).getIssuedAtAsInstant();
+        } catch (JWTVerificationException exception) {
+            return null;
         }
     }
 

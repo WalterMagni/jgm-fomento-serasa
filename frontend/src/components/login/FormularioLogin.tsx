@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import Icon from "@/components/ui/Icon";
+import { AUTH_API_BASE_URL } from "./comum";
 
-const AUTH_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1").replace(/\/api\/v1\/?$/, "");
 
 export const CAMPO =
   "h-[50px] w-full rounded-[14px] border border-linha bg-white pl-11 pr-4 text-[14.5px] text-grafite outline-none transition-[border-color,box-shadow] placeholder:text-[#A29E93] focus:border-primary focus:ring-4 focus:ring-primary/10";
@@ -15,6 +15,16 @@ export const CAMPO =
  * como antes, e leva para a Carteira. Sem "lembrar-me" de propósito: com dados sensíveis, a sessão
  * sempre vence em 8h e pede login de novo.
  */
+/** Erro do login, ou o motivo de ter caído aqui: sessão vencida, senha trocada, senha redefinida. */
+function avisoDaTela(erro: string | null, params: URLSearchParams): { tom: "erro" | "ok"; texto: string } | null {
+  if (erro) return { tom: "erro", texto: erro };
+  if (params.get("senha") === "redefinida") return { tom: "ok", texto: "Senha redefinida. Entre com a senha nova." };
+  if (params.get("sessao") === "encerrada")
+    return { tom: "erro", texto: "Sua sessão foi encerrada porque a senha da conta foi alterada. Entre com a senha nova." };
+  if (params.get("expired")) return { tom: "erro", texto: "Sua sessão expirou (limite de 8h). Faça login novamente." };
+  return null;
+}
+
 export default function FormularioLogin() {
   const router = useRouter();
   const params = useSearchParams();
@@ -23,7 +33,7 @@ export default function FormularioLogin() {
   const [verSenha, setVerSenha] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const aviso = error ?? (params.get("expired") ? "Sua sessão expirou (limite de 8h). Faça login novamente." : null);
+  const aviso = avisoDaTela(error, params);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -67,9 +77,14 @@ export default function FormularioLogin() {
 
       <form className="mt-8 flex flex-col gap-4" onSubmit={handleLogin}>
         {aviso && (
-          <p role="alert" className="flex items-start gap-2.5 rounded-[14px] bg-[#F8E1E6] px-3.5 py-3 text-[13.5px] text-[#8E1B37] animate-cair motion-reduce:animate-none">
-            <Icon name="error_outline" size={19} className="mt-px shrink-0" />
-            {aviso}
+          <p
+            role={aviso.tom === "erro" ? "alert" : "status"}
+            className={`flex items-start gap-2.5 rounded-[14px] px-3.5 py-3 text-[13.5px] animate-cair motion-reduce:animate-none ${
+              aviso.tom === "erro" ? "bg-[#F8E1E6] text-[#8E1B37]" : "bg-[#E2F0E9] text-[#17583F]"
+            }`}
+          >
+            <Icon name={aviso.tom === "erro" ? "error_outline" : "check_circle"} size={19} className="mt-px shrink-0" />
+            {aviso.texto}
           </p>
         )}
 
@@ -89,16 +104,21 @@ export default function FormularioLogin() {
           </span>
         </label>
 
-        <label className="block">
-          <span className="mb-1.5 flex items-center justify-between text-[13px] font-semibold text-grafite">
-            Senha
-            <a href="#" className="font-semibold text-primary hover:underline">
+        <div>
+          <div className="mb-1.5 flex items-center justify-between text-[13px] font-semibold text-grafite">
+            <label htmlFor="senha-login">Senha</label>
+            {/* Leva o e-mail já digitado, para não pedir de novo. */}
+            <Link
+              href={`/esqueci-senha${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+              className="font-semibold text-primary hover:underline"
+            >
               Esqueceu a senha?
-            </a>
-          </span>
+            </Link>
+          </div>
           <span className="relative block">
             <Icon name="lock" size={19} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A877E]" />
             <input
+              id="senha-login"
               type={verSenha ? "text" : "password"}
               autoComplete="current-password"
               value={password}
@@ -116,7 +136,7 @@ export default function FormularioLogin() {
               <Icon name={verSenha ? "visibility_off" : "visibility"} size={19} />
             </button>
           </span>
-        </label>
+        </div>
 
         <button
           type="submit"

@@ -7,6 +7,8 @@ import { Toaster } from "sonner";
 import NotificacoesProvider from "@/components/notificacoes/NotificacoesProvider";
 import CascaNova from "./CascaNova";
 
+const API_ORIGEM = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1').replace(/\/api\/v1\/?$/, '');
+
 /** Decodifica o JWT e diz se já expirou (ou é inválido). */
 function isTokenExpired(token: string | null): boolean {
   if (!token) return true;
@@ -56,14 +58,27 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [router]);
 
-  // Verifica a expiração periodicamente — derruba a sessão ao passar das 8h mesmo com a aba aberta.
+  // Verifica a sessão a cada minuto — derruba ao passar das 8h mesmo com a aba aberta, e quando o
+  // servidor recusa o login (a senha foi redefinida: os logins anteriores deixam de valer).
   useEffect(() => {
-    const id = setInterval(() => {
-      if (isTokenExpired(localStorage.getItem('serasa_token'))) {
+    const conferir = () => {
+      const token = localStorage.getItem('serasa_token');
+      if (isTokenExpired(token)) {
         localStorage.removeItem('serasa_token');
         router.replace('/login?expired=1');
+        return;
       }
-    }, 60_000);
+      // Só 401 derruba: servidor fora do ar ou rede caída não tiram ninguém da tela.
+      fetch(`${API_ORIGEM}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => {
+          if (res.status === 401 && localStorage.getItem('serasa_token') === token) {
+            localStorage.removeItem('serasa_token');
+            router.replace('/login?sessao=encerrada');
+          }
+        })
+        .catch(() => {});
+    };
+    const id = setInterval(conferir, 60_000);
     return () => clearInterval(id);
   }, [router]);
 

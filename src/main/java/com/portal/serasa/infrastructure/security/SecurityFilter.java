@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -34,7 +36,7 @@ public class SecurityFilter extends OncePerRequestFilter {
             String subject = jwtUtil.validateTokenAndGetSubject(token);
             if (!subject.isEmpty()) {
                 Optional<UserEntity> userOpt = userRepository.findByEmail(subject);
-                if (userOpt.isPresent()) {
+                if (userOpt.isPresent() && !emitidoAntesDaTroca(jwtUtil.emitidoEm(token), userOpt.get().getSenhaAlteradaEm())) {
                     UserEntity user = userOpt.get();
                     var authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getRole()));
                     var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
@@ -43,6 +45,18 @@ public class SecurityFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Login de antes da última troca de senha não vale mais: quem redefiniu a senha derruba as
+     * sessões abertas em outros computadores. Token sem data de emissão (antigo) cai junto. A
+     * data do token tem precisão de segundos, por isso a troca é comparada truncada.
+     */
+    static boolean emitidoAntesDaTroca(Instant emitidoEm, Instant senhaAlteradaEm) {
+        if (senhaAlteradaEm == null) {
+            return false;
+        }
+        return emitidoEm == null || emitidoEm.isBefore(senhaAlteradaEm.truncatedTo(ChronoUnit.SECONDS));
     }
 
     private String recoverToken(HttpServletRequest request) {
