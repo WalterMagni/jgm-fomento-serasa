@@ -657,7 +657,9 @@ export default function QuadroProspeccao() {
           }}
         />
       )}
-      {novaAberta && <NovaProspeccaoDialog onFechar={() => setNovaAberta(false)} onCriado={card => abrir(card.id)} />}
+      {novaAberta && (
+        <NovaProspeccaoDialog onFechar={() => setNovaAberta(false)} onCriado={card => abrir(card.id)} cardsAbertos={cards} />
+      )}
       {backfillAberto && <BackfillDialog onFechar={() => setBackfillAberto(false)} />}
       {manualAberto && <ManualDrawer onFechar={() => setManualAberto(false)} />}
       {produtosAberto && <ProdutosDialog podeEditar={eu?.admin ?? false} onFechar={() => setProdutosAberto(false)} />}

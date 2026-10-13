@@ -68,8 +68,9 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
           and (:originBlank = true
                or (:origin = 'SACADO_PRACA' and c.origin = 'SACADO_PRACA')
                or (:origin = 'GRUPO_SOCIETARIO' and c.origin = 'GRUPO_SOCIETARIO')
+               or (:origin = 'PROSPECCAO' and c.origin = 'PROSPECCAO')
                or (:origin = 'CARTEIRA' and (c.origin is null
-                                             or c.origin not in ('SACADO_PRACA', 'GRUPO_SOCIETARIO'))))
+                                             or c.origin not in ('SACADO_PRACA', 'GRUPO_SOCIETARIO', 'PROSPECCAO'))))
         """)
     Page<ClientEntity> searchProfiles(
             @Param("search") String search,

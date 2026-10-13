@@ -1324,7 +1324,10 @@ export default function ClientDashboardPage() {
               {profile?.client?.origin === "SACADO_PRACA" && (
                 <span className="rounded-md bg-[#2956E0]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#1f43b8]">só sacado</span>
               )}
-              {!profile?.client?.clientCode && profile?.client?.origin !== "SACADO_PRACA" && (
+              {profile?.client?.origin === "PROSPECCAO" && (
+                <span className="rounded-md bg-lime-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-lime-800">prospecção</span>
+              )}
+              {!profile?.client?.clientCode && profile?.client?.origin !== "SACADO_PRACA" && profile?.client?.origin !== "PROSPECCAO" && (
                 <span className="rounded-md bg-secondary/10 px-2 py-0.5 text-[11px] font-bold text-laranja-texto">sem código de cliente</span>
               )}
               {ca?.negativeSummary?.message?.trim().toUpperCase() === "NADA CONSTA" && (

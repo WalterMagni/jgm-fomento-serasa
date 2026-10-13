@@ -355,7 +355,15 @@ export type DadosCard = {
 
 export type NovaPendencia = { destinatarioId: string; texto: string };
 
-export type EmpresaEncontrada = { cnpj: string; nome: string; fantasia: string | null; cidade: string | null; uf: string | null };
+export type EmpresaEncontrada = {
+  cnpj: string;
+  nome: string;
+  fantasia: string | null;
+  cidade: string | null;
+  uf: string | null;
+  /** Última consulta Serasa; nula quando a empresa nunca foi consultada. */
+  consultaSerasaEm: string | null;
+};
 
 export type UsuarioAtual = {
   id: string;

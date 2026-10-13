@@ -95,6 +95,7 @@ public class ProspeccaoController {
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoOrganizacaoService organizacaoService;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
+    private final com.portal.serasa.application.service.ClientProfileService clientProfileService;
     private final UserRepository userRepository;
 
     // ---------------------------------------------------------------- leitura
@@ -214,6 +215,8 @@ public class ProspeccaoController {
         ProspeccaoEntity card = prospeccaoService.criar(
                 request.cnpj(), request.razaoSocial(), comercialId, comercialNome,
                 mapper.toEntity(request.dadosComerciais()), autor);
+        // Empresa que ainda não opera aparece na Carteira com a marca de prospecção.
+        clientProfileService.markProspeccaoOrigin(card.getCnpj());
         return ResponseEntity.status(201).body(toResponse(card));
     }
 

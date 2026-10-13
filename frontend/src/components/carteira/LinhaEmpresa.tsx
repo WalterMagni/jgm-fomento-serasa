@@ -64,7 +64,9 @@ export default function LinhaEmpresa({ perfil, atraso }: { perfil: ClientProfile
   // Matriz/filial: usa o head do CNPJ Já; sem enriquecimento, cai na regra da Receita (0001 = matriz).
   const matriz = empresa?.head ?? (cnpj.length === 14 ? cnpj.slice(8, 12) === "0001" : null);
   const soSacado = perfil.client?.origin === "SACADO_PRACA";
-  const semCodigo = !perfil.client?.clientCode && !soSacado;
+  // Em prospecção ainda não opera: não ter código 4R é o esperado, não um aviso.
+  const emProspeccao = perfil.client?.origin === "PROSPECCAO";
+  const semCodigo = !perfil.client?.clientCode && !soSacado && !emProspeccao;
   const nadaConstaSinalizado = analise?.negativeSummary?.message?.trim().toUpperCase() === "NADA CONSTA";
   const local = [caixaTitulo(empresa?.city ?? null), empresa?.state].filter(Boolean).join(" · ");
 
@@ -127,6 +129,14 @@ export default function LinhaEmpresa({ perfil, atraso }: { perfil: ClientProfile
             {soSacado && (
               <span className="rounded-md bg-[#2956E0]/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-[#1f43b8]">
                 só sacado
+              </span>
+            )}
+            {emProspeccao && (
+              <span
+                className="rounded-md bg-lime-100 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-lime-800"
+                title="Trazida pela esteira de prospecção; ainda não opera"
+              >
+                prospecção
               </span>
             )}
             {semCodigo && (

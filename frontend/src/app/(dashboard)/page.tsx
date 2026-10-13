@@ -15,7 +15,7 @@ import { useCompanyList } from "@/hooks/useCompanyList";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 
 type Cedente = "" | "SIM" | "NAO" | "PENDENTE";
-type Origem = "" | "CARTEIRA" | "SACADO_PRACA";
+type Origem = "" | "CARTEIRA" | "SACADO_PRACA" | "PROSPECCAO";
 type Analise = "" | "ANALYZED" | "PENDING";
 type Ordem = "recentes" | "nome";
 
@@ -23,7 +23,7 @@ const POR_PAGINA = [10, 50, 100, 200];
 
 // A URL usa nomes curtos em português; a API, os valores do backend.
 const CEDENTE_URL: Record<string, Cedente> = { sim: "SIM", nao: "NAO", pendente: "PENDENTE" };
-const ORIGEM_URL: Record<string, Origem> = { carteira: "CARTEIRA", sacado: "SACADO_PRACA" };
+const ORIGEM_URL: Record<string, Origem> = { carteira: "CARTEIRA", sacado: "SACADO_PRACA", prospeccao: "PROSPECCAO" };
 const ANALISE_URL: Record<string, Analise> = { feita: "ANALYZED", pendente: "PENDING" };
 const paraUrl = <T extends string>(mapa: Record<string, T>, valor: T) =>
   Object.keys(mapa).find(chave => mapa[chave] === valor) ?? "";
@@ -231,6 +231,7 @@ function GestaoCarteira() {
             { valor: "", rotulo: "Toda origem" },
             { valor: "CARTEIRA", rotulo: "Carteira" },
             { valor: "SACADO_PRACA", rotulo: "Só sacado" },
+            { valor: "PROSPECCAO", rotulo: "Prospecção" },
           ]}
         />
         <label className="shrink-0">

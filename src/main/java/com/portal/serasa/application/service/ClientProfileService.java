@@ -224,6 +224,9 @@ public class ClientProfileService {
     /** Origem de cliente criado a partir do grupo societário (não exige código 4R). */
     public static final String ORIGIN_GRUPO_SOCIETARIO = "GRUPO_SOCIETARIO";
 
+    /** Origem de empresa trazida pela esteira de prospecção: ainda não opera (sem código 4R). */
+    public static final String ORIGIN_PROSPECCAO = "PROSPECCAO";
+
     /**
      * Marca o cliente como originado de sacado (não exige código 4R). Só marca quando ainda não tem
      * origem definida E não tem código 4R: um cliente de carteira/cedente tem código (ou origem) e
@@ -240,6 +243,14 @@ public class ClientProfileService {
      */
     public void markGrupoSocietarioOrigin(String cnpj) {
         markOriginIfUnclaimed(cnpj, ORIGIN_GRUPO_SOCIETARIO);
+    }
+
+    /**
+     * Marca a empresa como trazida pela prospecção, para a Carteira não a misturar com quem já
+     * opera. Mesma proteção das outras origens: quem tem código 4R ou origem definida fica como está.
+     */
+    public void markProspeccaoOrigin(String cnpj) {
+        markOriginIfUnclaimed(cnpj, ORIGIN_PROSPECCAO);
     }
 
     private void markOriginIfUnclaimed(String cnpj, String origin) {
