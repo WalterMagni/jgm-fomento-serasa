@@ -391,3 +391,20 @@
 @media (prefers-reduced-motion: reduce) {
   .login-anima { animation: none !important; }
 }
+
+/* Selo da nota da equipe (components/nota/SeloNota): a letra da empresa "carimba" ao aparecer,
+   com um leve giro, e um brilho atravessa a letra uma vez — o troféu sendo entregue. */
+@keyframes nota-carimbo {
+  0%   { transform: scale(0.35) rotate(-10deg); opacity: 0; }
+  60%  { transform: scale(1.12) rotate(2deg); opacity: 1; }
+  100% { transform: none; }
+}
+@keyframes nota-brilho {
+  from { transform: translateX(-120%) skewX(-14deg); }
+  to   { transform: translateX(260%) skewX(-14deg); }
+}
+.nota-carimbo { animation: nota-carimbo 560ms cubic-bezier(0.2, 0, 0, 1) both; }
+.nota-brilho  { transform: translateX(-120%); animation: nota-brilho 1100ms ease-out 480ms both; }
+@media (prefers-reduced-motion: reduce) {
+  .nota-carimbo, .nota-brilho { animation: none; }
+}

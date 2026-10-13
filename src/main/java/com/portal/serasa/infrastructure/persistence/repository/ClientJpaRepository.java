@@ -71,6 +71,18 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
                or (:origin = 'PROSPECCAO' and c.origin = 'PROSPECCAO')
                or (:origin = 'CARTEIRA' and (c.origin is null
                                              or c.origin not in ('SACADO_PRACA', 'GRUPO_SOCIETARIO', 'PROSPECCAO'))))
+          and (:notaBlank = true
+               or (:nota = 'SEM' and not exists (
+                   select n.cnpj
+                   from EmpresaNotaEntity n
+                   where n.cnpj = c.documentNumber
+               ))
+               or exists (
+                   select n.cnpj
+                   from EmpresaNotaEntity n
+                   where n.cnpj = c.documentNumber
+                     and str(n.nota) = :nota
+               ))
         """)
     Page<ClientEntity> searchProfiles(
             @Param("search") String search,
@@ -85,6 +97,8 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, UUID> {
             @Param("analysisStatusBlank") boolean analysisStatusBlank,
             @Param("origin") String origin,
             @Param("originBlank") boolean originBlank,
+            @Param("nota") String nota,
+            @Param("notaBlank") boolean notaBlank,
             Pageable pageable);
 
     List<ClientEntity> findByDocumentNumberIn(Collection<String> documentNumbers);

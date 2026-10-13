@@ -12,9 +12,9 @@ const getAuthHeaders = () => {
   };
 };
 
-export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = '', analysisStatus = '', origin = '', ordem = '') {
+export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = '', analysisStatus = '', origin = '', ordem = '', nota = '') {
   const listQuery = useQuery<PageResponse<ClientProfile>>({
-    queryKey: ['companyList', page, size, search, visaoCedente, analysisStatus, origin, ordem],
+    queryKey: ['companyList', page, size, search, visaoCedente, analysisStatus, origin, ordem, nota],
     // Mantém a página anterior na tela enquanto a próxima chega: sem piscar ao paginar/filtrar.
     placeholderData: keepPreviousData,
     queryFn: async () => {
@@ -36,6 +36,9 @@ export function useCompanyList(page = 0, size = 10, search = '', visaoCedente = 
       }
       if (ordem.trim()) {
         params.set('ordem', ordem.trim());
+      }
+      if (nota.trim()) {
+        params.set('nota', nota.trim());
       }
       const res = await fetch(`${API_BASE_URL}/company/profiles?${params.toString()}`, {
         headers: getAuthHeaders(),

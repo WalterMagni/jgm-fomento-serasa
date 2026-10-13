@@ -9,13 +9,14 @@ import Icon from "@/components/ui/Icon";
 import { caixaTitulo, formatCnpj, formatData, formatMoeda, iniciais, tomDoAvatar } from "@/lib/formatadores";
 import { TIPO_RESTRICAO, type TipoRestricao } from "@/types/pessoa-resumo";
 import type { ClientProfile, CreditAnalysisData } from "@/types/company-detail";
+import SeloNota from "@/components/nota/SeloNota";
 import { CUSTO_CONSULTA_PJ, consultarEmpresa } from "./consultaEmpresa";
 
 /** Colunas: abaixo de lg some "na carteira desde"; abaixo de md fica só a empresa. */
 export const GRADE_EMPRESAS =
   "grid grid-cols-[minmax(0,1fr)_20px] items-center gap-4 " +
-  "md:grid-cols-[minmax(0,2.4fr)_minmax(170px,1.4fr)_112px_20px] " +
-  "lg:grid-cols-[minmax(0,2.6fr)_120px_minmax(190px,1.5fr)_112px_20px]";
+  "md:grid-cols-[minmax(0,2.4fr)_80px_minmax(170px,1.4fr)_112px_20px] " +
+  "lg:grid-cols-[minmax(0,2.6fr)_80px_120px_minmax(190px,1.5fr)_112px_20px]";
 
 /** Ocorrências por tipo, na mesma ordem e cor das restrições da pessoa física. */
 function pendenciasPorTipo(analise: CreditAnalysisData) {
@@ -41,6 +42,7 @@ export function CabecalhoEmpresas() {
       className={`${GRADE_EMPRESAS} border-b border-linha bg-[#FBFAF7] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73] sm:px-6`}
     >
       <span>Empresa</span>
+      <span className="hidden md:block">Score</span>
       <span className="hidden lg:block">Na carteira</span>
       <span className="hidden md:block">Pendências Serasa</span>
       <span className="hidden md:block">Visão Cedente</span>
@@ -155,6 +157,10 @@ export default function LinhaEmpresa({ perfil, atraso }: { perfil: ClientProfile
         </span>
       </span>
 
+      <span className="hidden md:block">
+        {perfil.nota ? <SeloNota nota={perfil.nota} tamanho="compacto" /> : <span className="text-[13px] text-[#B0ACA1]">—</span>}
+      </span>
+
       <span className="hidden text-[13px] text-suave lg:block">
         {perfil.client?.createdAt ? formatData(perfil.client.createdAt) : "—"}
       </span>
@@ -264,6 +270,7 @@ export function EmpresasEsqueleto({ quantidade = 8 }: { quantidade?: number }) {
               <span className="esqueleto h-3 w-36" />
             </span>
           </span>
+          <span className="esqueleto hidden h-5 w-14 md:block" />
           <span className="esqueleto hidden h-3 w-20 lg:block" />
           <span className="esqueleto hidden h-3 w-28 md:block" />
           <span className="esqueleto hidden h-5 w-20 rounded-full md:block" />

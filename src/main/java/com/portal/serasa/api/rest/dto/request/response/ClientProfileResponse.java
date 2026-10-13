@@ -27,4 +27,7 @@ public class ClientProfileResponse {
      * Chave = CPF (11 dígitos). Apenas sócios com consulta salva aparecem.
      */
     private Map<String, PersonAnalysisSummaryResponse> partnerPfAnalyses;
+
+    /** Nota da equipe, "A" a "D"; nula sem nota. Só vem preenchida na lista da carteira. */
+    private String nota;
 }

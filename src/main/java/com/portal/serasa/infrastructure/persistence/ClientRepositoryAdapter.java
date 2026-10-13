@@ -63,11 +63,13 @@ public class ClientRepositoryAdapter implements ClientRepository {
     }
 
     @Override
-    public Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, String origin, Pageable pageable) {
+    public Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, String origin, String nota,
+                                       Pageable pageable) {
         String normalizedTerm = term == null ? "" : term.trim();
         String normalizedVisaoCedente = visaoCedente == null ? "" : visaoCedente.trim().toUpperCase();
         String normalizedAnalysisStatus = analysisStatus == null ? "" : analysisStatus.trim().toUpperCase();
         String normalizedOrigin = origin == null ? "" : origin.trim().toUpperCase();
+        String normalizedNota = nota == null ? "" : nota.trim().toUpperCase();
         // Termo só com dígitos e pontuação: "59.304.716/0001-25" acha o CNPJ, guardado sem
         // pontuação, e "000693" acha o código do cliente, guardado sem zeros à esquerda.
         String digitos = normalizedTerm.matches("[\\d.\\-/\\s]+") ? normalizedTerm.replaceAll("\\D", "") : "";
@@ -85,6 +87,8 @@ public class ClientRepositoryAdapter implements ClientRepository {
                 normalizedAnalysisStatus.isBlank(),
                 normalizedOrigin,
                 normalizedOrigin.isBlank(),
+                normalizedNota,
+                normalizedNota.isBlank(),
                 pageable
         ).map(mapper::toDomain);
     }

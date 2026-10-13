@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import NotaDaEquipe from "@/components/nota/NotaDaEquipe";
 import { openInNewTab } from "@/lib/newTab";
 import { caixaTitulo } from "@/lib/formatadores";
 import { BOTAO } from "@/components/ui/botao";
@@ -1267,7 +1268,9 @@ export default function ClientDashboardPage() {
       <SerasaReportPrint profile={profile} />
 
       {/* ── Cabeçalho (só na tela) ─────────────────────────────────────────── */}
-      <header className="mb-5 flex flex-col gap-4 print:hidden">
+      {/* z-20: o popover da nota e o menu "Mais ações" abrem por cima da faixa de resumo e do índice,
+          que vêm depois e têm camada própria (animação de entrada, sticky). */}
+      <header className="relative z-20 mb-5 flex flex-col gap-4 print:hidden">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
           <button onClick={handleGoPortfolio} className="inline-flex items-center gap-1 font-medium text-suave transition-colors hover:text-primary">
             <Icon name="arrow_back" size={16} />
@@ -1284,9 +1287,17 @@ export default function ClientDashboardPage() {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="min-w-0 animate-subir motion-reduce:animate-none">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-laranja-texto">Visão 360º do cliente</p>
-            <h1 className="mt-2 text-3xl font-semibold leading-[1.05] tracking-[-0.02em] text-grafite sm:text-[40px]">
-              {caixaTitulo(companyLabel)}
-            </h1>
+            {/* A nota da equipe fica colada no nome: é o "troféu" da empresa. */}
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+              <h1 className="min-w-0 text-3xl font-semibold leading-[1.05] tracking-[-0.02em] text-grafite sm:text-[40px]">
+                {caixaTitulo(companyLabel)}
+              </h1>
+              {cleanCnpj.length === 14 && (
+                <div className="shrink-0">
+                  <NotaDaEquipe cnpj={cleanCnpj} />
+                </div>
+              )}
+            </div>
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-suave">
               <span className="font-mono text-[13px]">{formatCNPJ(cleanCnpj)}</span>
               {(cr?.companyAlias || companyDetail?.alias) && (

@@ -665,11 +665,13 @@ public class CompanyDetailController {
             @RequestParam(required = false) String visaoCedente,
             @RequestParam(required = false) String analysisStatus,
             @RequestParam(required = false) String origin,
+            /** "A" a "D", ou "SEM" para as empresas ainda sem nota da equipe. */
+            @RequestParam(required = false) String nota,
             /** "nome" ordena pela razão social; qualquer outro valor, pelos mais recentes na carteira. */
             @RequestParam(required = false) String ordem,
             Pageable pageable) {
         return ResponseEntity.ok(
-                clientProfileService.findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin, ordem)
+                clientProfileService.findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin, nota, ordem)
                         .map(this::toProfileResponse));
     }
 
@@ -900,6 +902,7 @@ public class CompanyDetailController {
                         : null)
                 .analysisHistory(historyItems)
                 .partnerPfAnalyses(pfSummaries)
+                .nota(profile.getNota() != null ? profile.getNota().name() : null)
                 .build();
     }
 

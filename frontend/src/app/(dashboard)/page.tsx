@@ -11,6 +11,7 @@ import Paginacao from "@/components/ui/Paginacao";
 import { BOTAO } from "@/components/ui/botao";
 import LinhaEmpresa, { CabecalhoEmpresas, EmpresasEsqueleto } from "@/components/carteira/LinhaEmpresa";
 import NovoCliente from "@/components/carteira/NovoCliente";
+import FiltroNota, { type FiltroDeNota } from "@/components/nota/FiltroNota";
 import { useCompanyList } from "@/hooks/useCompanyList";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 
@@ -25,6 +26,7 @@ const POR_PAGINA = [10, 50, 100, 200];
 const CEDENTE_URL: Record<string, Cedente> = { sim: "SIM", nao: "NAO", pendente: "PENDENTE" };
 const ORIGEM_URL: Record<string, Origem> = { carteira: "CARTEIRA", sacado: "SACADO_PRACA", prospeccao: "PROSPECCAO" };
 const ANALISE_URL: Record<string, Analise> = { feita: "ANALYZED", pendente: "PENDING" };
+const NOTA_URL: Record<string, FiltroDeNota> = { a: "A", b: "B", c: "C", d: "D", sem: "SEM" };
 const paraUrl = <T extends string>(mapa: Record<string, T>, valor: T) =>
   Object.keys(mapa).find(chave => mapa[chave] === valor) ?? "";
 
@@ -44,6 +46,7 @@ function GestaoCarteira() {
   const [cedente, setCedente] = useState<Cedente>(() => CEDENTE_URL[params.get("cedente") ?? ""] ?? "");
   const [origem, setOrigem] = useState<Origem>(() => ORIGEM_URL[params.get("origem") ?? ""] ?? "");
   const [analise, setAnalise] = useState<Analise>(() => ANALISE_URL[params.get("analise") ?? ""] ?? "");
+  const [nota, setNota] = useState<FiltroDeNota>(() => NOTA_URL[params.get("nota") ?? ""] ?? "");
   const [ordem, setOrdem] = useState<Ordem>(() => (params.get("ordem") === "nome" ? "nome" : "recentes"));
   const [pagina, setPagina] = useState(() => Math.max(0, Number(params.get("pagina") ?? "1") - 1) || 0);
   const [porPagina, setPorPagina] = useState(() => {
@@ -65,12 +68,13 @@ function GestaoCarteira() {
     if (cedente) p.set("cedente", paraUrl(CEDENTE_URL, cedente));
     if (origem) p.set("origem", paraUrl(ORIGEM_URL, origem));
     if (analise) p.set("analise", paraUrl(ANALISE_URL, analise));
+    if (nota) p.set("nota", paraUrl(NOTA_URL, nota));
     if (ordem !== "recentes") p.set("ordem", ordem);
     if (pagina > 0) p.set("pagina", String(pagina + 1));
     if (porPagina !== 50) p.set("por", String(porPagina));
     const qs = p.toString();
     window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
-  }, [buscaEnviada, cedente, origem, analise, ordem, pagina, porPagina]);
+  }, [buscaEnviada, cedente, origem, analise, nota, ordem, pagina, porPagina]);
 
   const { data: metricas, isLoading: carregandoMetricas } = useDashboardMetrics();
   const { companies, pageData, isLoading, isError, refetch, isPlaceholderData } = useCompanyList(
@@ -81,6 +85,7 @@ function GestaoCarteira() {
     analise,
     origem,
     ordem === "nome" ? "nome" : "",
+    nota,
   );
 
   const total = metricas?.totalClients ?? 0;
@@ -92,7 +97,7 @@ function GestaoCarteira() {
 
   const totalFiltrado = pageData?.totalElements ?? 0;
   const totalPaginas = pageData?.totalPages ?? 1;
-  const algumFiltro = !!(buscaEnviada || cedente || origem || analise);
+  const algumFiltro = !!(buscaEnviada || cedente || origem || analise || nota);
 
   const mudar = <T,>(definir: (v: T) => void) => (valor: T) => {
     definir(valor);
@@ -105,6 +110,7 @@ function GestaoCarteira() {
     setCedente("");
     setOrigem("");
     setAnalise("");
+    setNota("");
     setPagina(0);
   };
 
@@ -140,6 +146,7 @@ function GestaoCarteira() {
             setCedente("");
             setOrigem("");
             setAnalise("");
+            setNota("");
             setBusca(cnpj);
             setBuscaEnviada(cnpj);
             setPagina(0);
@@ -234,6 +241,7 @@ function GestaoCarteira() {
             { valor: "PROSPECCAO", rotulo: "Prospecção" },
           ]}
         />
+        <FiltroNota valor={nota} onChange={mudar(setNota)} />
         <label className="shrink-0">
           <span className="sr-only">Ordenar</span>
           <select
@@ -292,7 +300,7 @@ function GestaoCarteira() {
         ) : (
           // A chave refaz a cascata de entrada a cada página ou filtro novo.
           <div
-            key={`${pagina}-${porPagina}-${cedente}-${origem}-${analise}-${ordem}-${buscaEnviada}`}
+            key={`${pagina}-${porPagina}-${cedente}-${origem}-${analise}-${nota}-${ordem}-${buscaEnviada}`}
             className={`transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}
           >
             {companies.map((perfil, i) => (

@@ -23,7 +23,9 @@ public interface ClientRepository {
 
     Page<Client> search(String term, Pageable pageable);
 
-    Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, String origin, Pageable pageable);
+    /** @param nota "A" a "D", ou "SEM" para as empresas sem nota da equipe. */
+    Page<Client> searchProfiles(String term, String visaoCedente, String analysisStatus, String origin, String nota,
+                                Pageable pageable);
 
     long count();
 

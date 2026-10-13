@@ -50,6 +50,7 @@ public class ClientProfileService {
     private final CompanyShareholderService companyShareholderService;
     private final EmailService emailService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoEntradaAutomatica prospeccaoEntradaAutomatica;
+    private final com.portal.serasa.application.service.empresa.EmpresaNotaService empresaNotaService;
 
     @Value("${billing.serasa.cost-per-query:0.00}")
     private BigDecimal serasaCostPerQuery;
@@ -461,12 +462,18 @@ public class ClientProfileService {
         return findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin, null);
     }
 
+    public Page<ClientProfile> findAllProfiles(Pageable pageable, String search, String visaoCedente, String analysisStatus,
+                                               String origin, String ordem) {
+        return findAllProfiles(pageable, search, visaoCedente, analysisStatus, origin, null, ordem);
+    }
+
     /**
      * @param ordem "nome" ordena pela razão social da carteira; o resto, mais recentes primeiro.
      *              A ordem vai para o banco: ordenar só a página na tela embaralhava a carteira.
+     * @param nota  "A" a "D", ou "SEM" para as empresas que a equipe ainda não avaliou.
      */
     public Page<ClientProfile> findAllProfiles(Pageable pageable, String search, String visaoCedente, String analysisStatus,
-                                               String origin, String ordem) {
+                                               String origin, String nota, String ordem) {
         org.springframework.data.domain.Sort sort = "nome".equalsIgnoreCase(ordem)
                 ? org.springframework.data.domain.Sort.by(
                         org.springframework.data.domain.Sort.Order.asc("name").ignoreCase(),
@@ -478,7 +485,7 @@ public class ClientProfileService {
                 pageable.getPageSize(),
                 sort);
 
-        Page<Client> clients = clientRepository.searchProfiles(search, visaoCedente, analysisStatus, origin, sorted);
+        Page<Client> clients = clientRepository.searchProfiles(search, visaoCedente, analysisStatus, origin, nota, sorted);
 
         List<String> documentNumbers = clients.getContent().stream()
                 .map(Client::getDocumentNumber)
@@ -498,6 +505,7 @@ public class ClientProfileService {
                         CreditAnalysis::getCnpj,
                         java.util.function.Function.identity(),
                         (first, ignored) -> first));
+        Map<String, com.portal.serasa.domain.model.NotaEmpresa> notasByDocument = empresaNotaService.notasDe(documentNumbers);
 
         return clients.map(client -> {
             String documentNumber = client.getDocumentNumber();
@@ -505,6 +513,7 @@ public class ClientProfileService {
                     .client(client)
                     .companyDetail(companyDetailsByDocument.get(documentNumber))
                     .creditAnalysis(latestAnalysisByDocument.get(documentNumber))
+                    .nota(notasByDocument.get(documentNumber))
                     .build();
         });
     }
@@ -657,6 +666,8 @@ public class ClientProfileService {
         private List<CreditAnalysis> analysisHistory;
         /** Análises PF dos sócios: key = CPF (11 dígitos) */
         private Map<String, PersonAnalysis> partnerPfAnalyses;
+        /** Nota da equipe (A a D). Só a lista da carteira preenche; a Visão 360º usa /{cnpj}/nota. */
+        private com.portal.serasa.domain.model.NotaEmpresa nota;
     }
 
     @lombok.Data

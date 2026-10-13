@@ -20,7 +20,7 @@ import {
   ThumbsUpIcon, TrashIcon, TrayIcon, TreeStructureIcon, TrendUpIcon, UploadSimpleIcon, UserCheckIcon, UserIcon,
   UsersIcon, WalletIcon, WarningCircleIcon, XCircleIcon, XIcon,
   ScalesIcon, ListBulletsIcon, HouseLineIcon, MapPinIcon, CreditCardIcon, ChartLineUpIcon, WarningOctagonIcon,
-  InvoiceIcon, ChartLineIcon,
+  InvoiceIcon, ChartLineIcon, TrophyIcon,
   type Icon as PhosphorIcon, type IconWeight,
 } from "@phosphor-icons/react";
 
@@ -82,6 +82,8 @@ const ICONS: Record<string, PhosphorIcon> = {
   balance: ScalesIcon, format_list_bulleted: ListBulletsIcon, home_work: HouseLineIcon, location_on: MapPinIcon,
   payment: CreditCardIcon, query_stats: ChartLineUpIcon, report: WarningOctagonIcon, request_quote: InvoiceIcon,
   timeline: ChartLineIcon,
+  // nota da equipe
+  emoji_events: TrophyIcon,
 };
 
 /**

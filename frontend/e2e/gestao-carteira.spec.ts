@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Fumaça da Gestão de Carteira: KPI como filtro, filtros na URL e a consulta rápida pedindo
- * confirmação. Lista e métricas são interceptadas com dados fixos, e qualquer consulta a
+ * Fumaça da Gestão de Carteira: KPI como filtro, filtros na URL, filtro pelo score da equipe e a
+ * consulta rápida pedindo confirmação. Lista e métricas são interceptadas com dados fixos, e qualquer consulta a
  * provedor é respondida no navegador — o teste nunca gasta consulta Serasa.
  *
  * Variáveis (iguais às da esteira):
@@ -24,6 +24,7 @@ const ANALISADA = {
     negativeSummary: { pefin: { summary: { count: 2, balance: 1500 } } }, inquiryHistory: {},
     consultaEm: "2026-09-02T10:00:00", status: "CONCLUIDO",
   },
+  nota: "A",
 };
 
 function pagina(conteudo: unknown[]) {
@@ -47,8 +48,12 @@ test.describe("Gestão de Carteira", () => {
       rota.fulfill({ json: { totalClients: 2, analyzedClients: 1, cedenteSimCount: 1, pendingAnalysisCount: 1, cnpjaEnrichedCount: 0, avgScore: 0, highRiskCount: 0, totalDebt: 0 } }),
     );
     await page.route(/\/company\/profiles\?/, rota => {
-      const filtro = new URL(rota.request().url()).searchParams.get("analysisStatus");
-      const lista = filtro === "PENDING" ? [SEM_ANALISE] : filtro === "ANALYZED" ? [ANALISADA] : [SEM_ANALISE, ANALISADA];
+      const params = new URL(rota.request().url()).searchParams;
+      const filtro = params.get("analysisStatus");
+      const nota = params.get("nota");
+      const lista =
+        nota === "A" ? [ANALISADA] : nota === "SEM" ? [SEM_ANALISE]
+        : filtro === "PENDING" ? [SEM_ANALISE] : filtro === "ANALYZED" ? [ANALISADA] : [SEM_ANALISE, ANALISADA];
       return rota.fulfill({ json: pagina(lista) });
     });
     await page.route("**/company/enrich/**", rota => {
@@ -69,6 +74,24 @@ test.describe("Gestão de Carteira", () => {
 
     await page.reload();
     await expect(page.getByRole("button", { name: /Aguardando análise/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("score da equipe aparece na linha e filtra pela API, com o filtro na URL", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("img", { name: "Score A: Excelente" })).toHaveCount(1);
+
+    const pedido = page.waitForRequest(req => req.url().includes("/company/profiles?") && req.url().includes("nota=A"));
+    await page.getByRole("button", { name: "Score A: Excelente" }).click();
+    await pedido;
+    await expect(page.getByRole("link", { name: "Tecelagem Primavera Ltda" })).toBeHidden();
+    await expect(page).toHaveURL(/nota=a/);
+
+    await page.getByRole("button", { name: "Sem score" }).click();
+    await expect(page.getByRole("link", { name: "Confeccoes Aurora Ltda" })).toBeHidden();
+    await expect(page).toHaveURL(/nota=sem/);
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Sem score" })).toHaveAttribute("aria-pressed", "true");
   });
 
   test("consulta rápida só em quem não tem análise e pede confirmação", async ({ page }) => {
