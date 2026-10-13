@@ -14,7 +14,6 @@ import com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEnti
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.ProspeccaoJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.ProspeccaoParecerJpaRepository;
-import com.portal.serasa.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -34,7 +33,8 @@ import java.util.stream.Collectors;
  * <p>Mesmas regras da esteira de liberação: entrar no comitê abre uma rodada e convoca cada membro
  * ({@code users.comite}) com um parecer vazio; só o convocado registra, e pode rever; sair do
  * comitê exige ao menos um parecer registrado. Quem registra o resultado é a analista dona ou
- * um membro do comitê.</p>
+ * um membro do comitê. Aprovado, o card vai aguardar o aceite do cliente, que pode voltar ao
+ * comitê com contraproposta.</p>
  *
  * <p>O contrato é o último passo: a equipe anota quem assina pelo cliente, e a dona conclui o card
  * em HABILITADO — dali em diante o cedente vive na esteira de liberação.</p>
@@ -49,8 +49,9 @@ public class ProspeccaoComiteService {
     private final ProspeccaoAutorizacao autorizacao;
     private final ProspeccaoJpaRepository prospeccaoRepository;
     private final ProspeccaoParecerJpaRepository parecerRepository;
-    private final UserRepository userRepository;
     private final ApplicationEventPublisher acontecimentos;
+    private final ProspeccaoRodadaComite rodadaComite;
+    private final ProspeccaoDecisaoService decisaoService;
 
     // ------------------------------------------------------------------ envio
 
@@ -67,32 +68,7 @@ public class ProspeccaoComiteService {
             throw new TransicaoInvalidaException("O card não pode ir ao comitê a partir de " + card.getEstagio() + ".");
         }
         autorizacao.exigirDona(card, autor);
-        List<UserEntity> membros = userRepository.findByComiteTrueOrderByNameAsc();
-        if (membros.isEmpty()) {
-            throw new TransicaoInvalidaException(
-                    "Nenhum usuário está marcado como Comitê. Peça ao admin para marcar em Configurações.");
-        }
-
-        ProspeccaoEntity movido = prospeccaoService.mover(id, EstagioProspeccao.COMITE, null, null, autor);
-        movido.setRodadaComite((movido.getRodadaComite() == null ? 0 : movido.getRodadaComite()) + 1);
-        ProspeccaoEntity salvo = prospeccaoRepository.save(movido);
-
-        LocalDateTime agora = LocalDateTime.now();
-        for (UserEntity membro : membros) {
-            parecerRepository.save(ProspeccaoParecerEntity.builder()
-                    .prospeccaoId(id)
-                    .rodada(salvo.getRodadaComite())
-                    .usuarioId(membro.getId())
-                    .usuarioNome(membro.getName())
-                    .criadoEm(agora)
-                    .build());
-        }
-        String nomes = membros.stream().map(UserEntity::getName).collect(Collectors.joining(", "));
-        prospeccaoService.registrarEvento(salvo, TipoEventoProspeccao.COMITE_ENVIADO, null, null, null,
-                "Rodada " + salvo.getRodadaComite() + " · convocados: " + nomes, autor);
-        acontecimentos.publishEvent(new ProspeccaoAcontecimento.ComiteConvocado(salvo,
-                membros.stream().map(UserEntity::getId).toList(), autor));
-        return salvo;
+        return rodadaComite.abrir(id, null, autor);
     }
 
     // ------------------------------------------------------------------ parecer
@@ -141,6 +117,10 @@ public class ProspeccaoComiteService {
 
     // ---------------------------------------------------------------- resultado
 
+    /** Limite e condições que o comitê aprovou no lugar dos da análise. */
+    public record AjusteProposta(java.math.BigDecimal limite, List<ProspeccaoDecisaoService.Condicao> condicoes) {
+    }
+
     /**
      * O resultado do comitê. Exige ao menos um parecer registrado na rodada; quem não deu parecer
      * fica dito no histórico, e o parecer vazio some.
@@ -148,6 +128,17 @@ public class ProspeccaoComiteService {
     @Transactional
     public ProspeccaoEntity registrarResultado(UUID id, ResultadoComite resultado, MotivoRecusa motivo,
                                                String observacao, UserEntity autor) {
+        return registrarResultado(id, resultado, motivo, observacao, null, autor);
+    }
+
+    /**
+     * Resultado com a proposta ajustada pelo comitê. Aprovar sem ajuste mantém o limite e as
+     * condições da análise; com ajuste, a proposta nova passa a ser a vigente, e é a ela que o
+     * cliente responde no aceite.
+     */
+    @Transactional
+    public ProspeccaoEntity registrarResultado(UUID id, ResultadoComite resultado, MotivoRecusa motivo,
+                                               String observacao, AjusteProposta ajuste, UserEntity autor) {
         ProspeccaoEntity card = prospeccaoService.buscar(id);
         if (card.getEstagio() != EstagioProspeccao.COMITE) {
             throw new TransicaoInvalidaException("O card não está no comitê.");
@@ -166,7 +157,7 @@ public class ProspeccaoComiteService {
         List<UUID> membros = rodada.stream().map(ProspeccaoParecerEntity::getUsuarioId).filter(Objects::nonNull).toList();
 
         EstagioProspeccao destino = switch (resultado) {
-            case APROVADO -> EstagioProspeccao.CONTRATO;
+            case APROVADO -> EstagioProspeccao.AGUARDANDO_ACEITE;
             case DEVOLVIDO -> EstagioProspeccao.EM_ANALISE;
             case REPROVADO -> EstagioProspeccao.REPROVADO;
         };
@@ -174,6 +165,9 @@ public class ProspeccaoComiteService {
         ProspeccaoEntity movido = prospeccaoService.mover(id, destino,
                 resultado == ResultadoComite.REPROVADO ? motivo : null, texto, autor);
         parecerRepository.apagarAguardando(id, card.getRodadaComite());
+        if (resultado == ResultadoComite.APROVADO && ajuste != null && ajuste.limite() != null) {
+            decisaoService.ajustarPeloComite(id, ajuste.limite(), ajuste.condicoes(), texto, autor);
+        }
 
         String rotulo = switch (resultado) {
             case APROVADO -> "Aprovado no comitê";

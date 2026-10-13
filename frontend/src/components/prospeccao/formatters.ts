@@ -66,11 +66,11 @@ export const CLASSE_BADGE_SEMAFORO: Record<Semaforo, string> = {
 /**
  * Texto do prazo.
  *
- * <p>No aceite e na coleta de documentos não existe prazo — depende do cliente — então o que se
- * mostra é há quanto tempo ele está em silêncio, que é o número pelo qual o time age.</p>
+ * <p>No aprovado, na documentação e no aceite não existe prazo — depende do cliente — então o que
+ * se mostra é há quanto tempo ele está em silêncio, que é o número pelo qual o time age.</p>
  */
 export function textoPrazo(card: Prospeccao) {
-  if (card.estagio === "AGUARDANDO_ACEITE" || card.estagio === "DOCUMENTACAO") {
+  if (card.estagio === "APROVADO" || card.estagio === "DOCUMENTACAO" || card.estagio === "AGUARDANDO_ACEITE") {
     if (card.diasEmSilencio <= 0) return "aguardando o cliente";
     const dias = `${card.diasEmSilencio} dia${card.diasEmSilencio > 1 ? "s" : ""}`;
     if (card.silencioProlongado) return `${dias} sem retorno — encaminhar para inerte`;
@@ -86,8 +86,9 @@ export function textoPrazo(card: Prospeccao) {
 export const ICONE_ESTAGIO: Record<EstagioProspeccao, string> = {
   NOVA: "inbox",
   EM_ANALISE: "search",
-  AGUARDANDO_ACEITE: "handshake",
+  APROVADO: "thumb_up",
   DOCUMENTACAO: "folder_open",
+  AGUARDANDO_ACEITE: "handshake",
   COMITE: "groups",
   CONTRATO: "contract",
   HABILITADO: "verified",
@@ -99,15 +100,16 @@ export const ICONE_ESTAGIO: Record<EstagioProspeccao, string> = {
 /**
  * Texto do botão que move o card, conforme de onde ele sai.
  *
- * <p>Voltar para a análise é contraproposta quando sai do aceite e devolução quando sai do
- * comitê: o mesmo destino com intenções diferentes, e o botão precisa dizer qual.</p>
+ * <p>O mesmo destino pode ter intenções diferentes — voltar ao comitê é contraproposta quando sai
+ * do aceite e correção quando sai do contrato — e o botão precisa dizer qual.</p>
  */
 export function rotuloAcao(de: EstagioProspeccao, para: EstagioProspeccao) {
-  if (para === "EM_ANALISE") {
-    if (de === "AGUARDANDO_ACEITE") return "Contraproposta: voltar para análise";
-    if (de === "COMITE") return "Comitê devolveu para análise";
+  if (para === "EM_ANALISE" && de === "COMITE") return "Comitê devolveu para análise";
+  if (para === "COMITE") {
+    if (de === "AGUARDANDO_ACEITE") return "Contraproposta: voltar ao comitê";
+    if (de === "CONTRATO") return "Voltar para o comitê";
   }
-  if (para === "COMITE" && de === "CONTRATO") return "Voltar para o comitê";
+  if (para === "APROVADO" && de === "DOCUMENTACAO") return "Devolver ao comercial";
   return ACAO_PARA_ESTAGIO[para];
 }
 
@@ -118,8 +120,8 @@ export function rotuloAcao(de: EstagioProspeccao, para: EstagioProspeccao) {
 export type AcaoPropria = "decidir" | "aceite" | "comite" | "resultado" | "concluir";
 
 export function acaoPropria(de: EstagioProspeccao, para: EstagioProspeccao): AcaoPropria | null {
-  if (de === "EM_ANALISE" && (para === "AGUARDANDO_ACEITE" || para === "REPROVADO")) return "decidir";
-  if (de === "AGUARDANDO_ACEITE" && (para === "DOCUMENTACAO" || para === "RECUSADO_CLIENTE" || para === "EM_ANALISE")) return "aceite";
+  if (de === "EM_ANALISE" && (para === "APROVADO" || para === "REPROVADO")) return "decidir";
+  if (de === "AGUARDANDO_ACEITE" && (para === "CONTRATO" || para === "RECUSADO_CLIENTE" || para === "COMITE")) return "aceite";
   if (para === "COMITE") return "comite";
   if (de === "COMITE") return "resultado";
   if (de === "CONTRATO" && para === "HABILITADO") return "concluir";
@@ -128,7 +130,7 @@ export function acaoPropria(de: EstagioProspeccao, para: EstagioProspeccao): Aca
 
 /** Destinos que levam o card para trás ou para fora: aparecem depois, em botão discreto. */
 export function ehAvanco(de: EstagioProspeccao, para: EstagioProspeccao) {
-  const ordem: EstagioProspeccao[] = ["NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO", "COMITE", "CONTRATO", "HABILITADO"];
+  const ordem: EstagioProspeccao[] = ["NOVA", "EM_ANALISE", "APROVADO", "DOCUMENTACAO", "COMITE", "AGUARDANDO_ACEITE", "CONTRATO", "HABILITADO"];
   const i = ordem.indexOf(de);
   const j = ordem.indexOf(para);
   return i >= 0 && j > i;

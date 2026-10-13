@@ -41,6 +41,14 @@ public sealed interface ProspeccaoAcontecimento {
                                String trecho) implements ProspeccaoAcontecimento {
     }
 
+    /** A análise aprovou: o comercial começa a juntar os documentos. */
+    record AprovadoNaAnalise(ProspeccaoEntity card, UserEntity autor, String trecho) implements ProspeccaoAcontecimento {
+    }
+
+    /** Todos os obrigatórios entregues: o card seguiu sozinho para a conferência da analista. */
+    record DocumentosCompletos(ProspeccaoEntity card, UserEntity autor) implements ProspeccaoAcontecimento {
+    }
+
     record RespostaCliente(ProspeccaoEntity card, com.portal.serasa.domain.model.prospeccao.RespostaCliente resposta,
                            UserEntity autor, String trecho) implements ProspeccaoAcontecimento {
     }

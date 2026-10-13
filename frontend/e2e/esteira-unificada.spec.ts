@@ -8,8 +8,9 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
  * Variáveis:
  *   E2E_EMAIL / E2E_SENHA  usuário do teste (padrão: o admin do DatabaseSeeder)
  *   E2E_API                base da API (padrão: http://localhost:8080)
- *   E2E_COMITE=1           o usuário está marcado como Analista e Comitê: o teste segue pelo
- *                          comitê e pelo contrato até Habilitado. Sem isso, para na Documentação.
+ *   E2E_COMITE=1           o usuário está marcado como Analista e Comitê: o teste segue pela
+ *                          documentação, comitê, aceite e contrato até Habilitado. Sem isso, para
+ *                          no Aprovado.
  *
  * O card de teste usa um CNPJ aleatório e é apagado no fim, passe ou falhe.
  */
@@ -63,7 +64,7 @@ test.describe.serial("Esteira de prospecção unificada", () => {
     if (cardId) await request.delete(`${API}/api/v1/prospeccao/${cardId}`, { headers: auth() });
   });
 
-  test("assumir, decidir com limite e registrar o aceite do cliente", async ({ page }) => {
+  test("assumir e aprovar com limite: o card vai para Aprovado, com o comercial", async ({ page }) => {
     await entrar(page);
     await abrirCard(page);
 
@@ -74,13 +75,9 @@ test.describe.serial("Esteira de prospecção unificada", () => {
     await page.getByLabel("Limite", { exact: true }).fill("500000");
     await page.getByLabel("Produto da condição 1").selectOption("DUPLICATA");
     await page.getByLabel("Valor da condição 1").fill("500000");
-    await page.getByRole("button", { name: "Aprovar e enviar ao cliente" }).click();
+    await page.getByRole("button", { name: "Aprovar e avisar o comercial" }).click();
     await expect(page.getByText("Limite aprovado: R$ 500.000,00")).toBeVisible();
-
-    await page.getByRole("button", { name: "Registrar resposta do cliente" }).first().click();
-    await page.getByRole("radio", { name: /Aceitou/ }).click();
-    await page.getByRole("button", { name: "Registrar resposta", exact: true }).click();
-    await expect(page.getByText("Documentação", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/Com o comercial: faltam \d+ obrigatório/)).toBeVisible();
   });
 
   test("pendência para o prazo e comentário entra na atividade", async ({ page }) => {
@@ -104,10 +101,11 @@ test.describe.serial("Esteira de prospecção unificada", () => {
     await expect(page.getByText("Comentário do teste de ponta a ponta").first()).toBeVisible();
   });
 
-  test("comitê, contrato e habilitado", async ({ page, request }) => {
+  test("documentos completos, comitê, aceite do cliente, contrato e habilitado", async ({ page, request }) => {
     test.skip(!COMITE, "Defina E2E_COMITE=1 com um usuário marcado como Analista e Comitê");
 
-    // Resolve o checklist pela API: anexar doze arquivos não é o que este teste verifica.
+    // Resolve o checklist pela API: anexar doze arquivos não é o que este teste verifica. Com o
+    // último obrigatório resolvido, o card sai sozinho do Aprovado para a Documentação.
     const detalhe = await (await request.get(`${API}/api/v1/prospeccao/${cardId}`, { headers: auth() })).json();
     for (const documento of detalhe.documentos) {
       await request.patch(`${API}/api/v1/prospeccao/documentos/${documento.id}`, {
@@ -127,6 +125,10 @@ test.describe.serial("Esteira de prospecção unificada", () => {
     await page.getByRole("button", { name: "Registrar resultado" }).first().click();
     await page.getByRole("radio", { name: /Aprovar/ }).click();
     await page.getByRole("button", { name: "Registrar resultado", exact: true }).last().click();
+
+    await page.getByRole("button", { name: "Registrar resposta do cliente" }).first().click();
+    await page.getByRole("radio", { name: /Aceitou/ }).click();
+    await page.getByRole("button", { name: "Registrar resposta", exact: true }).click();
 
     await page.getByRole("button", { name: "Concluir contrato" }).click();
     await page.getByLabel("Nome", { exact: true }).fill("Contato E2E");

@@ -10,8 +10,8 @@ import InputMoeda from "./InputMoeda";
 import { formatMoeda } from "./formatters";
 
 const OPCOES: { resposta: RespostaCliente; titulo: string; ajuda: string; icone: string }[] = [
-  { resposta: "ACEITO", titulo: "Aceitou", ajuda: "Segue para a documentação", icone: "check_circle" },
-  { resposta: "CONTRAPROPOSTA", titulo: "Contraproposta", ajuda: "Volta para a analista decidir de novo", icone: "swap_horiz" },
+  { resposta: "ACEITO", titulo: "Aceitou", ajuda: "Segue para o contrato", icone: "check_circle" },
+  { resposta: "CONTRAPROPOSTA", titulo: "Contraproposta", ajuda: "Volta ao comitê numa rodada nova, com o pedido do cliente", icone: "swap_horiz" },
   { resposta: "RECUSADO", titulo: "Recusou", ajuda: "Encerra o card", icone: "block" },
 ];
 

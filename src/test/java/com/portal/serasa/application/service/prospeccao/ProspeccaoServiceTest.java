@@ -186,7 +186,7 @@ class ProspeccaoServiceTest {
     @Test
     @DisplayName("entrar na documentação: completa o checklist com o que o QSA já tiver")
     void shouldCompleteChecklistWhenEnteringDocumentation() {
-        ProspeccaoEntity card = card(EstagioProspeccao.AGUARDANDO_ACEITE);
+        ProspeccaoEntity card = card(EstagioProspeccao.APROVADO);
 
         ProspeccaoEntity resultado = service.mover(
                 card.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, analista);
@@ -198,15 +198,61 @@ class ProspeccaoServiceTest {
     }
 
     @Test
-    @DisplayName("aprovar na análise leva a aguardando aceite, sem mexer no checklist")
-    void shouldMoveToAwaitingAcceptance() {
+    @DisplayName("aprovar na análise leva a Aprovado e completa o checklist para o comercial")
+    void shouldMoveToApproved() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
 
         ProspeccaoEntity resultado = service.mover(
-                card.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, analista);
+                card.getId(), EstagioProspeccao.APROVADO, null, null, analista);
 
-        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.AGUARDANDO_ACEITE);
-        verify(checklistService, never()).materializar(any());
+        assertThat(resultado.getEstagio()).isEqualTo(EstagioProspeccao.APROVADO);
+        verify(checklistService).materializar(card);
+    }
+
+    @Test
+    @DisplayName("aprovado com todos os obrigatórios entregues segue sozinho para a documentação")
+    void shouldAdvanceWhenAllRequiredDelivered() {
+        ProspeccaoEntity card = card(EstagioProspeccao.APROVADO);
+        ProspeccaoDocumentoEntity dispensado = doc("Curva ABC", true, StatusDocumento.DISPENSADO, null);
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
+                doc("Contrato social", true, StatusDocumento.RECEBIDO, null),
+                doc("IRPF", true, StatusDocumento.VALIDADO, "Antonio"),
+                dispensado,
+                // Opcional pendente não segura o card.
+                doc("Foto da fachada", false, StatusDocumento.PENDENTE, null)));
+
+        assertThat(service.seguirParaConferenciaSeCompleto(card.getId(), analista)).isTrue();
+
+        assertThat(card.getEstagio()).isEqualTo(EstagioProspeccao.DOCUMENTACAO);
+        verify(acontecimentos).publishEvent(any(ProspeccaoAcontecimento.DocumentosCompletos.class));
+    }
+
+    @Test
+    @DisplayName("aprovado com obrigatório pendente ou rejeitado fica esperando o comercial")
+    void shouldWaitWhileRequiredMissing() {
+        ProspeccaoEntity pendente = card(EstagioProspeccao.APROVADO);
+        when(documentoRepository.findByProspeccaoId(pendente.getId())).thenReturn(List.of(
+                doc("Contrato social", true, StatusDocumento.RECEBIDO, null),
+                doc("Curva ABC", true, StatusDocumento.PENDENTE, null)));
+        ProspeccaoEntity rejeitado = card(EstagioProspeccao.APROVADO);
+        when(documentoRepository.findByProspeccaoId(rejeitado.getId())).thenReturn(List.of(
+                doc("IRPF", true, StatusDocumento.REJEITADO, "Antonio")));
+
+        assertThat(service.seguirParaConferenciaSeCompleto(pendente.getId(), analista)).isFalse();
+        assertThat(service.seguirParaConferenciaSeCompleto(rejeitado.getId(), analista)).isFalse();
+        assertThat(pendente.getEstagio()).isEqualTo(EstagioProspeccao.APROVADO);
+        assertThat(rejeitado.getEstagio()).isEqualTo(EstagioProspeccao.APROVADO);
+    }
+
+    @Test
+    @DisplayName("fora do Aprovado, completar o checklist não move o card")
+    void shouldNotAdvanceOutsideApproved() {
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
+        when(documentoRepository.findByProspeccaoId(card.getId())).thenReturn(List.of(
+                doc("Contrato social", true, StatusDocumento.VALIDADO, null)));
+
+        assertThat(service.seguirParaConferenciaSeCompleto(card.getId(), analista)).isFalse();
+        verify(acontecimentos, never()).publishEvent(any(ProspeccaoAcontecimento.DocumentosCompletos.class));
     }
 
     @Test
@@ -215,12 +261,12 @@ class ProspeccaoServiceTest {
         ProspeccaoEntity emAnalise = card(EstagioProspeccao.EM_ANALISE);
         ProspeccaoEntity aguardando = card(EstagioProspeccao.AGUARDANDO_ACEITE);
 
-        assertThatThrownBy(() -> service.transicionar(emAnalise.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, analista))
+        assertThatThrownBy(() -> service.transicionar(emAnalise.getId(), EstagioProspeccao.APROVADO, null, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("decisão");
         assertThatThrownBy(() -> service.transicionar(emAnalise.getId(), EstagioProspeccao.REPROVADO,
                 MotivoRecusa.SEGMENTO, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("decisão");
-        assertThatThrownBy(() -> service.transicionar(aguardando.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, analista))
+        assertThatThrownBy(() -> service.transicionar(aguardando.getId(), EstagioProspeccao.CONTRATO, null, null, analista))
                 .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("resposta do cliente");
         // Devolver para Nova e mover para inerte continuam sendo troca simples.
         assertThat(service.transicionar(emAnalise.getId(), EstagioProspeccao.NOVA, null, null, analista).getEstagio())

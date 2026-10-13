@@ -11,8 +11,8 @@ Para quem acompanha a prospecção no portal: comercial, analista de crédito e 
 
 A esteira substitui as abas \`VISÃO CEDENTE\` e \`DOC'S PENDENTES\` da planilha
 \`CONTROLE DE EMPRESAS\` e absorve o fluxo do antigo Portal Comercial. Cada empresa vira um
-card, e o card anda da abertura até o cedente habilitado: análise, aceite do cliente,
-documentação, comitê e contrato.
+card, e o card anda da abertura até o cedente habilitado: análise, aprovação, documentação,
+comitê, aceite do cliente e contrato.
 
 A tela está marcada como **beta**: o fluxo ainda pode mudar conforme o time usar.
 
@@ -51,10 +51,11 @@ limita o tamanho do lote, porque não há como desfazer em massa.
 |---|---|
 | **Nova** | Chegou. Ninguém pegou ainda. |
 | **Em análise** | Uma analista assumiu e é a dona do card até o fim. |
-| **Aguardando aceite** | Aprovado pela analista; falta o cliente responder. |
-| **Documentação** | Coleta e conferência dos documentos. |
+| **Aprovado** | A analista aprovou; o comercial junta os documentos do cliente. |
+| **Documentação** | Chegaram todos os documentos; a analista confere. |
 | **Comitê** | O comitê avalia a empresa. |
-| **Contrato** | Aprovado no comitê; falta fechar o contrato. |
+| **Aguardando aceite** | Aprovado no comitê; falta o cliente responder à proposta. |
+| **Contrato** | O cliente aceitou; falta fechar o contrato. |
 
 Os **desfechos** — Habilitado, Reprovado, Recusado pelo cliente e Inerte — ficam na faixa
 recolhível no pé da página, com o motivo ao lado. Aparecem por 90 dias.
@@ -72,26 +73,21 @@ ninguém trabalha em dobro sem saber.
 
 **Andar com o card.** No topo do card, a trilha mostra por onde ele passou e quando. Logo
 abaixo, os botões mostram só o que vale naquele estágio: o próximo passo em destaque, e ao
-lado os retrocessos (devolver, contraproposta, comitê devolveu) e as saídas. **Reprovar** e
+lado os retrocessos (devolver, devolver ao comercial, contraproposta, comitê devolveu) e as saídas. **Reprovar** e
 **Mover para inerte** pedem o motivo de uma lista fechada; se escolher "Outro", descreva.
 
 **Decidir.** Em análise, quem assumiu o card clica em **Decidir** — só ela (ou o admin) pode.
 Para **aprovar**: limite, condições por produto (duplicata, cheque próprio…, quantas linhas
 quiser) e parecer. Se a soma das condições passar do limite, o sistema avisa mas deixa seguir.
 Para **reprovar**: motivo da lista fechada e, se quiser, parecer. Arrastar o card para
-*Aguardando aceite* abre a mesma janela — a aprovação não anda sem limite e condições.
+*Aprovado* abre a mesma janela — a aprovação não anda sem limite e condições.
 
-**Resposta do cliente.** Em Aguardando aceite, **Registrar resposta do cliente**:
-
-| Resposta | O que acontece |
-|---|---|
-| **Aceitou** | O card segue para Documentação. |
-| **Contraproposta** | Volta para Em análise com o pedido do cliente (mensagem, limite e produtos que ele quer). A analista decide de novo: a janela já vem com a proposta anterior. |
-| **Recusou** | O card encerra em *Recusado pelo cliente*. |
-
-Cada decisão fica guardada: a nova não apaga a anterior. A aba **Decisão e aceite** mostra a
-proposta vigente e o histórico da negociação. Enquanto não há acesso do comercial ao portal,
-quem registra a resposta é a equipe; o histórico marca "pelo comercial".
+**Aprovado: juntar os documentos.** Aprovado na análise, o comercial recebe aviso e anexa os
+documentos do checklist (aba *Documentos*). O card mostra quantos obrigatórios **faltam**. Quando o
+último obrigatório é anexado — ou marcado como dispensado ou não aplicável —, o card **segue sozinho
+para Documentação** e a dona recebe aviso para conferir. Se os documentos chegaram por outro
+caminho, a dona pode clicar em **Enviar para conferência**. Na Documentação, se algo estiver
+errado, **Devolver ao comercial** leva o card de volta para Aprovado.
 
 **Dados comerciais.** Aba *Dados comerciais* do card: faturamento, ticket médio, prazos,
 região, produtos e parceiros. Edite e clique em **Salvar**; a alteração fica no histórico.
@@ -121,19 +117,34 @@ dona ou um membro do comitê clica em **Registrar resultado**:
 
 | Resultado | O que acontece |
 |---|---|
-| **Aprovar** | O card segue para Contrato. |
+| **Aprovar** | O card segue para Aguardando aceite e o comercial é avisado para colher a resposta do cliente. |
 | **Devolver** | Volta para Em análise; a analista decide de novo e o card refaz o caminho. |
 | **Reprovar** | Encerra, com motivo da lista. |
 
-Quem não deu parecer fica dito no histórico. Voltar do Contrato para o Comitê abre rodada nova.
+Ao aprovar, o comitê mantém a proposta da análise ou marca **Ajustar limite e condições** e grava a
+dele — é a essa proposta que o cliente responde. Quem não deu parecer fica dito no histórico.
+Voltar do Contrato para o Comitê abre rodada nova.
+
+**Resposta do cliente.** Em Aguardando aceite, **Registrar resposta do cliente**:
+
+| Resposta | O que acontece |
+|---|---|
+| **Aceitou** | O card segue para Contrato. |
+| **Contraproposta** | Volta ao Comitê numa rodada nova, com o pedido do cliente (mensagem, limite e produtos que ele quer) à vista de quem decide. Os documentos já conferidos não se repetem. |
+| **Recusou** | O card encerra em *Recusado pelo cliente*. |
+
+Cada decisão fica guardada: a nova não apaga a anterior. A aba **Decisão e aceite** mostra a
+proposta vigente e o histórico da negociação. Enquanto não há acesso do comercial ao portal,
+quem registra a resposta é a equipe; o histórico marca "pelo comercial".
 
 **Contrato.** Na aba **Contrato**, preencha nome, telefone e e-mail de quem assina pelo cliente e
 salve. Com os três preenchidos, a dona clica em **Concluir: habilitado** — o card sai da esteira
 e as operações do cedente seguem na esteira de liberação.
 
-**Avisos.** O sino avisa a dona do card quando uma pendência é respondida e quando o cliente
-responde à proposta; os membros do comitê são avisados quando o card chega para parecer, e a dona
-quando o comitê completa a rodada e quando sai o resultado; as analistas recebem aviso de prospecção aberta à mão (as que entram pela
+**Avisos.** O sino avisa a dona do card quando uma pendência é respondida, quando os documentos
+ficam completos e quando o cliente responde à proposta; o comercial, quando o card é aprovado na
+análise e quando é aprovado no comitê; os membros do comitê, quando o card chega para parecer, e a
+dona quando o comitê completa a rodada e quando sai o resultado; as analistas recebem aviso de prospecção aberta à mão (as que entram pela
 visão cedente não avisam, porque chegam em lote). O e-mail segue a mesma preferência da esteira de
 liberação, em *Configurações*.
 
@@ -154,7 +165,7 @@ teclado: Tab até o card, Espaço pega e solta; Enter abre.
 Prazos da análise: **12 horas úteis** para alguém pegar e **24 horas úteis** para decidir.
 Fim de semana e feriado nacional não contam.
 
-**Aguardando aceite e Documentação não têm prazo** — quem responde é o cliente. O que corre
+**Aprovado, Documentação e Aguardando aceite não têm prazo** — quem responde é o cliente. O que corre
 ali é o silêncio, em dias corridos: **30 dias** sem retorno deixa o card âmbar, **45 dias**
 marca para inerte. O sistema **sugere**; quem decide é o analista.
 
@@ -169,7 +180,7 @@ Quando a participação no capital é conhecida, ela aparece ao lado do nome, e 
 de 15%** já nasce fora do checklist, com o motivo. Na maioria das empresas o percentual não é
 conhecido — a Receita não publica esse dado —, então o bloco nasce ativo e vocês tiram quem não
 interessa. Se o quadro societário ainda não estava carregado quando o card nasceu, o bloco de
-sócios é completado quando o card entra em Documentação.
+sócios é completado quando o card é aprovado e de novo quando entra em Documentação.
 
 **Avalista** entra pelo botão *adicionar avalista*, no fim do checklist. Recebe os mesmos itens
 do sócio. Ele não vem automático porque não consta do quadro societário.

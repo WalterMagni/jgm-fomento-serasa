@@ -48,7 +48,8 @@ public class ProspeccaoNotificador {
     static final Set<TipoNotificacao> POR_EMAIL = EnumSet.of(
             TipoNotificacao.CARD_CRIADO, TipoNotificacao.PENDENCIA_ABERTA, TipoNotificacao.PENDENCIA_RESPONDIDA,
             TipoNotificacao.MENCAO, TipoNotificacao.RESPOSTA_CLIENTE,
-            TipoNotificacao.PARECER_ESPERADO, TipoNotificacao.COMITE_COMPLETO, TipoNotificacao.DECISAO);
+            TipoNotificacao.PARECER_ESPERADO, TipoNotificacao.COMITE_COMPLETO, TipoNotificacao.DECISAO,
+            TipoNotificacao.DOCUMENTOS_COMPLETOS);
 
     private final NotificacaoService notificacaoService;
     private final SseHub hub;
@@ -102,6 +103,17 @@ public class ProspeccaoNotificador {
         } else if (acontecimento instanceof ProspeccaoAcontecimento.PendenciaRespondida respondida) {
             novas.add(new Nova(respondida.pendencia().getAbertaPor(), TipoNotificacao.PENDENCIA_RESPONDIDA,
                     autor + " respondeu a pendência de " + empresa, resumo(card, acontecimento.trecho()), link));
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.AprovadoNaAnalise) {
+            // O comercial começa a juntar os documentos do cliente.
+            if (card.getComercialId() != null) {
+                novas.add(new Nova(card.getComercialId(), TipoNotificacao.DECISAO,
+                        empresa + " aprovada na análise: junte os documentos", resumo(card, acontecimento.trecho()), link));
+            }
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.DocumentosCompletos) {
+            if (card.getAnalistaId() != null) {
+                novas.add(new Nova(card.getAnalistaId(), TipoNotificacao.DOCUMENTOS_COMPLETOS,
+                        "Documentos de " + empresa + " completos: confira", resumo(card, null), link));
+            }
         } else if (acontecimento instanceof ProspeccaoAcontecimento.RespostaCliente resposta) {
             String verbo = switch (resposta.resposta()) {
                 case ACEITO -> "aceitou a proposta";
@@ -137,6 +149,10 @@ public class ProspeccaoNotificador {
             List<UUID> interessados = new ArrayList<>();
             interessados.add(card.getAnalistaId());
             interessados.addAll(decidiu.membros());
+            // Aprovado no comitê, a proposta vai ao cliente: o comercial colhe o aceite.
+            if (decidiu.resultado() == com.portal.serasa.domain.model.prospeccao.ResultadoComite.APROVADO) {
+                interessados.add(card.getComercialId());
+            }
             interessados.stream().filter(Objects::nonNull).distinct()
                     .forEach(id -> novas.add(new Nova(id, TipoNotificacao.DECISAO, titulo, resumo(card, acontecimento.trecho()), link)));
         } else if (acontecimento instanceof ProspeccaoAcontecimento.Concluido) {

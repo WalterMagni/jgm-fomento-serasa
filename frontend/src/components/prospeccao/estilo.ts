@@ -3,10 +3,11 @@ import type { CanalContato, EstagioProspeccao } from "@/types/prospeccao";
 /**
  * Identidade visual de cada estágio da esteira.
  *
- * <p>As cores contam o caminho: cinza na entrada, azul de análise (o mesmo do CNPJ Já), laranja da
- * marca enquanto a bola está com o cliente, verde-azulado na coleta, bordô da casa no comitê —
- * que é a decisão da JGM — e verde do contrato em diante. Desfecho negativo é rosa; inerte volta
- * ao cinza. {@code hex} alimenta a variável CSS das animações da trilha.</p>
+ * <p>As cores contam o caminho: cinza na entrada, azul de análise (o mesmo do CNPJ Já), verde-limão
+ * no aprovado (o comercial junta os documentos), verde-azulado na conferência, bordô da casa no
+ * comitê — que é a decisão da JGM —, laranja da marca enquanto a proposta está com o cliente e verde
+ * do contrato em diante. Desfecho negativo é rosa; inerte volta ao cinza. {@code hex} alimenta a
+ * variável CSS das animações da trilha.</p>
  */
 export const COR_ESTAGIO: Record<
   EstagioProspeccao,
@@ -27,6 +28,14 @@ export const COR_ESTAGIO: Record<
     fundo: "bg-[#2956E0]/8 dark:bg-[#2956E0]/20",
     anel: "ring-[#2956E0]/45",
     chip: "bg-[#2956E0]/10 text-[#1f43b8] ring-[#2956E0]/30 dark:bg-[#2956E0]/25 dark:text-[#c3d1ff] dark:ring-[#2956E0]/50",
+  },
+  APROVADO: {
+    hex: "#65a30d",
+    faixa: "bg-lime-600",
+    texto: "text-lime-700 dark:text-lime-300",
+    fundo: "bg-lime-50 dark:bg-lime-900/30",
+    anel: "ring-lime-500/45",
+    chip: "bg-lime-50 text-lime-800 ring-lime-300 dark:bg-lime-900/40 dark:text-lime-100 dark:ring-lime-700",
   },
   AGUARDANDO_ACEITE: {
     hex: "#D1732C",

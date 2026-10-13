@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.AGUARDANDO_ACEITE;
+import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.APROVADO;
 import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.COMITE;
 import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.CONTRATO;
 import static com.portal.serasa.domain.model.prospeccao.EstagioProspeccao.DOCUMENTACAO;
@@ -24,28 +25,32 @@ class EstagioProspeccaoTest {
     @DisplayName("caminho feliz: nova até habilitado")
     void shouldAllowHappyPath() {
         assertThat(NOVA.aceita(EM_ANALISE)).isTrue();
-        assertThat(EM_ANALISE.aceita(AGUARDANDO_ACEITE)).isTrue();
-        assertThat(AGUARDANDO_ACEITE.aceita(DOCUMENTACAO)).isTrue();
+        assertThat(EM_ANALISE.aceita(APROVADO)).isTrue();
+        assertThat(APROVADO.aceita(DOCUMENTACAO)).isTrue();
         assertThat(DOCUMENTACAO.aceita(COMITE)).isTrue();
-        assertThat(COMITE.aceita(CONTRATO)).isTrue();
+        assertThat(COMITE.aceita(AGUARDANDO_ACEITE)).isTrue();
+        assertThat(AGUARDANDO_ACEITE.aceita(CONTRATO)).isTrue();
         assertThat(CONTRATO.aceita(HABILITADO)).isTrue();
     }
 
     @Test
-    @DisplayName("não dá para pular decisão, aceite, documentação nem comitê")
+    @DisplayName("não dá para pular decisão, documentação, comitê nem aceite")
     void shouldRejectSkippingStages() {
-        assertThat(NOVA.aceita(AGUARDANDO_ACEITE)).isFalse();
+        assertThat(NOVA.aceita(APROVADO)).isFalse();
         assertThat(EM_ANALISE.aceita(DOCUMENTACAO)).isFalse();
-        assertThat(AGUARDANDO_ACEITE.aceita(COMITE)).isFalse();
-        assertThat(DOCUMENTACAO.aceita(CONTRATO)).isFalse();
-        assertThat(COMITE.aceita(HABILITADO)).isFalse();
+        assertThat(APROVADO.aceita(COMITE)).isFalse();
+        assertThat(DOCUMENTACAO.aceita(AGUARDANDO_ACEITE)).isFalse();
+        assertThat(COMITE.aceita(CONTRATO)).isFalse();
+        assertThat(AGUARDANDO_ACEITE.aceita(HABILITADO)).isFalse();
     }
 
     @Test
-    @DisplayName("retrocessos declarados: devolver, contraproposta, comitê devolve, contrato volta")
+    @DisplayName("retrocessos declarados: devolver, documentação ao comercial, contraproposta ao comitê, comitê devolve, contrato volta")
     void shouldAllowDeclaredBacksteps() {
         assertThat(EM_ANALISE.aceita(NOVA)).isTrue();
-        assertThat(AGUARDANDO_ACEITE.aceita(EM_ANALISE)).isTrue();
+        assertThat(APROVADO.aceita(EM_ANALISE)).isTrue();
+        assertThat(DOCUMENTACAO.aceita(APROVADO)).isTrue();
+        assertThat(AGUARDANDO_ACEITE.aceita(COMITE)).isTrue();
         assertThat(DOCUMENTACAO.aceita(EM_ANALISE)).isTrue();
         assertThat(COMITE.aceita(EM_ANALISE)).isTrue();
         assertThat(CONTRATO.aceita(COMITE)).isTrue();
@@ -62,7 +67,7 @@ class EstagioProspeccaoTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO"})
+    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "APROVADO", "DOCUMENTACAO", "AGUARDANDO_ACEITE"})
     @DisplayName("inerte é possível enquanto o cliente ainda pode sumir")
     void shouldAllowInertWhileClientCanVanish(EstagioProspeccao estagio) {
         assertThat(estagio.aceita(INERTE)).isTrue();
@@ -77,7 +82,7 @@ class EstagioProspeccaoTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO", "COMITE", "CONTRATO"})
+    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "APROVADO", "DOCUMENTACAO", "COMITE", "AGUARDANDO_ACEITE", "CONTRATO"})
     @DisplayName("estágios de trabalho não são terminais")
     void shouldNotMarkWorkStagesAsTerminal(EstagioProspeccao estagio) {
         assertThat(estagio.terminal()).isFalse();
@@ -102,8 +107,9 @@ class EstagioProspeccaoTest {
     }
 
     @Test
-    @DisplayName("silêncio corre onde quem deve resposta é o cliente: aceite e documentação")
+    @DisplayName("silêncio corre onde quem deve resposta é o cliente: aprovado, documentação e aceite")
     void shouldCountSilenceWhereClientOwesAnswer() {
+        assertThat(APROVADO.contaSilencio()).isTrue();
         assertThat(AGUARDANDO_ACEITE.contaSilencio()).isTrue();
         assertThat(DOCUMENTACAO.contaSilencio()).isTrue();
         assertThat(EM_ANALISE.contaSilencio()).isFalse();
@@ -120,11 +126,14 @@ class EstagioProspeccaoTest {
     @Test
     @DisplayName("sair da análise e do aceite exige a ação própria; o resto é troca simples")
     void shouldFlagDedicatedActions() {
-        assertThat(EM_ANALISE.acaoPropria(AGUARDANDO_ACEITE)).contains("decisão");
+        assertThat(EM_ANALISE.acaoPropria(APROVADO)).contains("decisão");
         assertThat(EM_ANALISE.acaoPropria(REPROVADO)).contains("decisão");
-        assertThat(AGUARDANDO_ACEITE.acaoPropria(DOCUMENTACAO)).contains("cliente");
+        assertThat(AGUARDANDO_ACEITE.acaoPropria(CONTRATO)).contains("cliente");
         assertThat(AGUARDANDO_ACEITE.acaoPropria(RECUSADO_CLIENTE)).contains("cliente");
-        assertThat(AGUARDANDO_ACEITE.acaoPropria(EM_ANALISE)).contains("cliente");
+        // Contraproposta volta ao comitê pela resposta do cliente, não pelo envio comum.
+        assertThat(AGUARDANDO_ACEITE.acaoPropria(COMITE)).contains("cliente");
+        assertThat(APROVADO.acaoPropria(DOCUMENTACAO)).isNull();
+        assertThat(DOCUMENTACAO.acaoPropria(APROVADO)).isNull();
         assertThat(EM_ANALISE.acaoPropria(NOVA)).isNull();
         assertThat(EM_ANALISE.acaoPropria(INERTE)).isNull();
         assertThat(DOCUMENTACAO.acaoPropria(EM_ANALISE)).isNull();
@@ -135,7 +144,7 @@ class EstagioProspeccaoTest {
     @DisplayName("comitê e contrato: entrar convoca, sair é resultado, concluir exige contrato")
     void shouldFlagCommitteeActions() {
         assertThat(DOCUMENTACAO.acaoPropria(COMITE)).contains("comitê");
-        assertThat(COMITE.acaoPropria(CONTRATO)).contains("resultado");
+        assertThat(COMITE.acaoPropria(AGUARDANDO_ACEITE)).contains("resultado");
         assertThat(COMITE.acaoPropria(EM_ANALISE)).contains("resultado");
         assertThat(COMITE.acaoPropria(REPROVADO)).contains("resultado");
         assertThat(CONTRATO.acaoPropria(HABILITADO)).contains("contrato");

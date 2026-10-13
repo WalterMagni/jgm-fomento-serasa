@@ -48,6 +48,7 @@ class ProspeccaoComiteServiceTest {
     @Mock private ProspeccaoParecerJpaRepository parecerRepository;
     @Mock private UserRepository userRepository;
     @Mock private ApplicationEventPublisher acontecimentos;
+    @Mock private ProspeccaoDecisaoService decisaoService;
 
     private ProspeccaoComiteService service;
     private UserEntity dona;
@@ -57,8 +58,11 @@ class ProspeccaoComiteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ProspeccaoComiteService(prospeccaoService, new ProspeccaoAutorizacao(), prospeccaoRepository,
+        // A rodada é a de verdade, sobre os mesmos mocks: o envio ao comitê continua testado por inteiro.
+        ProspeccaoRodadaComite rodada = new ProspeccaoRodadaComite(prospeccaoService, prospeccaoRepository,
                 parecerRepository, userRepository, acontecimentos);
+        service = new ProspeccaoComiteService(prospeccaoService, new ProspeccaoAutorizacao(), prospeccaoRepository,
+                parecerRepository, acontecimentos, rodada, decisaoService);
         dona = UserEntity.builder().id(UUID.randomUUID()).name("Andressa").role("ROLE_USER").build();
         membro = UserEntity.builder().id(UUID.randomUUID()).name("Mychelly").role("ROLE_USER").comite(true).build();
         estranha = UserEntity.builder().id(UUID.randomUUID()).name("Joana").role("ROLE_USER").build();
@@ -149,7 +153,24 @@ class ProspeccaoComiteServiceTest {
     }
 
     @Test
-    @DisplayName("resultado: aprovado leva ao contrato e diz no histórico quem não deu parecer")
+    @DisplayName("resultado: aprovar ajustando limite e condições grava a proposta do comitê")
+    void shouldApproveWithAdjustedProposal() {
+        card.setEstagio(EstagioProspeccao.COMITE);
+        card.setRodadaComite(1);
+        when(parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(card.getId(), 1))
+                .thenReturn(List.of(parecer(membro, PosicaoParecer.FAVORAVEL)));
+        var condicoes = List.of(new ProspeccaoDecisaoService.Condicao("DUPLICATA", new java.math.BigDecimal("300000")));
+
+        service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, "Limite menor",
+                new ProspeccaoComiteService.AjusteProposta(new java.math.BigDecimal("300000"), condicoes), membro);
+
+        verify(decisaoService).ajustarPeloComite(eq(card.getId()), eq(new java.math.BigDecimal("300000")), eq(condicoes),
+                eq("Limite menor"), eq(membro));
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, "Limite menor", membro);
+    }
+
+    @Test
+    @DisplayName("resultado: aprovado leva ao aceite do cliente e diz no histórico quem não deu parecer")
     void shouldApproveAndRecordMissing() {
         card.setEstagio(EstagioProspeccao.COMITE);
         card.setRodadaComite(1);
@@ -159,8 +180,10 @@ class ProspeccaoComiteServiceTest {
 
         service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null, membro);
 
-        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.CONTRATO, null, null, membro);
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, membro);
         verify(parecerRepository).apagarAguardando(card.getId(), 1);
+        // Sem ajuste, vale a proposta da análise.
+        verify(decisaoService, org.mockito.Mockito.never()).ajustarPeloComite(any(), any(), any(), any(), any());
         ArgumentCaptor<String> texto = ArgumentCaptor.forClass(String.class);
         verify(prospeccaoService).registrarEvento(any(), any(), isNull(), isNull(), isNull(), texto.capture(), eq(membro));
         assertThat(texto.getValue()).contains("Aprovado no comitê").contains("sem o parecer de Diretoria");

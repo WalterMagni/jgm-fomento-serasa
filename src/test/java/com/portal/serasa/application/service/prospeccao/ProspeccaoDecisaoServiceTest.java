@@ -51,6 +51,7 @@ class ProspeccaoDecisaoServiceTest {
     @Mock private ProspeccaoDecisaoCondicaoJpaRepository condicaoRepository;
     @Mock private ProspeccaoAceiteJpaRepository aceiteRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher acontecimentos;
+    @Mock private ProspeccaoRodadaComite rodadaComite;
 
     private final ProspeccaoAutorizacao autorizacao = new ProspeccaoAutorizacao();
     private ProspeccaoDecisaoService service;
@@ -59,7 +60,7 @@ class ProspeccaoDecisaoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ProspeccaoDecisaoService(prospeccaoService, autorizacao, decisaoRepository, condicaoRepository, aceiteRepository, acontecimentos);
+        service = new ProspeccaoDecisaoService(prospeccaoService, autorizacao, decisaoRepository, condicaoRepository, aceiteRepository, acontecimentos, rodadaComite);
         dona = UserEntity.builder().id(UUID.randomUUID()).name("Andressa").role("ROLE_USER").build();
         outra = UserEntity.builder().id(UUID.randomUUID()).name("Mychelly").role("ROLE_USER").build();
         when(decisaoRepository.save(any())).thenAnswer(inv -> {
@@ -87,7 +88,7 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     @Test
-    @DisplayName("aprovar: grava decisão vigente com condições e leva o card a aguardando aceite")
+    @DisplayName("aprovar: grava decisão vigente com condições, leva o card a Aprovado e avisa o comercial")
     void shouldApproveWithConditions() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
         when(decisaoRepository.ultimaVersao(card.getId())).thenReturn(0);
@@ -101,7 +102,25 @@ class ProspeccaoDecisaoServiceTest {
         assertThat(completa.decisao().getLimite()).isEqualByComparingTo("500000");
         assertThat(completa.condicoes()).extracting("produto").containsExactly("DUPLICATA", "CHEQUE PRÓPRIO");
         verify(decisaoRepository).encerrarVigencia(card.getId());
-        verify(prospeccaoService).mover(eq(card.getId()), eq(EstagioProspeccao.AGUARDANDO_ACEITE), isNull(), isNull(), eq(dona));
+        verify(prospeccaoService).mover(eq(card.getId()), eq(EstagioProspeccao.APROVADO), isNull(), isNull(), eq(dona));
+        verify(acontecimentos).publishEvent(any(ProspeccaoAcontecimento.AprovadoNaAnalise.class));
+    }
+
+    @Test
+    @DisplayName("comitê ajusta a proposta: decisão nova vigente, sem mover o card")
+    void shouldRecordCommitteeAdjustment() {
+        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
+        when(decisaoRepository.ultimaVersao(card.getId())).thenReturn(1);
+
+        var completa = service.ajustarPeloComite(card.getId(), new BigDecimal("300000"),
+                List.of(new Condicao("DUPLICATA", new BigDecimal("300000"))), "Reduzido pelo comitê", dona);
+
+        assertThat(completa.decisao().getVersao()).isEqualTo(2);
+        assertThat(completa.decisao().getLimite()).isEqualByComparingTo("300000");
+        verify(decisaoRepository).encerrarVigencia(card.getId());
+        verify(prospeccaoService, never()).mover(any(), any(), any(), any(), any());
+        assertThatThrownBy(() -> service.ajustarPeloComite(card.getId(), BigDecimal.ZERO, List.of(), null, dona))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -189,7 +208,7 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     @Test
-    @DisplayName("aceite: cliente aceitou leva à documentação, marcado como em nome do comercial")
+    @DisplayName("aceite: cliente aceitou leva ao contrato, marcado como em nome do comercial")
     void shouldAcceptOnBehalfOfCommercial() {
         ProspeccaoEntity card = card(EstagioProspeccao.AGUARDANDO_ACEITE);
         card.setComercialNome("Gustavo");
@@ -200,12 +219,12 @@ class ProspeccaoDecisaoServiceTest {
 
         assertThat(aceite.getDecisaoId()).isEqualTo(decisao.getId());
         assertThat(aceite.getEmNomeDoComercial()).isTrue();
-        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.DOCUMENTACAO, null, null, dona);
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.CONTRATO, null, null, dona);
     }
 
     @Test
-    @DisplayName("contraproposta: exige mensagem e devolve à análise com o pedido do cliente")
-    void shouldReturnToAnalysisOnCounterOffer() {
+    @DisplayName("contraproposta: exige mensagem e volta ao comitê numa rodada nova, com o pedido do cliente")
+    void shouldReturnToCommitteeOnCounterOffer() {
         ProspeccaoEntity card = card(EstagioProspeccao.AGUARDANDO_ACEITE);
         vigente(card, ResultadoDecisao.APROVADO);
 
@@ -221,7 +240,8 @@ class ProspeccaoDecisaoServiceTest {
         assertThat(aceite.getLimiteSugerido()).isEqualByComparingTo("2000");
         // Linha incompleta do formulário não vira pedido do cliente.
         assertThat(aceite.getCondicoesSugeridas()).hasSize(1);
-        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.EM_ANALISE, null, null, dona);
+        verify(rodadaComite).abrir(eq(card.getId()), any(), eq(dona));
+        verify(prospeccaoService, never()).mover(any(), any(), any(), any(), any());
     }
 
     @Test

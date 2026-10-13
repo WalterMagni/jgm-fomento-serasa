@@ -8,7 +8,8 @@ export type TipoNotificacao =
   | "MENCAO"
   | "COMENTARIO"
   | "DECISAO"
-  | "RESPOSTA_CLIENTE";
+  | "RESPOSTA_CLIENTE"
+  | "DOCUMENTOS_COMPLETOS";
 
 export type Notificacao = {
   id: string;

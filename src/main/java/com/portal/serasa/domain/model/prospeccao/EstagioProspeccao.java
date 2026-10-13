@@ -8,7 +8,8 @@ import java.util.Set;
  *
  * <p>Junta dois fluxos: a análise e a documentação da esteira original (V56) e a decisão com
  * limite, o aceite do cliente, o comitê e o contrato do Portal Comercial. Design em
- * {@code docs/plans/2026-10-11-esteira-unificada-design.md}.</p>
+ * {@code docs/plans/2026-10-11-esteira-unificada-design.md}; a ordem atual (Aprovado antes da
+ * documentação, aceite depois do comitê) em {@code docs/plans/2026-10-13-esteira-aprovado-design.md}.</p>
  *
  * <p>A máquina de estados fica declarada aqui, e não espalhada pelo serviço, para que a regra
  * seja legível de uma vez só. Ela valida o <b>avanço</b> e permite <b>retrocessos declarados</b>:
@@ -27,25 +28,28 @@ public enum EstagioProspeccao {
     EM_ANALISE(24),
 
     /**
-     * A analista aprovou com limite e condições; falta o cliente responder.
+     * A analista aprovou com limite e condições; o comercial junta os documentos do cliente.
      *
-     * <p>Sem prazo de relógio: quem responde é o cliente, via comercial. O que corre é o
-     * silêncio, como na documentação.</p>
+     * <p>Sem prazo de relógio: depende do cliente enviar. Corre o silêncio — trinta dias corridos
+     * sem retorno é atenção, quarenta e cinco encaminha para inerte. Com todos os obrigatórios
+     * anexados o card segue sozinho para a documentação.</p>
      */
-    AGUARDANDO_ACEITE(0),
+    APROVADO(0),
 
-    /**
-     * Coleta e conferência documental.
-     *
-     * <p>Sem prazo de propósito: depende do cliente enviar. Trinta dias corridos sem retorno é
-     * atenção, quarenta e cinco encaminha para inerte.</p>
-     */
+    /** A analista confere os documentos e envia ao comitê. */
     DOCUMENTACAO(0),
 
     /** Os membros do comitê dão parecer na rodada vigente. */
     COMITE(0),
 
-    /** Aprovado pelo comitê; a analista fecha o contrato. */
+    /**
+     * Aprovado pelo comitê; falta o cliente responder à proposta.
+     *
+     * <p>Sem prazo de relógio: quem responde é o cliente, via comercial. O que corre é o silêncio.</p>
+     */
+    AGUARDANDO_ACEITE(0),
+
+    /** O cliente aceitou; a analista fecha o contrato. */
     CONTRATO(0),
 
     /** Fim do fluxo: cedente pronto para operar. Daqui em diante vive na esteira de liberação. */
@@ -92,7 +96,7 @@ public enum EstagioProspeccao {
 
     /** Estágios em que quem deve resposta é o cliente: ali corre o relógio de silêncio. */
     public boolean contaSilencio() {
-        return this == AGUARDANDO_ACEITE || this == DOCUMENTACAO;
+        return this == APROVADO || this == DOCUMENTACAO || this == AGUARDANDO_ACEITE;
     }
 
     /** Sair daqui exige motivo preenchido. */
@@ -104,8 +108,8 @@ public enum EstagioProspeccao {
      * Destinos válidos a partir deste estágio.
      *
      * <p>INERTE é destino de todo estágio em que o cliente ainda pode sumir. Os retrocessos
-     * (devolver para NOVA, voltar da documentação para a análise, voltar do contrato para o
-     * comitê) corrigem engano de operação sem exigir card novo.</p>
+     * (devolver para NOVA, voltar para a análise, devolver a documentação ao comercial, voltar do
+     * contrato para o comitê) corrigem engano de operação sem exigir card novo.</p>
      *
      * <p>Terminais não têm destino: voltam só por reabertura, que é transição própria e
      * incrementa o contador de reaberturas.</p>
@@ -113,10 +117,11 @@ public enum EstagioProspeccao {
     public Set<EstagioProspeccao> destinos() {
         return switch (this) {
             case NOVA -> EnumSet.of(EM_ANALISE, INERTE);
-            case EM_ANALISE -> EnumSet.of(AGUARDANDO_ACEITE, REPROVADO, NOVA, INERTE);
-            case AGUARDANDO_ACEITE -> EnumSet.of(DOCUMENTACAO, RECUSADO_CLIENTE, EM_ANALISE, INERTE);
-            case DOCUMENTACAO -> EnumSet.of(COMITE, EM_ANALISE, INERTE);
-            case COMITE -> EnumSet.of(CONTRATO, EM_ANALISE, REPROVADO);
+            case EM_ANALISE -> EnumSet.of(APROVADO, REPROVADO, NOVA, INERTE);
+            case APROVADO -> EnumSet.of(DOCUMENTACAO, EM_ANALISE, INERTE);
+            case DOCUMENTACAO -> EnumSet.of(COMITE, APROVADO, EM_ANALISE, INERTE);
+            case COMITE -> EnumSet.of(AGUARDANDO_ACEITE, EM_ANALISE, REPROVADO);
+            case AGUARDANDO_ACEITE -> EnumSet.of(CONTRATO, RECUSADO_CLIENTE, COMITE, INERTE);
             case CONTRATO -> EnumSet.of(HABILITADO, COMITE);
             case HABILITADO, REPROVADO, RECUSADO_CLIENTE, INERTE -> EnumSet.noneOf(EstagioProspeccao.class);
         };
@@ -131,17 +136,18 @@ public enum EstagioProspeccao {
      * estágio não carrega.
      *
      * <p>Sair da análise aprovando ou reprovando é a <b>decisão</b> — limite, condições, parecer.
-     * Sair do aceite é a <b>resposta do cliente</b>, que fica registrada. Entrar no comitê convoca os
-     * membros; sair dele é o <b>resultado</b>, que exige parecer; concluir exige o contato do
-     * contrato. Arrastar o card não pode pular esses registros.</p>
+     * Entrar no comitê convoca os membros; sair dele é o <b>resultado</b>, que exige parecer. Sair
+     * do aceite é a <b>resposta do cliente</b>, que fica registrada — a contraproposta volta ao
+     * comitê numa rodada nova. Concluir exige o contato do contrato. Arrastar o card não pode pular
+     * esses registros.</p>
      *
      * @return o nome da ação que deve ser usada, ou nulo quando a troca simples basta
      */
     public String acaoPropria(EstagioProspeccao destino) {
-        if (this == EM_ANALISE && (destino == AGUARDANDO_ACEITE || destino == REPROVADO)) {
+        if (this == EM_ANALISE && (destino == APROVADO || destino == REPROVADO)) {
             return "a decisão da análise";
         }
-        if (this == AGUARDANDO_ACEITE && (destino == DOCUMENTACAO || destino == RECUSADO_CLIENTE || destino == EM_ANALISE)) {
+        if (this == AGUARDANDO_ACEITE && (destino == CONTRATO || destino == RECUSADO_CLIENTE || destino == COMITE)) {
             return "a resposta do cliente";
         }
         if (destino == COMITE) {

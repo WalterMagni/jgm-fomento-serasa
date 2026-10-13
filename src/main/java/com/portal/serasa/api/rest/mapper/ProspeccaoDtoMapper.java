@@ -48,6 +48,10 @@ public class ProspeccaoDtoMapper {
                 .filter(doc -> Boolean.TRUE.equals(doc.getSocioAtivo()))
                 .filter(doc -> doc.getStatus().resolvido())
                 .count();
+        // No Aprovado o comercial vê quantos obrigatórios ainda faltam anexar.
+        long faltamAnexar = documentos == null ? 0 : documentos.stream()
+                .filter(ProspeccaoDocumentoEntity::aguardaEnvio)
+                .count();
 
         return ProspeccaoResponse.builder()
                 .id(card.getId())
@@ -73,6 +77,7 @@ public class ProspeccaoDtoMapper {
                 .ultimoContatoEm(card.getUltimoContatoEm())
                 .documentosResolvidos((int) resolvidos)
                 .documentosTotal((int) total)
+                .documentosFaltamAnexar((int) faltamAnexar)
                 .createdAt(card.getCreatedAt())
                 .closedAt(card.getClosedAt())
                 .legado(Boolean.TRUE.equals(card.getLegado()))

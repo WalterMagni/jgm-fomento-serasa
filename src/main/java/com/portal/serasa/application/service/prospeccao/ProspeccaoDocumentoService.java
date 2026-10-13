@@ -77,6 +77,7 @@ public class ProspeccaoDocumentoService {
                 eventoDe(status), null, null, null,
                 documento.getNomeSnapshot() + (motivo == null || motivo.isBlank() ? "" : " — " + motivo),
                 autor);
+        prospeccaoService.seguirParaConferenciaSeCompleto(documento.getProspeccaoId(), autor);
         return documento;
     }
 
@@ -111,6 +112,7 @@ public class ProspeccaoDocumentoService {
                 ativo ? "Sócio %s reativado no checklist".formatted(socioNome)
                       : "Sócio %s fora do checklist: %s".formatted(socioNome, motivo),
                 autor);
+        prospeccaoService.seguirParaConferenciaSeCompleto(prospeccaoId, autor);
         return itens.size();
     }
 

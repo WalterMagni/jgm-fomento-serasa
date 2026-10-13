@@ -90,7 +90,7 @@ export default function DecisaoDialog({
             className={aprova ? BOTAO_PRIMARIO : BOTAO_REPROVAR}
           >
             <Icon name={aprova ? "check" : "block"} size={16} />
-            {decidir.isPending ? "Registrando…" : aprova ? "Aprovar e enviar ao cliente" : "Reprovar"}
+            {decidir.isPending ? "Registrando…" : aprova ? "Aprovar e avisar o comercial" : "Reprovar"}
           </button>
         </>
       }

@@ -324,7 +324,7 @@ export function useDecidir() {
     },
     onSuccess: (decisao, { id }) => {
       invalidar(id);
-      toast.success(decisao.resultado === "APROVADO" ? "Aprovado — aguardando o aceite do cliente" : "Card reprovado");
+      toast.success(decisao.resultado === "APROVADO" ? "Aprovado — o comercial já pode juntar os documentos" : "Card reprovado");
     },
     onError: error => toast.error(error.message, { duration: 6000 }),
   });
@@ -338,9 +338,9 @@ export type NovoAceite = {
 };
 
 const TOAST_ACEITE: Record<RespostaCliente, string> = {
-  ACEITO: "Aceite registrado — card segue para a documentação",
+  ACEITO: "Aceite registrado — card segue para o contrato",
   RECUSADO: "Recusa registrada — card encerrado",
-  CONTRAPROPOSTA: "Contraproposta registrada — card voltou para a análise",
+  CONTRAPROPOSTA: "Contraproposta registrada — card voltou ao comitê",
 };
 
 /** Resposta do cliente à proposta vigente. */
@@ -450,13 +450,21 @@ export function useRegistrarParecerProspeccao() {
 }
 
 const TOAST_RESULTADO: Record<ResultadoComite, string> = {
-  APROVADO: "Aprovado no comitê — card segue para o contrato",
+  APROVADO: "Aprovado no comitê — aguardando o aceite do cliente",
   DEVOLVIDO: "Devolvido para a análise",
   REPROVADO: "Reprovado no comitê",
 };
 
 export function useResultadoComite() {
-  return useMutacaoDoCard<{ id: string; resultado: ResultadoComite; motivoRecusa?: MotivoRecusa; observacao?: string }>(
+  return useMutacaoDoCard<{
+    id: string;
+    resultado: ResultadoComite;
+    motivoRecusa?: MotivoRecusa;
+    observacao?: string;
+    /** Ajuste do comitê: limite e condições no lugar dos da análise. */
+    limite?: number | null;
+    condicoes?: Condicao[];
+  }>(
     ({ id, ...corpo }) => enviarJson(`${API_BASE_URL}/prospeccao/${id}/comite/resultado`, "POST", corpo, "Falha ao registrar o resultado"),
   );
 }

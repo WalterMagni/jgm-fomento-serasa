@@ -33,10 +33,11 @@ import java.util.stream.Collectors;
 /**
  * Decisão da analista e resposta do cliente — o trecho do fluxo que veio do Portal Comercial.
  *
- * <p>A decisão sai da análise: aprova com limite e condições por produto, ou reprova com motivo.
- * A resposta do cliente sai do aceite: aceita e segue para a documentação, recusa e encerra, ou
- * faz contraproposta e devolve o card à analista, que decide de novo. Cada decisão é uma linha;
- * a nova tira a vigência da anterior sem apagá-la.</p>
+ * <p>A decisão sai da análise: aprova com limite e condições por produto — o card vai para Aprovado
+ * e o comercial junta os documentos — ou reprova com motivo. O comitê pode ajustar a proposta ao
+ * aprovar. A resposta do cliente sai do aceite, depois do comitê: aceita e segue para o contrato,
+ * recusa e encerra, ou faz contraproposta e volta ao comitê numa rodada nova. Cada decisão é uma
+ * linha; a nova tira a vigência da anterior sem apagá-la.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -48,6 +49,7 @@ public class ProspeccaoDecisaoService {
     private final ProspeccaoDecisaoCondicaoJpaRepository condicaoRepository;
     private final ProspeccaoAceiteJpaRepository aceiteRepository;
     private final org.springframework.context.ApplicationEventPublisher acontecimentos;
+    private final ProspeccaoRodadaComite rodadaComite;
 
     /** Condição pedida na decisão: produto do catálogo e valor. */
     public record Condicao(String produto, BigDecimal valor) {
@@ -85,11 +87,40 @@ public class ProspeccaoDecisaoService {
         // A transição valida o motivo da reprovação; ela roda antes de gravar a decisão para não
         // sobrar decisão órfã de um card que não se moveu.
         prospeccaoService.mover(id,
-                aprova ? EstagioProspeccao.AGUARDANDO_ACEITE : EstagioProspeccao.REPROVADO,
+                aprova ? EstagioProspeccao.APROVADO : EstagioProspeccao.REPROVADO,
                 aprova ? null : comando.motivoRecusa(),
                 aprova ? null : comando.observacao(),
                 autor);
 
+        DecisaoCompleta completa = gravar(id, comando, condicoes, parecer, autor);
+        String resumo = resumo(completa.decisao(), completa.condicoes());
+        ProspeccaoEntity atualizado = prospeccaoService.buscar(id);
+        prospeccaoService.registrarEvento(atualizado, TipoEventoProspeccao.DECISAO, null, null, null, resumo, autor);
+        if (aprova) {
+            acontecimentos.publishEvent(new ProspeccaoAcontecimento.AprovadoNaAnalise(atualizado, autor, resumo));
+        }
+        return completa;
+    }
+
+    /**
+     * O comitê aprovou com outro limite ou outras condições. Vira a decisão vigente — é a ela que
+     * o cliente responde no aceite. O card não muda de estágio aqui: quem move é o resultado.
+     */
+    @Transactional
+    public DecisaoCompleta ajustarPeloComite(UUID id, BigDecimal limite, List<Condicao> condicoes,
+                                             String parecer, UserEntity autor) {
+        ComandoDecisao comando = new ComandoDecisao(ResultadoDecisao.APROVADO, limite, condicoes, parecer, null, null);
+        List<Condicao> validas = validarAprovacao(comando);
+        DecisaoCompleta completa = gravar(id, comando, validas, limpar(parecer), autor);
+        prospeccaoService.registrarEvento(prospeccaoService.buscar(id), TipoEventoProspeccao.DECISAO, null, null, null,
+                "Comitê ajustou a proposta: " + resumo(completa.decisao(), completa.condicoes()), autor);
+        return completa;
+    }
+
+    /** Grava a decisão nova como vigente, com as condições na ordem em que vieram. */
+    private DecisaoCompleta gravar(UUID id, ComandoDecisao comando, List<Condicao> condicoes, String parecer,
+                                   UserEntity autor) {
+        boolean aprova = comando.resultado() == ResultadoDecisao.APROVADO;
         decisaoRepository.encerrarVigencia(id);
         ProspeccaoDecisaoEntity decisao = decisaoRepository.save(ProspeccaoDecisaoEntity.builder()
                 .prospeccaoId(id)
@@ -115,8 +146,6 @@ public class ProspeccaoDecisaoService {
                     .build()));
         }
 
-        prospeccaoService.registrarEvento(prospeccaoService.buscar(id), TipoEventoProspeccao.DECISAO, null, null, null,
-                resumo(decisao, salvas), autor);
         return new DecisaoCompleta(decisao, salvas);
     }
 
@@ -177,13 +206,12 @@ public class ProspeccaoDecisaoService {
                         .toList()
                 : null;
 
-        EstagioProspeccao destino = switch (comando.resposta()) {
-            case ACEITO -> EstagioProspeccao.DOCUMENTACAO;
-            case RECUSADO -> EstagioProspeccao.RECUSADO_CLIENTE;
-            case CONTRAPROPOSTA -> EstagioProspeccao.EM_ANALISE;
-        };
-        prospeccaoService.mover(id, destino, null,
-                comando.resposta() == RespostaCliente.RECUSADO ? mensagem : null, autor);
+        switch (comando.resposta()) {
+            case ACEITO -> prospeccaoService.mover(id, EstagioProspeccao.CONTRATO, null, null, autor);
+            case RECUSADO -> prospeccaoService.mover(id, EstagioProspeccao.RECUSADO_CLIENTE, null, mensagem, autor);
+            // O comitê reavalia o que o cliente pediu; documentos já conferidos não se repetem.
+            case CONTRAPROPOSTA -> rodadaComite.abrir(id, "contraproposta do cliente", autor);
+        }
 
         ProspeccaoAceiteEntity aceite = aceiteRepository.save(ProspeccaoAceiteEntity.builder()
                 .prospeccaoId(id)

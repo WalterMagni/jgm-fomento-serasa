@@ -294,7 +294,14 @@ public class ProspeccaoController {
     public ResponseEntity<ProspeccaoResponse> resultadoDoComite(
             @PathVariable UUID id,
             @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoResultadoComiteRequest request) {
-        comiteService.registrarResultado(id, request.resultado(), request.motivoRecusa(), request.observacao(), usuarioAutenticado());
+        var ajuste = request.limite() == null ? null
+                : new com.portal.serasa.application.service.prospeccao.ProspeccaoComiteService.AjusteProposta(
+                        request.limite(),
+                        request.condicoes() == null ? List.of() : request.condicoes().stream()
+                                .map(c -> new com.portal.serasa.application.service.prospeccao.ProspeccaoDecisaoService.Condicao(c.produto(), c.valor()))
+                                .toList());
+        comiteService.registrarResultado(id, request.resultado(), request.motivoRecusa(), request.observacao(), ajuste,
+                usuarioAutenticado());
         return ResponseEntity.ok(toResponse(prospeccaoService.buscar(id)));
     }
 

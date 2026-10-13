@@ -42,6 +42,8 @@ public record ProspeccaoResponse(
         /** Progresso do checklist, no formato que o card mostra: 8 de 13. */
         int documentosResolvidos,
         int documentosTotal,
+        /** Obrigatórios ainda pendentes ou rejeitados: com zero, o card aprovado segue sozinho. */
+        int documentosFaltamAnexar,
         LocalDateTime createdAt,
         LocalDateTime closedAt,
         /** Migrado da esteira antiga sem decisão registrada. Ver V74. */

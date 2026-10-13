@@ -6,9 +6,10 @@ export type { CorLiberacao, Etiqueta };
 export type EstagioProspeccao =
   | "NOVA"
   | "EM_ANALISE"
-  | "AGUARDANDO_ACEITE"
+  | "APROVADO"
   | "DOCUMENTACAO"
   | "COMITE"
+  | "AGUARDANDO_ACEITE"
   | "CONTRATO"
   | "HABILITADO"
   | "REPROVADO"
@@ -88,6 +89,8 @@ export type Prospeccao = {
   ultimoContatoEm: string | null;
   documentosResolvidos: number;
   documentosTotal: number;
+  /** Obrigatórios ainda pendentes ou rejeitados; com zero, o card aprovado segue sozinho. */
+  documentosFaltamAnexar: number;
   createdAt: string;
   closedAt: string | null;
   /** Migrado da esteira antiga sem decisão registrada: o time revisa e completa. */
@@ -340,9 +343,10 @@ export type DocumentoTipo = {
 export const COLUNAS: EstagioProspeccao[] = [
   "NOVA",
   "EM_ANALISE",
-  "AGUARDANDO_ACEITE",
+  "APROVADO",
   "DOCUMENTACAO",
   "COMITE",
+  "AGUARDANDO_ACEITE",
   "CONTRATO",
 ];
 
@@ -356,9 +360,10 @@ export function ehTerminal(estagio: EstagioProspeccao) {
 export const ROTULO_ESTAGIO: Record<EstagioProspeccao, string> = {
   NOVA: "Nova",
   EM_ANALISE: "Em análise",
-  AGUARDANDO_ACEITE: "Aguardando aceite",
+  APROVADO: "Aprovado",
   DOCUMENTACAO: "Documentação",
   COMITE: "Comitê",
+  AGUARDANDO_ACEITE: "Aguardando aceite",
   CONTRATO: "Contrato",
   HABILITADO: "Habilitado",
   REPROVADO: "Reprovado",
@@ -370,10 +375,11 @@ export const ROTULO_ESTAGIO: Record<EstagioProspeccao, string> = {
 export const ACAO_PARA_ESTAGIO: Record<EstagioProspeccao, string> = {
   NOVA: "Devolver para Nova",
   EM_ANALISE: "Voltar para análise",
-  AGUARDANDO_ACEITE: "Aprovar e aguardar aceite",
-  DOCUMENTACAO: "Cliente aceitou",
+  APROVADO: "Aprovar",
+  DOCUMENTACAO: "Enviar para conferência",
   COMITE: "Enviar ao comitê",
-  CONTRATO: "Aprovado no comitê",
+  AGUARDANDO_ACEITE: "Aprovado no comitê",
+  CONTRATO: "Cliente aceitou",
   HABILITADO: "Concluir: habilitado",
   REPROVADO: "Reprovar",
   RECUSADO_CLIENTE: "Cliente recusou",

@@ -84,7 +84,7 @@ const BOTAO_TOPO =
  * Esteira de prospecção unificada — da abertura até o cedente habilitado.
  *
  * <p>Junta a esteira original (análise e documentação) com o fluxo do Portal Comercial (decisão
- * com limite, aceite do cliente, comitê e contrato). O card aberto mora na URL ({@code ?card=}):
+ * com limite, comitê, aceite do cliente e contrato). O card aberto mora na URL ({@code ?card=}):
  * a página da empresa e as notificações apontam direto para ele.</p>
  */
 export default function QuadroProspeccao() {
@@ -523,7 +523,7 @@ export default function QuadroProspeccao() {
       ) : isLoading ? (
         <div className="flex gap-2.5 overflow-hidden">
           {COLUNAS.map(coluna => (
-            <div key={coluna} className="h-96 min-w-[12.5rem] flex-1 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
+            <div key={coluna} className="h-96 min-w-[11rem] flex-1 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
           ))}
         </div>
       ) : noQuadro === 0 && terminais.length === 0 && temFiltro ? (

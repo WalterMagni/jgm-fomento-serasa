@@ -51,16 +51,16 @@ export type AcaoAberta =
 
 /** Resultado do comitê que cada destino representa — para o arraste abrir já marcado. */
 export const RESULTADO_DO_DESTINO: Partial<Record<EstagioProspeccao, ResultadoComite>> = {
-  CONTRATO: "APROVADO",
+  AGUARDANDO_ACEITE: "APROVADO",
   EM_ANALISE: "DEVOLVIDO",
   REPROVADO: "REPROVADO",
 };
 
 /** Resposta do cliente que cada destino do aceite representa — para o arraste abrir já marcado. */
 export const RESPOSTA_DO_DESTINO: Partial<Record<EstagioProspeccao, RespostaCliente>> = {
-  DOCUMENTACAO: "ACEITO",
+  CONTRATO: "ACEITO",
   RECUSADO_CLIENTE: "RECUSADO",
-  EM_ANALISE: "CONTRAPROPOSTA",
+  COMITE: "CONTRAPROPOSTA",
 };
 
 /** Passagem que pede algo antes de mover: motivo, texto livre ou nada. */
@@ -285,6 +285,14 @@ export default function ProspeccaoModal({
                 {botaoResultado}
                 {botaoConcluir}
                 {card.estagio === "CONTRATO" && botaoEnviarComite}
+                {card.estagio === "APROVADO" && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-lime-50 px-2.5 py-1.5 text-[11.5px] text-lime-800 dark:bg-lime-900/30 dark:text-lime-200">
+                    <Icon name="folder_open" size={14} />
+                    {card.documentosFaltamAnexar === 0
+                      ? "Todos os obrigatórios anexados"
+                      : `Com o comercial: faltam ${card.documentosFaltamAnexar} obrigatório${card.documentosFaltamAnexar > 1 ? "s" : ""}. Anexados, o card segue sozinho para a documentação.`}
+                  </span>
+                )}
                 {card.estagio === "EM_ANALISE" && !data.podeDecidir && (
                   <span className="text-[11px] text-slate-400">
                     {card.analistaNome ? `Quem decide é ${card.analistaNome}` : "Assuma para decidir"}
@@ -421,6 +429,8 @@ export default function ProspeccaoModal({
           razaoSocial={card.razaoSocial}
           faltando={faltandoParecer}
           inicial={acao.resultado}
+          proposta={propostaAberta}
+          pedidoCliente={pedidoCliente}
           onFechar={() => setAcao(null)}
         />
       )}

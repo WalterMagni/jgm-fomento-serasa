@@ -307,6 +307,7 @@ public class ProspeccaoExportService {
         return switch (estagio) {
             case NOVA -> "Nova";
             case EM_ANALISE -> "Em análise";
+            case APROVADO -> "Aprovado";
             case AGUARDANDO_ACEITE -> "Aguardando aceite";
             case DOCUMENTACAO -> "Documentação";
             case COMITE -> "Comitê";

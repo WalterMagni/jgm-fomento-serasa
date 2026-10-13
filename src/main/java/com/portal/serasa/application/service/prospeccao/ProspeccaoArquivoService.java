@@ -119,6 +119,7 @@ public class ProspeccaoArquivoService {
         marcarRecebido(documento, autor);
         prospeccaoService.registrarEvento(card, TipoEventoProspeccao.ARQUIVO_ENVIADO, null, null, null,
                 documento.getNomeSnapshot() + ": " + arquivo.getNomeOriginal(), autor);
+        prospeccaoService.seguirParaConferenciaSeCompleto(prospeccaoId, autor);
         return arquivo;
     }
 

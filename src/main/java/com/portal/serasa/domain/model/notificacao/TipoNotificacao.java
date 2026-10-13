@@ -12,5 +12,7 @@ public enum TipoNotificacao {
     COMENTARIO,
     DECISAO,
     /** Esteira de prospecção: o cliente respondeu à proposta. */
-    RESPOSTA_CLIENTE
+    RESPOSTA_CLIENTE,
+    /** Esteira de prospecção: todos os documentos chegaram e o card foi para a conferência. */
+    DOCUMENTOS_COMPLETOS
 }

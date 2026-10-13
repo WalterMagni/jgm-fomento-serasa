@@ -28,6 +28,12 @@ type Props = {
   larguraTotal?: boolean;
 };
 
+/** Título curto onde o nome inteiro não cabe na coluna; o completo fica no title. */
+const ROTULO_COLUNA: Partial<Record<EstagioProspeccao, string>> = {
+  DOCUMENTACAO: "Documentos",
+  AGUARDANDO_ACEITE: "Aceite",
+};
+
 export default function ProspeccaoColumn({
   estagio,
   cards,
@@ -54,7 +60,7 @@ export default function ProspeccaoColumn({
       ref={setNodeRef}
       aria-label={`${ROTULO_ESTAGIO[estagio]}: ${cards.length} card(s)`}
       className={`relative flex min-h-0 flex-col rounded-2xl border transition-[background-color,border-color,opacity,box-shadow] duration-200
-        ${larguraTotal ? "w-full" : "min-w-[12.5rem] max-w-[22rem] flex-1 basis-0"}
+        ${larguraTotal ? "w-full" : "min-w-[11rem] max-w-[22rem] flex-1 basis-0"}
         ${alvo?.permitido && isOver
           ? `border-transparent bg-white/90 shadow-lg ring-2 ${cor.anel} dark:bg-slate-800/90`
           : alvo?.permitido
@@ -68,7 +74,7 @@ export default function ProspeccaoColumn({
         <div className="flex items-center justify-between gap-2">
           <h2 className={`inline-flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] ${cor.texto}`}>
             <Icon name={ICONE_ESTAGIO[estagio]} size={14} />
-            <span className="truncate" title={ROTULO_ESTAGIO[estagio]}>{ROTULO_ESTAGIO[estagio]}</span>
+            <span className="truncate" title={ROTULO_ESTAGIO[estagio]}>{ROTULO_COLUNA[estagio] ?? ROTULO_ESTAGIO[estagio]}</span>
           </h2>
           <div className="-my-1 flex shrink-0 items-center">
             {selecionando && cards.length > 0 && (

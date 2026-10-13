@@ -217,12 +217,37 @@ public class ProspeccaoService {
 
         registrarEvento(card, TipoEventoProspeccao.TRANSICAO, origem, destino, null, observacao, autor);
 
-        // Card aberto antes de o QSA ser carregado nasceu sem bloco de sócio. Ao entrar na
-        // documentação o checklist é completado com o que o quadro societário já tiver.
-        if (destino == EstagioProspeccao.DOCUMENTACAO) {
+        // Card aberto antes de o QSA ser carregado nasceu sem bloco de sócio. Ao ser aprovado (o
+        // comercial começa a juntar documentos) e ao entrar na documentação, o checklist é
+        // completado com o que o quadro societário já tiver.
+        if (destino == EstagioProspeccao.APROVADO || destino == EstagioProspeccao.DOCUMENTACAO) {
             checklistService.materializar(card);
         }
         return card;
+    }
+
+    /**
+     * Card aprovado com todos os obrigatórios entregues segue sozinho para a documentação, onde a
+     * analista confere. Chamado depois de cada mudança no checklist: arquivo anexado, status
+     * trocado, sócio tirado da lista.
+     *
+     * @return verdadeiro quando o card andou
+     */
+    @Transactional
+    public boolean seguirParaConferenciaSeCompleto(UUID id, UserEntity autor) {
+        ProspeccaoEntity card = buscar(id);
+        if (card.getEstagio() != EstagioProspeccao.APROVADO) {
+            return false;
+        }
+        List<ProspeccaoDocumentoEntity> itens = documentoRepository.findByProspeccaoId(id);
+        if (itens.isEmpty() || itens.stream().anyMatch(ProspeccaoDocumentoEntity::aguardaEnvio)) {
+            return false;
+        }
+        ProspeccaoEntity movido = mover(id, EstagioProspeccao.DOCUMENTACAO, null, null, autor);
+        registrarEvento(movido, TipoEventoProspeccao.NOTA, null, null, null,
+                "Todos os documentos obrigatórios entregues: o card seguiu sozinho para a conferência", autor);
+        acontecimentos.publishEvent(new ProspeccaoAcontecimento.DocumentosCompletos(movido, autor));
+        return true;
     }
 
     /**

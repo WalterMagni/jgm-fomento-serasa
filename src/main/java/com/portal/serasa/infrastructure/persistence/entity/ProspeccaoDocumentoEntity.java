@@ -115,6 +115,18 @@ public class ProspeccaoDocumentoEntity {
     @Column(name = "atualizado_em", nullable = false)
     private LocalDateTime atualizadoEm;
 
+    /**
+     * Obrigatório que ainda espera arquivo: pendente ou rejeitado. Enquanto algum estiver assim, o
+     * card aprovado não segue sozinho para a documentação. Recebido conta como entregue — conferir
+     * é o passo seguinte, da analista.
+     */
+    public boolean aguardaEnvio() {
+        return Boolean.TRUE.equals(obrigatorioSnapshot)
+                && !Boolean.TRUE.equals(informativoSnapshot)
+                && Boolean.TRUE.equals(socioAtivo)
+                && (status == StatusDocumento.PENDENTE || status == StatusDocumento.REJEITADO);
+    }
+
     /** Trava a passagem da documentação para o comitê enquanto verdadeiro. */
     public boolean bloqueiaFechamento() {
         return Boolean.TRUE.equals(obrigatorioSnapshot)

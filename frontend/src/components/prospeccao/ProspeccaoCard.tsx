@@ -38,8 +38,12 @@ export function CardFace({
 }) {
   const semaforo = semaforoDe(card);
   const estilo = COR_ESTAGIO[card.estagio];
-  const progresso = card.documentosTotal > 0 ? card.documentosResolvidos / card.documentosTotal : 0;
-  const mostraDocumentos = card.documentosTotal > 0 && (card.estagio === "DOCUMENTACAO" || card.estagio === "AGUARDANDO_ACEITE");
+  // No Aprovado o comercial anexa: conta o que falta enviar. Na documentação a analista confere:
+  // conta o que já foi resolvido.
+  const coleta = card.estagio === "APROVADO";
+  const feitos = coleta ? card.documentosTotal - card.documentosFaltamAnexar : card.documentosResolvidos;
+  const progresso = card.documentosTotal > 0 ? Math.max(0, feitos) / card.documentosTotal : 0;
+  const mostraDocumentos = card.documentosTotal > 0 && (coleta || card.estagio === "DOCUMENTACAO");
   const mostraComite = card.estagio === "COMITE" && card.pareceresEsperados > 0;
 
   return (
@@ -103,10 +107,22 @@ export function CardFace({
         )}
 
         {mostraDocumentos && (
-          <div title={`${card.documentosResolvidos} de ${card.documentosTotal} documentos resolvidos`}>
+          <div
+            title={
+              coleta
+                ? `${card.documentosFaltamAnexar} obrigatório(s) ainda por anexar; com todos, o card segue para a documentação`
+                : `${card.documentosResolvidos} de ${card.documentosTotal} documentos resolvidos`
+            }
+          >
             <div className="mb-1 flex items-center justify-between text-[10.5px] text-slate-500">
               <span className="inline-flex items-center gap-1"><Icon name="folder_open" size={11} /> Documentos</span>
-              <span className="tabular-nums">{card.documentosResolvidos}/{card.documentosTotal}</span>
+              <span className="tabular-nums">
+                {coleta
+                  ? card.documentosFaltamAnexar === 0
+                    ? "todos anexados"
+                    : `faltam ${card.documentosFaltamAnexar}`
+                  : `${card.documentosResolvidos}/${card.documentosTotal}`}
+              </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
               <div className={`h-full rounded-full ${estilo.faixa} transition-[width] duration-500`} style={{ width: `${Math.round(progresso * 100)}%` }} />

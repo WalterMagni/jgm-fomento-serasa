@@ -7,7 +7,7 @@ import { COR_ESTAGIO } from "./estilo";
 import { formatDate } from "./formatters";
 
 /** O caminho feliz, na ordem em que o card anda. */
-const CAMINHO: EstagioProspeccao[] = ["NOVA", "EM_ANALISE", "AGUARDANDO_ACEITE", "DOCUMENTACAO", "COMITE", "CONTRATO", "HABILITADO"];
+const CAMINHO: EstagioProspeccao[] = ["NOVA", "EM_ANALISE", "APROVADO", "DOCUMENTACAO", "COMITE", "AGUARDANDO_ACEITE", "CONTRATO", "HABILITADO"];
 
 const ROTULO_CURTO: Partial<Record<EstagioProspeccao, string>> = {
   AGUARDANDO_ACEITE: "Aceite",
@@ -17,8 +17,9 @@ const ROTULO_CURTO: Partial<Record<EstagioProspeccao, string>> = {
 const ICONE: Record<string, string> = {
   NOVA: "inbox",
   EM_ANALISE: "search",
-  AGUARDANDO_ACEITE: "handshake",
+  APROVADO: "thumb_up",
   DOCUMENTACAO: "folder_open",
+  AGUARDANDO_ACEITE: "handshake",
   COMITE: "groups",
   CONTRATO: "contract",
   HABILITADO: "verified",
