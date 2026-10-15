@@ -265,7 +265,7 @@ class LiberacaoExportServiceTest {
 
         try (XSSFWorkbook planilha = exportar(id)) {
             Sheet sacados = planilha.getSheet("Sacados");
-            assertThat(sacados.getRow(0).getCell(16).getStringCellValue()).isEqualTo("Opinião da Origem");
+            assertThat(sacados.getRow(0).getCell(16).getStringCellValue()).isEqualTo("Opinião do Operador");
             assertThat(sacados.getRow(0).getCell(17).getStringCellValue()).isEqualTo("Opinião do Comitê");
             assertThat(sacados.getRow(1).getCell(16).getStringCellValue()).isEqualTo("Aprovado");
             assertThat(sacados.getRow(1).getCell(17).getStringCellValue()).isEqualTo("Parcialmente aprovado");

@@ -428,7 +428,7 @@ export function useDecidirSacado() {
   });
 }
 
-/** Quadrado O (Origem) de um sacado. Situação nula limpa. C e D são decisões: {@link useDecidirSacado}. */
+/** Quadrado O (parecer dos operadores) de um sacado. Situação nula limpa. C e D são decisões: {@link useDecidirSacado}. */
 export function useOpinarSacado() {
   const atualizar = useAtualizarDetalhe();
   return useMutation<LiberacaoDetalhe, Error, { id: string; documento: string; quadro: QuadroOpiniao; situacao: Resultado | null }>({

@@ -741,8 +741,14 @@ public class LiberacaoService {
         autorizacao.exigirAutenticado(autor);
         switch (quadro) {
             case ORIGEM -> {
-                if (card.getEtapa() != EtapaLiberacao.ORIGEM) {
-                    throw new TransicaoInvalidaException("O quadrado O (Origem) é marcado com o card na Origem.");
+                // O: parecer dos operadores (pedido do time em 2026-10-15). Qualquer analista,
+                // enquanto o card não foi decidido nem mandado para a Diretoria.
+                autorizacao.exigirAnalista(autor, "marcar o quadrado O");
+                EtapaLiberacao etapa = card.getEtapa();
+                if (etapa != EtapaLiberacao.ORIGEM && etapa != EtapaLiberacao.COMITE && etapa != EtapaLiberacao.PENDENCIA) {
+                    throw new TransicaoInvalidaException(etapa.decidida()
+                            ? "Card já decidido: reabra no Comitê para mudar o parecer do operador."
+                            : "O quadrado O é marcado antes da decisão: na Origem, no Comitê ou em Pendência.");
                 }
             }
             case COMITE -> {

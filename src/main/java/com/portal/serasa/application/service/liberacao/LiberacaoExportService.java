@@ -254,8 +254,8 @@ public class LiberacaoExportService {
         Sheet aba = cabecalho(planilha, estilos, "Sacados", new String[]{"Nº card", "Cedente", "Documento", "Sacado", "Praça", "Valor",
                         "Situação", "Valor aprovado", "Decidido por", "Decidido em",
                         "Títulos na proposta", "Vencidos", "A vencer", "Abertos", "Liquidados", "Recomprados",
-                        "Opinião da Origem", "Opinião do Comitê",
-                        "Parecer da Origem", "Parecer do Comitê", "Parecer da Diretoria"},
+                        "Opinião do Operador", "Opinião do Comitê",
+                        "Parecer do Operador", "Parecer do Comitê", "Parecer da Diretoria"},
                 new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16, 18, 18, 50, 50, 50});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {

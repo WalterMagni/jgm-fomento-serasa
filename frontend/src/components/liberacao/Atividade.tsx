@@ -56,7 +56,7 @@ function descrever(evento: EventoLiberacao): ReactNode {
       if (evento.campo === "opiniaoOrigem" || evento.campo === "opiniaoComite")
         return (
           <>
-            marcou {evento.campo === "opiniaoOrigem" ? "O (Origem)" : "C (Comitê)"} de <span className="text-slate-500">{evento.texto}</span>:{" "}
+            marcou {evento.campo === "opiniaoOrigem" ? "O (Operador)" : "C (Comitê)"} de <span className="text-slate-500">{evento.texto}</span>:{" "}
             <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
           </>
         );

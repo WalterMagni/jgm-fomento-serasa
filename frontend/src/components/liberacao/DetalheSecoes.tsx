@@ -6,7 +6,7 @@ import { CUSTO_CONSULTA_PF } from "@/types/pessoa-resumo";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import TextoRico from "@/components/ui/mencao/TextoRico";
-import { useDecidirSacado, useParecerSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
+import { useDecidirSacado, useOpinarSacado, useParecerSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
 import {
   ROTULO_POSICAO,
   ROTULO_RESULTADO,
@@ -91,7 +91,7 @@ const COR_QUADRADO: Record<Resultado, string> = {
 };
 
 type Quadro = "O" | "C" | "D";
-const NOME_QUADRO: Record<Quadro, string> = { O: "Origem", C: "Comitê", D: "Diretoria" };
+const NOME_QUADRO: Record<Quadro, string> = { O: "Operador", C: "Comitê", D: "Diretoria" };
 
 /**
  * Um quadrado (C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
@@ -309,8 +309,19 @@ function PareceresSacado({ sacado }: { sacado: Sacado }) {
  * Os quadrados do sacado: C (decisão do Comitê) e D (Diretoria). Só o C se marca; o D é preenchido
  * quando a Diretoria aprova (repete o C) ou reprova o card. A Origem não decide: o O saiu da tela.
  */
-function QuadradosSacado({ cardId, sacado, podeComite }: { cardId: string; sacado: Sacado; podeComite: boolean }) {
+function QuadradosSacado({
+  cardId,
+  sacado,
+  podeOperador,
+  podeComite,
+}: {
+  cardId: string;
+  sacado: Sacado;
+  podeOperador: boolean;
+  podeComite: boolean;
+}) {
   const decidir = useDecidirSacado();
+  const opinar = useOpinarSacado();
   const escrever = useParecerSacado();
   const salvar = (quadro: QuadroOpiniao) => (texto: string, aoSalvar: () => void) =>
     escrever.mutate({ id: cardId, documento: sacado.documento, quadro, texto }, { onSuccess: aoSalvar });
@@ -324,6 +335,19 @@ function QuadradosSacado({ cardId, sacado, podeComite }: { cardId: string; sacad
     });
   return (
     <div className="flex items-center gap-1.5" role="group" aria-label={`Decisões de ${sacado.nome ?? sacado.documento}`}>
+      {/* O: parecer dos operadores. Opinião, não entra no resultado (C e D decidem). */}
+      <Quadrado
+        letra="O"
+        situacao={sacado.opiniaoOrigem}
+        porNome={sacado.opiniaoOrigemPorNome}
+        em={sacado.opiniaoOrigemEm}
+        editavel={podeOperador}
+        ocupado={opinar.isPending}
+        onMarcar={situacao => opinar.mutate({ id: cardId, documento: sacado.documento, quadro: "ORIGEM", situacao })}
+        parecer={sacado.parecerOrigem}
+        salvandoParecer={escrever.isPending}
+        onParecer={salvar("ORIGEM")}
+      />
       <Quadrado
         letra="C"
         situacao={sacado.opiniaoComite}
@@ -359,12 +383,15 @@ export function SacadosLista({
   cardId,
   sacados,
   valorOperacao,
+  podeOperador,
   podeComite,
   quadro,
 }: {
   cardId: string;
   sacados: Sacado[];
   valorOperacao: number | null;
+  /** Analista antes da decisão (Origem, Comitê ou Pendência): marca o O. */
+  podeOperador: boolean;
   /** Analista com o card no Comitê ou em Pendência: marca o C. */
   podeComite: boolean;
   /** Quem decide agora, para a conta de decididos; nulo depois da decisão (vale a situação). */
@@ -412,7 +439,7 @@ export function SacadosLista({
               {sacado.valor != null && (
                 <span className="text-sm tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.valor)}</span>
               )}
-              <QuadradosSacado cardId={cardId} sacado={sacado} podeComite={podeComite} />
+              <QuadradosSacado cardId={cardId} sacado={sacado} podeOperador={podeOperador} podeComite={podeComite} />
               {(sacado.documento.length === 14 || sacado.documento.length === 11) && (
                 <a
                   // CPF vai para a ficha de Pessoas Físicas; sem ficha, a página oferece a consulta Serasa PF (com custo).

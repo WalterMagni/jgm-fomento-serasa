@@ -302,6 +302,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   cardId={card.id}
                   sacados={data.sacados}
                   valorOperacao={card.valor}
+                  podeOperador={ehAnalista && (card.etapa === "ORIGEM" || card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
                   podeComite={ehAnalista && (card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
                   quadro={ETAPAS_DECIDIDAS.includes(card.etapa) ? null : "COMITE"}
                 />

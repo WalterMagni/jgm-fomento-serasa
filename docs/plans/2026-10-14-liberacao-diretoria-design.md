@@ -46,3 +46,11 @@ Origem ──► Comitê ──┬──► Aprovado / Reprovado          (vale 
 ```
 
 Ao chegar na Diretoria, todos com o perfil são avisados e passam a acompanhar o card.
+
+## O de volta como parecer dos operadores (2026-10-15)
+
+O time pediu o quadrado O de volta, agora como **parecer dos operadores**: qualquer analista marca
+(aprovado, parcial ou reprovado, sem valor) e escreve o parecer, antes da decisão — com o card na
+Origem, no Comitê ou em Pendência. Não entra no resultado: C e D continuam decidindo. Sem
+migração: usa `opiniao_origem*` e `parecer_origem`, que ficaram no banco. Na tela e no XLSX o
+nome passa a ser "Operador".

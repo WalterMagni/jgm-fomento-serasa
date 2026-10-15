@@ -472,33 +472,60 @@ class LiberacaoServiceTest {
     // ------------------------------------------- opinião O e decisões C e D (quadrados do sacado)
 
     @Test
-    @DisplayName("opinarSacado: O é marcado por qualquer pessoa com o card na Origem; grava quem, quando e o evento")
+    @DisplayName("opinarSacado: O (operador) é marcado por analista; grava quem, quando e o evento, sem mexer na decisão")
     void shouldMarkOriginOpinion() {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(card, a);
 
-        service.opinarSacado(card.getId(), "45.723.174/0001-10", QuadroOpiniao.ORIGEM, ResultadoLiberacao.PARCIAL, auxiliar);
+        service.opinarSacado(card.getId(), "45.723.174/0001-10", QuadroOpiniao.ORIGEM, ResultadoLiberacao.PARCIAL, analista);
 
         assertThat(a.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.PARCIAL);
-        assertThat(a.getOpiniaoOrigemPorNome()).isEqualTo("Auxiliar");
+        assertThat(a.getOpiniaoOrigemPorNome()).isEqualTo("Andressa");
         assertThat(a.getOpiniaoOrigemEm()).isNotNull();
         assertThat(a.getSituacao()).as("a situação final não muda").isNull();
         LiberacaoEventoEntity evento = eventosGravados().get(0);
         assertThat(evento.getCampo()).isEqualTo("opiniaoOrigem");
         assertThat(evento.getValorDepois()).isEqualTo("Parcial");
-        verify(cardRepository).tocarSemVersao(eq(card.getId()), any(LocalDateTime.class), eq(auxiliar.getId()), eq("Auxiliar"));
+        assertThat(a.getOpiniaoComite()).as("o C não muda").isNull();
+        verify(cardRepository).tocarSemVersao(eq(card.getId()), any(LocalDateTime.class), eq(analista.getId()), eq("Andressa"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "COMITE", "PENDENCIA"})
+    @DisplayName("opinarSacado: O vale em qualquer etapa antes da decisão")
+    void shouldAllowOperatorOpinionBeforeDecision(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.REPROVADO, analista);
+
+        assertThat(a.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.REPROVADO);
     }
 
     @Test
-    @DisplayName("opinarSacado: O fora da Origem é recusado")
-    void shouldRejectOriginOpinionOutsideOrigin() {
-        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+    @DisplayName("opinarSacado: O é de analista — auxiliar é AcessoNegado, mesmo na Origem")
+    void shouldRejectOperatorOpinionFromNonAnalyst() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
+
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+        verify(sacadoRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"DIRETORIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("opinarSacado: O depois da decisão (ou na Diretoria) é recusado")
+    void shouldRejectOperatorOpinionAfterDecision(EtapaLiberacao etapa) {
+        LiberacaoCardEntity card = card(etapa);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
         assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
-                .hasMessageContaining("na Origem");
+                .hasMessageContaining(etapa == EtapaLiberacao.DIRETORIA ? "antes da decisão" : "reabra no Comitê");
+        verify(sacadoRepository, never()).save(any());
     }
 
     @ParameterizedTest
@@ -527,10 +554,10 @@ class LiberacaoServiceTest {
         a.setOpiniaoOrigemPorNome("Aline");
         sacadosSao(card, a);
 
-        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, auxiliar);
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista);
         verify(sacadoRepository, never()).save(any());
 
-        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, null, auxiliar);
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, null, analista);
         assertThat(a.getOpiniaoOrigem()).isNull();
         assertThat(a.getOpiniaoOrigemPorNome()).isNull();
         assertThat(a.getOpiniaoOrigemEm()).isNull();
@@ -542,7 +569,7 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
-        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_B, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, auxiliar))
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_B, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -574,8 +601,10 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity naOrigem = card(EtapaLiberacao.ORIGEM);
         LiberacaoSacadoEntity a = sacado(naOrigem, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(naOrigem, a);
-        service.parecerSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "Cliente antigo.", auxiliar);
+        service.parecerSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "Cliente antigo.", analista);
         assertThat(a.getParecerOrigem()).isEqualTo("Cliente antigo.");
+        assertThatThrownBy(() -> service.parecerSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "x", auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
         assertThatThrownBy(() -> service.parecerSacado(naOrigem.getId(), SACADO_A, QuadroOpiniao.COMITE, "x", analista))
                 .isInstanceOf(TransicaoInvalidaException.class);
 
@@ -586,10 +615,13 @@ class LiberacaoServiceTest {
         assertThatThrownBy(() -> service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.COMITE, "x", auxiliar))
                 .isInstanceOf(AcessoNegadoException.class);
         assertThatThrownBy(() -> service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "x", auxiliar))
-                .isInstanceOf(TransicaoInvalidaException.class);
+                .isInstanceOf(AcessoNegadoException.class);
 
         service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.COMITE, " Ok. ", analista);
         verify(sacadoRepository, times(1)).save(any());
+        // o operador também escreve com o card no Comitê
+        service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.ORIGEM, "Sacado pontual.", analista);
+        assertThat(b.getParecerOrigem()).isEqualTo("Sacado pontual.");
         service.parecerSacado(noComite.getId(), SACADO_A, QuadroOpiniao.COMITE, "   ", analista);
         assertThat(b.getParecerComite()).isNull();
     }

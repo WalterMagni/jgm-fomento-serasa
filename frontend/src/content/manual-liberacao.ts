@@ -141,16 +141,19 @@ Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprov
 
 | Quadrado | De quem | Quem marca e quando |
 |---|---|---|
-| **O** | Origem | Qualquer pessoa, com o card na Origem. |
-| **C** | Comitê | Quem é analista, com o card no Comitê ou em Pendência. |
-| **D** | Diretoria | Quem é analista, com o card no Comitê ou em Pendência. No parcial, pede o valor aprovado. |
+| **O** | Operador | Quem é analista, antes da decisão: com o card na Origem, no Comitê ou em Pendência. |
+| **C** | Comitê | Quem é analista, com o card no Comitê ou em Pendência. No parcial, pede o valor aprovado. |
+| **D** | Diretoria | Preenchido sozinho quando a Diretoria decide: aprovar repete o C, reprovar reprova todos. |
 
 Clique no quadrado para escolher; clique de novo na mesma opção (ou em **Limpar**) para
-desmarcar. No mesmo menu fica o **parecer** daquele quadrado: escreva o porquê da decisão e
-clique em **Salvar parecer** — dá para marcar pessoas e empresas com @, e quem for marcado
-recebe aviso. Os pareceres aparecem embaixo do sacado, cada um com a letra na cor da decisão. Passando o mouse, aparece quem marcou e quando. **O D é a decisão que vale**: é dele
-que sai o resultado do card. O e C ficam como registro da opinião de cada um. Nas demais colunas
-os três aparecem, mas só para consulta.
+desmarcar. No mesmo menu fica o **parecer** daquele quadrado: escreva o porquê e clique em
+**Salvar parecer** — dá para marcar pessoas e empresas com @, e quem for marcado recebe aviso.
+Os pareceres aparecem embaixo do sacado, cada um com a letra na cor da decisão. Passando o
+mouse, aparece quem marcou e quando.
+
+**O resultado do card sai do C** quando o Comitê decide, ou **do D** quando o card passa pela
+Diretoria. O **O** é o parecer dos operadores: fica registrado, mas não muda o resultado. Depois
+da decisão os três aparecem só para consulta.
 
 ## Aprovar, reprovar, assinatura e Finalizados
 
