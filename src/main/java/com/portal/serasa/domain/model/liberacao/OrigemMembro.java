@@ -9,6 +9,7 @@ package com.portal.serasa.domain.model.liberacao;
 public enum OrigemMembro {
     CRIADOR,
     COMITE,
+    DIRETORIA,
     PENDENCIA,
     COMENTARIO,
     MENCAO,

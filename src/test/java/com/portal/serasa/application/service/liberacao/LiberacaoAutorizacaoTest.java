@@ -25,6 +25,7 @@ class LiberacaoAutorizacaoTest {
 
     private final UserEntity comum = UserEntity.builder().id(UUID.randomUUID()).name("Auxiliar").build();
     private final UserEntity analista = UserEntity.builder().id(UUID.randomUUID()).name("Analista").analista(true).build();
+    private final UserEntity diretor = UserEntity.builder().id(UUID.randomUUID()).name("Diretor").analista(true).diretoria(true).build();
 
     private LiberacaoCardEntity card(EtapaLiberacao etapa) {
         return LiberacaoCardEntity.builder().id(UUID.randomUUID()).etapa(etapa).rodada(1).build();
@@ -50,7 +51,7 @@ class LiberacaoAutorizacaoTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"COMITE", "PENDENCIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @EnumSource(value = EtapaLiberacao.class, names = {"COMITE", "PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
     @DisplayName("não-analista não edita card do Comitê em diante")
     void shouldDenyEditByNonAnalystFromComiteOn(EtapaLiberacao etapa) {
         LiberacaoCardEntity card = card(etapa);
@@ -79,7 +80,7 @@ class LiberacaoAutorizacaoTest {
 
         assertThatThrownBy(() -> autorizacao.exigirEdicao(card, null)).isInstanceOf(AcessoNegadoException.class);
         assertThatThrownBy(() -> autorizacao.exigirEdicao(card, semId)).isInstanceOf(AcessoNegadoException.class);
-        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, null, 0, false))
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, null, 0, false, false))
                 .isInstanceOf(AcessoNegadoException.class);
         assertThatThrownBy(() -> autorizacao.exigirAnalista(null, "abrir pendência"))
                 .isInstanceOf(AcessoNegadoException.class);
@@ -94,8 +95,8 @@ class LiberacaoAutorizacaoTest {
     void shouldLetAnyoneMoveOrigemToComite() {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, comum, 0, false)).isEmpty();
-        assertThatCode(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, comum, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, comum, 0, false, false)).isEmpty();
+        assertThatCode(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, comum, 0, false, false))
                 .doesNotThrowAnyException();
     }
 
@@ -106,9 +107,9 @@ class LiberacaoAutorizacaoTest {
         LiberacaoCardEntity card = card(origem);
 
         for (EtapaLiberacao destino : origem.destinos()) {
-            assertThat(autorizacao.motivoBloqueio(card, destino, comum, 2, false))
+            assertThat(autorizacao.motivoBloqueio(card, destino, comum, 2, false, false))
                     .contains("A partir do Comitê, só analista move o card.");
-            assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, comum, 2, false))
+            assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, comum, 2, false, false))
                     .isInstanceOf(AcessoNegadoException.class)
                     .hasMessage("A partir do Comitê, só analista move o card.");
         }
@@ -121,8 +122,8 @@ class LiberacaoAutorizacaoTest {
         LiberacaoCardEntity card = card(origem);
 
         for (EtapaLiberacao destino : origem.destinos()) {
-            assertThat(autorizacao.motivoBloqueio(card, destino, analista, 1, false)).isEmpty();
-            assertThatCode(() -> autorizacao.exigirTransicao(card, destino, analista, 1, false))
+            assertThat(autorizacao.motivoBloqueio(card, destino, analista, 1, false, false)).isEmpty();
+            assertThatCode(() -> autorizacao.exigirTransicao(card, destino, analista, 1, false, false))
                     .doesNotThrowAnyException();
         }
     }
@@ -132,11 +133,11 @@ class LiberacaoAutorizacaoTest {
     void shouldExplainInvalidPath() {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.FINALIZADO, analista, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.FINALIZADO, analista, 0, false, false))
                 .hasValueSatisfying(motivo -> assertThat(motivo)
                         .startsWith("Não dá para ir")
                         .isEqualTo("Não dá para ir de Origem para Finalizados."));
-        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.FINALIZADO), EtapaLiberacao.PENDENCIA, analista, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.FINALIZADO), EtapaLiberacao.PENDENCIA, analista, 0, false, false))
                 .contains("Não dá para ir de Finalizados para Pendência.");
     }
 
@@ -146,9 +147,9 @@ class LiberacaoAutorizacaoTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
 
         // não-analista em Pendência→Origem: o caminho inválido é o motivo, não o papel
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, comum, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, comum, 0, false, false))
                 .contains("Não dá para ir de Pendência para Origem.");
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, analista, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, analista, 0, false, false))
                 .contains("Não dá para ir de Pendência para Origem.");
     }
 
@@ -157,7 +158,7 @@ class LiberacaoAutorizacaoTest {
     void shouldThrowInvalidTransitionForInvalidPath() {
         LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
 
-        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.ORIGEM, comum, 2, false))
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.ORIGEM, comum, 2, false, false))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessage("Não dá para ir de Finalizados para Origem.");
     }
@@ -165,27 +166,27 @@ class LiberacaoAutorizacaoTest {
     // ------------------------------------------- Comitê: pelo menos um parecer
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "APROVADO", "REPROVADO"})
-    @DisplayName("Comitê→Pendência/Aprovado/Reprovado sem nenhum parecer registrado: 'Precisa de pelo menos um parecer do Comitê.'")
+    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO"})
+    @DisplayName("Comitê→Pendência/Diretoria/Aprovado/Reprovado sem nenhum parecer registrado: 'Precisa de pelo menos um parecer do Comitê.'")
     void shouldBlockLeavingComiteWithoutAnyParecer(EtapaLiberacao destino) {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
-        assertThat(autorizacao.motivoBloqueio(card, destino, analista, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, destino, analista, 0, false, false))
                 .contains("Precisa de pelo menos um parecer do Comitê.");
-        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, analista, 0, false))
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, analista, 0, false, false))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessage("Precisa de pelo menos um parecer do Comitê.");
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "APROVADO", "REPROVADO"})
-    @DisplayName("Comitê→Pendência/Aprovado/Reprovado com um parecer (de dois esperados) já é liberado")
+    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO"})
+    @DisplayName("Comitê→Pendência/Diretoria/Aprovado/Reprovado com um parecer (de dois esperados) já é liberado")
     void shouldAllowLeavingComiteWithOneParecer(EtapaLiberacao destino) {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
         // a contagem vem de quem registrou; quem falta aparece só como aviso()
-        assertThat(autorizacao.motivoBloqueio(card, destino, analista, 1, false)).isEmpty();
-        assertThatCode(() -> autorizacao.exigirTransicao(card, destino, analista, 1, false))
+        assertThat(autorizacao.motivoBloqueio(card, destino, analista, 1, false, false)).isEmpty();
+        assertThatCode(() -> autorizacao.exigirTransicao(card, destino, analista, 1, false, false))
                 .doesNotThrowAnyException();
     }
 
@@ -194,7 +195,7 @@ class LiberacaoAutorizacaoTest {
     void shouldAllowLeavingComiteWithAllPareceres() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.APROVADO, analista, 5, false)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.APROVADO, analista, 5, false, false)).isEmpty();
     }
 
     @Test
@@ -202,8 +203,8 @@ class LiberacaoAutorizacaoTest {
     void shouldAllowReturnToOrigemWithoutParecer() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, analista, 0, false)).isEmpty();
-        assertThatCode(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.ORIGEM, analista, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, analista, 0, false, false)).isEmpty();
+        assertThatCode(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.ORIGEM, analista, 0, false, false))
                 .doesNotThrowAnyException();
     }
 
@@ -212,8 +213,8 @@ class LiberacaoAutorizacaoTest {
     void shouldNotApplyParecerRuleOutsideComite() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.APROVADO, analista, 0, false)).isEmpty();
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, false)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.APROVADO, analista, 0, false, false)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, false, false)).isEmpty();
     }
 
     @Test
@@ -221,7 +222,7 @@ class LiberacaoAutorizacaoTest {
     void shouldNotRequireParecerToReopen() {
         LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, false)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, false, false)).isEmpty();
     }
 
     // --------------------------------------------------------------- aviso
@@ -270,8 +271,8 @@ class LiberacaoAutorizacaoTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "PENDENCIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
-    @DisplayName("aviso: só vale saindo do Comitê")
+    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("aviso: só vale saindo do Comitê (a Diretoria decide sem parecer do Comitê)")
     void shouldNotWarnWhenNotLeavingComite(EtapaLiberacao etapa) {
         LiberacaoCardEntity card = card(etapa);
 
@@ -296,7 +297,7 @@ class LiberacaoAutorizacaoTest {
     void shouldBlockMoveToComiteWhenComiteIsEmpty() {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
 
-        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, comum, 0, true))
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, comum, 0, true, false))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining("Ninguém está marcado como Comitê");
     }
@@ -306,7 +307,7 @@ class LiberacaoAutorizacaoTest {
     void shouldIgnoreEmptyComiteForOtherDestinations() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, analista, 0, true)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.ORIGEM, analista, 0, true, false)).isEmpty();
     }
 
     @Test
@@ -315,7 +316,7 @@ class LiberacaoAutorizacaoTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
         // não-analista num card sem nenhum parecer: a recusa é de permissão
-        Optional<String> motivo = autorizacao.motivoBloqueio(card, EtapaLiberacao.APROVADO, comum, 0, false);
+        Optional<String> motivo = autorizacao.motivoBloqueio(card, EtapaLiberacao.APROVADO, comum, 0, false, false);
 
         assertThat(motivo).contains("A partir do Comitê, só analista move o card.");
     }
@@ -325,7 +326,7 @@ class LiberacaoAutorizacaoTest {
     void shouldThrowAccessDeniedBeforeInvalidTransition() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
 
-        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.APROVADO, comum, 0, false))
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.APROVADO, comum, 0, false, false))
                 .isInstanceOf(AcessoNegadoException.class);
     }
 
@@ -335,7 +336,7 @@ class LiberacaoAutorizacaoTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
 
         // Pendência→Comitê por não-analista: papel recusa antes de a regra do comitê vazio ser avaliada
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, comum, 0, true))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, comum, 0, true, false))
                 .contains("A partir do Comitê, só analista move o card.");
     }
 
@@ -344,7 +345,7 @@ class LiberacaoAutorizacaoTest {
     void shouldBlockReopenWhenComiteIsEmpty() {
         LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, true))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, true, false))
                 .contains("Ninguém está marcado como Comitê. Peça ao admin para marcar em Configurações.");
     }
 
@@ -403,10 +404,10 @@ class LiberacaoAutorizacaoTest {
     void shouldAuthorizeReopeningFromEveryDecidedStage(EtapaLiberacao etapa) {
         LiberacaoCardEntity card = card(etapa);
 
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, false)).isEmpty();
-        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, comum, 0, false))
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, analista, 0, false, false)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.COMITE, comum, 0, false, false))
                 .contains("A partir do Comitê, só analista move o card.");
-        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, analista, 0, true))
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.COMITE, analista, 0, true, false))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining("Ninguém está marcado como Comitê");
     }
@@ -414,17 +415,17 @@ class LiberacaoAutorizacaoTest {
     @Test
     @DisplayName("caminhos que a nova esteira não permite: Aprovado→Finalizado, Reprovado→Assinatura, Comitê→Assinatura")
     void shouldExplainPathsTheNewPipelineDoesNotAllow() {
-        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.APROVADO), EtapaLiberacao.FINALIZADO, analista, 1, false))
+        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.APROVADO), EtapaLiberacao.FINALIZADO, analista, 1, false, false))
                 .contains("Não dá para ir de Aprovado para Finalizados.");
-        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.REPROVADO), EtapaLiberacao.ASSINATURA, analista, 1, false))
+        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.REPROVADO), EtapaLiberacao.ASSINATURA, analista, 1, false, false))
                 .contains("Não dá para ir de Reprovado para Assinatura.");
-        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.COMITE), EtapaLiberacao.ASSINATURA, analista, 1, false))
+        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.COMITE), EtapaLiberacao.ASSINATURA, analista, 1, false, false))
                 .contains("Não dá para ir de Comitê para Assinatura.");
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO"})
-    @DisplayName("aviso de parecer faltando também vale para Comitê→Aprovado/Reprovado")
+    @EnumSource(value = EtapaLiberacao.class, names = {"DIRETORIA", "APROVADO", "REPROVADO"})
+    @DisplayName("aviso de parecer faltando também vale para Comitê→Diretoria/Aprovado/Reprovado")
     void shouldWarnWhenDecidingWithMissingParecer(EtapaLiberacao destino) {
         assertThat(autorizacao.aviso(card(EtapaLiberacao.COMITE), destino, List.of("Mychelly")))
                 .contains("Mychelly ainda não deu parecer.");
@@ -436,9 +437,125 @@ class LiberacaoAutorizacaoTest {
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.ORIGEM)).isEqualTo("Origem");
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.COMITE)).isEqualTo("Comitê");
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.PENDENCIA)).isEqualTo("Pendência");
+        assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.DIRETORIA)).isEqualTo("Diretoria");
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.APROVADO)).isEqualTo("Aprovado");
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.REPROVADO)).isEqualTo("Reprovado");
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.ASSINATURA)).isEqualTo("Assinatura");
         assertThat(LiberacaoAutorizacao.rotulo(EtapaLiberacao.FINALIZADO)).isEqualTo("Finalizados");
+    }
+
+    // ---------------------------------------------------------------- Diretoria
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"COMITE", "PENDENCIA"})
+    @DisplayName("→Diretoria sem ninguém marcado como Diretoria: TransicaoInvalidaException com a orientação ao admin")
+    void shouldBlockMoveToDiretoriaWhenDiretoriaIsEmpty(EtapaLiberacao origem) {
+        LiberacaoCardEntity card = card(origem);
+
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.DIRETORIA, analista, 1, false, true))
+                .contains("Ninguém está marcado como Diretoria. Peça ao admin para marcar em Configurações.");
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, EtapaLiberacao.DIRETORIA, analista, 1, false, true))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessage("Ninguém está marcado como Diretoria. Peça ao admin para marcar em Configurações.");
+        // com a Diretoria preenchida o mesmo movimento passa
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.DIRETORIA, analista, 1, false, false)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "APROVADO", "REPROVADO", "ORIGEM"})
+    @DisplayName("Diretoria vazia só barra quem vai para a Diretoria; os outros destinos do Comitê seguem livres")
+    void shouldIgnoreEmptyDiretoriaForOtherDestinations(EtapaLiberacao destino) {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+
+        assertThat(autorizacao.motivoBloqueio(card, destino, analista, 1, false, true)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Comitê vazio não barra o caminho para a Diretoria: cada marca vale só para o seu destino")
+    void shouldIgnoreEmptyComiteWhenGoingToDiretoria() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.DIRETORIA, analista, 1, true, false)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Diretoria vazia: a recusa de permissão vem antes (não-analista numa Pendência recebe o motivo de papel)")
+    void shouldReportRoleBeforeEmptyDiretoria() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+
+        assertThat(autorizacao.motivoBloqueio(card, EtapaLiberacao.DIRETORIA, comum, 1, false, true))
+                .contains("A partir do Comitê, só analista move o card.");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"APROVADO", "REPROVADO"})
+    @DisplayName("com o card na Diretoria só quem tem o perfil Diretoria move; analista comum e não-analista recebem o motivo da Diretoria")
+    void shouldLetOnlyDiretoriaMoveCardFromDiretoria(EtapaLiberacao destino) {
+        LiberacaoCardEntity card = card(EtapaLiberacao.DIRETORIA);
+
+        // a Diretoria decide sem parecer do Comitê: o card já chega com a rodada resolvida
+        assertThat(autorizacao.motivoBloqueio(card, destino, diretor, 0, false, false)).isEmpty();
+        assertThatCode(() -> autorizacao.exigirTransicao(card, destino, diretor, 0, false, false))
+                .doesNotThrowAnyException();
+
+        for (UserEntity quem : List.of(analista, comum)) {
+            assertThat(autorizacao.motivoBloqueio(card, destino, quem, 5, false, false))
+                    .contains("Na Diretoria, só quem tem o perfil Diretoria decide.");
+            assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, quem, 5, false, false))
+                    .isInstanceOf(AcessoNegadoException.class)
+                    .hasMessage("Na Diretoria, só quem tem o perfil Diretoria decide.");
+        }
+        assertThat(autorizacao.motivoBloqueio(card, destino, null, 0, false, false))
+                .contains("Na Diretoria, só quem tem o perfil Diretoria decide.");
+        assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, null, 0, false, false))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessage("Não autenticado");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "COMITE", "PENDENCIA", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("a Diretoria não devolve: qualquer destino fora de Aprovado/Reprovado é caminho inválido (409), para quem for")
+    void shouldExplainThatDiretoriaDoesNotGoBack(EtapaLiberacao destino) {
+        LiberacaoCardEntity card = card(EtapaLiberacao.DIRETORIA);
+        String esperado = "Não dá para ir de Diretoria para " + LiberacaoAutorizacao.rotulo(destino) + ".";
+
+        for (UserEntity quem : List.of(diretor, analista, comum)) {
+            assertThat(autorizacao.motivoBloqueio(card, destino, quem, 5, false, false)).contains(esperado);
+            assertThatThrownBy(() -> autorizacao.exigirTransicao(card, destino, quem, 5, false, false))
+                    .isInstanceOf(TransicaoInvalidaException.class)
+                    .hasMessage(esperado);
+        }
+    }
+
+    @Test
+    @DisplayName("quem tem o perfil Diretoria continua analista: move os cards das outras etapas como qualquer analista")
+    void shouldKeepDiretoriaUserAsAnalystInOtherStages() {
+        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.COMITE), EtapaLiberacao.APROVADO, diretor, 1, false, false)).isEmpty();
+        assertThat(autorizacao.motivoBloqueio(card(EtapaLiberacao.FINALIZADO), EtapaLiberacao.COMITE, diretor, 0, false, false)).isEmpty();
+        assertThat(autorizacao.podeEditar(card(EtapaLiberacao.DIRETORIA), diretor)).isTrue();
+    }
+
+    @Test
+    @DisplayName("exigirDiretoria: só quem tem o perfil passa; analista comum e não-analista recebem 'Só a Diretoria pode <ação>.'")
+    void shouldRequireDiretoriaForAction() {
+        assertThatCode(() -> autorizacao.exigirDiretoria(diretor, "marcar o quadrado D")).doesNotThrowAnyException();
+        assertThatThrownBy(() -> autorizacao.exigirDiretoria(analista, "marcar o quadrado D"))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessage("Só a Diretoria pode marcar o quadrado D.");
+        assertThatThrownBy(() -> autorizacao.exigirDiretoria(comum, "decidir"))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessage("Só a Diretoria pode decidir.");
+        assertThatThrownBy(() -> autorizacao.exigirDiretoria(null, "decidir"))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessage("Não autenticado");
+    }
+
+    @Test
+    @DisplayName("aviso: Diretoria→Aprovado/Reprovado não avisa de parecer faltando, e Comitê→Diretoria avisa")
+    void shouldWarnOnlyWhenComiteSendsToDiretoria() {
+        assertThat(autorizacao.aviso(card(EtapaLiberacao.COMITE), EtapaLiberacao.DIRETORIA, List.of("Mychelly", "Carla")))
+                .contains("Mychelly e Carla ainda não deram parecer.");
+        assertThat(autorizacao.aviso(card(EtapaLiberacao.DIRETORIA), EtapaLiberacao.APROVADO, List.of("Mychelly"))).isEmpty();
+        assertThat(autorizacao.aviso(card(EtapaLiberacao.PENDENCIA), EtapaLiberacao.DIRETORIA, List.of("Mychelly"))).isEmpty();
     }
 }

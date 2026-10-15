@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CampoNumero from "@/components/ui/CampoNumero";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { useLiberacaoDetalhe } from "@/hooks/useLiberacao";
@@ -42,7 +43,8 @@ type Props = {
  * Aprovar é decidir cada sacado. O resultado do card sai das decisões — todos aprovados ou
  * parcialmente aprovado — e aparece aqui antes de confirmar. Todos reprovados é Reprovar.
  *
- * <p>Vem preenchido com o que já foi decidido na lista do card; só falta o resto.</p>
+ * <p>É a aprovação do Comitê: grava o C de cada sacado. Vem preenchido com o que já foi decidido
+ * na lista do card; só falta o resto. A Diretoria não passa por aqui — só confirma.</p>
  */
 export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFechar }: Props) {
   const { data, isLoading } = useLiberacaoDetalhe(card.id);
@@ -55,7 +57,7 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
   const escolha = (documento: string): Escolha => {
     if (escolhas[documento]) return escolhas[documento];
     const sacado = sacados.find(item => item.documento === documento);
-    return { situacao: sacado?.situacao ?? null, valorAprovado: moedaParaCampo(sacado?.valorAprovado) };
+    return { situacao: sacado?.opiniaoComite ?? null, valorAprovado: moedaParaCampo(sacado?.valorAprovadoComite) };
   };
   const mudar = (documento: string, parcial: Partial<Escolha>) =>
     setEscolhas(atuais => ({ ...atuais, [documento]: { ...escolha(documento), ...parcial } }));
@@ -129,7 +131,7 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
           <p className="text-sm text-slate-600 dark:text-slate-300">Card sem sacados: a operação inteira fica aprovada.</p>
         ) : (
           <div>
-            <span className={ROTULO}>Decisão de cada sacado</span>
+            <span className={ROTULO}>Decisão do Comitê (C) em cada sacado</span>
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
               {sacados.map(sacado => {
                 const atual = escolha(sacado.documento);
@@ -164,11 +166,10 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
                     {atual.situacao === "PARCIAL" && (
                       <div className="relative w-full sm:w-32">
                         <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
-                        <input
-                          inputMode="decimal"
+                        <CampoNumero
                           autoFocus
-                          value={atual.valorAprovado}
-                          onChange={event => mudar(sacado.documento, { valorAprovado: event.target.value })}
+                          valor={atual.valorAprovado}
+                          onMudar={texto => mudar(sacado.documento, { valorAprovado: texto })}
                           onBlur={() => mudar(sacado.documento, { valorAprovado: moedaParaCampo(parseMoeda(atual.valorAprovado)) })}
                           placeholder="aprovado"
                           aria-label={`Valor aprovado de ${sacado.nome ?? sacado.documento}`}

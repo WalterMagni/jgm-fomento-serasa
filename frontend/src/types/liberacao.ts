@@ -1,6 +1,8 @@
 /** Esteira de liberação de operações. Espelha os DTOs de /api/v1/liberacao. */
 
-export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "APROVADO" | "REPROVADO" | "ASSINATURA" | "FINALIZADO";
+import type { NotaEmpresa } from "./nota-empresa";
+
+export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "DIRETORIA" | "APROVADO" | "REPROVADO" | "ASSINATURA" | "FINALIZADO";
 
 /** Decisão de um sacado e resultado do card, que sai das decisões dos sacados. */
 export type Resultado = "APROVADO" | "REPROVADO" | "PARCIAL";
@@ -41,7 +43,7 @@ export type TipoEventoLiberacao =
   | "ANEXO_REMOVIDO"
   | "EXCLUSAO";
 
-export const ETAPAS: EtapaLiberacao[] = ["ORIGEM", "COMITE", "PENDENCIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"];
+export const ETAPAS: EtapaLiberacao[] = ["ORIGEM", "COMITE", "PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"];
 
 /** Já decidido: o prazo para de correr e os sacados não mudam sem reabrir. Igual ao backend. */
 export const ETAPAS_DECIDIDAS: EtapaLiberacao[] = ["APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"];
@@ -50,6 +52,7 @@ export const ROTULO_ETAPA: Record<EtapaLiberacao, string> = {
   ORIGEM: "Origem da análise",
   COMITE: "Comitê",
   PENDENCIA: "Pendência",
+  DIRETORIA: "Diretoria",
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
   ASSINATURA: "Assinatura",
@@ -61,6 +64,7 @@ export const ROTULO_ETAPA_CURTO: Record<EtapaLiberacao, string> = {
   ORIGEM: "Origem",
   COMITE: "Comitê",
   PENDENCIA: "Pendência",
+  DIRETORIA: "Diretoria",
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
   ASSINATURA: "Assinatura",
@@ -75,7 +79,7 @@ export const ROTULO_POSICAO: Record<PosicaoParecer, string> = {
 
 export type Pessoa = { id: string; nome: string; iniciais: string };
 
-export type PessoaDiretorio = Pessoa & { analista: boolean; comite: boolean };
+export type PessoaDiretorio = Pessoa & { analista: boolean; comite: boolean; diretoria: boolean };
 
 export type Parecer = {
   id: string;
@@ -102,6 +106,8 @@ export type LiberacaoCard = {
   cedenteCadastrado: boolean;
   /** Cidade/UF do cedente. */
   cedentePraca: string | null;
+  /** Score da equipe para o cedente (A a D); nulo sem score. */
+  cedenteNota: NotaEmpresa | null;
   /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
   pracaPagamento: PracaPagamento | null;
   tipoOperacao: TipoOperacao | null;
@@ -132,6 +138,10 @@ export type LiberacaoCard = {
   resultado: Resultado | null;
   /** Ressalva da aprovação: o card fica em Aprovado com a etiqueta amarela. */
   ressalva: string | null;
+  /** Por que o Comitê mandou para a Diretoria, quem mandou e quando. Nulos fora disso. */
+  motivoDiretoria: string | null;
+  enviadoDiretoriaPorNome: string | null;
+  enviadoDiretoriaEm: string | null;
   /** Aprovados inteiros mais o aprovado dos parciais; nulo sem nenhuma decisão. */
   valorAprovado: number | null;
   ultimaAtividade: string | null;
@@ -165,6 +175,7 @@ export type Sacado = {
   valor: number | null;
   cadastrado: boolean;
   praca: string | null;
+  /** Decisão final: a do C (Comitê) ou a do D (Diretoria), gravada quando o card é decidido. */
   situacao: Resultado | null;
   valorAprovado: number | null;
   situacaoPorNome: string | null;
@@ -172,14 +183,20 @@ export type Sacado = {
   historico: DecisaoAnterior[];
   /** Linha do sacado na AR, quando o card veio do PDF. */
   carteira: CarteiraSacado | null;
-  /** Quadrado O: opinião da Origem. */
+  /** Quadrado O: opinião da Origem. Fora da tela; fica pelos dados antigos. */
   opiniaoOrigem: Resultado | null;
   opiniaoOrigemPorNome: string | null;
   opiniaoOrigemEm: string | null;
-  /** Quadrado C: opinião do Comitê. O quadrado D é a situação (decisão). */
+  /** Quadrado C: decisão do Comitê. */
   opiniaoComite: Resultado | null;
   opiniaoComitePorNome: string | null;
   opiniaoComiteEm: string | null;
+  valorAprovadoComite: number | null;
+  /** Quadrado D: decisão da Diretoria, com o card na Diretoria. */
+  decisaoDiretoria: Resultado | null;
+  valorAprovadoDiretoria: number | null;
+  decisaoDiretoriaPorNome: string | null;
+  decisaoDiretoriaEm: string | null;
   /** Parecer em texto de cada quadrado, com @menções. */
   parecerOrigem: string | null;
   parecerComite: string | null;
@@ -191,7 +208,7 @@ export type Sacado = {
 /** Títulos decididos como CEDENTE na Praça de Pagamento em que a empresa aparece, e o valor pago. */
 export type PracaPagamento = { titulos: number; valor: number };
 
-/** Quadrados do sacado: O (Origem), C (Comitê), D (Diretoria, a decisão). */
+/** Quadrados do sacado: O (Origem), C (decisão do Comitê), D (decisão da Diretoria). */
 export type QuadroOpiniao = "ORIGEM" | "COMITE" | "DIRETORIA";
 
 /**
@@ -254,6 +271,9 @@ export type PropostaImportada = {
 };
 
 /** O que o portal sabe de um CNPJ (CNPJ Já ou Serasa). */
+/** Sacado achado pela busca por nome ou documento: empresa ou pessoa física que o portal conhece. */
+export type SacadoEncontrado = { documento: string; nome: string | null; praca: string | null; pessoaFisica: boolean };
+
 export type EmpresaConhecida = {
   documento: string;
   nome: string | null;
@@ -374,6 +394,7 @@ export type UsuarioAtual = {
   canManageUsers: boolean;
   analista: boolean;
   comite: boolean;
+  diretoria: boolean;
   somNotificacao: boolean;
   emailLiberacao: boolean;
   /** Papel ADMIN: altera os catálogos da esteira de prospecção. */

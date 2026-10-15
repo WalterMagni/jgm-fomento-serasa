@@ -16,5 +16,7 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     List<UserEntity> findByComiteTrueOrderByNameAsc();
 
+    List<UserEntity> findByDiretoriaTrueOrderByNameAsc();
+
     List<UserEntity> findByAnalistaTrue();
 }

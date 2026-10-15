@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
+import NotaNoCard from "@/components/nota/NotaNoCard";
 import { RESSALVA } from "@/lib/ressalva";
 import { ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
 import Avatar from "./Avatar";
@@ -15,6 +16,8 @@ import {
   formatDocumento,
   formatMoeda,
   formatMoedaCurta,
+  juntarNomes,
+  pareceresIncompletos,
   situacaoPrazo,
   textoPrazo,
 } from "./formatters";
@@ -53,6 +56,7 @@ type Props = {
 export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; sobreposicao?: boolean }) {
   const prazo = situacaoPrazo(card);
   const faltam = aguardando(card);
+  const incompleto = pareceresIncompletos(card);
   const mostraPareceres = card.pareceres.length > 0 && card.etapa !== "ORIGEM";
   // Quem dá parecer já aparece nos selos do Comitê; repetir no canto só faria barulho.
   const doComite = new Set(mostraPareceres ? card.pareceres.map(parecer => parecer.usuarioId) : []);
@@ -101,6 +105,7 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
         {card.cedenteNome}
       </h3>
       <p className="font-mono text-[10.5px] text-slate-500 dark:text-slate-400">{formatDocumento(card.cedenteCnpj)}</p>
+      {card.cedenteNota && <NotaNoCard nota={card.cedenteNota} className="mt-1.5" />}
 
       {card.valor != null && (
         <p className="font-display mt-2 text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">
@@ -133,6 +138,17 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
           <Icon name={ICONE_RESULTADO[card.resultado]} size={11} />
           {ROTULO_RESULTADO[card.resultado]}
           {card.resultado === "PARCIAL" && card.valorAprovado != null && <span className="font-normal">· {formatMoeda(card.valorAprovado)}</span>}
+        </p>
+      )}
+
+      {incompleto && (
+        <p
+          title={`Saiu do Comitê só com o parecer de ${juntarNomes(incompleto.deram)}; faltou ${juntarNomes(incompleto.faltaram)}.`}
+          className="mt-2 mr-1 inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-800
+            dark:bg-amber-900/40 dark:text-amber-200"
+        >
+          <Icon name="person" size={11} />
+          {incompleto.deram.length} de {incompleto.total} pareceres
         </p>
       )}
 

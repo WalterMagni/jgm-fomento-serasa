@@ -142,6 +142,18 @@ public class LiberacaoNotificador {
             comiteDaRodada(card).forEach(id -> novas.add(new Nova(id, tipo, titulo, resumo(card, null), link)));
             return novas;
         }
+        if (para == EtapaLiberacao.DIRETORIA) {
+            // A decisão agora é da Diretoria; quem já acompanhava só fica sabendo que o card subiu.
+            List<UUID> diretoria = userRepository.findByDiretoriaTrueOrderByNameAsc().stream().map(UserEntity::getId).toList();
+            diretoria.forEach(id -> novas.add(new Nova(id, TipoNotificacao.PARECER_ESPERADO,
+                    ref + " chegou à Diretoria: sua decisão é esperada", resumo(card, movido.trecho()), link)));
+            List<UUID> interessados = new ArrayList<>(membros(card));
+            interessados.add(0, card.getCriadoPorId());
+            interessados.stream().filter(Objects::nonNull).filter(id -> !diretoria.contains(id)).distinct()
+                    .forEach(id -> novas.add(new Nova(id, TipoNotificacao.DECISAO, ref + " enviado à Diretoria por " + autor,
+                            resumo(card, movido.trecho()), link)));
+            return novas;
+        }
         String acao = switch (para) {
             case APROVADO -> card.getResultado() == null ? "aprovado" : card.getResultado().rotulo().toLowerCase();
             case REPROVADO -> "reprovado";

@@ -3,24 +3,28 @@
 import Icon from "@/components/ui/Icon";
 import { useDefinirPapeis } from "@/hooks/useLiberacao";
 
-type Props = {
+type Papeis = { analista: boolean; comite: boolean; diretoria: boolean };
+
+type Props = Papeis & {
   usuarioId: string;
-  analista: boolean;
-  comite: boolean;
-  onMudou: (papeis: { analista: boolean; comite: boolean }) => void;
+  onMudou: (papeis: Papeis) => void;
 };
 
 /**
  * Marcas da esteira de liberação na tabela de usuários do Settings.
  *
- * <p>Comitê exige Analista, e a tela já faz a dependência: marcar Comitê liga Analista, desligar
- * Analista desliga Comitê. Assim o admin nunca vê o erro que o banco daria.</p>
+ * <p>Comitê e Diretoria exigem Analista, e a tela já faz a dependência: marcar Comitê ou Diretoria
+ * liga Analista, desligar Analista desliga os dois. Assim o admin nunca vê o erro que o banco daria.
+ * Comitê e Diretoria são independentes: um diretor pode estar no Comitê.</p>
  */
-export default function PapeisUsuario({ usuarioId, analista, comite, onMudou }: Props) {
+export default function PapeisUsuario({ usuarioId, analista, comite, diretoria, onMudou }: Props) {
   const definir = useDefinirPapeis();
 
-  function gravar(novo: { analista: boolean; comite: boolean }) {
-    definir.mutate({ id: usuarioId, ...novo }, { onSuccess: resposta => onMudou({ analista: resposta.analista, comite: resposta.comite }) });
+  function gravar(novo: Papeis) {
+    definir.mutate(
+      { id: usuarioId, ...novo },
+      { onSuccess: resposta => onMudou({ analista: resposta.analista, comite: resposta.comite, diretoria: resposta.diretoria }) },
+    );
   }
 
   const chip = (ativo: boolean) =>
@@ -37,7 +41,7 @@ export default function PapeisUsuario({ usuarioId, analista, comite, onMudou }: 
         type="button"
         aria-pressed={analista}
         disabled={definir.isPending}
-        onClick={() => gravar({ analista: !analista, comite: analista ? false : comite })}
+        onClick={() => gravar(analista ? { analista: false, comite: false, diretoria: false } : { analista: true, comite, diretoria })}
         title="Edita e move cards da Esteira de Liberação a partir do Comitê"
         className={chip(analista)}
       >
@@ -48,12 +52,23 @@ export default function PapeisUsuario({ usuarioId, analista, comite, onMudou }: 
         type="button"
         aria-pressed={comite}
         disabled={definir.isPending}
-        onClick={() => gravar({ analista: comite ? analista : true, comite: !comite })}
-        title="Parecer obrigatório no Comitê. Liga Analista junto."
+        onClick={() => gravar({ analista: comite ? analista : true, comite: !comite, diretoria })}
+        title="Dá parecer no Comitê. Liga Analista junto."
         className={chip(comite)}
       >
         {comite && <Icon name="check" size={11} strokeWidth={3} />}
         Comitê
+      </button>
+      <button
+        type="button"
+        aria-pressed={diretoria}
+        disabled={definir.isPending}
+        onClick={() => gravar({ analista: diretoria ? analista : true, comite, diretoria: !diretoria })}
+        title="Decide os cards que o Comitê manda para a Diretoria. Liga Analista junto."
+        className={chip(diretoria)}
+      >
+        {diretoria && <Icon name="check" size={11} strokeWidth={3} />}
+        Diretoria
       </button>
     </div>
   );

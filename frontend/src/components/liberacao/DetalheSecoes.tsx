@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import CampoNumero from "@/components/ui/CampoNumero";
+import { CUSTO_CONSULTA_PF } from "@/types/pessoa-resumo";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import TextoRico from "@/components/ui/mencao/TextoRico";
-import { useDecidirSacado, useOpinarSacado, useParecerSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
+import { useDecidirSacado, useParecerSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
 import {
   ROTULO_POSICAO,
   ROTULO_RESULTADO,
@@ -92,8 +94,8 @@ type Quadro = "O" | "C" | "D";
 const NOME_QUADRO: Record<Quadro, string> = { O: "Origem", C: "Comitê", D: "Diretoria" };
 
 /**
- * Um quadrado (O, C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
- * e, no D, o valor aprovado do parcial. Fora disso só mostra a cor e, ao passar o mouse, quem
+ * Um quadrado (C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
+ * e o valor aprovado do parcial. Fora disso só mostra a cor e, ao passar o mouse, quem
  * marcou e quando.
  */
 function Quadrado({
@@ -115,7 +117,7 @@ function Quadrado({
   porNome: string | null;
   em: string | null;
   editavel: boolean;
-  /** D: parcial pede o valor aprovado. */
+  /** Parcial pede o valor aprovado. */
   pedirValor?: boolean;
   valorAtual?: number | null;
   ocupado: boolean;
@@ -200,11 +202,10 @@ function Quadrado({
             >
               <div className="relative flex-1">
                 <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">R$</span>
-                <input
+                <CampoNumero
                   autoFocus
-                  inputMode="decimal"
-                  value={valor}
-                  onChange={event => setValor(event.target.value)}
+                  valor={valor}
+                  onMudar={setValor}
                   placeholder="aprovado"
                   aria-label="Valor aprovado"
                   className="w-full rounded-md border border-amber-300 bg-white py-1 pl-6 pr-1.5 text-right text-xs tabular-nums focus:outline-none
@@ -279,7 +280,7 @@ function PareceresSacado({ sacado }: { sacado: Sacado }) {
   const linhas: { letra: Quadro; situacao: Resultado | null; texto: string | null }[] = [
     { letra: "O", situacao: sacado.opiniaoOrigem, texto: sacado.parecerOrigem },
     { letra: "C", situacao: sacado.opiniaoComite, texto: sacado.parecerComite },
-    { letra: "D", situacao: sacado.situacao, texto: sacado.parecerDiretoria },
+    { letra: "D", situacao: sacado.decisaoDiretoria, texto: sacado.parecerDiretoria },
   ];
   const escritos = linhas.filter(linha => linha.texto);
   if (escritos.length === 0) return null;
@@ -304,62 +305,48 @@ function PareceresSacado({ sacado }: { sacado: Sacado }) {
   );
 }
 
-/** Os três quadrados do sacado: O (Origem), C (Comitê) e D (Diretoria, a decisão que vale). */
-function QuadradosSacado({
-  cardId,
-  sacado,
-  podeOrigem,
-  podeComite,
-}: {
-  cardId: string;
-  sacado: Sacado;
-  podeOrigem: boolean;
-  podeComite: boolean;
-}) {
-  const opinar = useOpinarSacado();
+/**
+ * Os quadrados do sacado: C (decisão do Comitê) e D (Diretoria). Só o C se marca; o D é preenchido
+ * quando a Diretoria aprova (repete o C) ou reprova o card. A Origem não decide: o O saiu da tela.
+ */
+function QuadradosSacado({ cardId, sacado, podeComite }: { cardId: string; sacado: Sacado; podeComite: boolean }) {
   const decidir = useDecidirSacado();
   const escrever = useParecerSacado();
-  const ocupado = opinar.isPending || decidir.isPending;
   const salvar = (quadro: QuadroOpiniao) => (texto: string, aoSalvar: () => void) =>
     escrever.mutate({ id: cardId, documento: sacado.documento, quadro, texto }, { onSuccess: aoSalvar });
+  const marcar = (situacao: Resultado | null, valorAprovado?: number) =>
+    decidir.mutate({
+      id: cardId,
+      documento: sacado.documento,
+      quadro: "COMITE",
+      situacao,
+      valorAprovado: situacao === "PARCIAL" ? valorAprovado : null,
+    });
   return (
     <div className="flex items-center gap-1.5" role="group" aria-label={`Decisões de ${sacado.nome ?? sacado.documento}`}>
-      <Quadrado
-        letra="O"
-        situacao={sacado.opiniaoOrigem}
-        porNome={sacado.opiniaoOrigemPorNome}
-        em={sacado.opiniaoOrigemEm}
-        editavel={podeOrigem}
-        ocupado={ocupado}
-        onMarcar={situacao => opinar.mutate({ id: cardId, documento: sacado.documento, quadro: "ORIGEM", situacao })}
-        parecer={sacado.parecerOrigem}
-        salvandoParecer={escrever.isPending}
-        onParecer={salvar("ORIGEM")}
-      />
       <Quadrado
         letra="C"
         situacao={sacado.opiniaoComite}
         porNome={sacado.opiniaoComitePorNome}
         em={sacado.opiniaoComiteEm}
         editavel={podeComite}
-        ocupado={ocupado}
-        onMarcar={situacao => opinar.mutate({ id: cardId, documento: sacado.documento, quadro: "COMITE", situacao })}
+        pedirValor
+        valorAtual={sacado.valorAprovadoComite}
+        ocupado={decidir.isPending}
+        onMarcar={marcar}
         parecer={sacado.parecerComite}
         salvandoParecer={escrever.isPending}
         onParecer={salvar("COMITE")}
       />
       <Quadrado
         letra="D"
-        situacao={sacado.situacao}
-        porNome={sacado.situacaoPorNome}
-        em={sacado.situacaoEm}
-        editavel={podeComite}
-        pedirValor
-        valorAtual={sacado.valorAprovado}
-        ocupado={ocupado}
-        onMarcar={(situacao, valorAprovado) =>
-          decidir.mutate({ id: cardId, documento: sacado.documento, situacao, valorAprovado: situacao === "PARCIAL" ? valorAprovado : null })
-        }
+        situacao={sacado.decisaoDiretoria}
+        porNome={sacado.decisaoDiretoriaPorNome}
+        em={sacado.decisaoDiretoriaEm}
+        editavel={false}
+        valorAtual={sacado.valorAprovadoDiretoria}
+        ocupado={false}
+        onMarcar={() => undefined}
         parecer={sacado.parecerDiretoria}
         salvandoParecer={escrever.isPending}
         onParecer={salvar("DIRETORIA")}
@@ -372,16 +359,16 @@ export function SacadosLista({
   cardId,
   sacados,
   valorOperacao,
-  podeOrigem,
   podeComite,
+  quadro,
 }: {
   cardId: string;
   sacados: Sacado[];
   valorOperacao: number | null;
-  /** Card na Origem: qualquer pessoa marca o quadrado O. */
-  podeOrigem: boolean;
-  /** Analista com o card no Comitê ou em Pendência: marca C e D. */
+  /** Analista com o card no Comitê ou em Pendência: marca o C. */
   podeComite: boolean;
+  /** Quem decide agora, para a conta de decididos; nulo depois da decisão (vale a situação). */
+  quadro: "COMITE" | "DIRETORIA" | null;
 }) {
   if (sacados.length === 0) {
     return <p className="text-sm text-slate-400">Nenhum sacado informado.</p>;
@@ -389,7 +376,9 @@ export function SacadosLista({
   const comValor = sacados.filter(sacado => sacado.valor != null);
   const soma = comValor.reduce((total, sacado) => total + (sacado.valor ?? 0), 0);
   const divergente = valorOperacao != null && comValor.length > 0 && Math.abs(soma - valorOperacao) >= 0.01;
-  const decididos = sacados.filter(sacado => sacado.situacao);
+  const decididos = sacados.filter(sacado =>
+    quadro === "COMITE" ? sacado.opiniaoComite : quadro === "DIRETORIA" ? sacado.decisaoDiretoria : sacado.situacao,
+  );
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-700">
@@ -423,13 +412,22 @@ export function SacadosLista({
               {sacado.valor != null && (
                 <span className="text-sm tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.valor)}</span>
               )}
-              <QuadradosSacado cardId={cardId} sacado={sacado} podeOrigem={podeOrigem} podeComite={podeComite} />
-              {sacado.documento.length === 14 && (
+              <QuadradosSacado cardId={cardId} sacado={sacado} podeComite={podeComite} />
+              {(sacado.documento.length === 14 || sacado.documento.length === 11) && (
                 <a
-                  href={`/clients/${sacado.documento}`}
+                  // CPF vai para a ficha de Pessoas Físicas; sem ficha, a página oferece a consulta Serasa PF (com custo).
+                  href={sacado.documento.length === 11 ? `/individuals/${sacado.documento}` : `/clients/${sacado.documento}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={sacado.cadastrado ? "Abrir a página da empresa em nova aba" : "Empresa não cadastrada: abre a página para cadastrar"}
+                  title={
+                    sacado.documento.length === 11
+                      ? sacado.cadastrado
+                        ? "Abrir a ficha da pessoa física em nova aba"
+                        : `Pessoa física sem ficha: abre a página para consultar o Serasa PF (${CUSTO_CONSULTA_PF})`
+                      : sacado.cadastrado
+                        ? "Abrir a página da empresa em nova aba"
+                        : "Empresa não cadastrada: abre a página para cadastrar"
+                  }
                   aria-label={`Abrir ${sacado.nome ?? formatDocumento(sacado.documento)} em nova aba`}
                   className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors focus:outline-none
                     focus-visible:ring-2 focus-visible:ring-[#612035] ${

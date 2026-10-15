@@ -27,7 +27,7 @@ public class UsuarioDiretorioController {
     private final UserRepository userRepository;
     private final UsuarioLogado usuarioLogado;
 
-    public record PessoaDiretorio(UUID id, String nome, String iniciais, boolean analista, boolean comite) {
+    public record PessoaDiretorio(UUID id, String nome, String iniciais, boolean analista, boolean comite, boolean diretoria) {
     }
 
     @GetMapping("/diretorio")
@@ -35,7 +35,8 @@ public class UsuarioDiretorioController {
         usuarioLogado.obter();
         return ResponseEntity.ok(userRepository.findAllByOrderByNameAsc().stream()
                 .map(user -> new PessoaDiretorio(user.getId(), user.getName(),
-                        LiberacaoResponseAssembler.iniciais(user.getName()), user.isAnalista(), user.isComite()))
+                        LiberacaoResponseAssembler.iniciais(user.getName()), user.isAnalista(), user.isComite(),
+                        user.isDiretoria()))
                 .toList());
     }
 }

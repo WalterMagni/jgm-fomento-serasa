@@ -209,6 +209,11 @@ public class LiberacaoService {
         return userRepository.findByComiteTrueOrderByNameAsc().isEmpty();
     }
 
+    @Transactional(readOnly = true)
+    public boolean diretoriaVazia() {
+        return userRepository.findByDiretoriaTrueOrderByNameAsc().isEmpty();
+    }
+
     // ---------------------------------------------------------------- criação
 
     @Transactional
@@ -404,18 +409,38 @@ public class LiberacaoService {
         List<UserEntity> comite = para == EtapaLiberacao.COMITE
                 ? userRepository.findByComiteTrueOrderByNameAsc()
                 : List.of();
+        List<UserEntity> diretoria = para == EtapaLiberacao.DIRETORIA
+                ? userRepository.findByDiretoriaTrueOrderByNameAsc()
+                : List.of();
         List<LiberacaoParecerEntity> rodada = parecerRepository.findByCardIdAndRodadaOrderByCriadoEm(id, card.getRodada());
         int registrados = (int) rodada.stream().filter(LiberacaoParecerEntity::registrado).count();
         List<String> faltando = aguardando(rodada);
         autorizacao.exigirTransicao(card, para, autor, registrados,
-                para == EtapaLiberacao.COMITE && comite.isEmpty());
+                para == EtapaLiberacao.COMITE && comite.isEmpty(),
+                para == EtapaLiberacao.DIRETORIA && diretoria.isEmpty());
+
+        // Ir para a Diretoria é escolha do Comitê, em qualquer caso: o motivo contextualiza a decisão.
+        String motivoDiretoria = para == EtapaLiberacao.DIRETORIA ? textoOuNulo(observacao) : null;
+        if (para == EtapaLiberacao.DIRETORIA && motivoDiretoria == null) {
+            throw new IllegalArgumentException("Conte por que o card vai para a Diretoria.");
+        }
 
         List<DecisaoSacado> decisoesSacados = decisoes == null ? List.of() : decisoes;
         if (para != EtapaLiberacao.APROVADO && !decisoesSacados.isEmpty()) {
             throw new IllegalArgumentException("Decisão de sacado só ao aprovar ou pela própria tela do sacado.");
         }
+        // A Diretoria dá sim ou não à proposta do Comitê: não mexe nos sacados nem põe ressalva.
+        if (de == EtapaLiberacao.DIRETORIA && !decisoesSacados.isEmpty()) {
+            throw new IllegalArgumentException("A Diretoria aprova ou reprova; a decisão de cada sacado é a do Comitê.");
+        }
+        if (de == EtapaLiberacao.DIRETORIA && ressalvaLimpa != null) {
+            throw new IllegalArgumentException("A Diretoria aprova sem ressalva.");
+        }
+        if (para == EtapaLiberacao.DIRETORIA) {
+            exigirPropostaDoComite(card);
+        }
         // Calculado na decisão; Assinatura e Finalizados herdam; voltar ao Comitê desfaz.
-        ResultadoLiberacao resultado = para.decisao() ? decidir(card, para, decisoesSacados, autor)
+        ResultadoLiberacao resultado = para.decisao() ? decidir(card, de, para, decisoesSacados, autor)
                 : para.decidida() ? card.getResultado()
                 : null;
 
@@ -436,6 +461,13 @@ public class LiberacaoService {
         }
         if (reabertura) {
             card.setRodada(card.getRodada() + 1);
+            // De volta ao Comitê: a Diretoria não decidiu esta rodada. O histórico guarda a anterior.
+            limparDiretoria(card);
+        }
+        if (para == EtapaLiberacao.DIRETORIA) {
+            card.setMotivoDiretoria(motivoDiretoria);
+            card.setEnviadoDiretoriaPorNome(autor.getName());
+            card.setEnviadoDiretoriaEm(LocalDateTime.now());
         }
 
         LocalDateTime agora = LocalDateTime.now();
@@ -465,6 +497,8 @@ public class LiberacaoService {
         if (para == EtapaLiberacao.COMITE && de != EtapaLiberacao.PENDENCIA) {
             convocarComite(salvo, comite);
         }
+        // A Diretoria passa a acompanhar: o aviso de que a decisão é dela, e o que vier depois.
+        diretoria.forEach(diretor -> adicionarMembro(salvo.getId(), diretor.getId(), OrigemMembro.DIRETORIA));
 
         // Saiu do Comitê com parecer faltando: fica dito no histórico, junto da observação.
         String texto = textoOuNulo(observacao);
@@ -490,39 +524,102 @@ public class LiberacaoService {
     }
 
     /**
-     * A decisão: a coluna escolhida pela analista e as decisões dos sacados precisam concordar.
+     * A decisão: a coluna escolhida e as decisões dos sacados precisam concordar.
+     *
+     * <p>Quem decide é o Comitê (quadrado C) ou, com o card na Diretoria, a Diretoria (quadrado
+     * D). A decisão de cada sacado vai para a situação, que é a decisão final.</p>
      *
      * <p>Reprovar reprova todos os sacados. Aprovar pede todo sacado decidido — card aprovado com
      * sacado "a decidir" deixaria o resultado mentindo — e pelo menos um aprovado ou parcial.
      * Card sem sacados fica com o resultado da coluna.</p>
      */
-    private ResultadoLiberacao decidir(LiberacaoCardEntity card, EtapaLiberacao para,
+    private ResultadoLiberacao decidir(LiberacaoCardEntity card, EtapaLiberacao de, EtapaLiberacao para,
                                        List<DecisaoSacado> decisoes, UserEntity autor) {
+        QuadroOpiniao quadro = de == EtapaLiberacao.DIRETORIA ? QuadroOpiniao.DIRETORIA : QuadroOpiniao.COMITE;
         List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(card.getId());
+        if (quadro == QuadroOpiniao.DIRETORIA && para == EtapaLiberacao.APROVADO) {
+            // Sim da Diretoria: o D de cada sacado repete o C, assinado por quem aprovou.
+            for (LiberacaoSacadoEntity sacado : List.copyOf(sacados)) {
+                aplicarDecisao(card, sacados, quadro,
+                        new DecisaoSacado(sacado.getCnpj(), sacado.getOpiniaoComite(), sacado.getValorAprovadoComite()), autor);
+            }
+        }
         if (para == EtapaLiberacao.REPROVADO) {
             for (LiberacaoSacadoEntity sacado : List.copyOf(sacados)) {
-                aplicarDecisao(card, sacados, new DecisaoSacado(sacado.getCnpj(), ResultadoLiberacao.REPROVADO, null), autor);
+                aplicarDecisao(card, sacados, quadro, new DecisaoSacado(sacado.getCnpj(), ResultadoLiberacao.REPROVADO, null), autor);
             }
+            finalizarSacados(sacados, quadro);
             return ResultadoLiberacao.REPROVADO;
         }
         for (DecisaoSacado decisao : decisoes) {
-            aplicarDecisao(card, sacados, decisao, autor);
+            aplicarDecisao(card, sacados, quadro, decisao, autor);
         }
         if (sacados.isEmpty()) {
             return ResultadoLiberacao.APROVADO;
         }
         List<String> aDecidir = sacados.stream()
-                .filter(sacado -> sacado.getSituacao() == null)
+                .filter(sacado -> decisaoDo(sacado, quadro) == null)
                 .map(sacado -> rotuloSacado(sacado.getCnpj(), sacado.getNome()))
                 .toList();
         if (!aDecidir.isEmpty()) {
             throw new TransicaoInvalidaException("Decida todos os sacados antes de aprovar. Falta: " + String.join(", ", aDecidir) + ".");
         }
-        ResultadoLiberacao resultado = ResultadoLiberacao.doCard(sacados.stream().map(LiberacaoSacadoEntity::getSituacao).toList());
+        ResultadoLiberacao resultado = ResultadoLiberacao.doCard(sacados.stream().map(sacado -> decisaoDo(sacado, quadro)).toList());
         if (resultado == ResultadoLiberacao.REPROVADO) {
             throw new TransicaoInvalidaException("Todos os sacados estão reprovados: mova o card para Reprovado.");
         }
+        finalizarSacados(sacados, quadro);
         return resultado;
+    }
+
+    /**
+     * A Diretoria responde à proposta do Comitê: cada sacado precisa do C, e com todos reprovados
+     * não há o que aprovar — o próprio Comitê reprova.
+     */
+    private void exigirPropostaDoComite(LiberacaoCardEntity card) {
+        List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(card.getId());
+        List<String> semC = sacados.stream()
+                .filter(sacado -> sacado.getOpiniaoComite() == null)
+                .map(sacado -> rotuloSacado(sacado.getCnpj(), sacado.getNome()))
+                .toList();
+        if (!semC.isEmpty()) {
+            throw new TransicaoInvalidaException("Decida o C de todos os sacados antes de mandar para a Diretoria. Falta: "
+                    + String.join(", ", semC) + ".");
+        }
+        if (!sacados.isEmpty() && sacados.stream().allMatch(sacado -> sacado.getOpiniaoComite() == ResultadoLiberacao.REPROVADO)) {
+            throw new TransicaoInvalidaException("Todos os sacados estão reprovados no C: o Comitê mesmo reprova o card.");
+        }
+    }
+
+    /** A decisão de quem decidiu o card (C ou D) vira a situação: é ela que conta daqui em diante. */
+    private void finalizarSacados(List<LiberacaoSacadoEntity> sacados, QuadroOpiniao quadro) {
+        for (LiberacaoSacadoEntity sacado : sacados) {
+            boolean diretoria = quadro == QuadroOpiniao.DIRETORIA;
+            sacado.setSituacao(decisaoDo(sacado, quadro));
+            sacado.setValorAprovado(diretoria ? sacado.getValorAprovadoDiretoria() : sacado.getValorAprovadoComite());
+            sacado.setSituacaoPorNome(diretoria ? sacado.getDecisaoDiretoriaPorNome() : sacado.getOpiniaoComitePorNome());
+            sacado.setSituacaoEm(diretoria ? sacado.getDecisaoDiretoriaEm() : sacado.getOpiniaoComiteEm());
+        }
+        sacadoRepository.saveAll(sacados);
+    }
+
+    private static ResultadoLiberacao decisaoDo(LiberacaoSacadoEntity sacado, QuadroOpiniao quadro) {
+        return quadro == QuadroOpiniao.DIRETORIA ? sacado.getDecisaoDiretoria() : sacado.getOpiniaoComite();
+    }
+
+    /** Reabertura: some a decisão da Diretoria e o motivo do envio. */
+    private void limparDiretoria(LiberacaoCardEntity card) {
+        card.setMotivoDiretoria(null);
+        card.setEnviadoDiretoriaPorNome(null);
+        card.setEnviadoDiretoriaEm(null);
+        List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(card.getId());
+        sacados.forEach(sacado -> {
+            sacado.setDecisaoDiretoria(null);
+            sacado.setValorAprovadoDiretoria(null);
+            sacado.setDecisaoDiretoriaPorNome(null);
+            sacado.setDecisaoDiretoriaEm(null);
+        });
+        sacadoRepository.saveAll(sacados);
     }
 
     // ------------------------------------------------------------- arquivamento
@@ -565,15 +662,14 @@ public class LiberacaoService {
     }
 
     /**
-     * Marca o quadrado O ou C de um sacado. O (Origem): qualquer pessoa, com o card na Origem.
-     * C (Comitê): analista, com o card no Comitê ou em Pendência. Situação nula limpa o quadrado.
-     * Parcial aqui é só a opinião, sem valor: o valor aprovado é da decisão (quadrado D).
+     * Marca o quadrado O de um sacado: qualquer pessoa, com o card na Origem. Situação nula limpa.
+     * Desde a V88 a tela não mostra o O; C e D são decisões e passam por {@link #decidirSacado}.
      */
     @Transactional
     public LiberacaoCardEntity opinarSacado(UUID cardId, String documento, QuadroOpiniao quadro,
                                             ResultadoLiberacao situacao, UserEntity autor) {
-        if (quadro == QuadroOpiniao.DIRETORIA) {
-            throw new IllegalArgumentException("O quadrado D é a decisão do sacado.");
+        if (quadro != QuadroOpiniao.ORIGEM) {
+            throw new IllegalArgumentException("O quadrado " + quadro.letra() + " é decisão: marque pela decisão do sacado.");
         }
         LiberacaoCardEntity card = buscar(cardId);
         exigirQuadro(card, quadro, autor);
@@ -637,18 +733,32 @@ public class LiberacaoService {
         return atualizado;
     }
 
-    /** O: qualquer pessoa, card na Origem. C e D: analista, card no Comitê ou em Pendência. */
+    /**
+     * O: qualquer pessoa, card na Origem. C: analista, card no Comitê ou em Pendência. D: quem tem
+     * o perfil Diretoria, card na Diretoria.
+     */
     private void exigirQuadro(LiberacaoCardEntity card, QuadroOpiniao quadro, UserEntity autor) {
         autorizacao.exigirAutenticado(autor);
-        if (quadro == QuadroOpiniao.ORIGEM) {
-            if (card.getEtapa() != EtapaLiberacao.ORIGEM) {
-                throw new TransicaoInvalidaException("O quadrado O (Origem) é marcado com o card na Origem.");
+        switch (quadro) {
+            case ORIGEM -> {
+                if (card.getEtapa() != EtapaLiberacao.ORIGEM) {
+                    throw new TransicaoInvalidaException("O quadrado O (Origem) é marcado com o card na Origem.");
+                }
             }
-            return;
-        }
-        autorizacao.exigirAnalista(autor, "marcar o quadrado " + quadro.letra());
-        if (card.getEtapa() != EtapaLiberacao.COMITE && card.getEtapa() != EtapaLiberacao.PENDENCIA) {
-            throw new TransicaoInvalidaException("O quadrado " + quadro.letra() + " é marcado com o card no Comitê ou em Pendência.");
+            case COMITE -> {
+                autorizacao.exigirAnalista(autor, "marcar o quadrado C");
+                if (card.getEtapa() != EtapaLiberacao.COMITE && card.getEtapa() != EtapaLiberacao.PENDENCIA) {
+                    throw new TransicaoInvalidaException(card.getEtapa().decidida()
+                            ? "Card já decidido: reabra no Comitê para mudar a decisão."
+                            : "O quadrado C é marcado com o card no Comitê ou em Pendência.");
+                }
+            }
+            case DIRETORIA -> {
+                autorizacao.exigirDiretoria(autor, "marcar o quadrado D");
+                if (card.getEtapa() != EtapaLiberacao.DIRETORIA) {
+                    throw new TransicaoInvalidaException("O quadrado D é marcado com o card na Diretoria.");
+                }
+            }
         }
     }
 
@@ -661,19 +771,20 @@ public class LiberacaoService {
     }
 
     /**
-     * Decide um sacado fora da decisão do card, pela lista de sacados. Só analista, e só com o
-     * card no Comitê ou em Pendência: na Origem ainda não há decisão, e card decidido se reabre antes.
+     * Decide o C de um sacado pela lista, com o card no Comitê ou em Pendência. A situação só muda
+     * quando o card é decidido. O D não se marca aqui: a Diretoria só dá sim ou não ao card.
      */
     @Transactional
-    public LiberacaoCardEntity decidirSacado(UUID cardId, DecisaoSacado decisao, UserEntity autor) {
-        LiberacaoCardEntity card = buscar(cardId);
-        autorizacao.exigirAnalista(autor, "decidir sacado");
-        if (card.getEtapa() != EtapaLiberacao.COMITE && card.getEtapa() != EtapaLiberacao.PENDENCIA) {
-            throw new TransicaoInvalidaException(card.getEtapa().decidida()
-                    ? "Card já decidido: reabra no Comitê para mudar a decisão."
-                    : "Sacado é decidido a partir do Comitê.");
+    public LiberacaoCardEntity decidirSacado(UUID cardId, QuadroOpiniao quadro, DecisaoSacado decisao, UserEntity autor) {
+        if (quadro == QuadroOpiniao.ORIGEM) {
+            throw new IllegalArgumentException("A Origem não decide sacado.");
         }
-        if (!aplicarDecisao(card, sacadoRepository.findByCardIdOrderByOrdem(cardId), decisao, autor)) {
+        if (quadro == QuadroOpiniao.DIRETORIA) {
+            throw new IllegalArgumentException("O D é preenchido quando a Diretoria aprova ou reprova o card.");
+        }
+        LiberacaoCardEntity card = buscar(cardId);
+        exigirQuadro(card, quadro, autor);
+        if (!aplicarDecisao(card, sacadoRepository.findByCardIdOrderByOrdem(cardId), quadro, decisao, autor)) {
             return card;
         }
         cardRepository.tocarSemVersao(cardId, LocalDateTime.now(), autor.getId(), autor.getName());
@@ -682,8 +793,13 @@ public class LiberacaoService {
         return atualizado;
     }
 
-    /** @return false quando a decisão já era essa (clique repetido): nada gravado. */
-    private boolean aplicarDecisao(LiberacaoCardEntity card, List<LiberacaoSacadoEntity> sacados, DecisaoSacado decisao, UserEntity autor) {
+    /**
+     * Grava a decisão no quadrado C ou D.
+     *
+     * @return false quando a decisão já era essa (clique repetido): nada gravado.
+     */
+    private boolean aplicarDecisao(LiberacaoCardEntity card, List<LiberacaoSacadoEntity> sacados, QuadroOpiniao quadro,
+                                   DecisaoSacado decisao, UserEntity autor) {
         String documento = decisao.documento() == null ? "" : decisao.documento().replaceAll("\\D", "");
         LiberacaoSacadoEntity sacado = sacados.stream()
                 .filter(item -> item.getCnpj().equals(documento))
@@ -699,16 +815,28 @@ public class LiberacaoService {
                 throw new IllegalArgumentException("Parcial: o valor aprovado precisa ser menor que " + moeda(sacado.getValor()) + ".");
             }
         }
-        if (sacado.getSituacao() == decisao.situacao() && mesmoValor(sacado.getValorAprovado(), valorAprovado)) {
+        boolean diretoria = quadro == QuadroOpiniao.DIRETORIA;
+        ResultadoLiberacao atual = decisaoDo(sacado, quadro);
+        BigDecimal valorAtual = diretoria ? sacado.getValorAprovadoDiretoria() : sacado.getValorAprovadoComite();
+        if (atual == decisao.situacao() && mesmoValor(valorAtual, valorAprovado)) {
             return false;
         }
-        String antes = rotuloDecisao(sacado.getSituacao(), sacado.getValorAprovado());
-        sacado.setSituacao(decisao.situacao());
-        sacado.setValorAprovado(valorAprovado);
-        sacado.setSituacaoPorNome(decisao.situacao() == null ? null : autor.getName());
-        sacado.setSituacaoEm(decisao.situacao() == null ? null : LocalDateTime.now());
+        String antes = rotuloDecisao(atual, valorAtual);
+        String nome = decisao.situacao() == null ? null : autor.getName();
+        LocalDateTime quando = decisao.situacao() == null ? null : LocalDateTime.now();
+        if (diretoria) {
+            sacado.setDecisaoDiretoria(decisao.situacao());
+            sacado.setValorAprovadoDiretoria(valorAprovado);
+            sacado.setDecisaoDiretoriaPorNome(nome);
+            sacado.setDecisaoDiretoriaEm(quando);
+        } else {
+            sacado.setOpiniaoComite(decisao.situacao());
+            sacado.setValorAprovadoComite(valorAprovado);
+            sacado.setOpiniaoComitePorNome(nome);
+            sacado.setOpiniaoComiteEm(quando);
+        }
         sacadoRepository.save(sacado);
-        registrar(card, TipoEventoLiberacao.EDICAO, null, null, "situacaoSacado", antes,
+        registrar(card, TipoEventoLiberacao.EDICAO, null, null, diretoria ? "decisaoDiretoria" : "decisaoComite", antes,
                 rotuloDecisao(decisao.situacao(), valorAprovado), rotuloSacado(sacado.getCnpj(), sacado.getNome()), autor);
         return true;
     }
@@ -959,7 +1087,12 @@ public class LiberacaoService {
         for (int i = 0; i < sacados.size(); i++) {
             DadosSacado sacado = sacados.get(i);
             LiberacaoSacadoEntity mesmo = anteriores.get(sacado.documento());
-            LiberacaoSacadoEntity anterior = mesmo != null && decisaoCabe(mesmo, sacado.valor()) ? mesmo : null;
+            LiberacaoSacadoEntity anterior = mesmo != null
+                    && decisaoCabe(mesmo.getSituacao(), mesmo.getValorAprovado(), sacado.valor()) ? mesmo : null;
+            LiberacaoSacadoEntity comite = mesmo != null
+                    && decisaoCabe(mesmo.getOpiniaoComite(), mesmo.getValorAprovadoComite(), sacado.valor()) ? mesmo : null;
+            LiberacaoSacadoEntity diretoria = mesmo != null
+                    && decisaoCabe(mesmo.getDecisaoDiretoria(), mesmo.getValorAprovadoDiretoria(), sacado.valor()) ? mesmo : null;
             linhas.add(LiberacaoSacadoEntity.builder()
                     .cardId(cardId)
                     .cnpj(sacado.documento())
@@ -971,13 +1104,19 @@ public class LiberacaoService {
                     .valorAprovado(anterior == null ? null : anterior.getValorAprovado())
                     .situacaoPorNome(anterior == null ? null : anterior.getSituacaoPorNome())
                     .situacaoEm(anterior == null ? null : anterior.getSituacaoEm())
-                    // Opiniões O e C não dependem do valor: ficam enquanto o sacado continua no card.
+                    // A opinião O não depende do valor: fica enquanto o sacado continua no card.
                     .opiniaoOrigem(mesmo == null ? null : mesmo.getOpiniaoOrigem())
                     .opiniaoOrigemPorNome(mesmo == null ? null : mesmo.getOpiniaoOrigemPorNome())
                     .opiniaoOrigemEm(mesmo == null ? null : mesmo.getOpiniaoOrigemEm())
-                    .opiniaoComite(mesmo == null ? null : mesmo.getOpiniaoComite())
-                    .opiniaoComitePorNome(mesmo == null ? null : mesmo.getOpiniaoComitePorNome())
-                    .opiniaoComiteEm(mesmo == null ? null : mesmo.getOpiniaoComiteEm())
+                    // C e D são decisões: o parcial cai se o valor do sacado baixou até ele.
+                    .opiniaoComite(comite == null ? null : comite.getOpiniaoComite())
+                    .valorAprovadoComite(comite == null ? null : comite.getValorAprovadoComite())
+                    .opiniaoComitePorNome(comite == null ? null : comite.getOpiniaoComitePorNome())
+                    .opiniaoComiteEm(comite == null ? null : comite.getOpiniaoComiteEm())
+                    .decisaoDiretoria(diretoria == null ? null : diretoria.getDecisaoDiretoria())
+                    .valorAprovadoDiretoria(diretoria == null ? null : diretoria.getValorAprovadoDiretoria())
+                    .decisaoDiretoriaPorNome(diretoria == null ? null : diretoria.getDecisaoDiretoriaPorNome())
+                    .decisaoDiretoriaEm(diretoria == null ? null : diretoria.getDecisaoDiretoriaEm())
                     .parecerOrigem(mesmo == null ? null : mesmo.getParecerOrigem())
                     .parecerComite(mesmo == null ? null : mesmo.getParecerComite())
                     .parecerDiretoria(mesmo == null ? null : mesmo.getParecerDiretoria())
@@ -993,11 +1132,11 @@ public class LiberacaoService {
     }
 
     /** Parcial só vale abaixo do valor do sacado; se o valor baixou até ele, a decisão cai. */
-    private static boolean decisaoCabe(LiberacaoSacadoEntity anterior, BigDecimal novoValor) {
-        return anterior.getSituacao() != ResultadoLiberacao.PARCIAL
+    private static boolean decisaoCabe(ResultadoLiberacao situacao, BigDecimal valorAprovado, BigDecimal novoValor) {
+        return situacao != ResultadoLiberacao.PARCIAL
                 || novoValor == null
-                || anterior.getValorAprovado() == null
-                || anterior.getValorAprovado().compareTo(novoValor) < 0;
+                || valorAprovado == null
+                || valorAprovado.compareTo(novoValor) < 0;
     }
 
     /**

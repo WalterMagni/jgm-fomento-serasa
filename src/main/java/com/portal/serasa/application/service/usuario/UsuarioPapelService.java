@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/** Marcas de analista e Comitê. Só o admin chama — a checagem fica no controller. */
+/** Marcas de analista, Comitê e Diretoria. Só o admin chama — a checagem fica no controller. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -28,9 +28,12 @@ public class UsuarioPapelService {
      * conseguiria destravar pela tela.</p>
      */
     @Transactional
-    public UserEntity definir(UUID usuarioId, boolean analista, boolean comite, UserEntity admin) {
+    public UserEntity definir(UUID usuarioId, boolean analista, boolean comite, boolean diretoria, UserEntity admin) {
         if (comite && !analista) {
             throw new IllegalArgumentException("Membro do Comitê precisa ser analista.");
+        }
+        if (diretoria && !analista) {
+            throw new IllegalArgumentException("Diretoria precisa ser analista.");
         }
         UserEntity usuario = userRepository.findById(usuarioId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
@@ -38,6 +41,7 @@ public class UsuarioPapelService {
         boolean saiuDoComite = usuario.isComite() && !comite;
         usuario.setAnalista(analista);
         usuario.setComite(comite);
+        usuario.setDiretoria(diretoria);
         userRepository.save(usuario);
 
         if (saiuDoComite) {
@@ -46,8 +50,8 @@ public class UsuarioPapelService {
                 log.info("{} saiu do Comitê; {} parecer(es) pendente(s) removido(s)", usuario.getName(), liberados);
             }
         }
-        log.info("Papéis de {} alterados por {}: analista={}, comite={}",
-                usuario.getEmail(), admin.getEmail(), analista, comite);
+        log.info("Papéis de {} alterados por {}: analista={}, comite={}, diretoria={}",
+                usuario.getEmail(), admin.getEmail(), analista, comite, diretoria);
         return usuario;
     }
 }

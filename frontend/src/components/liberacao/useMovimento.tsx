@@ -26,6 +26,8 @@ type Confirmacao = {
   aoConfirmar?: () => void;
   /** Sem campo de observação: a observação vem no passo seguinte. */
   semObservacao?: boolean;
+  /** A observação vira motivo obrigatório (envio à Diretoria). */
+  motivoObrigatorio?: boolean;
 };
 
 const CLASSE_TOM = {
@@ -38,8 +40,9 @@ const CLASSE_TOM = {
  * Pede o que cada movimento exige antes de chamar o servidor.
  *
  * <p>Mesma regra para arrastar e para o botão "Mover" do detalhe: ir para Pendência pergunta
- * para quem; aprovar pede a decisão de cada sacado; reprovar, devolver e reabrir confirmam com
- * espaço para observação. Saindo do Comitê com parecer faltando, confirma antes. O resto —
+ * para quem; aprovar pede a decisão de cada sacado (o C); enviar à Diretoria pede o motivo; na
+ * Diretoria, aprovar e reprovar só confirmam; reprovar, devolver e reabrir confirmam com espaço
+ * para observação. Saindo do Comitê com parecer faltando, confirma antes. O resto —
  * Origem para Comitê, assinatura, finalizar — vai direto: é o caminho do dia a dia.</p>
  */
 export function useMovimento(euId?: string) {
@@ -71,6 +74,22 @@ export function useMovimento(euId?: string) {
     const destino = card.destinos.find(item => item.etapa === para);
     if (!destino?.permitido) return;
 
+    // A Diretoria dá sim ou não à proposta do Comitê: só confirma, sem ressalva nem observação.
+    if (card.etapa === "DIRETORIA") {
+      const aprova = para === "APROVADO";
+      setConfirmacao({
+        card,
+        para,
+        titulo: `${aprova ? "Aprovar" : "Reprovar"} #${card.numero}?`,
+        tom: aprova ? "sucesso" : "perigo",
+        rotulo: aprova ? "Aprovar" : "Reprovar",
+        texto: aprova
+          ? <>Vale a decisão do Comitê (C) em cada sacado. A decisão é final.</>
+          : <>Todos os sacados ficam reprovados. A decisão é final.</>,
+        semObservacao: true,
+      });
+      return;
+    }
     // Aprovar é decidir os sacados; o diálogo mostra o aviso de parecer faltando, se houver.
     if (para === "APROVADO") {
       setAprovar({ card, aviso: destino.aviso });
@@ -107,6 +126,18 @@ export function useMovimento(euId?: string) {
         tom: "primario",
         rotulo: "Devolver",
         texto: <>Pareceres que ainda faltam deixam de ser esperados. Quando o card voltar ao Comitê, começa uma rodada nova.</>,
+      });
+      return;
+    }
+    if (para === "DIRETORIA") {
+      setConfirmacao({
+        card,
+        para,
+        titulo: `Enviar #${card.numero} à Diretoria?`,
+        tom: "primario",
+        rotulo: "Enviar à Diretoria",
+        texto: <>A Diretoria aprova ou reprova a proposta do Comitê (o C de cada sacado). O card não volta ao Comitê.</>,
+        motivoObrigatorio: true,
       });
       return;
     }
@@ -172,7 +203,7 @@ export function useMovimento(euId?: string) {
               <button
                 type="button"
                 data-autofocus
-                disabled={mover.isPending}
+                disabled={mover.isPending || (!!confirmacao.motivoObrigatorio && !observacao.trim())}
                 onClick={() =>
                   confirmacao.aoConfirmar
                     ? confirmacao.aoConfirmar()
@@ -191,7 +222,15 @@ export function useMovimento(euId?: string) {
             {!confirmacao.semObservacao && (
             <div>
               <label htmlFor="mov-obs" className={ROTULO}>
-                Observação <span className="font-normal text-slate-400">(vai para o histórico)</span>
+                {confirmacao.motivoObrigatorio ? (
+                  <>
+                    Motivo <span className="font-normal text-slate-400">(obrigatório — a Diretoria lê antes de decidir)</span>
+                  </>
+                ) : (
+                  <>
+                    Observação <span className="font-normal text-slate-400">(vai para o histórico)</span>
+                  </>
+                )}
               </label>
               <MentionTextarea id="mov-obs" value={observacao} onChange={setObservacao} rows={3} />
             </div>

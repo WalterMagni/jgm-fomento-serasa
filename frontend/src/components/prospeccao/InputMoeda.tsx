@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { CAMPO } from "@/components/liberacao/Dialogo";
+import CampoNumero from "@/components/ui/CampoNumero";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /**
  * Valor em reais digitado como no Excel: "250.000,00" ou "250000".
  *
- * <p>O texto digitado vive no estado local enquanto o campo tem foco; só ao sair dele vira número
- * e volta formatado. Formatar a cada tecla moveria o cursor para o fim no meio da digitação.</p>
+ * <p>O texto digitado vive no estado local enquanto o campo tem foco, já com os pontos de milhar
+ * (o {@link CampoNumero} cuida do cursor); ao sair, vira número e volta com duas casas.</p>
  */
 export default function InputMoeda({
   valor,
@@ -31,15 +32,13 @@ export default function InputMoeda({
   return (
     <div className="relative">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
-      <input
-        inputMode="decimal"
+      <CampoNumero
         aria-label={rotulo}
         data-autofocus={autoFocus ? true : undefined}
-        value={exibido}
+        valor={exibido}
         disabled={desabilitado}
         onFocus={() => setRascunho(valor == null ? "" : MOEDA.format(valor))}
-        onChange={event => {
-          const texto = event.target.value.replace(/[^\d.,]/g, "");
+        onMudar={texto => {
           setRascunho(texto);
           // Também avisa durante a digitação: quem soma as condições ao lado vê o total mudar.
           onMudar(paraNumero(texto));

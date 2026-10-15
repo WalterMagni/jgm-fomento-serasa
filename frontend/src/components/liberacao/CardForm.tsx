@@ -2,10 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import Icon from "@/components/ui/Icon";
+import CampoNumero from "@/components/ui/CampoNumero";
 import CampoData from "@/components/ui/CampoData";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import { normalizar } from "@/components/ui/mencao/mencoes";
-import { useCadastrarEmpresa, useEmpresasConhecidas, useTiposOperacao } from "@/hooks/useLiberacao";
+import { useAbrirFichaPF, useCadastrarEmpresa, useEmpresasConhecidas, useTiposOperacao } from "@/hooks/useLiberacao";
+import { CUSTO_CONSULTA_PF } from "@/types/pessoa-resumo";
 import {
   ROTULO_POSICAO,
   type CarteiraSacado,
@@ -18,6 +20,7 @@ import {
   type TipoOperacao,
 } from "@/types/liberacao";
 import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
+import SacadoBusca from "./SacadoBusca";
 import { CarteiraLinha, ImportarProposta } from "./PropostaAr";
 import { HistoricoSacado } from "./DetalheSecoes";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
@@ -28,7 +31,6 @@ import {
   formatDocumento,
   formatMoeda,
   isoParaCampoData,
-  mascararDocumento,
   moedaParaCampo,
   parseMoeda,
   parseTaxa,
@@ -72,8 +74,42 @@ const novaLinha = (documento = "", nome: string | null = null, valor = "", carte
 });
 
 /**
- * O que se sabe do sacado da linha: nome e praça da base (CNPJ Já ou Serasa), ou o aviso de que
- * a empresa não está no portal, com o atalho para cadastrar — o mesmo tratamento do cedente.
+ * Pessoa física fora do portal: abrir a ficha é uma consulta Serasa PF, com custo. O primeiro
+ * clique mostra o valor; só o segundo consulta.
+ */
+function FichaPF({ cpf, nomeInformado }: { cpf: string; nomeInformado: string | null }) {
+  const abrir = useAbrirFichaPF();
+  const [confirmando, setConfirmando] = useState(false);
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 px-2 text-[11px] text-amber-700 dark:text-amber-300">
+      {nomeInformado && <span className="max-w-full truncate text-slate-500">{nomeInformado} ·</span>}
+      pessoa física sem ficha no portal
+      <button
+        type="button"
+        disabled={abrir.isPending}
+        onClick={() => (confirmando ? abrir.mutate({ cpf }, { onSettled: () => setConfirmando(false) }) : setConfirmando(true))}
+        title={`A ficha sai da consulta Serasa PF, que custa ${CUSTO_CONSULTA_PF}.`}
+        className={`cursor-pointer font-medium hover:underline disabled:opacity-60 ${confirmando ? "text-[#E4006F]" : "text-[#2956E0]"}`}
+      >
+        {abrir.isPending
+          ? "consultando Serasa PF…"
+          : confirmando
+            ? `confirmar consulta Serasa PF · ${CUSTO_CONSULTA_PF}`
+            : `abrir ficha PF (Serasa PF · ${CUSTO_CONSULTA_PF})`}
+      </button>
+      {confirmando && !abrir.isPending && (
+        <button type="button" onClick={() => setConfirmando(false)} className="cursor-pointer text-slate-500 hover:underline">
+          cancelar
+        </button>
+      )}
+    </p>
+  );
+}
+
+/**
+ * O que se sabe do sacado da linha: nome e praça da base (CNPJ Já, Serasa ou Serasa PF), ou o
+ * aviso de que não está no portal, com o atalho para cadastrar — CNPJ Já para empresa, sem custo
+ * de Serasa; ficha PF para pessoa física, com o custo à vista.
  */
 function InfoSacado({
   documento,
@@ -89,10 +125,11 @@ function InfoSacado({
   onCadastrar: (cnpj: string) => void;
 }) {
   const digitos = documento.replace(/\D/g, "");
-  if (digitos.length !== 14) {
+  if (digitos.length !== 14 && digitos.length !== 11) {
     return nomeInformado ? <p className="truncate px-2 text-[11px] text-slate-500">{nomeInformado}</p> : null;
   }
   if (!empresa) return <p className="px-2 text-[11px] text-slate-400">consultando…</p>;
+  if (!empresa.cadastrada && digitos.length === 11) return <FichaPF cpf={digitos} nomeInformado={nomeInformado} />;
   if (!empresa.cadastrada) {
     return (
       <p className="flex flex-wrap items-center gap-x-1.5 px-2 text-[11px] text-amber-700 dark:text-amber-300">
@@ -341,11 +378,10 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
-              <input
+              <CampoNumero
                 id="card-valor"
-                inputMode="decimal"
-                value={valor}
-                onChange={event => setValor(event.target.value)}
+                valor={valor}
+                onMudar={setValor}
                 onBlur={() => setValor(moedaParaCampo(parseMoeda(valor)))}
                 placeholder="0,00"
                 className={`${CAMPO} pl-9 text-right tabular-nums`}
@@ -357,11 +393,12 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
               Taxa <span className="font-normal text-slate-400">(opcional)</span>
             </label>
             <div className="relative">
-              <input
+              <CampoNumero
                 id="card-taxa"
-                inputMode="decimal"
-                value={taxa}
-                onChange={event => setTaxa(event.target.value)}
+                casas={4}
+                milhar={false}
+                valor={taxa}
+                onMudar={setTaxa}
                 onBlur={() => setTaxa(taxaParaCampo(parseTaxa(taxa)))}
                 placeholder="0,00"
                 className={`${CAMPO} pr-8 text-right tabular-nums`}
@@ -375,11 +412,10 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
-              <input
+              <CampoNumero
                 id="card-tac"
-                inputMode="decimal"
-                value={tac}
-                onChange={event => setTac(event.target.value)}
+                valor={tac}
+                onMudar={setTac}
                 onBlur={() => setTac(moedaParaCampo(parseMoeda(tac)))}
                 placeholder="0,00"
                 className={`${CAMPO} pl-9 text-right tabular-nums`}
@@ -395,11 +431,10 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">R$</span>
-              <input
+              <CampoNumero
                 id="card-tranche"
-                inputMode="decimal"
-                value={tranche}
-                onChange={event => setTranche(event.target.value)}
+                valor={tranche}
+                onMudar={setTranche}
                 onBlur={() => setTranche(moedaParaCampo(parseMoeda(tranche)))}
                 placeholder="0,00"
                 className={`${CAMPO} pl-9 text-right tabular-nums`}
@@ -432,22 +467,17 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
               >
                 <span className="w-5 shrink-0 text-center text-[11px] text-slate-400">{indice + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <input
-                    value={linha.documento}
-                    onChange={event => atualizarLinha(linha.chave, "documento", mascararDocumento(event.target.value))}
-                    onPaste={event => {
-                      if (colar(linha.chave, event.clipboardData.getData("text"))) event.preventDefault();
-                    }}
-                    onKeyDown={event => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        setLinhas(atuais => [...atuais, novaLinha()]);
-                      }
-                    }}
-                    placeholder="CNPJ ou CPF do sacado"
-                    aria-label={`Documento do sacado ${indice + 1}`}
-                    className="w-full rounded-md bg-transparent px-2 py-1.5 font-mono text-sm text-slate-800 placeholder:font-sans
-                      placeholder:text-slate-400 focus:bg-slate-50 focus:outline-none dark:text-slate-100 dark:focus:bg-slate-800"
+                  <SacadoBusca
+                    documento={linha.documento}
+                    onDocumento={documento => atualizarLinha(linha.chave, "documento", documento)}
+                    onEscolher={({ documento, nome }) =>
+                      setLinhas(atuais =>
+                        atuais.map(item => (item.chave === linha.chave ? { ...item, documento, nome, carteira: null } : item)),
+                      )
+                    }
+                    onColar={texto => colar(linha.chave, texto)}
+                    onNovaLinha={() => setLinhas(atuais => [...atuais, novaLinha()])}
+                    rotulo={`Sacado ${indice + 1}`}
                   />
                   <InfoSacado
                     documento={linha.documento}
@@ -464,10 +494,9 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
                 </div>
                 <div className="relative w-32 shrink-0">
                   <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={linha.valor}
-                    onChange={event => atualizarLinha(linha.chave, "valor", event.target.value)}
+                  <CampoNumero
+                    valor={linha.valor}
+                    onMudar={texto => atualizarLinha(linha.chave, "valor", texto)}
                     onBlur={() => atualizarLinha(linha.chave, "valor", moedaParaCampo(parseMoeda(linha.valor)))}
                     placeholder="valor"
                     aria-label={`Valor do sacado ${indice + 1}`}

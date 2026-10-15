@@ -146,6 +146,13 @@ export const COR_ETAPA: Record<EtapaLiberacao, { faixa: string; texto: string; f
     anel: "ring-[#D1732C]/40",
     hex: "#D1732C",
   },
+  DIRETORIA: {
+    faixa: "bg-teal-700",
+    texto: "text-teal-800 dark:text-teal-300",
+    fundo: "bg-teal-50 dark:bg-teal-900/30",
+    anel: "ring-teal-600/40",
+    hex: "#0f766e",
+  },
   APROVADO: {
     faixa: "bg-emerald-600",
     texto: "text-emerald-700 dark:text-emerald-300",
@@ -180,11 +187,30 @@ export const ICONE_ETAPA: Record<EtapaLiberacao, string> = {
   ORIGEM: "inbox",
   COMITE: "gavel",
   PENDENCIA: "hourglass_top",
+  DIRETORIA: "account_balance",
   APROVADO: "check_circle",
   REPROVADO: "cancel",
   ASSINATURA: "edit_note",
   FINALIZADO: "task_alt",
 };
+
+/**
+ * Card que saiu do Comitê sem todos os pareceres: quem deu e quantos eram. Um parecer basta para o
+ * card andar (membro de férias), mas a decisão fica marcada. Nulo antes de sair do Comitê, ou
+ * quando todos deram parecer.
+ */
+export function pareceresIncompletos(card: LiberacaoCard): { deram: string[]; faltaram: string[]; total: number } | null {
+  if (card.etapa === "ORIGEM" || card.etapa === "COMITE" || card.etapa === "PENDENCIA") return null;
+  const deram = card.pareceres.filter(parecer => parecer.posicao).map(parecer => parecer.usuarioNome);
+  const faltaram = card.pareceres.filter(parecer => !parecer.posicao && parecer.usuarioId).map(parecer => parecer.usuarioNome);
+  if (deram.length === 0 || faltaram.length === 0) return null;
+  return { deram, faltaram, total: deram.length + faltaram.length };
+}
+
+/** "A", "A e B", "A, B e C". */
+export function juntarNomes(nomes: string[]) {
+  return nomes.length <= 1 ? nomes.join("") : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+}
 
 /** Texto do botão de mover, pela ação: "Aprovar", "Enviar para assinatura", "Reabrir no Comitê". */
 export function rotuloMover(de: EtapaLiberacao, para: EtapaLiberacao) {
@@ -198,6 +224,8 @@ export function rotuloMover(de: EtapaLiberacao, para: EtapaLiberacao) {
       return "Reprovar";
     case "ASSINATURA":
       return "Enviar para assinatura";
+    case "DIRETORIA":
+      return "Enviar à Diretoria";
     case "FINALIZADO":
       return "Finalizar";
     default:

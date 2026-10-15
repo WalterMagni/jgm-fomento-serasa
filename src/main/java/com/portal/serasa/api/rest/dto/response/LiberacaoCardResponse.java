@@ -23,6 +23,8 @@ public record LiberacaoCardResponse(
         boolean cedenteCadastrado,
         /** Cidade/UF do cedente, quando o portal sabe. */
         String cedentePraca,
+        /** Score da equipe para o cedente (A a D); nulo sem score. */
+        com.portal.serasa.domain.model.NotaEmpresa cedenteNota,
         /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
         Praca pracaPagamento,
         String tipoOperacao,
@@ -54,6 +56,10 @@ public record LiberacaoCardResponse(
         com.portal.serasa.domain.model.liberacao.ResultadoLiberacao resultado,
         /** Ressalva da aprovação; o card ganha a etiqueta "Aprovado c/ ressalva". Nula sem ressalva. */
         String ressalva,
+        /** Por que o Comitê mandou para a Diretoria, quem mandou e quando. Nulos fora disso. */
+        String motivoDiretoria,
+        String enviadoDiretoriaPorNome,
+        LocalDateTime enviadoDiretoriaEm,
         /** Aprovados inteiros mais o valor aprovado dos parciais; nulo sem nenhuma decisão. */
         BigDecimal valorAprovado,
         /** O mais recente entre edição, evento e comentário: base de "ordenar por atividade". */

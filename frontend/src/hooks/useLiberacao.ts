@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
+  Anexo,
   CorLiberacao,
   DadosCard,
   DecisaoSacado,
@@ -16,6 +17,7 @@ import type {
   PosicaoParecer,
   PropostaImportada,
   QuadroOpiniao,
+  SacadoEncontrado,
   Resultado,
   UsuarioAtual,
 } from "../types/liberacao";
@@ -130,6 +132,18 @@ export function useEmpresaBusca(termo: string) {
     enabled: limpo.length >= 2,
     queryFn: () =>
       pedir(`${API_BASE_URL}/company/busca?q=${encodeURIComponent(limpo)}`, {}, "Falha na busca de empresas"),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Sacado por nome ou documento: empresas e pessoas físicas que o portal já conhece. */
+export function useSacadoBusca(termo: string) {
+  const limpo = termo.trim();
+  return useQuery<SacadoEncontrado[]>({
+    queryKey: ["sacadoBusca", limpo],
+    enabled: limpo.length >= 2,
+    queryFn: () =>
+      pedir(`${API_BASE_URL}/liberacao/sacados/busca?q=${encodeURIComponent(limpo)}`, {}, "Falha na busca de sacados"),
     staleTime: 60 * 1000,
   });
 }
@@ -373,10 +387,36 @@ export async function baixarAnexo(cardId: string, anexoId: string, nome: string)
   URL.revokeObjectURL(url);
 }
 
-/** Decide um sacado pela lista do card, sem finalizar. */
+/**
+ * Abre o anexo numa aba nova quando o navegador sabe mostrar (PDF, imagem, texto); os demais
+ * tipos são baixados. Mesmo caminho dos documentos da prospecção.
+ *
+ * <p>A aba é aberta ainda no clique, antes do download: aberta depois de um await, o bloqueador
+ * de pop-up a barraria. O endereço é um blob local, então o token nunca vai na URL.</p>
+ */
+export async function abrirAnexo(cardId: string, anexo: Pick<Anexo, "id" | "nome" | "mimeType">) {
+  // Word, Excel e CSV o navegador não mostra: abrir aba deixaria uma página em branco.
+  const mime = (anexo.mimeType ?? "").toLowerCase();
+  const visivel = mime === "application/pdf" || mime.startsWith("image/") || mime === "text/plain";
+  if (!visivel) return baixarAnexo(cardId, anexo.id, anexo.nome);
+  const aba = window.open("", "_blank");
+  const res = await fetch(`${API_BASE_URL}/liberacao/${cardId}/anexos/${anexo.id}`, { headers: headers(false) });
+  if (!res.ok) {
+    aba?.close();
+    return falha(res, "Falha ao abrir o anexo");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(new Blob([blob], { type: anexo.mimeType ?? blob.type }));
+  if (aba) aba.location.href = url;
+  else window.location.assign(url);
+  // Dá tempo de a aba carregar antes de soltar o blob.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Decide um sacado pela lista do card, no C (Comitê) ou no D (Diretoria), sem decidir o card. */
 export function useDecidirSacado() {
   const atualizar = useAtualizarDetalhe();
-  return useMutation<LiberacaoDetalhe, Error, { id: string } & DecisaoSacado>({
+  return useMutation<LiberacaoDetalhe, Error, { id: string; quadro: "COMITE" | "DIRETORIA" } & DecisaoSacado>({
     mutationFn: ({ id, documento, ...body }) =>
       pedir(
         `${API_BASE_URL}/liberacao/${id}/sacados/${documento}/situacao`,
@@ -388,7 +428,7 @@ export function useDecidirSacado() {
   });
 }
 
-/** Quadrado O (Origem) ou C (Comitê) de um sacado. Situação nula limpa. */
+/** Quadrado O (Origem) de um sacado. Situação nula limpa. C e D são decisões: {@link useDecidirSacado}. */
 export function useOpinarSacado() {
   const atualizar = useAtualizarDetalhe();
   return useMutation<LiberacaoDetalhe, Error, { id: string; documento: string; quadro: QuadroOpiniao; situacao: Resultado | null }>({
@@ -507,7 +547,8 @@ export function useExcluirCard() {
  * termina de ser digitado. Uma consulta só para a lista inteira.
  */
 export function useEmpresasConhecidas(documentos: string[]) {
-  const completos = [...new Set(documentos.filter(documento => documento.length === 14))].sort();
+  // CNPJ e CPF completos: o CPF volta conhecido quando já tem ficha de pessoa física.
+  const completos = [...new Set(documentos.filter(documento => documento.length === 14 || documento.length === 11))].sort();
   return useQuery<EmpresaConhecida[]>({
     queryKey: ["liberacaoEmpresas", completos.join(",")],
     enabled: completos.length > 0,
@@ -654,10 +695,30 @@ export function useCadastrarEmpresa() {
   });
 }
 
-/** Marcas de analista e Comitê. Só admin; o servidor recusa os demais. */
+/**
+ * Abre a ficha de pessoa física pela consulta Serasa PF — tem custo, a tela confirma antes. A ficha
+ * nova aparece em Pessoas Físicas e o sacado do card passa a mostrar o nome.
+ */
+export function useAbrirFichaPF() {
+  const queryClient = useQueryClient();
+  return useMutation<{ personName?: string | null }, Error, { cpf: string }>({
+    mutationFn: ({ cpf }) =>
+      pedir(`${API_BASE_URL}/person/enrich/serasa/${cpf}`, { method: "POST" }, "Falha na consulta Serasa PF"),
+    onSuccess: resposta => {
+      queryClient.invalidateQueries({ queryKey: ["liberacaoEmpresas"] });
+      queryClient.invalidateQueries({ queryKey: ["pessoasResumo"] });
+      toast.success(`Ficha de ${resposta.personName || "pessoa física"} aberta`);
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
+/** Marcas de analista, Comitê e Diretoria. Só admin; o servidor recusa os demais. */
+type Papeis = { id: string; analista: boolean; comite: boolean; diretoria: boolean };
+
 export function useDefinirPapeis() {
   const queryClient = useQueryClient();
-  return useMutation<{ id: string; analista: boolean; comite: boolean }, Error, { id: string; analista: boolean; comite: boolean }>({
+  return useMutation<Papeis, Error, Papeis>({
     mutationFn: ({ id, ...body }) =>
       pedir(`${AUTH_BASE_URL}/api/auth/users/${id}/papeis`, { method: "PATCH", body: JSON.stringify(body) }, "Falha ao alterar papéis"),
     onSuccess: () => {

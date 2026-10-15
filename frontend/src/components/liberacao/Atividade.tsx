@@ -60,10 +60,11 @@ function descrever(evento: EventoLiberacao): ReactNode {
             <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
           </>
         );
-      if (evento.campo === "situacaoSacado")
+      // "situacaoSacado" é de antes da V88, quando o D era marcado no Comitê.
+      if (evento.campo === "situacaoSacado" || evento.campo === "decisaoComite" || evento.campo === "decisaoDiretoria")
         return (
           <>
-            decidiu (D) <span className="text-slate-500">{evento.texto}</span>:{" "}
+            decidiu ({evento.campo === "decisaoComite" ? "C" : "D"}) <span className="text-slate-500">{evento.texto}</span>:{" "}
             <span className="text-slate-400 line-through">{evento.valorAntes}</span> → <strong className="font-semibold">{evento.valorDepois}</strong>
           </>
         );

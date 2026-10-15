@@ -346,13 +346,7 @@ export default function QuadroLiberacao() {
       )}
 
       {novoAberto && (
-        <NovoCardDialog
-          onFechar={() => setNovoAberto(false)}
-          onCriado={card => {
-            setNovoAberto(false);
-            abrir(card.id);
-          }}
-        />
+        <NovoCardDialog onFechar={() => setNovoAberto(false)} onCriado={() => setNovoAberto(false)} />
       )}
 
       {cardAberto && (

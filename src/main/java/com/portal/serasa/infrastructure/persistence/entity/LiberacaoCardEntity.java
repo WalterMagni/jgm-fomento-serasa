@@ -148,4 +148,14 @@ public class LiberacaoCardEntity {
     /** Ressalva da aprovação, escrita por quem aprovou. Nula sem ressalva. Ver V86. */
     @Column(columnDefinition = "TEXT")
     private String ressalva;
+
+    /** Por que o Comitê mandou o card para a Diretoria. Some ao reabrir. Ver V88. */
+    @Column(name = "motivo_diretoria", columnDefinition = "TEXT")
+    private String motivoDiretoria;
+
+    @Column(name = "enviado_diretoria_por_nome", length = 200)
+    private String enviadoDiretoriaPorNome;
+
+    @Column(name = "enviado_diretoria_em")
+    private LocalDateTime enviadoDiretoriaEm;
 }

@@ -46,6 +46,7 @@ export default function SettingsPage() {
     emailNotificacaoCedente: boolean;
     analista: boolean;
     comite: boolean;
+    diretoria?: boolean;
     createdAt?: string | null;
   }>>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -475,6 +476,7 @@ export default function SettingsPage() {
                               usuarioId={user.id}
                               analista={user.analista}
                               comite={user.comite}
+                              diretoria={!!user.diretoria}
                               onMudou={papeis =>
                                 setManagedUsers(atuais => atuais.map(item => (item.id === user.id ? { ...item, ...papeis } : item)))
                               }

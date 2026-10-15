@@ -89,6 +89,17 @@ public class LiberacaoController {
      * O que o portal sabe de cada documento, para o formulário mostrar o sacado assim que o CNPJ
      * termina de ser digitado. Procura no CNPJ Já e nas consultas do Serasa.
      */
+    /**
+     * Sacado por nome ou documento, para a linha de sacado do card: empresas e pessoas físicas que
+     * o portal já conhece. CPF ou CNPJ fora da base continua sendo digitado à mão.
+     */
+    @GetMapping("/sacados/busca")
+    public ResponseEntity<List<com.portal.serasa.application.service.liberacao.EmpresaResolver.Encontrado>> buscarSacados(
+            @RequestParam("q") String termo) {
+        usuarioLogado.obter();
+        return ResponseEntity.ok(empresaResolver.buscar(termo));
+    }
+
     @GetMapping("/empresas")
     public ResponseEntity<List<EmpresaConhecida>> empresas(@RequestParam List<String> documentos) {
         usuarioLogado.obter();
@@ -163,16 +174,20 @@ public class LiberacaoController {
         return ResponseEntity.ok(java.util.Map.of("arquivados", liberacaoService.arquivarFinalizados(usuarioLogado.obter())));
     }
 
-    /** Decide um sacado pela lista do card, sem finalizar. Só analista, no Comitê ou em Pendência. */
+    /**
+     * Decide um sacado pela lista do card, sem decidir o card: C (Comitê, no Comitê ou em
+     * Pendência) ou D (Diretoria, na Diretoria).
+     */
     @PatchMapping("/{id}/sacados/{documento}/situacao")
     public ResponseEntity<LiberacaoDetalheResponse> decidirSacado(@PathVariable UUID id, @PathVariable String documento,
-                                                                  @Valid @RequestBody LiberacaoTransicaoRequest.DecisaoSacado request) {
+                                                                  @Valid @RequestBody com.portal.serasa.api.rest.dto.request.LiberacaoDecisaoSacadoRequest request) {
         UserEntity autor = usuarioLogado.obter();
-        liberacaoService.decidirSacado(id, new LiberacaoService.DecisaoSacado(documento, request.situacao(), request.valorAprovado()), autor);
+        liberacaoService.decidirSacado(id, request.quadro(),
+                new LiberacaoService.DecisaoSacado(documento, request.situacao(), request.valorAprovado()), autor);
         return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 
-    /** Quadrado O (Origem) ou C (Comitê) de um sacado. Situação nula limpa. */
+    /** Quadrado O (Origem) de um sacado. Situação nula limpa. Fora da tela desde a V88. */
     @PatchMapping("/{id}/sacados/{documento}/opiniao")
     public ResponseEntity<LiberacaoDetalheResponse> opinarSacado(@PathVariable UUID id, @PathVariable String documento,
                                                                  @Valid @RequestBody com.portal.serasa.api.rest.dto.request.LiberacaoOpiniaoRequest request) {

@@ -135,6 +135,7 @@ public class AuthController {
                     item.put("emailNotificacaoCedente", user.isEmailNotificacaoCedente());
                     item.put("analista", user.isAnalista());
                     item.put("comite", user.isComite());
+                    item.put("diretoria", user.isDiretoria());
                     item.put("createdAt", user.getCreatedAt());
                     return item;
                 })
@@ -196,11 +197,13 @@ public class AuthController {
         }
         boolean analista = Boolean.TRUE.equals(body.get("analista"));
         boolean comite = Boolean.TRUE.equals(body.get("comite"));
-        UserEntity user = usuarioPapelService.definir(id, analista, comite, currentUser);
+        boolean diretoria = Boolean.TRUE.equals(body.get("diretoria"));
+        UserEntity user = usuarioPapelService.definir(id, analista, comite, diretoria, currentUser);
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "analista", user.isAnalista(),
-                "comite", user.isComite()));
+                "comite", user.isComite(),
+                "diretoria", user.isDiretoria()));
     }
 
     private Map<String, Object> perfil(UserEntity user) {
@@ -212,6 +215,7 @@ public class AuthController {
         perfil.put("canManageUsers", adminAllowList.contem(user.getEmail()));
         perfil.put("analista", user.isAnalista());
         perfil.put("comite", user.isComite());
+        perfil.put("diretoria", user.isDiretoria());
         perfil.put("somNotificacao", user.isSomNotificacao());
         perfil.put("emailLiberacao", user.isEmailLiberacao());
         // Papel ADMIN: altera os catálogos da esteira de prospecção. Diferente de canManageUsers,

@@ -62,6 +62,11 @@ public class UserEntity {
     @Builder.Default
     private boolean comite = false;
 
+    /** Decide os cards que o Comitê manda para a Diretoria. Exige {@link #analista}. Ver V88. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean diretoria = false;
+
     /** Som do sino de notificações. Ver V66. */
     @Column(name = "som_notificacao", nullable = false)
     @Builder.Default

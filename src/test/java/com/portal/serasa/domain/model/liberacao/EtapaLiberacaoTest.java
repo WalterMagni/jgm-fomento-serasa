@@ -11,6 +11,7 @@ import java.util.Set;
 import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.APROVADO;
 import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.ASSINATURA;
 import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.COMITE;
+import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.DIRETORIA;
 import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.FINALIZADO;
 import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.ORIGEM;
 import static com.portal.serasa.domain.model.liberacao.EtapaLiberacao.PENDENCIA;
@@ -20,10 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EtapaLiberacaoTest {
 
     @Test
-    @DisplayName("a esteira tem sete etapas, na ordem: Origem, Comitê, Pendência, Aprovado, Reprovado, Assinatura e Finalizado")
-    void shouldHaveSevenStagesInOrder() {
+    @DisplayName("a esteira tem oito etapas, na ordem: Origem, Comitê, Pendência, Diretoria, Aprovado, Reprovado, Assinatura e Finalizado")
+    void shouldHaveEightStagesInOrder() {
         assertThat(EtapaLiberacao.values())
-                .containsExactly(ORIGEM, COMITE, PENDENCIA, APROVADO, REPROVADO, ASSINATURA, FINALIZADO);
+                .containsExactly(ORIGEM, COMITE, PENDENCIA, DIRETORIA, APROVADO, REPROVADO, ASSINATURA, FINALIZADO);
     }
 
     @Test
@@ -33,19 +34,45 @@ class EtapaLiberacaoTest {
     }
 
     @Test
-    @DisplayName("Comitê pede Pendência, decide Aprovado ou Reprovado, ou devolve à Origem; não vai direto a Finalizado")
+    @DisplayName("Comitê pede Pendência, manda para a Diretoria, decide Aprovado ou Reprovado, ou devolve à Origem; não vai direto a Finalizado")
     void shouldLetComiteDecideOrReturnToOrigem() {
-        assertThat(COMITE.destinos()).containsExactlyInAnyOrder(PENDENCIA, APROVADO, REPROVADO, ORIGEM);
+        assertThat(COMITE.destinos()).containsExactlyInAnyOrder(PENDENCIA, DIRETORIA, APROVADO, REPROVADO, ORIGEM);
         assertThat(COMITE.aceita(FINALIZADO)).isFalse();
         assertThat(COMITE.aceita(ASSINATURA)).isFalse();
     }
 
     @Test
-    @DisplayName("Pendência decide (Aprovado ou Reprovado) ou volta ao Comitê, mas não à Origem")
+    @DisplayName("Pendência manda para a Diretoria, decide (Aprovado ou Reprovado) ou volta ao Comitê, mas não à Origem")
     void shouldLetPendenciaDecideOrReturnToComite() {
-        assertThat(PENDENCIA.destinos()).containsExactlyInAnyOrder(APROVADO, REPROVADO, COMITE);
+        assertThat(PENDENCIA.destinos()).containsExactlyInAnyOrder(DIRETORIA, APROVADO, REPROVADO, COMITE);
         assertThat(PENDENCIA.aceita(ORIGEM)).isFalse();
         assertThat(PENDENCIA.aceita(FINALIZADO)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Diretoria só aprova ou reprova: não devolve ao Comitê, à Pendência nem à Origem")
+    void shouldLetDiretoriaOnlyApproveOrReject() {
+        assertThat(DIRETORIA.destinos()).containsExactlyInAnyOrder(APROVADO, REPROVADO);
+        assertThat(DIRETORIA.aceita(COMITE)).isFalse();
+        assertThat(DIRETORIA.aceita(PENDENCIA)).isFalse();
+        assertThat(DIRETORIA.aceita(ORIGEM)).isFalse();
+        assertThat(DIRETORIA.aceita(ASSINATURA)).isFalse();
+        assertThat(DIRETORIA.aceita(FINALIZADO)).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("só Comitê e Pendência chegam à Diretoria")
+    void shouldOnlyReachDiretoriaFromComiteOrPendencia(EtapaLiberacao de) {
+        assertThat(de.aceita(DIRETORIA)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Diretoria não é etapa decidida nem decisão: o card ainda espera a palavra final")
+    void shouldNotTreatDiretoriaAsDecidedNorDecision() {
+        assertThat(DIRETORIA.decidida()).isFalse();
+        assertThat(DIRETORIA.decisao()).isFalse();
+        assertThat(DIRETORIA.terminal()).isFalse();
     }
 
     @Test
@@ -121,7 +148,7 @@ class EtapaLiberacaoTest {
     void shouldMarkDecidedStages() {
         assertThat(EnumSet.allOf(EtapaLiberacao.class).stream().filter(EtapaLiberacao::decidida))
                 .containsExactlyInAnyOrder(APROVADO, REPROVADO, ASSINATURA, FINALIZADO);
-        assertThat(Set.of(ORIGEM, COMITE, PENDENCIA)).noneMatch(EtapaLiberacao::decidida);
+        assertThat(Set.of(ORIGEM, COMITE, PENDENCIA, DIRETORIA)).noneMatch(EtapaLiberacao::decidida);
     }
 
     @ParameterizedTest
@@ -144,6 +171,7 @@ class EtapaLiberacaoTest {
             }
         }
         assertThat(EtapaLiberacao.reabertura(PENDENCIA, COMITE)).isFalse();
+        assertThat(EtapaLiberacao.reabertura(DIRETORIA, COMITE)).isFalse();
         assertThat(EtapaLiberacao.reabertura(ASSINATURA, COMITE)).isTrue();
         assertThat(EtapaLiberacao.reabertura(APROVADO, ASSINATURA)).isFalse();
     }
@@ -155,15 +183,15 @@ class EtapaLiberacaoTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "APROVADO", "REPROVADO"})
-    @DisplayName("decisaoDoComite: Comitê→Pendência/Aprovado/Reprovado é decisão")
+    @EnumSource(value = EtapaLiberacao.class, names = {"PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO"})
+    @DisplayName("decisaoDoComite: Comitê→Pendência/Diretoria/Aprovado/Reprovado é decisão")
     void shouldTreatExitsFromComiteAsDecision(EtapaLiberacao para) {
         assertThat(EtapaLiberacao.decisaoDoComite(COMITE, para)).isTrue();
     }
 
     @ParameterizedTest
-    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "PENDENCIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
-    @DisplayName("decisaoDoComite: só vale saindo do Comitê")
+    @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "PENDENCIA", "DIRETORIA", "APROVADO", "REPROVADO", "ASSINATURA", "FINALIZADO"})
+    @DisplayName("decisaoDoComite: só vale saindo do Comitê (a decisão da Diretoria não pede parecer do Comitê)")
     void shouldNotTreatOtherOriginsAsComiteDecision(EtapaLiberacao de) {
         for (EtapaLiberacao para : EtapaLiberacao.values()) {
             assertThat(EtapaLiberacao.decisaoDoComite(de, para)).isFalse();

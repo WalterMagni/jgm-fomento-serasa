@@ -40,7 +40,10 @@ public class LiberacaoSacadoEntity {
     @Column(nullable = false)
     private Integer ordem;
 
-    /** Decisão sobre este sacado. Nulo = a decidir. Ver V70. */
+    /**
+     * Decisão final sobre este sacado, copiada do C ou do D quando o card é decidido. Nulo = a
+     * decidir. Ver V70 e V88.
+     */
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     @Column(length = 12)
     private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao situacao;
@@ -66,7 +69,7 @@ public class LiberacaoSacadoEntity {
     @Column(name = "opiniao_origem_em")
     private java.time.LocalDateTime opiniaoOrigemEm;
 
-    /** Quadrado C: opinião do Comitê. O quadrado D é a {@code situacao}. Ver V82. */
+    /** Quadrado C: decisão do Comitê. Ver V82 e V88. */
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     @Column(name = "opiniao_comite", length = 12)
     private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao opiniaoComite;
@@ -76,6 +79,24 @@ public class LiberacaoSacadoEntity {
 
     @Column(name = "opiniao_comite_em")
     private java.time.LocalDateTime opiniaoComiteEm;
+
+    /** Só no parcial do C: quanto o Comitê aprovou. */
+    @Column(name = "valor_aprovado_comite", precision = 15, scale = 2)
+    private BigDecimal valorAprovadoComite;
+
+    /** Quadrado D: decisão da Diretoria, com o card na Diretoria. Ver V88. */
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "decisao_diretoria", length = 12)
+    private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao decisaoDiretoria;
+
+    @Column(name = "valor_aprovado_diretoria", precision = 15, scale = 2)
+    private BigDecimal valorAprovadoDiretoria;
+
+    @Column(name = "decisao_diretoria_por_nome", length = 200)
+    private String decisaoDiretoriaPorNome;
+
+    @Column(name = "decisao_diretoria_em")
+    private java.time.LocalDateTime decisaoDiretoriaEm;
 
     /** Parecer de cada quadrado (O, C, D), com @menções. Ver V83. */
     @Column(name = "parecer_origem", columnDefinition = "text")

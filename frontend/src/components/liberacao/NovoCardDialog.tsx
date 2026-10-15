@@ -7,7 +7,7 @@ import Dialogo from "./Dialogo";
 
 type Props = {
   onFechar: () => void;
-  /** Abre o detalhe do card recém-criado, para quem quiser completar ou já mover. */
+  /** Card criado: o diálogo fecha e o card aparece na Origem, sem abrir sozinho (pedido do time). */
   onCriado: (card: LiberacaoCard) => void;
 };
 

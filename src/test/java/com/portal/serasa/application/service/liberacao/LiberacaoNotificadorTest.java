@@ -65,6 +65,9 @@ class LiberacaoNotificadorTest {
     private UserEntity andressa;
     private UserEntity mychelly;
     private UserEntity diretoria;
+    /** Quem tem o perfil Diretoria (a marca da V88), ao contrário de {@link #diretoria}, que é só uma analista. */
+    private UserEntity diretor;
+    private UserEntity carlos;
     private LiberacaoCardEntity card;
 
     @BeforeEach
@@ -73,12 +76,16 @@ class LiberacaoNotificadorTest {
         andressa = usuario("Andressa Lima", true, true);
         mychelly = usuario("Mychelly Costa", true, true);
         diretoria = usuario("Diretoria", true, false);
+        diretor = usuario("Walter Magni", true, false);
+        diretor.setDiretoria(true);
+        carlos = usuario("Carlos Dias", true, false);
+        carlos.setDiretoria(true);
         card = LiberacaoCardEntity.builder().id(UUID.randomUUID()).numero(42L).etapa(EtapaLiberacao.COMITE).rodada(1)
                 .cedenteNome("ACME LTDA").valor(new BigDecimal("80000")).criadoPorId(aline.getId()).build();
         when(userRepository.findByAnalistaTrue()).thenReturn(List.of(andressa, mychelly, diretoria));
         when(userRepository.findAllById(any())).thenAnswer(inv -> {
             java.util.Collection<UUID> ids = inv.getArgument(0);
-            return List.of(aline, andressa, mychelly, diretoria).stream().filter(user -> ids.contains(user.getId())).toList();
+            return List.of(aline, andressa, mychelly, diretoria, diretor, carlos).stream().filter(user -> ids.contains(user.getId())).toList();
         });
         // Mesma regra do serviço real: sem o autor e uma notificação por pessoa, a primeira da lista vence.
         when(notificacaoService.notificar(anyCollection(), any(), any())).thenAnswer(inv -> {
@@ -111,6 +118,10 @@ class LiberacaoNotificadorTest {
     private LiberacaoMembroEntity membro(UserEntity user) {
         return LiberacaoMembroEntity.builder().cardId(card.getId()).usuarioId(user.getId())
                 .origem(OrigemMembro.MANUAL).adicionadoEm(LocalDateTime.now()).build();
+    }
+
+    private void diretoriaTem(UserEntity... membros) {
+        when(userRepository.findByDiretoriaTrueOrderByNameAsc()).thenReturn(List.of(membros));
     }
 
     private Map<UUID, TipoNotificacao> porPessoa(List<Nova> novas) {
@@ -392,6 +403,148 @@ class LiberacaoNotificadorTest {
     void shouldBroadcastBoardEvenWhenNotificationFails() {
         doThrow(new RuntimeException("banco fora")).when(notificacaoService).notificar(anyCollection(), any(), any());
         notificador.aoAcontecer(new LiberacaoEvento.Criado(card, aline, Set.of(), null));
+        verify(hub).enviarTodos(eq(LiberacaoNotificador.EVENTO_QUADRO), any());
+    }
+
+    // ---------------------------------------------------------------- Diretoria
+
+    @Test
+    @DisplayName("enviado à Diretoria: cada pessoa com o perfil recebe 'chegou à Diretoria: sua decisão é esperada' (PARECER_ESPERADO), com o motivo no resumo")
+    void shouldAskDiretoriaForDecision() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        diretoriaTem(diretor, carlos);
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, andressa, Set.of(), "Valor acima da alçada"));
+
+        List<Nova> pedidos = novas.stream().filter(nova -> nova.tipo() == TipoNotificacao.PARECER_ESPERADO).toList();
+        assertThat(pedidos).extracting(Nova::destinatarioId).containsExactly(diretor.getId(), carlos.getId());
+        assertThat(pedidos).allSatisfy(nova -> {
+            assertThat(nova.titulo()).isEqualTo("#42 chegou à Diretoria: sua decisão é esperada");
+            assertThat(nova.resumo()).isEqualTo("ACME LTDA · Valor acima da alçada");
+            assertThat(nova.link()).isEqualTo("/liberacao?card=" + card.getId());
+        });
+        // quem foi convocado ao Comitê da rodada não recebe pedido de parecer: a palavra agora é da Diretoria
+        assertThat(porPessoa(novas)).doesNotContainEntry(andressa.getId(), TipoNotificacao.PARECER_ESPERADO)
+                .doesNotContainEntry(mychelly.getId(), TipoNotificacao.PARECER_ESPERADO);
+    }
+
+    @Test
+    @DisplayName("enviado à Diretoria: criador e quem acompanha, fora da Diretoria, recebem '#N enviado à Diretoria por <primeiro nome>' (DECISAO), uma vez só")
+    void shouldTellCreatorAndFollowersThatCardWentToDiretoria() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        diretoriaTem(diretor);
+        // o serviço já pôs a Diretoria como membro antes de publicar o evento
+        when(membroRepository.findByCardIdOrderByAdicionadoEm(card.getId())).thenReturn(List.of(
+                membro(aline), membro(andressa), membro(mychelly), membro(diretor)));
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, andressa, Set.of(), "Acima da alçada"));
+
+        List<Nova> avisos = novas.stream().filter(nova -> nova.tipo() == TipoNotificacao.DECISAO).toList();
+        // o criador (também membro) aparece uma vez, e primeiro
+        assertThat(avisos).extracting(Nova::destinatarioId)
+                .containsExactly(aline.getId(), andressa.getId(), mychelly.getId());
+        assertThat(avisos).allSatisfy(nova -> {
+            assertThat(nova.titulo()).isEqualTo("#42 enviado à Diretoria por Andressa");
+            assertThat(nova.resumo()).isEqualTo("ACME LTDA · Acima da alçada");
+        });
+        assertThat(novas).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("enviado à Diretoria: quem é da Diretoria e também acompanha o card recebe só o pedido de decisão, nunca o aviso de 'enviado'")
+    void shouldNotTellDiretoriaMemberThatCardWasSentToIt() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        // Mychelly é do Comitê, acompanha o card e agora também tem o perfil Diretoria
+        diretoriaTem(mychelly);
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, andressa, Set.of(), null));
+
+        assertThat(novas).filteredOn(nova -> nova.destinatarioId().equals(mychelly.getId()))
+                .singleElement()
+                .satisfies(nova -> {
+                    assertThat(nova.tipo()).isEqualTo(TipoNotificacao.PARECER_ESPERADO);
+                    assertThat(nova.resumo()).as("sem motivo no evento, só o cedente").isEqualTo("ACME LTDA");
+                });
+        assertThat(porPessoa(novas)).containsEntry(aline.getId(), TipoNotificacao.DECISAO)
+                .containsEntry(andressa.getId(), TipoNotificacao.DECISAO);
+    }
+
+    @Test
+    @DisplayName("enviado à Diretoria sem ninguém com o perfil: só quem acompanhava é informado, sem pedido de decisão")
+    void shouldOnlyInformFollowersWhenNobodyIsDiretoria() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        diretoriaTem();
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.PENDENCIA, EtapaLiberacao.DIRETORIA, andressa, Set.of(), "Acima da alçada"));
+
+        assertThat(novas).isNotEmpty().allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO);
+        assertThat(porPessoa(novas)).containsOnlyKeys(aline.getId(), andressa.getId(), mychelly.getId());
+    }
+
+    @Test
+    @DisplayName("enviado à Diretoria: card sem criador (conta removida) não gera aviso nulo nem erro")
+    void shouldSkipMissingCreatorWhenCardGoesToDiretoria() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        card.setCriadoPorId(null);
+        diretoriaTem(diretor);
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, andressa, Set.of(), "Acima da alçada"));
+
+        assertThat(novas).extracting(Nova::destinatarioId).doesNotContainNull();
+        assertThat(porPessoa(novas)).containsKeys(diretor.getId(), aline.getId());
+    }
+
+    @Test
+    @DisplayName("enviado à Diretoria com menção no motivo: o marcado recebe MENCAO antes de qualquer outro aviso")
+    void shouldPutMentionFirstWhenSendingToDiretoria() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        diretoriaTem(diretor);
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, andressa,
+                        Set.of(diretor.getId()), "Walter, precisa da sua alçada"));
+
+        assertThat(novas.get(0)).satisfies(nova -> {
+            assertThat(nova.destinatarioId()).isEqualTo(diretor.getId());
+            assertThat(nova.tipo()).isEqualTo(TipoNotificacao.MENCAO);
+            assertThat(nova.titulo()).isEqualTo("Andressa te marcou em #42");
+        });
+    }
+
+    @Test
+    @DisplayName("decisão da Diretoria (Diretoria→Aprovado/Reprovado): criador e membros recebem a decisão como DECISAO, sem novo pedido à Diretoria")
+    void shouldNotifyDecisionTakenByDiretoria() {
+        card.setEtapa(EtapaLiberacao.APROVADO);
+        card.setResultado(ResultadoLiberacao.PARCIAL);
+        diretoriaTem(diretor);
+
+        List<Nova> novas = notificador.destinatarios(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.DIRETORIA, EtapaLiberacao.APROVADO, diretor, Set.of(), null));
+
+        assertThat(novas).isNotEmpty()
+                .allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO)
+                .allMatch(nova -> nova.titulo().equals("#42 parcialmente aprovado por Walter"));
+        assertThat(porPessoa(novas)).containsKeys(aline.getId(), mychelly.getId());
+    }
+
+    @Test
+    @DisplayName("e-mail: ao chegar à Diretoria, quem tem o perfil recebe o pedido de decisão por e-mail; o autor do envio não recebe nada")
+    void shouldEmailDiretoriaWhenCardArrives() {
+        card.setEtapa(EtapaLiberacao.DIRETORIA);
+        diretoriaTem(diretor);
+
+        notificador.aoAcontecer(
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, andressa, Set.of(), "Acima da alçada"));
+
+        verify(email).enviar("walter@jgm.com", "Walter Magni", "#42 chegou à Diretoria: sua decisão é esperada",
+                "ACME LTDA · Acima da alçada", "/liberacao?card=" + card.getId());
+        verify(email).enviar(eq("aline@jgm.com"), eq("Aline Souza"), eq("#42 enviado à Diretoria por Andressa"), any(), any());
+        verify(email, never()).enviar(eq("andressa@jgm.com"), any(), any(), any(), any());
         verify(hub).enviarTodos(eq(LiberacaoNotificador.EVENTO_QUADRO), any());
     }
 }

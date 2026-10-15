@@ -14,6 +14,9 @@ import java.util.Set;
  * Finalizados. Em 2026-10-12 o time pediu as colunas de volta, agora como passos: a analista
  * decide Aprovado ou Reprovado; o aprovado segue para Assinatura e o reprovado é finalizado.
  * O resultado (aprovado, reprovado, parcial) continua saindo das decisões dos sacados.</p>
+ *
+ * <p>Em 2026-10-14 entrou a Diretoria: o Comitê decide sozinho ou manda para ela, que dá a palavra
+ * final. Ver docs/plans/2026-10-14-liberacao-diretoria-design.md.</p>
  */
 public enum EtapaLiberacao {
 
@@ -25,6 +28,12 @@ public enum EtapaLiberacao {
 
     /** A analista pediu algo a alguém antes de decidir. */
     PENDENCIA,
+
+    /**
+     * O Comitê mandou para a Diretoria decidir, com o motivo. A Diretoria só aprova ou reprova:
+     * não devolve. Ver V88.
+     */
+    DIRETORIA,
 
     /** Decidido a favor, inteiro ou em parte. Segue para a assinatura do contrato. */
     APROVADO,
@@ -38,7 +47,7 @@ public enum EtapaLiberacao {
     /** Fim de linha. Sai do quadro quando arquivado. */
     FINALIZADO;
 
-    /** A decisão do Comitê: é aqui que o resultado do card é calculado. */
+    /** A decisão, do Comitê ou da Diretoria: é aqui que o resultado do card é calculado. */
     public boolean decisao() {
         return this == APROVADO || this == REPROVADO;
     }
@@ -62,8 +71,9 @@ public enum EtapaLiberacao {
     public Set<EtapaLiberacao> destinos() {
         return switch (this) {
             case ORIGEM -> EnumSet.of(COMITE);
-            case COMITE -> EnumSet.of(PENDENCIA, APROVADO, REPROVADO, ORIGEM);
-            case PENDENCIA -> EnumSet.of(APROVADO, REPROVADO, COMITE);
+            case COMITE -> EnumSet.of(PENDENCIA, DIRETORIA, APROVADO, REPROVADO, ORIGEM);
+            case PENDENCIA -> EnumSet.of(DIRETORIA, APROVADO, REPROVADO, COMITE);
+            case DIRETORIA -> EnumSet.of(APROVADO, REPROVADO);
             case APROVADO -> EnumSet.of(ASSINATURA, COMITE);
             case REPROVADO -> EnumSet.of(FINALIZADO, COMITE);
             case ASSINATURA -> EnumSet.of(FINALIZADO, COMITE);

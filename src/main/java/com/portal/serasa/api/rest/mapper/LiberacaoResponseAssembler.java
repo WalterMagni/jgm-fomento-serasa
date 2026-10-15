@@ -75,6 +75,7 @@ public class LiberacaoResponseAssembler {
     private final LiberacaoAutorizacao autorizacao;
     private final LiberacaoService liberacaoService;
     private final com.portal.serasa.application.service.PaymentPlaceAnalysisService pracaService;
+    private final com.portal.serasa.application.service.empresa.EmpresaNotaService notaService;
 
     @Transactional(readOnly = true)
     public List<LiberacaoCardResponse> cards(List<LiberacaoCardEntity> cards, UserEntity usuario) {
@@ -110,17 +111,19 @@ public class LiberacaoResponseAssembler {
                 cards.stream().map(LiberacaoCardEntity::getCedenteCnpj),
                 sacados.values().stream().flatMap(List::stream).map(LiberacaoSacadoEntity::getCnpj)).toList());
         boolean comiteVazio = liberacaoService.comiteVazio();
+        boolean diretoriaVazia = liberacaoService.diretoriaVazia();
         var praca = pracaService.apontamentosPorDocumento(cards.stream().map(LiberacaoCardEntity::getCedenteCnpj).toList());
+        var notas = notaService.notasDe(cards.stream().map(LiberacaoCardEntity::getCedenteCnpj).distinct().toList());
 
         return cards.stream()
-                .map(card -> card(card, praca.get(card.getCedenteCnpj()),
+                .map(card -> card(card, praca.get(card.getCedenteCnpj()), notas.get(card.getCedenteCnpj()),
                         sacados.getOrDefault(card.getId(), List.of()),
                         pareceres.getOrDefault(card.getId(), List.of()),
                         pendenciasAbertas.getOrDefault(card.getId(), 0L).intValue(),
                         comentarios.getOrDefault(card.getId(), 0L).intValue(),
                         anexos.getOrDefault(card.getId(), 0L).intValue(),
                         membros.getOrDefault(card.getId(), List.of()),
-                        usuarios, empresas, comiteVazio, usuario,
+                        usuarios, empresas, comiteVazio, diretoriaVazia, usuario,
                         vinculos.getOrDefault(card.getId(), List.of()).stream()
                                 .map(vinculo -> etiquetas.get(vinculo.getEtiquetaId()))
                                 .filter(Objects::nonNull)
@@ -182,6 +185,9 @@ public class LiberacaoResponseAssembler {
                                     sacado.getCarteira(),
                                     sacado.getOpiniaoOrigem(), sacado.getOpiniaoOrigemPorNome(), sacado.getOpiniaoOrigemEm(),
                                     sacado.getOpiniaoComite(), sacado.getOpiniaoComitePorNome(), sacado.getOpiniaoComiteEm(),
+                                    sacado.getValorAprovadoComite(),
+                                    sacado.getDecisaoDiretoria(), sacado.getValorAprovadoDiretoria(),
+                                    sacado.getDecisaoDiretoriaPorNome(), sacado.getDecisaoDiretoriaEm(),
                                     sacado.getParecerOrigem(), sacado.getParecerComite(), sacado.getParecerDiretoria(),
                                     praca(pracaSacados.get(sacado.getCnpj())));
                         })
@@ -205,10 +211,12 @@ public class LiberacaoResponseAssembler {
 
     private LiberacaoCardResponse card(LiberacaoCardEntity card,
                                        com.portal.serasa.application.service.PaymentPlaceAnalysisService.ApontamentoPraca praca,
+                                       com.portal.serasa.domain.model.NotaEmpresa cedenteNota,
                                        List<LiberacaoSacadoEntity> sacados,
                                        List<LiberacaoParecerEntity> pareceres, int pendenciasAbertas,
                                        int comentarios, int anexos, List<LiberacaoMembroEntity> membros, Map<UUID, UserEntity> usuarios,
-                                       Map<String, EmpresaResolver.Empresa> empresas, boolean comiteVazio, UserEntity usuario,
+                                       Map<String, EmpresaResolver.Empresa> empresas, boolean comiteVazio,
+                                       boolean diretoriaVazia, UserEntity usuario,
                                        List<LiberacaoCardResponse.Etiqueta> etiquetas, LocalDateTime ultimaAtividade) {
         int registrados = (int) pareceres.stream().filter(LiberacaoParecerEntity::registrado).count();
         BigDecimal valorAprovado = LiberacaoService.valorAprovado(sacados);
@@ -230,6 +238,7 @@ public class LiberacaoResponseAssembler {
                 .cedenteNome(card.getCedenteNome())
                 .cedenteCadastrado(cedente != null)
                 .cedentePraca(cedente == null ? null : cedente.praca())
+                .cedenteNota(cedenteNota)
                 .pracaPagamento(praca(praca))
                 .tipoOperacao(card.getTipoOperacao())
                 .valor(card.getValor())
@@ -251,6 +260,9 @@ public class LiberacaoResponseAssembler {
                 .arquivadoPorNome(card.getArquivadoPorNome())
                 .resultado(card.getResultado())
                 .ressalva(card.getRessalva())
+                .motivoDiretoria(card.getMotivoDiretoria())
+                .enviadoDiretoriaPorNome(card.getEnviadoDiretoriaPorNome())
+                .enviadoDiretoriaEm(card.getEnviadoDiretoriaEm())
                 .valorAprovado(valorAprovado)
                 .etiquetas(etiquetas)
                 .ultimaAtividade(ultimaAtividade)
@@ -281,7 +293,7 @@ public class LiberacaoResponseAssembler {
                         .sorted(Comparator.comparing((EtapaLiberacao etapa) -> etapa.ordinal() < card.getEtapa().ordinal())
                                 .thenComparing(EtapaLiberacao::ordinal))
                         .map(destino -> {
-                            var motivo = autorizacao.motivoBloqueio(card, destino, usuario, registrados, comiteVazio);
+                            var motivo = autorizacao.motivoBloqueio(card, destino, usuario, registrados, comiteVazio, diretoriaVazia);
                             return new LiberacaoCardResponse.Destino(destino, motivo.isEmpty(), motivo.orElse(null),
                                     autorizacao.aviso(card, destino, aguardando).orElse(null));
                         })

@@ -3,18 +3,19 @@ package com.portal.serasa.domain.model.liberacao;
 /**
  * Os quadrados de cada sacado: O (Origem), C (Comitê) e D (Diretoria).
  *
- * <p>O e C são opiniões, nos campos de opinião do sacado. D é a decisão — a que calcula o
- * resultado do card — e mora nos campos de situação. Os três têm um parecer em texto.</p>
+ * <p>Desde a V88, C é a decisão do Comitê e D a da Diretoria; a situação do sacado é a decisão
+ * final, copiada de um dos dois quando o card é decidido. O é a opinião da Origem, que saiu da
+ * tela — fica pelos dados antigos. Os três têm um parecer em texto.</p>
  */
 public enum QuadroOpiniao {
 
-    /** Marcado por qualquer pessoa, com o card na Origem. */
+    /** Marcado por qualquer pessoa, com o card na Origem. Fora da tela desde a V88. */
     ORIGEM,
 
-    /** Marcado por analista, com o card no Comitê ou em Pendência. */
+    /** Decisão do Comitê. Marcada por analista, com o card no Comitê ou em Pendência. */
     COMITE,
 
-    /** A decisão do sacado. Marcada por analista, com o card no Comitê ou em Pendência. */
+    /** Decisão da Diretoria. Marcada por quem tem o perfil, com o card na Diretoria. */
     DIRETORIA;
 
     public String letra() {

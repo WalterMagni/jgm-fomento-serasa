@@ -38,8 +38,12 @@ public record LiberacaoDetalheResponse(
                          com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira,
                          /** Quadrado O: opinião da Origem. */
                          ResultadoLiberacao opiniaoOrigem, String opiniaoOrigemPorNome, LocalDateTime opiniaoOrigemEm,
-                         /** Quadrado C: opinião do Comitê. O quadrado D é a situação. */
+                         /** Quadrado C: decisão do Comitê. A situação é a decisão final (C ou D). */
                          ResultadoLiberacao opiniaoComite, String opiniaoComitePorNome, LocalDateTime opiniaoComiteEm,
+                         BigDecimal valorAprovadoComite,
+                         /** Quadrado D: decisão da Diretoria, com o card na Diretoria. */
+                         ResultadoLiberacao decisaoDiretoria, BigDecimal valorAprovadoDiretoria,
+                         String decisaoDiretoriaPorNome, LocalDateTime decisaoDiretoriaEm,
                          /** Parecer em texto de cada quadrado. */
                          String parecerOrigem, String parecerComite, String parecerDiretoria,
                          /** Apontamentos da Praça de Pagamento do sacado; nulo sem nenhum. */

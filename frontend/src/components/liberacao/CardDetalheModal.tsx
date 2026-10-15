@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMarcarLidasDoLink } from "@/hooks/useNotificacoes";
 import Icon from "@/components/ui/Icon";
+import NotaDaEquipe from "@/components/nota/NotaDaEquipe";
 import { RESSALVA } from "@/lib/ressalva";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
 import { useArquivarCard, useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
@@ -27,6 +28,8 @@ import {
   formatDocumento,
   formatMoeda,
   formatTaxa,
+  juntarNomes,
+  pareceresIncompletos,
   rotuloMover,
   situacaoPrazo,
 } from "./formatters";
@@ -86,6 +89,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
   // Mesmo motivo em vários destinos (os três de decisão esperando o Comitê): mostra uma vez só.
   const motivos = card.destinos.filter(destino => !destino.permitido && destino.motivo).map(destino => destino.motivo!);
   const motivoComum = motivos.length > 1 && motivos.every(motivo => motivo === motivos[0]) ? motivos[0] : null;
+  const incompleto = pareceresIncompletos(card);
 
   const titulo = (
     <span className="flex flex-col gap-1">
@@ -101,6 +105,15 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
           </span>
         )}
         {card.rodada > 1 && <span className="text-slate-400">· rodada {card.rodada}</span>}
+        {incompleto && (
+          <span
+            title={`Saiu do Comitê só com o parecer de ${juntarNomes(incompleto.deram)}; faltou ${juntarNomes(incompleto.faltaram)}.`}
+            className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+          >
+            <Icon name="person" size={11} />
+            {incompleto.deram.length} de {incompleto.total} pareceres · {juntarNomes(incompleto.deram.map(nome => nome.split(" ")[0]))}
+          </span>
+        )}
       </span>
       <span className="leading-tight">{card.cedenteNome}</span>
     </span>
@@ -109,6 +122,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
   const subtitulo = (
     <span className="flex flex-wrap items-center gap-2">
       <span className="font-mono">{formatDocumento(card.cedenteCnpj)}</span>
+      {card.cedenteCnpj.length === 14 && <NotaDaEquipe cnpj={card.cedenteCnpj} compacto />}
       {card.cedentePraca && (
         <span className="inline-flex items-center gap-1">
           <Icon name="map" size={11} /> {card.cedentePraca}
@@ -240,6 +254,19 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                     </Dado>
                   )}
                 </dl>
+                {card.motivoDiretoria && (
+                  <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-sm text-teal-950 dark:border-teal-900/60 dark:bg-teal-950/30 dark:text-teal-50">
+                    <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-teal-800 dark:text-teal-300">
+                      <Icon name="account_balance" size={13} />
+                      Enviado à Diretoria
+                      {card.enviadoDiretoriaPorNome && <span className="font-medium normal-case tracking-normal">por {card.enviadoDiretoriaPorNome}</span>}
+                      {card.enviadoDiretoriaEm && <span className="font-medium normal-case tracking-normal">· {formatDataHora(card.enviadoDiretoriaEm)}</span>}
+                    </p>
+                    <p className="mt-1 leading-relaxed">
+                      <TextoRico texto={card.motivoDiretoria} />
+                    </p>
+                  </div>
+                )}
                 {card.pracaPagamento && (
                   <a
                     href={`/clients/${card.cedenteCnpj}`}
@@ -275,8 +302,8 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   cardId={card.id}
                   sacados={data.sacados}
                   valorOperacao={card.valor}
-                  podeOrigem={card.etapa === "ORIGEM"}
                   podeComite={ehAnalista && (card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
+                  quadro={ETAPAS_DECIDIDAS.includes(card.etapa) ? null : "COMITE"}
                 />
               </Secao>
 

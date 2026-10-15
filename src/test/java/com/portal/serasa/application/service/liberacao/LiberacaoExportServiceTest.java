@@ -322,8 +322,10 @@ class LiberacaoExportServiceTest {
             Row cabecalho = cards.getRow(0);
             Row linha = cards.getRow(1);
             int ultima = 39;
-            // depois de "Horas em Assinatura" vêm Taxa, TAC e Tranche
-            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 4));
+            // depois de "Horas em Assinatura" vêm Taxa, TAC, Tranche e as duas colunas da Diretoria
+            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 6));
+            assertThat(cabecalho.getCell(ultima + 4).getStringCellValue()).isEqualTo("Horas na Diretoria");
+            assertThat(cabecalho.getCell(ultima + 5).getStringCellValue()).isEqualTo("Motivo do envio à Diretoria");
             assertThat(cabecalho.getCell(ultima).getStringCellValue()).isEqualTo("Horas em Assinatura");
             assertThat(linha.getCell(4).getStringCellValue()).isEqualTo("Assinatura");
             assertThat(linha.getCell(17).getStringCellValue()).isEqualTo("Aprovado");
@@ -333,6 +335,91 @@ class LiberacaoExportServiceTest {
             assertThat(linha.getCell(22).getNumericCellValue()).isEqualTo(4.0);
             // ainda em Assinatura: a contagem corre até agora, então só garantimos que há valor positivo
             assertThat(linha.getCell(ultima).getNumericCellValue()).isGreaterThan(0.0);
+        }
+    }
+
+    @Test
+    @DisplayName("horasPorEtapa: Comitê→Diretoria→Aprovado conta as horas na Diretoria e para de contar na decisão")
+    void shouldCountHoursInDiretoria() {
+        UUID id = UUID.randomUUID();
+        LiberacaoCardEntity card = LiberacaoCardEntity.builder().id(id).criadoEm(T0).etapa(EtapaLiberacao.APROVADO).build();
+        List<LiberacaoEventoEntity> eventos = List.of(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0.plusHours(2)),
+                transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, T0.plusHours(5)),
+                transicao(id, EtapaLiberacao.DIRETORIA, EtapaLiberacao.APROVADO, T0.plusHours(7).plusMinutes(30)));
+
+        Map<EtapaLiberacao, Double> horas = LiberacaoExportService.horasPorEtapa(card, eventos, T0.plusDays(30));
+
+        assertThat(horas).containsEntry(EtapaLiberacao.ORIGEM, 2.0)
+                .containsEntry(EtapaLiberacao.COMITE, 3.0)
+                .containsEntry(EtapaLiberacao.DIRETORIA, 2.5);
+    }
+
+    @Test
+    @DisplayName("exportar: card na Diretoria sai com o rótulo 'Diretoria', as horas na Diretoria e o motivo do envio nas duas últimas colunas")
+    void shouldExportCardInDiretoriaWithHoursAndMotivo() throws Exception {
+        UUID id = UUID.randomUUID();
+        LiberacaoCardEntity card = card(id, 43L, EtapaLiberacao.DIRETORIA, null);
+        card.setMotivoDiretoria("Limite acima da alçada do Comitê");
+        card.setEnviadoDiretoriaPorNome("Andressa");
+        card.setEnviadoDiretoriaEm(T0.plusHours(5));
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card));
+        when(eventoRepository.findByCardIdInOrderByCriadoEm(any())).thenReturn(List.of(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0.plusHours(2)),
+                transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, T0.plusHours(5))));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Sheet cards = planilha.getSheet("Cards");
+            Row cabecalho = cards.getRow(0);
+            Row linha = cards.getRow(1);
+            assertThat(cabecalho.getCell(43).getStringCellValue()).isEqualTo("Horas na Diretoria");
+            assertThat(cabecalho.getCell(44).getStringCellValue()).isEqualTo("Motivo do envio à Diretoria");
+            assertThat(linha.getCell(4).getStringCellValue()).isEqualTo("Diretoria");
+            // ainda na Diretoria: a contagem corre até agora, então só garantimos que há valor positivo
+            assertThat(linha.getCell(43).getNumericCellValue()).isGreaterThan(0.0);
+            assertThat(linha.getCell(44).getStringCellValue()).isEqualTo("Limite acima da alçada do Comitê");
+            // o card ainda não foi decidido: nada de resultado nem de 'Decidido por'
+            assertThat(linha.getCell(17).getStringCellValue()).isEmpty();
+            assertThat(linha.getCell(19).getStringCellValue()).isEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: card aprovado pela Diretoria tem 'Decidido por/em' da Diretoria (não o envio do Comitê) e as horas divididas entre Comitê e Diretoria")
+    void shouldExportDecisionTakenByDiretoria() throws Exception {
+        UUID id = UUID.randomUUID();
+        LiberacaoCardEntity card = card(id, 45L, EtapaLiberacao.FINALIZADO, ResultadoLiberacao.APROVADO);
+        card.setMotivoDiretoria("Acima da alçada");
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card));
+        LiberacaoEventoEntity envio = transicao(id, EtapaLiberacao.COMITE, EtapaLiberacao.DIRETORIA, T0.plusHours(5));
+        envio.setUsuarioNome("Andressa");
+        LiberacaoEventoEntity decisao = transicao(id, EtapaLiberacao.DIRETORIA, EtapaLiberacao.APROVADO, T0.plusHours(10));
+        decisao.setUsuarioNome("Walter");
+        when(eventoRepository.findByCardIdInOrderByCriadoEm(any())).thenReturn(List.of(
+                transicao(id, EtapaLiberacao.ORIGEM, EtapaLiberacao.COMITE, T0.plusHours(2)), envio, decisao,
+                transicao(id, EtapaLiberacao.APROVADO, EtapaLiberacao.ASSINATURA, T0.plusHours(11)),
+                transicao(id, EtapaLiberacao.ASSINATURA, EtapaLiberacao.FINALIZADO, T0.plusHours(12))));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Row linha = planilha.getSheet("Cards").getRow(1);
+            assertThat(linha.getCell(19).getStringCellValue()).as("Decidido por").isEqualTo("Walter");
+            assertThat(linha.getCell(20).getLocalDateTimeCellValue()).as("Decidido em").isEqualTo(T0.plusHours(10));
+            assertThat(linha.getCell(22).getNumericCellValue()).as("Horas no Comitê").isEqualTo(3.0);
+            assertThat(linha.getCell(43).getNumericCellValue()).as("Horas na Diretoria").isEqualTo(5.0);
+            assertThat(linha.getCell(44).getStringCellValue()).isEqualTo("Acima da alçada");
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: card que nunca passou pela Diretoria deixa as duas colunas da Diretoria em branco")
+    void shouldLeaveDiretoriaColumnsBlankWhenCardNeverWent() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 44L, EtapaLiberacao.COMITE, null)));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Row linha = planilha.getSheet("Cards").getRow(1);
+            assertThat(linha.getCell(43).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
+            assertThat(linha.getCell(44).getStringCellValue()).isEmpty();
         }
     }
 
@@ -546,7 +633,7 @@ class LiberacaoExportServiceTest {
 
         try (XSSFWorkbook planilha = exportar(id)) {
             Row cards = planilha.getSheet("Cards").getRow(0);
-            assertThat(cards.getLastCellNum()).as("43 colunas: 0 a 42").isEqualTo((short) 43);
+            assertThat(cards.getLastCellNum()).as("45 colunas: 0 a 44").isEqualTo((short) 45);
             for (int i = 0; i < CABECALHO_AR_CARDS.length; i++) {
                 assertThat(cards.getCell(26 + i).getStringCellValue()).as("Cards, coluna %d", 26 + i).isEqualTo(CABECALHO_AR_CARDS[i]);
             }
@@ -564,7 +651,7 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AN, Sacados até P)")
+    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AS, Sacados até U)")
     void shouldExtendAutoFilterToArColumns() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -574,7 +661,7 @@ class LiberacaoExportServiceTest {
         try (XSSFWorkbook planilha = exportar(id)) {
             XSSFSheet cards = planilha.getSheet("Cards");
             XSSFSheet sacados = planilha.getSheet("Sacados");
-            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AQ2");
+            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AS2");
             assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:U2");
         }
     }

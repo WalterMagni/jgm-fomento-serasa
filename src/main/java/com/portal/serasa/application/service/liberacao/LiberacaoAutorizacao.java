@@ -15,9 +15,9 @@ import java.util.Optional;
  * Quem pode o quê na esteira de liberação.
  *
  * <p>Ao contrário da prospecção, aqui há separação de verdade, pedida pelo departamento: na
- * Origem todo mundo cria, edita e apaga; do Comitê em diante só analista mexe no card. Comentar e
- * ser marcado continua aberto a todos em qualquer etapa, e o destinatário de uma pendência
- * responde mesmo sem ser analista.</p>
+ * Origem todo mundo cria, edita e apaga; do Comitê em diante só analista mexe no card; na
+ * Diretoria, só quem tem o perfil Diretoria decide. Comentar e ser marcado continua aberto a todos
+ * em qualquer etapa, e o destinatário de uma pendência responde mesmo sem ser analista.</p>
  *
  * <p>A mesma regra alimenta duas coisas: a recusa no servidor e o motivo que a tela mostra no
  * botão desabilitado. Ficam juntas para não divergirem — se a tela libera e o servidor recusa, o
@@ -41,14 +41,15 @@ public class LiberacaoAutorizacao {
     /**
      * Por que esta pessoa não pode mover o card para {@code destino} agora. Vazio = pode.
      *
-     * @param registrados quantos pareceres a rodada vigente já tem
-     * @param comiteVazio ninguém tem a marca de Comitê
+     * @param registrados    quantos pareceres a rodada vigente já tem
+     * @param comiteVazio    ninguém tem a marca de Comitê
+     * @param diretoriaVazia ninguém tem a marca de Diretoria
      */
-    public Optional<String> motivoBloqueio(LiberacaoCardEntity card, EtapaLiberacao destino,
-                                           UserEntity usuario, int registrados, boolean comiteVazio) {
+    public Optional<String> motivoBloqueio(LiberacaoCardEntity card, EtapaLiberacao destino, UserEntity usuario,
+                                           int registrados, boolean comiteVazio, boolean diretoriaVazia) {
         return motivoCaminho(card, destino)
                 .or(() -> motivoPermissao(card, usuario))
-                .or(() -> motivoRegra(card, destino, registrados, comiteVazio));
+                .or(() -> motivoRegra(card, destino, registrados, comiteVazio, diretoriaVazia));
     }
 
     /**
@@ -63,7 +64,7 @@ public class LiberacaoAutorizacao {
     }
 
     public void exigirTransicao(LiberacaoCardEntity card, EtapaLiberacao destino, UserEntity usuario,
-                                int registrados, boolean comiteVazio) {
+                                int registrados, boolean comiteVazio, boolean diretoriaVazia) {
         exigirAutenticado(usuario);
         // Caminho inexistente é regra da máquina de estados (409), não falta de permissão (403).
         motivoCaminho(card, destino).ifPresent(motivo -> {
@@ -72,7 +73,7 @@ public class LiberacaoAutorizacao {
         motivoPermissao(card, usuario).ifPresent(motivo -> {
             throw new AcessoNegadoException(motivo);
         });
-        motivoRegra(card, destino, registrados, comiteVazio).ifPresent(motivo -> {
+        motivoRegra(card, destino, registrados, comiteVazio, diretoriaVazia).ifPresent(motivo -> {
             throw new TransicaoInvalidaException(motivo);
         });
     }
@@ -82,6 +83,14 @@ public class LiberacaoAutorizacao {
         exigirAutenticado(usuario);
         if (!ehAnalista(usuario)) {
             throw new AcessoNegadoException("Só analista pode " + acao + ".");
+        }
+    }
+
+    /** A decisão da Diretoria: mover o card na Diretoria e marcar o quadrado D. */
+    public void exigirDiretoria(UserEntity usuario, String acao) {
+        exigirAutenticado(usuario);
+        if (!ehDiretoria(usuario)) {
+            throw new AcessoNegadoException("Só a Diretoria pode " + acao + ".");
         }
     }
 
@@ -108,6 +117,9 @@ public class LiberacaoAutorizacao {
     }
 
     private Optional<String> motivoPermissao(LiberacaoCardEntity card, UserEntity usuario) {
+        if (card.getEtapa() == EtapaLiberacao.DIRETORIA && !ehDiretoria(usuario)) {
+            return Optional.of("Na Diretoria, só quem tem o perfil Diretoria decide.");
+        }
         if (card.getEtapa() != EtapaLiberacao.ORIGEM && !ehAnalista(usuario)) {
             return Optional.of("A partir do Comitê, só analista move o card.");
         }
@@ -119,9 +131,12 @@ public class LiberacaoAutorizacao {
      * das analistas o card anda com o parecer da outra, mas não sem parecer nenhum.
      */
     private Optional<String> motivoRegra(LiberacaoCardEntity card, EtapaLiberacao destino,
-                                         int registrados, boolean comiteVazio) {
+                                         int registrados, boolean comiteVazio, boolean diretoriaVazia) {
         if (destino == EtapaLiberacao.COMITE && comiteVazio) {
             return Optional.of("Ninguém está marcado como Comitê. Peça ao admin para marcar em Configurações.");
+        }
+        if (destino == EtapaLiberacao.DIRETORIA && diretoriaVazia) {
+            return Optional.of("Ninguém está marcado como Diretoria. Peça ao admin para marcar em Configurações.");
         }
         if (EtapaLiberacao.decisaoDoComite(card.getEtapa(), destino) && registrados == 0) {
             return Optional.of("Precisa de pelo menos um parecer do Comitê.");
@@ -141,11 +156,16 @@ public class LiberacaoAutorizacao {
         return usuario != null && usuario.isAnalista();
     }
 
+    private boolean ehDiretoria(UserEntity usuario) {
+        return usuario != null && usuario.isDiretoria();
+    }
+
     static String rotulo(EtapaLiberacao etapa) {
         return switch (etapa) {
             case ORIGEM -> "Origem";
             case COMITE -> "Comitê";
             case PENDENCIA -> "Pendência";
+            case DIRETORIA -> "Diretoria";
             case APROVADO -> "Aprovado";
             case REPROVADO -> "Reprovado";
             case ASSINATURA -> "Assinatura";

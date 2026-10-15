@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import Icon from "@/components/ui/Icon";
-import { baixarAnexo, useAnexar, useRemoverAnexo } from "@/hooks/useLiberacao";
+import { abrirAnexo, baixarAnexo, useAnexar, useRemoverAnexo } from "@/hooks/useLiberacao";
 import type { Anexo } from "@/types/liberacao";
 import { confirmar, formatDataHora, tempoRelativo } from "./formatters";
 
@@ -25,7 +25,7 @@ function icone(mime: string | null) {
 
 /**
  * Anexos do card. Vão para a pasta do cedente no compartilhamento de rede, como os arquivos da
- * prospecção; aqui só aparece a lista e o download.
+ * prospecção; aqui só aparece a lista. O nome abre o arquivo (PDF e imagem em aba nova), o ícone baixa.
  *
  * <p>Qualquer pessoa anexa em qualquer etapa. Dá para arrastar o arquivo para a área ou clicar.</p>
  */
@@ -58,9 +58,9 @@ export default function Anexos({ cardId, anexos }: { cardId: string; anexos: Ane
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
-                  onClick={() => baixarAnexo(cardId, anexo.id, anexo.nome).catch(erro => toast.error((erro as Error).message))}
+                  onClick={() => abrirAnexo(cardId, anexo).catch(erro => toast.error((erro as Error).message))}
                   className="block max-w-full cursor-pointer truncate text-left text-sm font-medium text-slate-800 hover:text-[#612035] hover:underline dark:text-slate-100"
-                  title="Baixar"
+                  title="Abrir"
                 >
                   {anexo.nome}
                 </button>
