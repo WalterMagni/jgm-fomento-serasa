@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Icon from "@/components/ui/Icon";
 import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "@/components/liberacao/Dialogo";
-import { consultarEmpresa, CUSTO_CONSULTA_PJ } from "@/components/carteira/consultaEmpresa";
+import { consultarEmpresa } from "@/components/carteira/consultaEmpresa";
 import { useCriarProspeccao } from "@/hooks/useProspeccao";
 import { useDiretorio, useEmpresaBusca } from "@/hooks/useLiberacao";
 import { DADOS_COMERCIAIS_VAZIOS, ROTULO_ESTAGIO, ehTerminal, type DadosComerciais, type Prospeccao } from "@/types/prospeccao";
@@ -19,13 +19,12 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/a
 const DIRETO = "__direto__";
 const OUTRO = "__outro__";
 
-type Etapa = "cnpja" | "card" | "serasa";
+type Etapa = "cnpja" | "card";
 type EstadoEtapa = "espera" | "rodando" | "ok" | "erro";
 
 const ROTULO_ETAPA: Record<Etapa, string> = {
-  cnpja: "CNPJ Já — cadastro e endereço",
+  cnpja: "CNPJ Já — cadastro e endereço (Receita Federal)",
   card: "Card aberto em Nova",
-  serasa: `Serasa — análise de crédito (${CUSTO_CONSULTA_PJ})`,
 };
 
 /** Razão social que o CNPJ Já acabou de gravar, pela mesma busca do seletor. */
@@ -48,13 +47,12 @@ async function nomeCadastrado(cnpj: string) {
  *
  * <p>Busca a empresa por nome ou CNPJ, como no cedente da esteira de liberação. Empresa que o
  * portal já conhece abre sem custo, com o aviso de consulta Serasa antiga (mais de 90 dias) quando
- * for o caso. CNPJ novo é consultado no CNPJ Já e no Serasa e entra com perfil completo, para a
- * análise começar olhando a empresa. A ordem é CNPJ Já, card e só então Serasa: com o card já
- * aberto, a entrada automática da visão cedente não abre um segundo.</p>
+ * for o caso. CNPJ novo é consultado só no CNPJ Já — os dados da Receita Federal — e o card abre.
+ * O Serasa ficou de fora para cortar custo (pedido do time em 2026-10-14): quem analisa consulta
+ * pela página da empresa, quando precisar.</p>
  *
  * <p>Sem o CNPJ Já não há perfil — mesma regra da página da empresa —, então o card não abre e a
- * tela pede para tentar depois. Se só o Serasa falhar, o card fica aberto e a consulta se refaz
- * pela página da empresa.</p>
+ * tela pede para tentar depois.</p>
  */
 export default function NovaProspeccaoDialog({
   onFechar,
@@ -82,7 +80,6 @@ export default function NovaProspeccaoDialog({
   const [dados, setDados] = useState<DadosComerciais>(DADOS_COMERCIAIS_VAZIOS);
   const [etapas, setEtapas] = useState<Partial<Record<Etapa, EstadoEtapa>> | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [cardCriado, setCardCriado] = useState<Prospeccao | null>(null);
 
   // Vindo da página da empresa, a data da consulta Serasa vem da mesma busca.
   const buscaInicial = useEmpresaBusca(inicial ? inicial.cnpj.replace(/\D/g, "") : "");
@@ -121,7 +118,7 @@ export default function NovaProspeccaoDialog({
     criar.mutate(corpoDoCard(empresa.cnpj, empresa.nome), { onSuccess: concluir });
   }
 
-  /** CNPJ novo: CNPJ Já, card e Serasa, nessa ordem. */
+  /** CNPJ novo: CNPJ Já e card, nessa ordem. Sem Serasa. */
   async function consultarEAbrir() {
     if (empresa?.tipo !== "nova" || !comercialValido || ocupado) return;
     const cnpj = empresa.cnpj;
@@ -144,30 +141,14 @@ export default function NovaProspeccaoDialog({
       setEtapas({ cnpja: "ok", card: "erro" });
       return;
     }
-    setCardCriado(card);
-
-    setEtapas({ cnpja: "ok", card: "ok", serasa: "rodando" });
-    try {
-      await consultarEmpresa("serasa", cnpj);
-      setEtapas({ cnpja: "ok", card: "ok", serasa: "ok" });
-      queryClient.invalidateQueries({ queryKey: ["companyList"] });
-      concluir(card);
-    } catch (falha) {
-      setEtapas({ cnpja: "ok", card: "ok", serasa: "erro" });
-      setErro(
-        `Card aberto, mas a consulta Serasa falhou: ${falha instanceof Error ? falha.message.replace(/\.$/, "") : "sem resposta"}. Dá para refazer pela página da empresa.`,
-      );
-    }
+    setEtapas({ cnpja: "ok", card: "ok" });
+    queryClient.invalidateQueries({ queryKey: ["companyList"] });
+    concluir(card);
   }
 
   const situacao = empresa?.tipo === "existente" && !conferindoSerasa ? situacaoSerasa(consultaSerasaEm) : null;
 
-  const botaoPrincipal = cardCriado ? (
-    <button type="button" onClick={() => concluir(cardCriado)} className={BOTAO_PRIMARIO}>
-      <Icon name="open_in_new" size={16} />
-      Abrir o card
-    </button>
-  ) : cardExistente ? (
+  const botaoPrincipal = cardExistente ? (
     <button type="button" onClick={() => concluir(cardExistente)} className={BOTAO_PRIMARIO}>
       <Icon name="open_in_new" size={16} />
       Abrir o card existente
@@ -175,7 +156,7 @@ export default function NovaProspeccaoDialog({
   ) : empresa?.tipo === "nova" ? (
     <button type="button" onClick={consultarEAbrir} disabled={!comercialValido || ocupado} className={BOTAO_PRIMARIO}>
       <Icon name={rodando ? "progress_activity" : "travel_explore"} size={16} className={rodando ? "animate-spin" : ""} />
-      {rodando ? "Consultando…" : `Consultar CNPJ Já e Serasa · ${CUSTO_CONSULTA_PJ}`}
+      {rodando ? "Consultando…" : "Consultar CNPJ Já e abrir"}
     </button>
   ) : (
     <button type="button" onClick={abrirExistente} disabled={!empresa || !comercialValido || ocupado} className={BOTAO_PRIMARIO}>
@@ -193,7 +174,7 @@ export default function NovaProspeccaoDialog({
       rodape={
         <>
           <button type="button" onClick={onFechar} disabled={rodando} className={BOTAO_SECUNDARIO}>
-            {cardCriado ? "Fechar" : "Cancelar"}
+            Cancelar
           </button>
           {botaoPrincipal}
         </>
@@ -236,8 +217,8 @@ export default function NovaProspeccaoDialog({
                   <>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">Empresa nova: {formatCnpj(empresa.cnpj)}</p>
                     <p className="mt-0.5 text-[11px] text-slate-500">
-                      Não está no portal. Vamos consultar o CNPJ Já (cadastro e endereço) e o Serasa (crédito, {CUSTO_CONSULTA_PJ}) e
-                      abrir o card com o perfil completo.
+                      Não está no portal. Vamos consultar o CNPJ Já (dados da Receita Federal) e abrir o card. O Serasa
+                      fica para depois, pela página da empresa.
                     </p>
                   </>
                 )}
@@ -255,7 +236,7 @@ export default function NovaProspeccaoDialog({
                 </button>
               )}
             </div>
-            {cardExistente && !cardCriado && (
+            {cardExistente && (
               <p className="mt-2 flex items-center gap-2 rounded-lg bg-[#612035]/8 px-3 py-2 text-xs text-[#612035] dark:text-[#f2c4d1]">
                 <Icon name="conveyor_belt" size={14} />
                 Esta empresa já está na esteira, em {ROTULO_ESTAGIO[cardExistente.estagio]}. Abra o card existente.
@@ -266,7 +247,7 @@ export default function NovaProspeccaoDialog({
 
         {etapas && (
           <ol className="space-y-1.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700" aria-live="polite">
-            {(["cnpja", "card", "serasa"] as Etapa[]).map(etapa => {
+            {(["cnpja", "card"] as Etapa[]).map(etapa => {
               const estado = etapas[etapa] ?? "espera";
               return (
                 <li key={etapa} className="flex items-center gap-2 text-xs">
@@ -291,7 +272,7 @@ export default function NovaProspeccaoDialog({
           </p>
         )}
 
-        {!cardCriado && !cardExistente && (
+        {!cardExistente && (
           <>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
