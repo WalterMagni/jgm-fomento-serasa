@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Icon from "@/components/ui/Icon";
+import NotaNoCard from "@/components/nota/NotaNoCard";
 import { RESSALVA } from "@/lib/ressalva";
 import Avatar from "@/components/liberacao/Avatar";
 import { TOM } from "@/components/liberacao/cores";
@@ -100,6 +101,7 @@ export function CardFace({
             )}
           </p>
         </div>
+        {card.nota && <NotaNoCard nota={card.nota} />}
 
         {card.limiteVigente != null && (
           <p className="flex items-baseline gap-1.5">

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Dialogo from "@/components/liberacao/Dialogo";
+import NotaDaEquipe from "@/components/nota/NotaDaEquipe";
 import {
   ROTULO_ESTAGIO,
   ehTerminal,
@@ -32,7 +32,7 @@ import DocumentChecklist from "./DocumentChecklist";
 import EsteiraTrilha from "./EsteiraTrilha";
 import MotivoDialog from "./MotivoDialog";
 import OrganizacaoProspeccao from "./OrganizacaoProspeccao";
-import { COR_ESTAGIO } from "./estilo";
+import { COR_ESTAGIO, ICONE_ESTAGIO } from "./estilo";
 import PendenciaDialog from "./PendenciaDialog";
 import PendenciasBloco from "./PendenciasBloco";
 import ProspeccaoTimeline from "./ProspeccaoTimeline";
@@ -214,33 +214,48 @@ export default function ProspeccaoModal({
     </button>
   );
 
-  const titulo = card ? card.razaoSocial : isLoading ? "Carregando…" : "Card da esteira";
-  const subtitulo = card && (
-    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-      <Link href={`/clients/${card.cnpj}`} className="font-mono text-[#2956E0] hover:underline dark:text-sky-400">
-        {formatCnpj(card.cnpj)}
-      </Link>
-      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-px text-[11px] font-semibold ring-1 ${COR_ESTAGIO[card.estagio].chip}`}>
-        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: COR_ESTAGIO[card.estagio].hex }} />
-        {ROTULO_ESTAGIO[card.estagio]}
+  // Mesmo cabeçalho da liberação: estágio e situação em cima, a empresa, e embaixo CNPJ, score,
+  // praça e o atalho para a página da empresa.
+  const titulo = card ? (
+    <span className="flex flex-col gap-1">
+      <span className="flex flex-wrap items-center gap-2 font-sans text-[11px] font-medium">
+        <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 uppercase tracking-wide ${COR_ESTAGIO[card.estagio].fundo} ${COR_ESTAGIO[card.estagio].texto}`}>
+          <Icon name={ICONE_ESTAGIO[card.estagio]} size={12} />
+          {ROTULO_ESTAGIO[card.estagio]}
+        </span>
+        <span className={CLASSE_BADGE_SEMAFORO[semaforoDe(card)]}>{textoPrazo(card)}</span>
+        {card.pendenciasAbertas > 0 && (
+          <span className="rounded-md bg-[#D1732C]/15 px-1.5 py-0.5 uppercase tracking-wide text-[#a8551a] dark:text-[#f0a46b]">
+            aguardando comercial
+          </span>
+        )}
+        {card.reaberturas > 0 && <span className="text-slate-400">· {card.reaberturas}ª reanálise</span>}
+        {card.legado && (
+          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+            legado
+          </span>
+        )}
       </span>
-      <span className={CLASSE_BADGE_SEMAFORO[semaforoDe(card)]}>{textoPrazo(card)}</span>
-      {card.pendenciasAbertas > 0 && (
-        <span className="rounded bg-[#D1732C]/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[#a8551a] dark:text-[#f0a46b]">
-          aguardando comercial
+      <span className="leading-tight">{card.razaoSocial}</span>
+    </span>
+  ) : isLoading ? "Carregando…" : "Card da esteira";
+  const subtitulo = card && (
+    <span className="flex flex-wrap items-center gap-2">
+      <span className="font-mono">{formatCnpj(card.cnpj)}</span>
+      <NotaDaEquipe cnpj={card.cnpj} compacto />
+      {data?.empresaPraca && (
+        <span className="inline-flex items-center gap-1">
+          <Icon name="map" size={11} /> {data.empresaPraca}
         </span>
       )}
-      {card.reaberturas > 0 && (
-        <>
-          <span aria-hidden>·</span>
-          <span>{card.reaberturas}ª reanálise</span>
-        </>
-      )}
-      {card.legado && (
-        <span className="rounded bg-amber-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-          legado
-        </span>
-      )}
+      <a
+        href={`/clients/${card.cnpj}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 font-medium text-[#612035] hover:underline dark:text-[#e8a3b6]"
+      >
+        página da empresa <Icon name="open_in_new" size={11} />
+      </a>
     </span>
   );
 

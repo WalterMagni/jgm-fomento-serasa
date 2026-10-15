@@ -10,6 +10,8 @@ import java.util.List;
 @Builder
 public record ProspeccaoDetalheResponse(
         ProspeccaoResponse card,
+        /** Cidade/UF da empresa, quando o portal sabe. */
+        String empresaPraca,
         DadosComerciaisDto dadosComerciais,
         List<ProspeccaoDocumentoResponse> documentos,
         List<ProspeccaoEventoResponse> timeline,

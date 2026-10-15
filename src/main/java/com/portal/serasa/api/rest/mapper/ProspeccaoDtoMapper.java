@@ -29,14 +29,15 @@ public class ProspeccaoDtoMapper {
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos) {
-        return toResponse(card, analistaNome, documentos, null, null, 0, List.of(), List.of());
+        return toResponse(card, analistaNome, documentos, null, null, 0, List.of(), List.of(), null);
     }
 
     public ProspeccaoResponse toResponse(ProspeccaoEntity card, String analistaNome,
                                          List<ProspeccaoDocumentoEntity> documentos,
                                          java.math.BigDecimal limiteVigente, String ressalvaVigente, long pendenciasAbertas,
                                          List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodadaVigente,
-                                         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity> etiquetas) {
+                                         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoEtiquetaEntity> etiquetas,
+                                         com.portal.serasa.domain.model.NotaEmpresa nota) {
         List<com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity> rodada =
                 rodadaVigente == null ? List.of() : rodadaVigente;
         long total = documentos == null ? 0 : documentos.stream()
@@ -93,6 +94,7 @@ public class ProspeccaoDtoMapper {
                         .toList())
                 .pareceresRegistrados((int) rodada.stream().filter(p -> p.registrado()).count())
                 .pareceresEsperados(rodada.size())
+                .nota(nota)
                 .version(card.getVersion())
                 .build();
     }

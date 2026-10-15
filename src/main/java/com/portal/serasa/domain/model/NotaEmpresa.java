@@ -11,6 +11,6 @@ public enum NotaEmpresa {
     B,
     /** Operar com atenção. */
     C,
-    /** Evitar operar. */
+    /** Diretoria avalia antes de operar. */
     D
 }

@@ -60,5 +60,7 @@ public record ProspeccaoResponse(
         /** Pareceres registrados e esperados na rodada vigente do comitê — o "2/3" do quadro. */
         int pareceresRegistrados,
         int pareceresEsperados,
+        /** Score da equipe para a empresa (A a D); nulo sem score. */
+        com.portal.serasa.domain.model.NotaEmpresa nota,
         Long version) {
 }

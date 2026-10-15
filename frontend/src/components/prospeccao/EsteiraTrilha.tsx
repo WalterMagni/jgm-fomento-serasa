@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react";
 import Icon from "@/components/ui/Icon";
 import { ROTULO_ESTAGIO, type EstagioProspeccao, type ProspeccaoEvento } from "@/types/prospeccao";
-import { COR_ESTAGIO } from "./estilo";
+import { COR_ESTAGIO, ICONE_ESTAGIO } from "./estilo";
 import { formatDate } from "./formatters";
 
 /** O caminho feliz, na ordem em que o card anda. */
@@ -14,16 +14,6 @@ const ROTULO_CURTO: Partial<Record<EstagioProspeccao, string>> = {
   DOCUMENTACAO: "Documentos",
 };
 
-const ICONE: Record<string, string> = {
-  NOVA: "inbox",
-  EM_ANALISE: "search",
-  APROVADO: "thumb_up",
-  DOCUMENTACAO: "folder_open",
-  AGUARDANDO_ACEITE: "handshake",
-  COMITE: "groups",
-  CONTRATO: "contract",
-  HABILITADO: "verified",
-};
 
 /** Intervalo entre uma etapa e a próxima na animação de abertura. */
 const PASSO_MS = 90;
@@ -112,7 +102,7 @@ export default function EsteiraTrilha({
                 ) : feita ? (
                   <Icon name="check" size={14} strokeWidth={3} />
                 ) : (
-                  <Icon name={ICONE[etapa]} size={14} />
+                  <Icon name={ICONE_ESTAGIO[etapa]} size={14} />
                 )}
               </span>
 

@@ -11,7 +11,7 @@ export const NOTA: Record<NotaEmpresa, { rotulo: string; descricao: string; cor:
   A: { rotulo: "Excelente", descricao: "Cliente excelente", cor: "#038141", texto: "#03703A" },
   B: { rotulo: "Bom", descricao: "Bom cliente", cor: "#85BB2F", texto: "#4E7A12" },
   C: { rotulo: "Atenção", descricao: "Operar com atenção", cor: "#FECB02", texto: "#8A6A00" },
-  D: { rotulo: "Evitar", descricao: "Evitar operar", cor: "#E63E11", texto: "#B8300B" },
+  D: { rotulo: "Diretoria", descricao: "Diretoria avaliar", cor: "#E63E11", texto: "#B8300B" },
 };
 
 /** Uma troca de nota; `nota` nula é uma retirada. */

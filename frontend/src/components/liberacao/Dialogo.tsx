@@ -48,7 +48,8 @@ export default function Dialogo({ titulo, subtitulo, onFechar, children, rodape,
     const anterior = document.activeElement as HTMLElement | null;
     const primeiro =
       painel.current?.querySelector<HTMLElement>("[data-autofocus]") ??
-      painel.current?.querySelector<HTMLElement>("input, textarea, select, button");
+      // data-sem-autofoco: botão do cabeçalho (o selo do score) que não deve roubar o foco do fechar.
+      painel.current?.querySelector<HTMLElement>("input, textarea, select, button:not([data-sem-autofoco])");
     primeiro?.focus();
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape" && pilha[pilha.length - 1] === eu) {

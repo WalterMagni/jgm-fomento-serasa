@@ -25,7 +25,10 @@ export function useNotaEmpresa(cnpj: string) {
   });
 }
 
-/** Dá, troca ou retira (`null`) a nota. A carteira é recarregada para a coluna e o filtro baterem. */
+/**
+ * Dá, troca ou retira (`null`) a nota. A carteira e as esteiras são recarregadas para a coluna, o
+ * filtro e o selo dos cards baterem.
+ */
 export function useDarNota(cnpj: string) {
   const limpo = cnpj.replace(/\D/g, "");
   const queryClient = useQueryClient();
@@ -44,7 +47,9 @@ export function useDarNota(cnpj: string) {
     },
     onSuccess: dados => {
       queryClient.setQueryData(["notaEmpresa", limpo], dados);
-      queryClient.invalidateQueries({ queryKey: ["companyList"] });
+      for (const chave of ["companyList", "prospeccao", "prospeccaoDetalhe", "liberacao", "liberacaoDetalhe"]) {
+        queryClient.invalidateQueries({ queryKey: [chave] });
+      }
     },
   });
 }

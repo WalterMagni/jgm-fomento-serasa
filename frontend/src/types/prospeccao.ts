@@ -1,6 +1,7 @@
 /** Tipos da esteira de prospecção. Espelham os DTOs de /api/v1/prospeccao. */
 
 import type { CorLiberacao, Etiqueta } from "./liberacao";
+import type { NotaEmpresa } from "./nota-empresa";
 export type { CorLiberacao, Etiqueta };
 
 export type EstagioProspeccao =
@@ -107,6 +108,8 @@ export type Prospeccao = {
   /** Rodada vigente do comitê: o "2/3" do quadro. */
   pareceresRegistrados: number;
   pareceresEsperados: number;
+  /** Score da equipe para a empresa (A a D); nulo sem score. */
+  nota: NotaEmpresa | null;
   version: number;
 };
 
@@ -294,6 +297,8 @@ export type ProspeccaoEvento = {
 
 export type ProspeccaoDetalhe = {
   card: Prospeccao;
+  /** Cidade/UF da empresa, quando o portal sabe. */
+  empresaPraca: string | null;
   dadosComerciais: DadosComerciais;
   documentos: ProspeccaoDocumento[];
   timeline: ProspeccaoEvento[];

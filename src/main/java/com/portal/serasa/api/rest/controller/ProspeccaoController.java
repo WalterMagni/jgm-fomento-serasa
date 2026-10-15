@@ -93,6 +93,8 @@ public class ProspeccaoController {
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoComentarioService comentarioService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoComiteService comiteService;
     private final com.portal.serasa.application.service.prospeccao.ProspeccaoOrganizacaoService organizacaoService;
+    private final com.portal.serasa.application.service.empresa.EmpresaNotaService notaService;
+    private final com.portal.serasa.application.service.liberacao.EmpresaResolver empresaResolver;
     private final ProspeccaoDtoMapper mapper;
     private final DocumentoTipoJpaRepository documentoTipoRepository;
     private final com.portal.serasa.application.service.ClientProfileService clientProfileService;
@@ -178,6 +180,9 @@ public class ProspeccaoController {
                 .anyMatch(p -> p.getRodada().equals(card.getRodadaComite()) && eu.getId().equals(p.getUsuarioId()));
         return ResponseEntity.ok(ProspeccaoDetalheResponse.builder()
                 .card(toResponse(card))
+                .empresaPraca(java.util.Optional.ofNullable(empresaResolver.resolver(List.of(card.getCnpj())).get(card.getCnpj()))
+                        .map(com.portal.serasa.application.service.liberacao.EmpresaResolver.Empresa::praca)
+                        .orElse(null))
                 .dadosComerciais(mapper.toDto(card.getDadosComerciais()))
                 .documentos(documentos(id))
                 .timeline(prospeccaoService.timeline(id).stream().map(mapper::toResponse).toList())
@@ -798,11 +803,12 @@ public class ProspeccaoController {
                 decisaoService.ressalvasVigentes(List.of(card.getId())).get(card.getId()),
                 pendenciaService.abertasPorCard(List.of(card.getId())).getOrDefault(card.getId(), 0L),
                 comiteService.rodadaVigente(List.of(card.getId())).getOrDefault(card.getId(), List.of()),
-                organizacaoService.etiquetasPorCard(List.of(card.getId())).getOrDefault(card.getId(), List.of()));
+                organizacaoService.etiquetasPorCard(List.of(card.getId())).getOrDefault(card.getId(), List.of()),
+                notaService.notasDe(List.of(card.getCnpj())).get(card.getCnpj()));
     }
 
     /**
-     * Converte a lista inteira com sete consultas fixas, em vez de seis por card.
+     * Converte a lista inteira com oito consultas fixas, em vez de sete por card.
      *
      * <p>O kanban abre com dezenas de cards e cada um mostra o progresso do checklist e o nome do
      * analista. Resolver card a card seria N+1 — a mesma conta que já custou uma correção de
@@ -820,6 +826,7 @@ public class ProspeccaoController {
         Map<UUID, Long> pendencias = pendenciaService.abertasPorCard(ids);
         var rodadas = comiteService.rodadaVigente(ids);
         var etiquetas = organizacaoService.etiquetasPorCard(ids);
+        var notas = notaService.notasDe(cards.stream().map(ProspeccaoEntity::getCnpj).distinct().toList());
 
         List<UUID> analistas = cards.stream()
                 .map(ProspeccaoEntity::getAnalistaId)
@@ -839,7 +846,8 @@ public class ProspeccaoController {
                         ressalvas.get(card.getId()),
                         pendencias.getOrDefault(card.getId(), 0L),
                         rodadas.getOrDefault(card.getId(), List.of()),
-                        etiquetas.getOrDefault(card.getId(), List.of())))
+                        etiquetas.getOrDefault(card.getId(), List.of()),
+                        notas.get(card.getCnpj())))
                 .toList();
     }
 

@@ -17,8 +17,11 @@ const quando = (iso: string) => {
  * Nota da equipe ao lado do nome da empresa, na Visão 360º. Qualquer usuário dá ou troca: o
  * clique no selo abre as quatro letras com o que cada uma quer dizer, e embaixo o histórico de
  * quem deu cada nota.
+ *
+ * <p>`compacto`: selo pequeno e só o rótulo, para o cabeçalho dos cards das esteiras. Ali o
+ * Esc fecha só a lista de letras, não o card inteiro.</p>
  */
-export default function NotaDaEquipe({ cnpj }: { cnpj: string }) {
+export default function NotaDaEquipe({ cnpj, compacto = false }: { cnpj: string; compacto?: boolean }) {
   const { data, isLoading } = useNotaEmpresa(cnpj);
   const darNota = useDarNota(cnpj);
   const [aberto, setAberto] = useState(false);
@@ -30,14 +33,17 @@ export default function NotaDaEquipe({ cnpj }: { cnpj: string }) {
     const fora = (e: MouseEvent) => {
       if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
     };
+    // Na captura, antes do Esc do diálogo da esteira: fecha a lista e para aí.
     const tecla = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setAberto(false);
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setAberto(false);
     };
     document.addEventListener("mousedown", fora);
-    window.addEventListener("keydown", tecla);
+    window.addEventListener("keydown", tecla, true);
     return () => {
       document.removeEventListener("mousedown", fora);
-      window.removeEventListener("keydown", tecla);
+      window.removeEventListener("keydown", tecla, true);
     };
   }, [aberto]);
 
@@ -55,41 +61,56 @@ export default function NotaDaEquipe({ cnpj }: { cnpj: string }) {
     <div ref={caixa} className="relative print:hidden">
       <button
         type="button"
+        data-sem-autofoco={compacto || undefined}
         onClick={() => setAberto(a => !a)}
         aria-haspopup="dialog"
         aria-expanded={aberto}
         disabled={isLoading}
-        title={nota ? `${NOTA[nota].descricao}. Clique para trocar.` : "Dar score para esta empresa"}
-        className="group -m-2 flex items-center gap-3 rounded-2xl p-2 text-left transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait"
+        title={nota ? `Score: ${NOTA[nota].descricao}. Clique para trocar.` : "Dar score para esta empresa"}
+        className={`group text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait ${
+          compacto
+            ? "-mx-1.5 -my-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-slate-100"
+            : "-m-2 flex items-center gap-3 rounded-2xl p-2 hover:bg-white"
+        }`}
       >
-        <SeloNota nota={nota} />
-        <span className="flex flex-col leading-tight">
-          <span className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#7F7C73]">Score</span>
-          {nota ? (
-            <>
-              <span className="mt-0.5 text-[14px] font-bold" style={{ color: NOTA[nota].texto }}>
-                {NOTA[nota].rotulo}
-              </span>
-              {data?.por && data.em && (
-                <span className="mt-0.5 text-[11.5px] text-suave">
-                  por {data.por.split(" ")[0]} · {quando(data.em)}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-bold text-primary group-hover:underline">
-              <Icon name="emoji_events" size={15} />
-              Dar score
+        <SeloNota nota={nota} tamanho={compacto ? "compacto" : "grande"} />
+        {compacto ? (
+          nota ? (
+            <span className="text-[11.5px] font-bold" style={{ color: NOTA[nota].texto }}>
+              {NOTA[nota].rotulo}
             </span>
-          )}
-        </span>
+          ) : (
+            <span className="text-[11.5px] font-semibold text-primary group-hover:underline">Dar score</span>
+          )
+        ) : (
+          <span className="flex flex-col leading-tight">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#7F7C73]">Score</span>
+            {nota ? (
+              <>
+                <span className="mt-0.5 text-[14px] font-bold" style={{ color: NOTA[nota].texto }}>
+                  {NOTA[nota].rotulo}
+                </span>
+                {data?.por && data.em && (
+                  <span className="mt-0.5 text-[11.5px] text-suave">
+                    por {data.por.split(" ")[0]} · {quando(data.em)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-bold text-primary group-hover:underline">
+                <Icon name="emoji_events" size={15} />
+                Dar score
+              </span>
+            )}
+          </span>
+        )}
       </button>
 
       {aberto && (
         <div
           role="dialog"
           aria-label="Score da empresa"
-          className="absolute left-0 top-full z-30 mt-3 w-[min(340px,calc(100vw-2.5rem))] overflow-hidden rounded-painel border border-linha bg-white shadow-elevado animate-cair motion-reduce:animate-none"
+          className={`absolute left-0 top-full z-30 ${compacto ? "mt-2" : "mt-3"} w-[min(340px,calc(100vw-2.5rem))] overflow-hidden rounded-painel border border-linha bg-white shadow-elevado animate-cair motion-reduce:animate-none`}
         >
           <div className="flex items-start gap-3 border-b border-[#F0EEE8] px-5 py-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-primary/10 text-primary">

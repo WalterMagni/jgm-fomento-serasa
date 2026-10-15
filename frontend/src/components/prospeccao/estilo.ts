@@ -103,6 +103,21 @@ export const COR_ESTAGIO: Record<
   },
 };
 
+/** Ícone de cada estágio: a trilha e o chip do cabeçalho do card usam o mesmo. */
+export const ICONE_ESTAGIO: Record<EstagioProspeccao, string> = {
+  NOVA: "inbox",
+  EM_ANALISE: "search",
+  APROVADO: "thumb_up",
+  DOCUMENTACAO: "folder_open",
+  AGUARDANDO_ACEITE: "handshake",
+  COMITE: "groups",
+  CONTRATO: "contract",
+  HABILITADO: "verified",
+  REPROVADO: "cancel",
+  RECUSADO_CLIENTE: "block",
+  INERTE: "hourglass_empty",
+};
+
 /**
  * Canais de cobrança com a cor de cada marca: verde do WhatsApp, azul do e-mail. Quem bate o olho
  * no histórico sabe por onde o cliente foi cobrado sem ler.
