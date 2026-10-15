@@ -20,9 +20,10 @@ const MOTIVOS = Object.keys(ROTULO_MOTIVO) as MotivoRecusa[];
 /**
  * Resultado do comitê. Quem não deu parecer fica dito no histórico; o servidor exige ao menos um.
  *
- * <p>Aprovar mantém a proposta da análise ou, marcando o ajuste, grava limite e condições do comitê —
- * é a essa proposta que o cliente responde no aceite. Numa rodada aberta por contraproposta, o que o
- * cliente pediu aparece em cima, para o comitê decidir com o pedido à vista.</p>
+ * <p>Aprovar pede a proposta: limite e condições por produto. A análise inicial não define limite —
+ * é o comitê, com os documentos em mãos (pedido do time em 2026-10-15) — e é a essa proposta que o
+ * cliente responde no aceite. Numa rodada aberta por contraproposta, a proposta anterior vem
+ * preenchida e o que o cliente pediu aparece em cima, para o comitê decidir com o pedido à vista.</p>
  */
 export default function ResultadoComiteDialog({
   cardId,
@@ -38,7 +39,7 @@ export default function ResultadoComiteDialog({
   /** Membros que ainda não deram parecer na rodada. */
   faltando: string[];
   inicial?: ResultadoComite;
-  /** Proposta aprovada vigente (a da análise, ou a última ajustada). */
+  /** Decisão vigente: a da análise (sem limite) ou a proposta de uma rodada anterior do comitê. */
   proposta?: Decisao | null;
   /** Contraproposta do cliente que abriu esta rodada. */
   pedidoCliente?: { mensagem: string | null; limiteSugerido: number | null; condicoes: { produto: string; valor: number }[] } | null;
@@ -48,19 +49,19 @@ export default function ResultadoComiteDialog({
   const [resultado, setResultado] = useState<ResultadoComite>(inicial);
   const [motivo, setMotivo] = useState<MotivoRecusa | "">("");
   const [observacao, setObservacao] = useState("");
-  const [ajustar, setAjustar] = useState(false);
-  const [limite, setLimite] = useState<number | null>(proposta?.limite ?? null);
+  // Proposta anterior só existe a partir de uma rodada de contraproposta: a análise não tem limite.
+  const anterior = proposta?.limite != null ? proposta : null;
+  const [limite, setLimite] = useState<number | null>(anterior?.limite ?? null);
   const [linhas, setLinhas] = useState<LinhaCondicao[]>(() =>
-    proposta && proposta.condicoes.length > 0 ? proposta.condicoes.map(c => novaLinha(c.produto, c.valor)) : [novaLinha()],
+    anterior && anterior.condicoes.length > 0 ? anterior.condicoes.map(c => novaLinha(c.produto, c.valor)) : [novaLinha()],
   );
 
   const reprova = resultado === "REPROVADO";
   const aprova = resultado === "APROVADO";
-  const comAjuste = aprova && ajustar;
   const condicoes = condicoesValidas(linhas);
   const valido =
     (!reprova || (motivo !== "" && (motivo !== "OUTRO" || observacao.trim().length > 0))) &&
-    (!comAjuste || (limite != null && limite > 0 && condicoes.length > 0));
+    (!aprova || (limite != null && limite > 0 && condicoes.length > 0));
 
   function enviar() {
     if (!valido || registrar.isPending) return;
@@ -70,7 +71,7 @@ export default function ResultadoComiteDialog({
         resultado,
         motivoRecusa: reprova ? (motivo as MotivoRecusa) : undefined,
         observacao: observacao.trim() || undefined,
-        ...(comAjuste ? { limite, condicoes } : {}),
+        ...(aprova ? { limite, condicoes } : {}),
       },
       {
         onSuccess: () => {
@@ -140,25 +141,26 @@ export default function ResultadoComiteDialog({
             </button>
           ))}
         </div>
-        {aprova && proposta && (
+        {aprova && (
           <div className="space-y-3 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              <span className="font-semibold">Proposta vigente:</span> limite de {formatMoeda(proposta.limite ?? 0)}
-              {proposta.condicoes.length > 0 && ` — ${proposta.condicoes.map(c => `${c.produto} ${formatMoeda(c.valor)}`).join(", ")}`}
+              {anterior ? (
+                <>
+                  <span className="font-semibold">Proposta anterior:</span> limite de {formatMoeda(anterior.limite ?? 0)}
+                  {anterior.condicoes.length > 0 && ` — ${anterior.condicoes.map(c => `${c.produto} ${formatMoeda(c.valor)}`).join(", ")}`}
+                </>
+              ) : (
+                "A proposta que vai ao cliente: limite e destinação por produto."
+              )}
             </p>
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
-              <input type="checkbox" checked={ajustar} onChange={event => setAjustar(event.target.checked)} className="h-4 w-4 accent-[#612035]" />
-              Ajustar limite e condições
+            <label className="block max-w-xs">
+              <span className={ROTULO}>Limite</span>
+              <InputMoeda valor={limite} onMudar={setLimite} rotulo="Limite aprovado pelo comitê" />
             </label>
-            {ajustar && (
-              <div className="space-y-3">
-                <InputMoeda valor={limite} onMudar={setLimite} rotulo="Limite aprovado pelo comitê" />
-                <div>
-                  <span className={ROTULO}>Condições (destinação do limite por produto)</span>
-                  <CondicoesEditor linhas={linhas} onMudar={setLinhas} limite={limite} />
-                </div>
-              </div>
-            )}
+            <div>
+              <span className={ROTULO}>Condições (destinação do limite por produto)</span>
+              <CondicoesEditor linhas={linhas} onMudar={setLinhas} limite={limite} />
+            </div>
           </div>
         )}
         {reprova && (

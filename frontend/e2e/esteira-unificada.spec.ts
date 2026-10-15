@@ -64,7 +64,7 @@ test.describe.serial("Esteira de prospecção unificada", () => {
     if (cardId) await request.delete(`${API}/api/v1/prospeccao/${cardId}`, { headers: auth() });
   });
 
-  test("assumir e aprovar com limite: o card vai para Aprovado, com o comercial", async ({ page }) => {
+  test("assumir e aprovar na análise inicial, sem limite: o card vai para Aprovado, com o comercial", async ({ page }) => {
     await entrar(page);
     await abrirCard(page);
 
@@ -72,11 +72,10 @@ test.describe.serial("Esteira de prospecção unificada", () => {
     await expect(page.getByRole("button", { name: "Decidir", exact: true })).toBeEnabled();
 
     await page.getByRole("button", { name: "Decidir", exact: true }).click();
-    await page.getByLabel("Limite", { exact: true }).fill("500000");
-    await page.getByLabel("Produto da condição 1").selectOption("DUPLICATA");
-    await page.getByLabel("Valor da condição 1").fill("500000");
+    // Limite e produtos são do comitê: a análise inicial não pede.
+    await expect(page.getByLabel("Limite", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Aprovar e avisar o comercial" }).click();
-    await expect(page.getByText("Limite aprovado: R$ 500.000,00")).toBeVisible();
+    await expect(page.getByText("Aprovado na análise inicial · limite definido no comitê")).toBeVisible();
     await expect(page.getByText(/Com o comercial: faltam \d+ obrigatório/)).toBeVisible();
   });
 
@@ -124,7 +123,12 @@ test.describe.serial("Esteira de prospecção unificada", () => {
 
     await page.getByRole("button", { name: "Registrar resultado" }).first().click();
     await page.getByRole("radio", { name: /Aprovar/ }).click();
+    // Aprovar no comitê pede a proposta: limite e condições por produto.
+    await page.getByLabel("Limite aprovado pelo comitê").fill("500000");
+    await page.getByLabel("Produto da condição 1").selectOption("DUPLICATA");
+    await page.getByLabel("Valor da condição 1").fill("500000");
     await page.getByRole("button", { name: "Registrar resultado", exact: true }).last().click();
+    await expect(page.getByText("Limite aprovado: R$ 500.000,00")).toBeVisible();
 
     await page.getByRole("button", { name: "Registrar resposta do cliente" }).first().click();
     await page.getByRole("radio", { name: /Aceitou/ }).click();

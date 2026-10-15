@@ -148,8 +148,28 @@ class ProspeccaoComiteServiceTest {
         card.setRodadaComite(1);
         when(parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(card.getId(), 1)).thenReturn(List.of(parecer(membro, null)));
 
-        assertThatThrownBy(() -> service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null, dona))
+        assertThatThrownBy(() -> service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null, proposta(), dona))
                 .isInstanceOf(TransicaoInvalidaException.class).hasMessageContaining("parecer");
+    }
+
+    @Test
+    @DisplayName("resultado: aprovar sem limite ou sem condição é recusado — a análise inicial não define a proposta")
+    void shouldRequireProposalToApprove() {
+        card.setEstagio(EstagioProspeccao.COMITE);
+        card.setRodadaComite(1);
+
+        assertThatThrownBy(() -> service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null, membro))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("limite");
+        assertThatThrownBy(() -> service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null,
+                new ProspeccaoComiteService.AjusteProposta(new java.math.BigDecimal("300000"), List.of()), membro))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("condições");
+        verify(prospeccaoService, org.mockito.Mockito.never()).mover(any(), any(), any(), any(), any());
+        verify(decisaoService, org.mockito.Mockito.never()).ajustarPeloComite(any(), any(), any(), any(), any());
+    }
+
+    private static ProspeccaoComiteService.AjusteProposta proposta() {
+        return new ProspeccaoComiteService.AjusteProposta(new java.math.BigDecimal("300000"),
+                List.of(new ProspeccaoDecisaoService.Condicao("DUPLICATA", new java.math.BigDecimal("300000"))));
     }
 
     @Test
@@ -178,12 +198,12 @@ class ProspeccaoComiteServiceTest {
         when(parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(card.getId(), 1))
                 .thenReturn(List.of(parecer(membro, PosicaoParecer.FAVORAVEL), parecer(diretoria, null)));
 
-        service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null, membro);
+        service.registrarResultado(card.getId(), ResultadoComite.APROVADO, null, null, proposta(), membro);
 
         verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.AGUARDANDO_ACEITE, null, null, membro);
         verify(parecerRepository).apagarAguardando(card.getId(), 1);
-        // Sem ajuste, vale a proposta da análise.
-        verify(decisaoService, org.mockito.Mockito.never()).ajustarPeloComite(any(), any(), any(), any(), any());
+        // A proposta é do comitê: vira a decisão vigente.
+        verify(decisaoService).ajustarPeloComite(eq(card.getId()), eq(new java.math.BigDecimal("300000")), any(), isNull(), eq(membro));
         ArgumentCaptor<String> texto = ArgumentCaptor.forClass(String.class);
         verify(prospeccaoService).registrarEvento(any(), any(), isNull(), isNull(), isNull(), texto.capture(), eq(membro));
         assertThat(texto.getValue()).contains("Aprovado no comitê").contains("sem o parecer de Diretoria");

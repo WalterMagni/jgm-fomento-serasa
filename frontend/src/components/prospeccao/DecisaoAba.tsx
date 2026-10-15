@@ -88,7 +88,9 @@ function DecisaoCard({ decisao, destaque = false, emRevisao = false, acao }: {
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
           <Icon name={aprovada ? "check_circle" : "block"} size={16} className={aprovada ? "text-emerald-600" : "text-rose-600"} />
           {aprovada
-            ? `${decisao.ressalva ? "Aprovado com ressalva" : "Aprovado"} — limite de ${formatMoeda(decisao.limite)}`
+            ? `${decisao.ressalva ? "Aprovado com ressalva" : "Aprovado"} — ${
+                decisao.limite == null ? "análise inicial, limite no comitê" : `limite de ${formatMoeda(decisao.limite)}`
+              }`
             : `Reprovado${decisao.motivoRecusa ? ` · ${ROTULO_MOTIVO[decisao.motivoRecusa]}` : ""}`}
           {destaque && (
             <span className={`rounded px-1.5 py-px text-[10px] font-semibold uppercase ${

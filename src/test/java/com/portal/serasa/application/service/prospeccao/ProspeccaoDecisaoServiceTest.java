@@ -88,8 +88,8 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     @Test
-    @DisplayName("aprovar: grava decisão vigente com condições, leva o card a Aprovado e avisa o comercial")
-    void shouldApproveWithConditions() {
+    @DisplayName("aprovar na análise inicial: decisão vigente sem limite, card em Aprovado e o comercial avisado")
+    void shouldApproveInitialAnalysisWithoutLimit() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
         when(decisaoRepository.ultimaVersao(card.getId())).thenReturn(0);
 
@@ -99,8 +99,8 @@ class ProspeccaoDecisaoServiceTest {
 
         assertThat(completa.decisao().getVersao()).isEqualTo(1);
         assertThat(completa.decisao().getVigente()).isTrue();
-        assertThat(completa.decisao().getLimite()).isEqualByComparingTo("500000");
-        assertThat(completa.condicoes()).extracting("produto").containsExactly("DUPLICATA", "CHEQUE PRÓPRIO");
+        assertThat(completa.decisao().getLimite()).isNull();
+        assertThat(completa.condicoes()).isEmpty();
         verify(decisaoRepository).encerrarVigencia(card.getId());
         verify(prospeccaoService).mover(eq(card.getId()), eq(EstagioProspeccao.APROVADO), isNull(), isNull(), eq(dona));
         verify(acontecimentos).publishEvent(any(ProspeccaoAcontecimento.AprovadoNaAnalise.class));
@@ -166,17 +166,15 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     @Test
-    @DisplayName("aprovar sem limite ou sem condição não passa")
-    void shouldRequireLimitAndConditions() {
+    @DisplayName("análise inicial: limite e condições que vierem ficam de fora — são do comitê")
+    void shouldIgnoreLimitAndConditionsInInitialAnalysis() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
 
-        assertThatThrownBy(() -> service.decidir(card.getId(), aprovacao("0", new Condicao("PEDIDO", BigDecimal.TEN)), dona))
-                .hasMessageContaining("limite");
-        assertThatThrownBy(() -> service.decidir(card.getId(), aprovacao("1000"), dona))
-                .hasMessageContaining("condição");
-        assertThatThrownBy(() -> service.decidir(card.getId(), aprovacao("1000", new Condicao("PEDIDO", BigDecimal.ZERO)), dona))
-                .hasMessageContaining("maior que zero");
-        verify(decisaoRepository, never()).save(any());
+        var completa = service.decidir(card.getId(), aprovacao("0", new Condicao("PEDIDO", BigDecimal.ZERO)), dona);
+
+        assertThat(completa.decisao().getLimite()).isNull();
+        assertThat(completa.condicoes()).isEmpty();
+        verify(condicaoRepository, never()).save(any());
     }
 
     @Test
@@ -320,7 +318,7 @@ class ProspeccaoDecisaoServiceTest {
         ArgumentCaptor<String> texto = ArgumentCaptor.forClass(String.class);
         verify(prospeccaoService).registrarEvento(any(), eq(com.portal.serasa.domain.model.prospeccao.TipoEventoProspeccao.DECISAO),
                 isNull(), isNull(), isNull(), texto.capture(), eq(dona));
-        assertThat(texto.getValue()).startsWith("Aprovado com limite");
+        assertThat(texto.getValue()).startsWith("Aprovado na análise inicial").contains("definidos no comitê");
     }
 
     @Test

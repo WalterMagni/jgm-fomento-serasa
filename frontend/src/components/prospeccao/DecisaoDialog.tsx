@@ -6,8 +6,6 @@ import { RESSALVA } from "@/lib/ressalva";
 import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "@/components/liberacao/Dialogo";
 import { useDecidir } from "@/hooks/useProspeccao";
 import { ROTULO_MOTIVO, type Decisao, type MotivoRecusa, type ResultadoDecisao } from "@/types/prospeccao";
-import CondicoesEditor, { condicoesValidas, novaLinha, type LinhaCondicao } from "./CondicoesEditor";
-import InputMoeda from "./InputMoeda";
 import { formatMoeda } from "./formatters";
 
 const MOTIVOS = Object.keys(ROTULO_MOTIVO) as MotivoRecusa[];
@@ -18,12 +16,12 @@ const BOTAO_REPROVAR =
   "disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-offset-slate-900";
 
 /**
- * Decisão da análise.
+ * Decisão da análise — a análise inicial.
  *
- * <p>Aprovar pede limite, condições por produto e parecer — o que o Portal Comercial chamava de
- * "Registrar decisão". Reprovar pede o motivo da lista fechada. Quando o card volta de uma
- * contraproposta, o formulário nasce com a decisão anterior e o pedido do cliente fica à vista,
- * para a analista ajustar em vez de redigitar.</p>
+ * <p>Aprovar, com ou sem ressalva, manda o comercial juntar os documentos. Limite e condições por
+ * produto não se definem aqui: são do comitê, depois dos documentos (pedido do time em
+ * 2026-10-15). Reprovar pede o motivo da lista fechada. Quando há pedido do cliente, ele fica à
+ * vista.</p>
  */
 export default function DecisaoDialog({
   cardId,
@@ -43,10 +41,6 @@ export default function DecisaoDialog({
   const decidir = useDecidir();
   const base = anterior?.resultado === "APROVADO" ? anterior : null;
   const [resultado, setResultado] = useState<ResultadoDecisao>("APROVADO");
-  const [limite, setLimite] = useState<number | null>(base?.limite ?? null);
-  const [linhas, setLinhas] = useState<LinhaCondicao[]>(
-    base && base.condicoes.length > 0 ? base.condicoes.map(c => novaLinha(c.produto, c.valor)) : [novaLinha()],
-  );
   const [parecer, setParecer] = useState("");
   const [motivo, setMotivo] = useState<MotivoRecusa | "">("");
   const [observacao, setObservacao] = useState("");
@@ -54,9 +48,8 @@ export default function DecisaoDialog({
   const [ressalva, setRessalva] = useState(base?.ressalva ?? "");
 
   const aprova = resultado === "APROVADO";
-  const condicoes = condicoesValidas(linhas);
   const valido = aprova
-    ? limite != null && limite > 0 && condicoes.length > 0 && (!comRessalva || ressalva.trim().length > 0)
+    ? !comRessalva || ressalva.trim().length > 0
     : motivo !== "" && (motivo !== "OUTRO" || observacao.trim().length > 0);
 
   function enviar() {
@@ -65,7 +58,7 @@ export default function DecisaoDialog({
       {
         id: cardId,
         decisao: aprova
-          ? { resultado, limite, condicoes, parecer: parecer.trim() || undefined, ressalva: comRessalva ? ressalva.trim() : undefined }
+          ? { resultado, parecer: parecer.trim() || undefined, ressalva: comRessalva ? ressalva.trim() : undefined }
           : {
               resultado,
               motivoRecusa: motivo as MotivoRecusa,
@@ -139,14 +132,10 @@ export default function DecisaoDialog({
 
         {aprova ? (
           <>
-            <label className="block max-w-xs">
-              <span className={ROTULO}>Limite</span>
-              <InputMoeda valor={limite} onMudar={setLimite} rotulo="Limite" />
-            </label>
-            <div>
-              <span className={ROTULO}>Condições (destinação do limite por produto)</span>
-              <CondicoesEditor linhas={linhas} onMudar={setLinhas} limite={limite} />
-            </div>
+            <p className="flex gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+              <Icon name="info" size={14} className="mt-px shrink-0" />
+              Análise inicial: aprovar avisa o comercial para juntar os documentos. Limite e produtos são definidos no comitê.
+            </p>
             <div className={`rounded-lg border px-3 py-2.5 ${comRessalva ? RESSALVA.caixa : "border-slate-200 dark:border-slate-700"}`}>
               <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                 <input
@@ -195,7 +184,7 @@ export default function DecisaoDialog({
             rows={4}
             value={parecer}
             onChange={event => setParecer(event.target.value)}
-            placeholder={aprova ? "Por que aprovar e em que condições" : "O que pesou na reprovação"}
+            placeholder={aprova ? "O que pesou na aprovação" : "O que pesou na reprovação"}
             className={`${CAMPO} resize-y`}
           />
         </label>

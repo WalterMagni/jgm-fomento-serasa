@@ -67,7 +67,11 @@ export default function ResumoAba({
         >
           <span className="text-sm">
             <span className="font-semibold text-slate-900 dark:text-white">
-              {vigente.resultado === "APROVADO" ? `Limite aprovado: ${formatMoeda(vigente.limite)}` : "Reprovado na análise"}
+              {vigente.resultado !== "APROVADO"
+                ? "Reprovado na análise"
+                : vigente.limite == null
+                  ? "Aprovado na análise inicial · limite definido no comitê"
+                  : `Limite aprovado: ${formatMoeda(vigente.limite)}`}
             </span>
             {vigente.condicoes.length > 0 && (
               <span className="ml-2 text-xs text-slate-500">{vigente.condicoes.map(c => c.produto).join(" · ")}</span>

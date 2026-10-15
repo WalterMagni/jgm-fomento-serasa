@@ -117,7 +117,7 @@ public class ProspeccaoComiteService {
 
     // ---------------------------------------------------------------- resultado
 
-    /** Limite e condições que o comitê aprovou no lugar dos da análise. */
+    /** Limite e condições por produto que o comitê aprova: a proposta que vai ao cliente. */
     public record AjusteProposta(java.math.BigDecimal limite, List<ProspeccaoDecisaoService.Condicao> condicoes) {
     }
 
@@ -132,9 +132,8 @@ public class ProspeccaoComiteService {
     }
 
     /**
-     * Resultado com a proposta ajustada pelo comitê. Aprovar sem ajuste mantém o limite e as
-     * condições da análise; com ajuste, a proposta nova passa a ser a vigente, e é a ela que o
-     * cliente responde no aceite.
+     * Resultado do comitê. Aprovar exige a proposta — limite e condições por produto —, que a
+     * análise inicial não define: ela vira a vigente, e é a ela que o cliente responde no aceite.
      */
     @Transactional
     public ProspeccaoEntity registrarResultado(UUID id, ResultadoComite resultado, MotivoRecusa motivo,
@@ -148,6 +147,10 @@ public class ProspeccaoComiteService {
         }
         if (resultado == null) {
             throw new IllegalArgumentException("Informe o resultado do comitê.");
+        }
+        if (resultado == ResultadoComite.APROVADO
+                && (ajuste == null || ajuste.limite() == null || ajuste.condicoes() == null || ajuste.condicoes().isEmpty())) {
+            throw new IllegalArgumentException("Para aprovar no comitê, informe o limite e as condições por produto.");
         }
         List<ProspeccaoParecerEntity> rodada = rodada(card);
         if (rodada.stream().noneMatch(ProspeccaoParecerEntity::registrado)) {
@@ -165,7 +168,7 @@ public class ProspeccaoComiteService {
         ProspeccaoEntity movido = prospeccaoService.mover(id, destino,
                 resultado == ResultadoComite.REPROVADO ? motivo : null, texto, autor);
         parecerRepository.apagarAguardando(id, card.getRodadaComite());
-        if (resultado == ResultadoComite.APROVADO && ajuste != null && ajuste.limite() != null) {
+        if (resultado == ResultadoComite.APROVADO) {
             decisaoService.ajustarPeloComite(id, ajuste.limite(), ajuste.condicoes(), texto, autor);
         }
 

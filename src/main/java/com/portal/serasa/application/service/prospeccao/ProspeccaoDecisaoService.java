@@ -33,11 +33,12 @@ import java.util.stream.Collectors;
 /**
  * Decisão da analista e resposta do cliente — o trecho do fluxo que veio do Portal Comercial.
  *
- * <p>A decisão sai da análise: aprova com limite e condições por produto — o card vai para Aprovado
- * e o comercial junta os documentos — ou reprova com motivo. O comitê pode ajustar a proposta ao
- * aprovar. A resposta do cliente sai do aceite, depois do comitê: aceita e segue para o contrato,
- * recusa e encerra, ou faz contraproposta e volta ao comitê numa rodada nova. Cada decisão é uma
- * linha; a nova tira a vigência da anterior sem apagá-la.</p>
+ * <p>A decisão da análise é só a análise inicial: aprova, com ou sem ressalva — o card vai para
+ * Aprovado e o comercial junta os documentos — ou reprova com motivo. Limite e condições por
+ * produto não entram aqui: quem define é o comitê, depois dos documentos (pedido do time em
+ * 2026-10-15). A resposta do cliente sai do aceite, depois do comitê: aceita e segue para o
+ * contrato, recusa e encerra, ou faz contraproposta e volta ao comitê numa rodada nova. Cada
+ * decisão é uma linha; a nova tira a vigência da anterior sem apagá-la.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -82,8 +83,10 @@ public class ProspeccaoDecisaoService {
         }
 
         boolean aprova = comando.resultado() == ResultadoDecisao.APROVADO;
-        List<Condicao> condicoes = aprova ? validarAprovacao(comando) : List.of();
         String parecer = limpar(comando.parecer());
+        // Análise inicial: limite e condições, se vierem, ficam de fora — são do comitê.
+        ComandoDecisao semProposta = new ComandoDecisao(comando.resultado(), null, List.of(), comando.parecer(),
+                comando.motivoRecusa(), comando.observacao(), comando.ressalva());
 
         // A transição valida o motivo da reprovação; ela roda antes de gravar a decisão para não
         // sobrar decisão órfã de um card que não se moveu.
@@ -93,7 +96,7 @@ public class ProspeccaoDecisaoService {
                 aprova ? null : comando.observacao(),
                 autor);
 
-        DecisaoCompleta completa = gravar(id, comando, condicoes, parecer, autor);
+        DecisaoCompleta completa = gravar(id, semProposta, List.of(), parecer, autor);
         String resumo = resumo(completa.decisao(), completa.condicoes());
         ProspeccaoEntity atualizado = prospeccaoService.buscar(id);
         prospeccaoService.registrarEvento(atualizado, TipoEventoProspeccao.DECISAO, null, null, null, resumo, autor);
@@ -104,7 +107,7 @@ public class ProspeccaoDecisaoService {
     }
 
     /**
-     * O comitê aprovou com outro limite ou outras condições. Vira a decisão vigente — é a ela que
+     * A proposta do comitê: limite e condições por produto. Vira a decisão vigente — é a ela que
      * o cliente responde no aceite. O card não muda de estágio aqui: quem move é o resultado.
      */
     @Transactional
@@ -117,7 +120,7 @@ public class ProspeccaoDecisaoService {
         List<Condicao> validas = validarAprovacao(comando);
         DecisaoCompleta completa = gravar(id, comando, validas, limpar(parecer), autor);
         prospeccaoService.registrarEvento(prospeccaoService.buscar(id), TipoEventoProspeccao.DECISAO, null, null, null,
-                "Comitê ajustou a proposta: " + resumo(completa.decisao(), completa.condicoes()), autor);
+                "Comitê definiu a proposta: " + resumo(completa.decisao(), completa.condicoes()), autor);
         return completa;
     }
 
@@ -335,6 +338,13 @@ public class ProspeccaoDecisaoService {
     static String resumo(ProspeccaoDecisaoEntity decisao, List<ProspeccaoDecisaoCondicaoEntity> condicoes) {
         if (decisao.getResultado() == ResultadoDecisao.REPROVADO) {
             return "Reprovado" + (decisao.getParecer() != null ? ": " + decisao.getParecer() : "");
+        }
+        if (decisao.getLimite() == null) {
+            // Análise inicial: sem limite, que é definido no comitê.
+            return (decisao.getRessalva() != null ? "Aprovado com ressalva na análise inicial" : "Aprovado na análise inicial")
+                    + (decisao.getVersao() > 1 ? " (decisão " + decisao.getVersao() + ")" : "")
+                    + (decisao.getRessalva() != null ? ". Ressalva: " + decisao.getRessalva() : "")
+                    + ". Limite e produtos são definidos no comitê.";
         }
         String produtos = condicoes.stream()
                 .map(c -> c.getProduto() + " " + reais(c.getValor()))
