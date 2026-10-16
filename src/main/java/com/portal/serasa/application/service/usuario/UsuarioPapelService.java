@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/** Marcas de analista, Comitê e Diretoria. Só o admin chama — a checagem fica no controller. */
+/** Marcas de analista, Comitê, Diretoria e Judit. Só o admin chama — a checagem fica no controller. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -28,12 +28,16 @@ public class UsuarioPapelService {
      * conseguiria destravar pela tela.</p>
      */
     @Transactional
-    public UserEntity definir(UUID usuarioId, boolean analista, boolean comite, boolean diretoria, UserEntity admin) {
+    public UserEntity definir(UUID usuarioId, boolean analista, boolean comite, boolean diretoria, boolean judit,
+                              UserEntity admin) {
         if (comite && !analista) {
             throw new IllegalArgumentException("Membro do Comitê precisa ser analista.");
         }
         if (diretoria && !analista) {
             throw new IllegalArgumentException("Diretoria precisa ser analista.");
+        }
+        if (judit && !analista) {
+            throw new IllegalArgumentException("Quem usa a Judit precisa ser analista.");
         }
         UserEntity usuario = userRepository.findById(usuarioId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
@@ -42,6 +46,7 @@ public class UsuarioPapelService {
         usuario.setAnalista(analista);
         usuario.setComite(comite);
         usuario.setDiretoria(diretoria);
+        usuario.setJudit(judit);
         userRepository.save(usuario);
 
         if (saiuDoComite) {
@@ -50,8 +55,8 @@ public class UsuarioPapelService {
                 log.info("{} saiu do Comitê; {} parecer(es) pendente(s) removido(s)", usuario.getName(), liberados);
             }
         }
-        log.info("Papéis de {} alterados por {}: analista={}, comite={}, diretoria={}",
-                usuario.getEmail(), admin.getEmail(), analista, comite, diretoria);
+        log.info("Papéis de {} alterados por {}: analista={}, comite={}, diretoria={}, judit={}",
+                usuario.getEmail(), admin.getEmail(), analista, comite, diretoria, judit);
         return usuario;
     }
 }

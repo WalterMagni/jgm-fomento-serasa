@@ -207,6 +207,13 @@ public class GlobalExceptionHandler {
         return conflito("Outra pessoa salvou este registro ao mesmo tempo. Recarregue e tente de novo.", request);
     }
 
+    @ExceptionHandler(com.portal.serasa.domain.exception.LimiteJuditException.class)
+    public ResponseEntity<ErrorResponse> handleLimiteJudit(
+            com.portal.serasa.domain.exception.LimiteJuditException ex,
+            HttpServletRequest request) {
+        return conflito(ex.getMessage(), request);
+    }
+
     private ResponseEntity<ErrorResponse> conflito(String message, HttpServletRequest request) {
         ErrorResponse response = ErrorResponse.builder()
                 .timestamp(java.time.Instant.now())

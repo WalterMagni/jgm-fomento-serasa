@@ -713,8 +713,8 @@ export function useAbrirFichaPF() {
   });
 }
 
-/** Marcas de analista, Comitê e Diretoria. Só admin; o servidor recusa os demais. */
-type Papeis = { id: string; analista: boolean; comite: boolean; diretoria: boolean };
+/** Marcas de analista, Comitê, Diretoria e Judit. Só admin; o servidor recusa os demais. */
+type Papeis = { id: string; analista: boolean; comite: boolean; diretoria: boolean; judit: boolean };
 
 export function useDefinirPapeis() {
   const queryClient = useQueryClient();

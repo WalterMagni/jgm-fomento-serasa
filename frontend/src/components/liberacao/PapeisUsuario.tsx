@@ -3,7 +3,7 @@
 import Icon from "@/components/ui/Icon";
 import { useDefinirPapeis } from "@/hooks/useLiberacao";
 
-type Papeis = { analista: boolean; comite: boolean; diretoria: boolean };
+type Papeis = { analista: boolean; comite: boolean; diretoria: boolean; judit: boolean };
 
 type Props = Papeis & {
   usuarioId: string;
@@ -11,19 +11,22 @@ type Props = Papeis & {
 };
 
 /**
- * Marcas da esteira de liberação na tabela de usuários do Settings.
+ * Marcas de usuário na tabela do Settings: esteira de liberação e Judit.
  *
- * <p>Comitê e Diretoria exigem Analista, e a tela já faz a dependência: marcar Comitê ou Diretoria
- * liga Analista, desligar Analista desliga os dois. Assim o admin nunca vê o erro que o banco daria.
+ * <p>Comitê, Diretoria e Judit exigem Analista, e a tela já faz a dependência: marcar qualquer um
+ * liga Analista, desligar Analista desliga todos. Assim o admin nunca vê o erro que o banco daria.
  * Comitê e Diretoria são independentes: um diretor pode estar no Comitê.</p>
  */
-export default function PapeisUsuario({ usuarioId, analista, comite, diretoria, onMudou }: Props) {
+export default function PapeisUsuario({ usuarioId, analista, comite, diretoria, judit, onMudou }: Props) {
   const definir = useDefinirPapeis();
 
   function gravar(novo: Papeis) {
     definir.mutate(
       { id: usuarioId, ...novo },
-      { onSuccess: resposta => onMudou({ analista: resposta.analista, comite: resposta.comite, diretoria: resposta.diretoria }) },
+      {
+        onSuccess: resposta =>
+          onMudou({ analista: resposta.analista, comite: resposta.comite, diretoria: resposta.diretoria, judit: resposta.judit }),
+      },
     );
   }
 
@@ -41,7 +44,9 @@ export default function PapeisUsuario({ usuarioId, analista, comite, diretoria, 
         type="button"
         aria-pressed={analista}
         disabled={definir.isPending}
-        onClick={() => gravar(analista ? { analista: false, comite: false, diretoria: false } : { analista: true, comite, diretoria })}
+        onClick={() =>
+          gravar(analista ? { analista: false, comite: false, diretoria: false, judit: false } : { analista: true, comite, diretoria, judit })
+        }
         title="Edita e move cards da Esteira de Liberação a partir do Comitê"
         className={chip(analista)}
       >
@@ -52,7 +57,7 @@ export default function PapeisUsuario({ usuarioId, analista, comite, diretoria, 
         type="button"
         aria-pressed={comite}
         disabled={definir.isPending}
-        onClick={() => gravar({ analista: comite ? analista : true, comite: !comite, diretoria })}
+        onClick={() => gravar({ analista: comite ? analista : true, comite: !comite, diretoria, judit })}
         title="Dá parecer no Comitê. Liga Analista junto."
         className={chip(comite)}
       >
@@ -63,12 +68,23 @@ export default function PapeisUsuario({ usuarioId, analista, comite, diretoria, 
         type="button"
         aria-pressed={diretoria}
         disabled={definir.isPending}
-        onClick={() => gravar({ analista: diretoria ? analista : true, comite, diretoria: !diretoria })}
+        onClick={() => gravar({ analista: diretoria ? analista : true, comite, diretoria: !diretoria, judit })}
         title="Decide os cards que o Comitê manda para a Diretoria. Liga Analista junto."
         className={chip(diretoria)}
       >
         {diretoria && <Icon name="check" size={11} strokeWidth={3} />}
         Diretoria
+      </button>
+      <button
+        type="button"
+        aria-pressed={judit}
+        disabled={definir.isPending}
+        onClick={() => gravar({ analista: judit ? analista : true, comite, diretoria, judit: !judit })}
+        title="Liga a Judit nas empresas e consulta processos — cada consulta tem custo. Liga Analista junto."
+        className={chip(judit)}
+      >
+        {judit && <Icon name="check" size={11} strokeWidth={3} />}
+        Judit
       </button>
     </div>
   );

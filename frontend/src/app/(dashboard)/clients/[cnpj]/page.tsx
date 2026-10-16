@@ -45,6 +45,7 @@ import { CommercialInformationPanel } from "./CommercialInformationPanel";
 import { CompanyDocumentsPanel } from "./CompanyDocumentsPanel";
 import { CompanyBranchesPanel } from "./CompanyBranchesPanel";
 import { CompanyPartnersPanel } from "./CompanyPartnersPanel";
+import { JuditPanel } from "./JuditPanel";
 import ProspeccaoEmpresaBloco, { AbrirProspeccaoMenuItem } from "@/components/prospeccao/ProspeccaoEmpresaBloco";
 import { useEconomicGroup, type RelatedCompany } from "./useEconomicGroup";
 import { useEnrichPersonSerasa } from "../../../../hooks/usePersonProfile";
@@ -1255,6 +1256,7 @@ export default function ClientDashboardPage() {
     { id: "localizacao", rotulo: "Localização" },
     { id: "socios", rotulo: "Sócios e grupo" },
     { id: "serasa", rotulo: "Serasa" },
+    { id: "judit", rotulo: "Processos" },
     ...(ca?.paymentHistory || ca?.checkFilingsHistorical ? [{ id: "pagamentos", rotulo: "Pagamentos" }] : []),
     { id: "comercial", rotulo: "Comercial" },
     { id: "equipe", rotulo: "Equipe" },
@@ -2345,6 +2347,10 @@ export default function ClientDashboardPage() {
         );
       })()}
 
+      </section>
+
+      <section id="judit" className="scroll-mt-20">
+        <JuditPanel cnpj={cleanCnpj} nomeEmpresa={companyLabel === "Empresa" ? undefined : companyLabel} />
       </section>
 
       <section id="pagamentos" className="scroll-mt-20">

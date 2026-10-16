@@ -136,6 +136,7 @@ public class AuthController {
                     item.put("analista", user.isAnalista());
                     item.put("comite", user.isComite());
                     item.put("diretoria", user.isDiretoria());
+                    item.put("judit", user.isJudit());
                     item.put("createdAt", user.getCreatedAt());
                     return item;
                 })
@@ -182,7 +183,7 @@ public class AuthController {
     }
 
     /**
-     * Marcas da esteira de liberação. Só admin.
+     * Marcas da esteira de liberação e da Judit. Só admin.
      *
      * <p>Admin pode marcar a si mesmo: o dono da empresa é admin e também analista.</p>
      */
@@ -198,12 +199,14 @@ public class AuthController {
         boolean analista = Boolean.TRUE.equals(body.get("analista"));
         boolean comite = Boolean.TRUE.equals(body.get("comite"));
         boolean diretoria = Boolean.TRUE.equals(body.get("diretoria"));
-        UserEntity user = usuarioPapelService.definir(id, analista, comite, diretoria, currentUser);
+        boolean judit = Boolean.TRUE.equals(body.get("judit"));
+        UserEntity user = usuarioPapelService.definir(id, analista, comite, diretoria, judit, currentUser);
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "analista", user.isAnalista(),
                 "comite", user.isComite(),
-                "diretoria", user.isDiretoria()));
+                "diretoria", user.isDiretoria(),
+                "judit", user.isJudit()));
     }
 
     private Map<String, Object> perfil(UserEntity user) {
@@ -216,6 +219,7 @@ public class AuthController {
         perfil.put("analista", user.isAnalista());
         perfil.put("comite", user.isComite());
         perfil.put("diretoria", user.isDiretoria());
+        perfil.put("judit", user.isJudit());
         perfil.put("somNotificacao", user.isSomNotificacao());
         perfil.put("emailLiberacao", user.isEmailLiberacao());
         // Papel ADMIN: altera os catálogos da esteira de prospecção. Diferente de canManageUsers,

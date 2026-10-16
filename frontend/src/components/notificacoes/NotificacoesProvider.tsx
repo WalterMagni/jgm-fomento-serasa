@@ -8,6 +8,7 @@ import { NOTIFICACOES_KEY, abrirUrlDoCanal, useNotificacoes } from "@/hooks/useN
 import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import type { EntregaNotificacao, ListagemNotificacoes } from "@/types/notificacao";
 import { prepararSom, reivindicarAviso, tocarSino } from "./som";
+import ToastJudit, { ehDaJudit } from "./ToastJudit";
 
 const TempoRealContexto = createContext<{ conectado: boolean }>({ conectado: false });
 
@@ -63,11 +64,27 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
         naoLidas,
         itens: [notificacao, ...(anterior?.itens ?? []).filter(item => item.id !== notificacao.id)].slice(0, 20),
       }));
-      toast(notificacao.titulo, {
-        description: notificacao.resumo ?? undefined,
-        action: { label: "Abrir", onClick: () => navegar.current(notificacao.link) },
-        duration: 8000,
-      });
+      if (ehDaJudit(notificacao)) {
+        toast.custom(
+          id => (
+            <ToastJudit
+              notificacao={notificacao}
+              onAbrir={() => {
+                toast.dismiss(id);
+                navegar.current(notificacao.link);
+              }}
+              onFechar={() => toast.dismiss(id)}
+            />
+          ),
+          { duration: 15000 },
+        );
+      } else {
+        toast(notificacao.titulo, {
+          description: notificacao.resumo ?? undefined,
+          action: { label: "Abrir", onClick: () => navegar.current(notificacao.link) },
+          duration: 8000,
+        });
+      }
       if (somLigado.current && (await reivindicarAviso(notificacao.id))) tocarSino();
     }
 

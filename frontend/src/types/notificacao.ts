@@ -9,7 +9,9 @@ export type TipoNotificacao =
   | "COMENTARIO"
   | "DECISAO"
   | "RESPOSTA_CLIENTE"
-  | "DOCUMENTOS_COMPLETOS";
+  | "DOCUMENTOS_COMPLETOS"
+  | "JUDIT_PROCESSO_PRONTO"
+  | "JUDIT_PROCESSO_FALHOU";
 
 export type Notificacao = {
   id: string;

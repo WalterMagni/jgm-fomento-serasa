@@ -47,6 +47,7 @@ export default function SettingsPage() {
     analista: boolean;
     comite: boolean;
     diretoria?: boolean;
+    judit?: boolean;
     createdAt?: string | null;
   }>>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -454,7 +455,7 @@ export default function SettingsPage() {
                     <tr>
                       <th className={`px-4 py-3 text-left ${ROTULO}`}>Nome</th>
                       <th className={`px-4 py-3 text-left ${ROTULO}`}>E-mail</th>
-                      <th className={`px-4 py-3 text-left ${ROTULO}`}>Esteira de Liberação</th>
+                      <th className={`px-4 py-3 text-left ${ROTULO}`}>Papéis</th>
                       <th className={`px-4 py-3 text-left ${ROTULO}`}>Criado em</th>
                       <th className={`px-4 py-3 text-right ${ROTULO}`}>Ações</th>
                     </tr>
@@ -477,6 +478,7 @@ export default function SettingsPage() {
                               analista={user.analista}
                               comite={user.comite}
                               diretoria={!!user.diretoria}
+                              judit={!!user.judit}
                               onMudou={papeis =>
                                 setManagedUsers(atuais => atuais.map(item => (item.id === user.id ? { ...item, ...papeis } : item)))
                               }

@@ -14,5 +14,9 @@ public enum TipoNotificacao {
     /** Esteira de prospecção: o cliente respondeu à proposta. */
     RESPOSTA_CLIENTE,
     /** Esteira de prospecção: todos os documentos chegaram e o card foi para a conferência. */
-    DOCUMENTOS_COMPLETOS
+    DOCUMENTOS_COMPLETOS,
+    /** Judit: o detalhe de processo pedido ficou pronto (resumo de IA e movimentações). */
+    JUDIT_PROCESSO_PRONTO,
+    /** Judit: o detalhe de processo falhou ou passou do tempo. */
+    JUDIT_PROCESSO_FALHOU
 }

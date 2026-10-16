@@ -9,6 +9,7 @@ import type { Notificacao, TipoNotificacao } from "@/types/notificacao";
 import { tempoRelativo } from "@/components/liberacao/formatters";
 import { useTempoReal } from "./NotificacoesProvider";
 import { tocarSino } from "./som";
+import { ehDaJudit } from "./ToastJudit";
 
 const VISUAL: Record<TipoNotificacao, { icone: string; cor: string }> = {
   CARD_CRIADO: { icone: "inbox", cor: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200" },
@@ -22,6 +23,9 @@ const VISUAL: Record<TipoNotificacao, { icone: string; cor: string }> = {
   DECISAO: { icone: "fact_check", cor: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
   RESPOSTA_CLIENTE: { icone: "handshake", cor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
   DOCUMENTOS_COMPLETOS: { icone: "folder_open", cor: "bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300" },
+  // Verde da Judit (judit.io), o mesmo do card de processos.
+  JUDIT_PROCESSO_PRONTO: { icone: "gavel", cor: "bg-[#15BE62]/15 text-[#047857] dark:bg-[#15BE62]/25 dark:text-[#15BE62]" },
+  JUDIT_PROCESSO_FALHOU: { icone: "warning", cor: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
 };
 
 function Interruptor({
@@ -75,13 +79,16 @@ function useMontado() {
 function Item({ notificacao, onAbrir }: { notificacao: Notificacao; onAbrir: () => void }) {
   const visual = VISUAL[notificacao.tipo] ?? VISUAL.DECISAO;
   const nova = !notificacao.lidaEm;
+  const judit = ehDaJudit(notificacao);
   return (
     <li>
       <button
         type="button"
         onClick={onAbrir}
         className={`flex w-full cursor-pointer gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 focus:outline-none
-          focus-visible:bg-slate-50 dark:hover:bg-slate-800/70 dark:focus-visible:bg-slate-800/70 ${nova ? "bg-[#612035]/[0.035] dark:bg-[#612035]/15" : ""}`}
+          focus-visible:bg-slate-50 dark:hover:bg-slate-800/70 dark:focus-visible:bg-slate-800/70 ${
+            judit ? "border-l-[3px] border-[#15BE62] pl-[13px]" : ""
+          } ${nova ? (judit ? "bg-[#15BE62]/[0.06] dark:bg-[#15BE62]/10" : "bg-[#612035]/[0.035] dark:bg-[#612035]/15") : ""}`}
       >
         <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${visual.cor}`}>
           <Icon name={visual.icone} size={15} />
@@ -93,9 +100,17 @@ function Item({ notificacao, onAbrir }: { notificacao: Notificacao; onAbrir: () 
           {notificacao.resumo && (
             <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-slate-500 dark:text-slate-400">{notificacao.resumo}</span>
           )}
-          <span className="mt-1 block text-[11px] text-slate-400">{tempoRelativo(notificacao.criadaEm)}</span>
+          <span className="mt-1 block text-[11px] text-slate-400">
+            {judit && <span className="mr-1.5 font-bold uppercase tracking-wider text-[#047857] dark:text-[#15BE62]">Judit</span>}
+            {tempoRelativo(notificacao.criadaEm)}
+          </span>
         </span>
-        {nova && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#612035] dark:bg-[#e8a3b6]" aria-label="não lida" />}
+        {nova && (
+          <span
+            className={`mt-2 h-2 w-2 shrink-0 rounded-full ${judit ? "bg-[#15BE62]" : "bg-[#612035] dark:bg-[#e8a3b6]"}`}
+            aria-label="não lida"
+          />
+        )}
       </button>
     </li>
   );

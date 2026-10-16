@@ -48,7 +48,7 @@ class UsuarioPapelServiceTest {
     @Test
     @DisplayName("definir: Comitê sem analista é IllegalArgument e nada é gravado")
     void shouldRejectComiteWithoutAnalista() {
-        assertThatThrownBy(() -> service.definir(alvo.getId(), false, true, false, admin))
+        assertThatThrownBy(() -> service.definir(alvo.getId(), false, true, false, false, admin))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Membro do Comitê precisa ser analista.");
         verify(userRepository, never()).save(any());
@@ -61,14 +61,14 @@ class UsuarioPapelServiceTest {
         UUID fantasma = UUID.randomUUID();
         when(userRepository.findById(fantasma)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.definir(fantasma, true, false, false, admin))
+        assertThatThrownBy(() -> service.definir(fantasma, true, false, false, false, admin))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
     @DisplayName("definir: sair do Comitê apaga os pareceres que o usuário ainda devia")
     void shouldClearPendingPareceresWhenLeavingComite() {
-        UserEntity salvo = service.definir(alvo.getId(), true, false, false, admin);
+        UserEntity salvo = service.definir(alvo.getId(), true, false, false, false, admin);
 
         assertThat(salvo.isAnalista()).isTrue();
         assertThat(salvo.isComite()).isFalse();
@@ -79,7 +79,7 @@ class UsuarioPapelServiceTest {
     @Test
     @DisplayName("definir: deixar de ser analista (e portanto do Comitê) também apaga os pareceres pendentes")
     void shouldClearPendingPareceresWhenLosingAnalistaAndComite() {
-        UserEntity salvo = service.definir(alvo.getId(), false, false, false, admin);
+        UserEntity salvo = service.definir(alvo.getId(), false, false, false, false, admin);
 
         assertThat(salvo.isAnalista()).isFalse();
         assertThat(salvo.isComite()).isFalse();
@@ -89,7 +89,7 @@ class UsuarioPapelServiceTest {
     @Test
     @DisplayName("definir: permanecer no Comitê não mexe nos pareceres")
     void shouldKeepPareceresWhenStayingInComite() {
-        UserEntity salvo = service.definir(alvo.getId(), true, true, false, admin);
+        UserEntity salvo = service.definir(alvo.getId(), true, true, false, false, admin);
 
         assertThat(salvo.isComite()).isTrue();
         verify(userRepository).save(alvo);
@@ -101,7 +101,7 @@ class UsuarioPapelServiceTest {
     void shouldNotClearPareceresWhenJoiningComite() {
         alvo.setComite(false);
 
-        UserEntity salvo = service.definir(alvo.getId(), true, true, false, admin);
+        UserEntity salvo = service.definir(alvo.getId(), true, true, false, false, admin);
 
         assertThat(salvo.isComite()).isTrue();
         verify(parecerRepository, never()).apagarAguardandoDoUsuario(any());
@@ -112,7 +112,7 @@ class UsuarioPapelServiceTest {
     void shouldNotClearPareceresWhenWasNeverInComite() {
         alvo.setComite(false);
 
-        service.definir(alvo.getId(), false, false, false, admin);
+        service.definir(alvo.getId(), false, false, false, false, admin);
 
         verify(parecerRepository, never()).apagarAguardandoDoUsuario(any());
     }
@@ -120,7 +120,7 @@ class UsuarioPapelServiceTest {
     @Test
     @DisplayName("definir: Diretoria sem analista é IllegalArgument e nada é gravado")
     void shouldRejectDiretoriaWithoutAnalista() {
-        assertThatThrownBy(() -> service.definir(alvo.getId(), false, false, true, admin))
+        assertThatThrownBy(() -> service.definir(alvo.getId(), false, false, true, false, admin))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Diretoria precisa ser analista.");
         verify(userRepository, never()).save(any());
@@ -129,7 +129,7 @@ class UsuarioPapelServiceTest {
     @Test
     @DisplayName("definir: Diretoria acumula com Comitê")
     void shouldAllowDiretoriaAndComiteTogether() {
-        UserEntity salvo = service.definir(alvo.getId(), true, true, true, admin);
+        UserEntity salvo = service.definir(alvo.getId(), true, true, true, false, admin);
 
         assertThat(salvo.isComite()).isTrue();
         assertThat(salvo.isDiretoria()).isTrue();
@@ -139,7 +139,7 @@ class UsuarioPapelServiceTest {
     @Test
     @DisplayName("definir: marca a Diretoria e a devolve ligada, sem mexer nos pareceres de quem continua no Comitê")
     void shouldSaveDiretoriaMark() {
-        UserEntity salvo = service.definir(alvo.getId(), true, true, true, admin);
+        UserEntity salvo = service.definir(alvo.getId(), true, true, true, false, admin);
 
         assertThat(salvo.isDiretoria()).isTrue();
         verify(userRepository).save(alvo);
@@ -150,7 +150,7 @@ class UsuarioPapelServiceTest {
     void shouldClearDiretoriaMarkWithoutTouchingPareceres() {
         alvo.setDiretoria(true);
 
-        UserEntity salvo = service.definir(alvo.getId(), true, true, false, admin);
+        UserEntity salvo = service.definir(alvo.getId(), true, true, false, false, admin);
 
         assertThat(salvo.isDiretoria()).isFalse();
         assertThat(salvo.isComite()).isTrue();
@@ -162,7 +162,7 @@ class UsuarioPapelServiceTest {
     void shouldRejectLosingAnalistaWhileStillDiretoria() {
         alvo.setDiretoria(true);
 
-        assertThatThrownBy(() -> service.definir(alvo.getId(), false, false, true, admin))
+        assertThatThrownBy(() -> service.definir(alvo.getId(), false, false, true, false, admin))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Diretoria precisa ser analista.");
         assertThat(alvo.isAnalista()).isTrue();
@@ -175,11 +175,19 @@ class UsuarioPapelServiceTest {
     void shouldLoseAnalistaAndDiretoriaTogether() {
         alvo.setDiretoria(true);
 
-        UserEntity salvo = service.definir(alvo.getId(), false, false, false, admin);
+        UserEntity salvo = service.definir(alvo.getId(), false, false, false, false, admin);
 
         assertThat(salvo.isAnalista()).isFalse();
         assertThat(salvo.isComite()).isFalse();
         assertThat(salvo.isDiretoria()).isFalse();
         verify(parecerRepository).apagarAguardandoDoUsuario(alvo.getId());
+    }
+
+    @Test
+    @DisplayName("definir: Judit sem analista é IllegalArgument e nada é gravado")
+    void juditSemAnalista() {
+        assertThatThrownBy(() -> service.definir(alvo.getId(), false, false, false, true, admin))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(userRepository, never()).save(any());
     }
 }

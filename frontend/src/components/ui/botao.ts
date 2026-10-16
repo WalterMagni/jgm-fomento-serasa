@@ -15,4 +15,6 @@ export const BOTAO = {
   /** Cores das marcas dos provedores, as mesmas dos botões de consulta da Visão 360º. */
   cnpja: `${BASE} bg-[#2956E0] text-white hover:bg-[#2148c0]`,
   serasa: `${BASE} bg-[#E4006F] text-white hover:bg-[#c4005f]`,
+  /** Verde do logo da Judit. Texto escuro: branco sobre esse verde não tem contraste. */
+  judit: `${BASE} bg-[#15BE62] text-[#05301A] hover:bg-[#13AB58]`,
 } as const;

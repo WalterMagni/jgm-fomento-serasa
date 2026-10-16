@@ -71,6 +71,23 @@ billing:
     cost-per-query: ${SERASA_COST_PER_QUERY:6.33}
     pf-cost-per-query: ${SERASA_PF_COST_PER_QUERY:15.52}
 
+# Judit: processos judiciais. Preços do plano anual, faixa de R$ 1.000/mês (tabela de abr/2026,
+# judit.io/calculadora-api). O aviso acende na tela; no limite o portal para de consultar.
+judit:
+  api-key: ${JUDIT_API_KEY:}
+  lawsuits-url: ${JUDIT_LAWSUITS_URL:https://lawsuits.production.judit.io}
+  requests-url: ${JUDIT_REQUESTS_URL:https://requests.production.judit.io}
+  custo-resumo: ${JUDIT_CUSTO_RESUMO:0.75}
+  custo-processos-por-mil: ${JUDIT_CUSTO_PROCESSOS_POR_MIL:1.50}
+  # Detalhe de processo: consulta processual por CNJ (0,25) + resumo de IA (0,10).
+  custo-detalhe: ${JUDIT_CUSTO_DETALHE:0.35}
+  # O detalhe é assíncrono: o backend pergunta à Judit a cada N segundos até o limite (no teste, ~50 s).
+  acompanhamento-intervalo-segundos: ${JUDIT_ACOMPANHAMENTO_INTERVALO:5}
+  acompanhamento-limite-minutos: ${JUDIT_ACOMPANHAMENTO_LIMITE:10}
+  aviso-mensal: ${JUDIT_AVISO_MENSAL:900}
+  limite-mensal: ${JUDIT_LIMITE_MENSAL:1000}
+  validade-dias: ${JUDIT_VALIDADE_DIAS:30}
+
 gemini:
   api:
     key: ${GEMINI_API_KEY:${GOOGLE_GENERATIVE_AI_API_KEY:}}

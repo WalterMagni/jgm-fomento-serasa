@@ -12,12 +12,15 @@ export default function Gaveta({
   rotulo,
   onFechar,
   rodape,
+  larga = false,
   children,
 }: {
   /** Nome do diálogo para o leitor de tela. */
   rotulo: string;
   onFechar: () => void;
   rodape?: ReactNode;
+  /** Para leitura longa (o detalhe de um processo): 760px em vez de 470px. */
+  larga?: boolean;
   children: ReactNode;
 }) {
   const painel = useRef<HTMLElement>(null);
@@ -47,7 +50,7 @@ export default function Gaveta({
         role="dialog"
         aria-modal="true"
         aria-label={rotulo}
-        className="absolute inset-y-0 right-0 flex w-full max-w-[470px] flex-col bg-papel shadow-gaveta outline-none animate-deslizar motion-reduce:animate-none"
+        className={`absolute inset-y-0 right-0 flex w-full ${larga ? "max-w-[760px]" : "max-w-[470px]"} flex-col bg-papel shadow-gaveta outline-none animate-deslizar motion-reduce:animate-none`}
       >
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-7 py-6">{children}</div>
         {rodape && <div className="flex flex-wrap gap-2.5 border-t border-linha bg-white px-7 py-4">{rodape}</div>}

@@ -395,6 +395,8 @@ export type UsuarioAtual = {
   analista: boolean;
   comite: boolean;
   diretoria: boolean;
+  /** Liga a Judit nas empresas e consulta processos. */
+  judit: boolean;
   somNotificacao: boolean;
   emailLiberacao: boolean;
   /** Papel ADMIN: altera os catálogos da esteira de prospecção. */
