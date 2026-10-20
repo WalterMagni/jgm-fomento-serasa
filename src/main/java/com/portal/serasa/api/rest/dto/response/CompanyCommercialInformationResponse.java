@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -41,4 +42,10 @@ public class CompanyCommercialInformationResponse {
     private String observacao;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    @Builder.Default
+    private List<Attachment> attachments = List.of();
+
+    /** Anexo sem o arquivo; o download é por id. */
+    public record Attachment(UUID id, String fileName, String contentType, Long fileSize) {
+    }
 }

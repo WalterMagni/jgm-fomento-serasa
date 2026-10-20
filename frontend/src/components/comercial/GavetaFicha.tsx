@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import Gaveta from "@/components/ui/Gaveta";
 import Icon from "@/components/ui/Icon";
 import { BOTAO } from "@/components/ui/botao";
+import { abrirAnexoFicha, baixarAnexoFicha, iconeAnexo, tamanhoArquivo } from "@/lib/anexoFicha";
 import { caixaTitulo, formatCnpj, iniciais, tempoRelativo, tomDoAvatar } from "@/lib/formatadores";
 import { LIQUIDACAO, formatMoedaFicha, formatPct, numeroBr } from "@/types/informacao-comercial";
 import { BarraLiquidacao, usoDoLimite, type FichaNaLista } from "./LinhaFicha";
@@ -58,6 +59,7 @@ export default function GavetaFicha({
   ];
   const maiorRisco = Math.max(1, ...riscos.map(r => r.valor));
   const temLiquidacao = ficha.liquidacao.some(l => l.valor > 0);
+  const anexos = ficha.cnpj ? (ficha.attachments ?? []) : [];
 
   const rodape = ficha.cnpj ? (
     <Link href={`/clients/${ficha.cnpj}`} className={BOTAO.primario}>
@@ -110,6 +112,41 @@ export default function GavetaFicha({
             {ficha.vencidosData && <> desde {ficha.vencidosData}</>}.
           </span>
         </p>
+      )}
+
+      {anexos.length > 0 && (
+        <Secao titulo={anexos.length === 1 ? "Anexo" : `Anexos (${anexos.length})`}>
+          <div className="rounded-2xl border border-linha bg-white px-4">
+            {anexos.map(anexo => {
+              const nomeArquivo = anexo.fileName || "anexo";
+              return (
+                <div key={anexo.id} className="flex items-center gap-3 border-b border-[#F0EEE8] py-2.5 last:border-b-0">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[#F4F2EC] text-primary">
+                    <Icon name={iconeAnexo(anexo.contentType)} size={20} />
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => abrirAnexoFicha(ficha.cnpj!, ficha.id, anexo)}
+                    title="Abrir em nova aba"
+                    className="min-w-0 flex-1 text-left text-grafite hover:text-primary"
+                  >
+                    <span className="block truncate text-sm font-semibold">{nomeArquivo}</span>
+                    <span className="block text-xs text-suave">{tamanhoArquivo(anexo.fileSize)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => baixarAnexoFicha(ficha.cnpj!, ficha.id, anexo)}
+                    aria-label={`Baixar ${nomeArquivo}`}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-linha px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
+                  >
+                    <Icon name="download" size={16} />
+                    Baixar
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </Secao>
       )}
 
       <Secao titulo="Risco no parceiro">

@@ -1,6 +1,8 @@
 // Ficha comercial: o que um parceiro (FIDC, factoring) informa sobre o cedente. Espelho do
 // GET /company/commercial-information; valores e datas chegam como texto no formato brasileiro.
 
+import type { AnexoFicha } from "@/lib/anexoFicha";
+
 export type FichaComercialApi = {
   id: string;
   cnpj?: string | null;
@@ -29,6 +31,8 @@ export type FichaComercialApi = {
   recompra?: string | null;
   cartorio?: string | null;
   observacao?: string | null;
+  /** PDFs e imagens anexados à ficha. */
+  attachments?: AnexoFicha[];
 };
 
 /** Ficha com os números já convertidos, para ordenar, somar e desenhar barras. */
