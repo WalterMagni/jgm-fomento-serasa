@@ -61,6 +61,11 @@ public class LiberacaoCardEntity {
     @Column(name = "tipo_operacao", length = 40)
     private String tipoOperacao;
 
+    /** SEC ou FIDC; nula quando ninguém marcou. Ver V92. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 4)
+    private com.portal.serasa.domain.model.liberacao.EmpresaOperacao empresa;
+
     @Column(precision = 15, scale = 2)
     private BigDecimal valor;
 

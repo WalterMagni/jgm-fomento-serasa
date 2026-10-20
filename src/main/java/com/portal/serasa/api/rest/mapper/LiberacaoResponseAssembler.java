@@ -241,6 +241,7 @@ public class LiberacaoResponseAssembler {
                 .cedenteNota(cedenteNota)
                 .pracaPagamento(praca(praca))
                 .tipoOperacao(card.getTipoOperacao())
+                .empresa(card.getEmpresa())
                 .valor(card.getValor())
                 .taxa(card.getTaxa())
                 .tac(card.getTac())

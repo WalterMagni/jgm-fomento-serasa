@@ -13,6 +13,7 @@ import { confirmar, formatDataHora, tempoRelativo } from "./formatters";
 const ROTULO_CAMPO: Record<string, string> = {
   cedente: "o cedente",
   tipoOperacao: "o tipo",
+  empresa: "a empresa",
   valor: "o valor",
   taxa: "a taxa",
   tac: "a TAC",

@@ -1,4 +1,4 @@
-import type { CorLiberacao } from "@/types/liberacao";
+import type { CorLiberacao, EmpresaOperacao } from "@/types/liberacao";
 
 /**
  * Tons de cada cor da paleta, no claro e no escuro.
@@ -15,4 +15,10 @@ export const TOM: Record<CorLiberacao, { nome: string; faixa: string; chip: stri
   ROXO: { nome: "Roxo", faixa: "bg-violet-500", chip: "bg-violet-100 text-violet-800 dark:bg-violet-500/25 dark:text-violet-200", amostra: "bg-violet-500" },
   ROSA: { nome: "Rosa", faixa: "bg-pink-500", chip: "bg-pink-100 text-pink-800 dark:bg-pink-500/25 dark:text-pink-200", amostra: "bg-pink-500" },
   CINZA: { nome: "Cinza", faixa: "bg-slate-400", chip: "bg-slate-200 text-slate-700 dark:bg-slate-500/30 dark:text-slate-200", amostra: "bg-slate-400" },
+};
+
+/** Selo da empresa no card: cheio, para achar SEC e FIDC de longe no quadro. */
+export const TOM_EMPRESA: Record<EmpresaOperacao, string> = {
+  SEC: "bg-[#612035] text-white dark:bg-[#8a3550]",
+  FIDC: "bg-[#2956E0] text-white dark:bg-[#3d68ea]",
 };

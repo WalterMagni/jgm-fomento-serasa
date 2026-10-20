@@ -389,7 +389,7 @@ public class LiberacaoController {
                         .toList();
         return new DadosCard(request.cedenteCnpj(), request.cedenteNome(), request.tipoOperacao(),
                 request.valor(), request.prazo(), request.parecerOrigem(), request.posicaoOrigem(), sacados,
-                request.proposta(), request.taxa(), request.tac(), request.tranche());
+                request.proposta(), request.taxa(), request.tac(), request.tranche(), request.empresa());
     }
 
     private NovaPendencia pendencia(LiberacaoPendenciaRequest request) {

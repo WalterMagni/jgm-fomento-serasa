@@ -23,6 +23,11 @@ export const ROTULO_RESULTADO_CURTO: Record<Resultado, string> = {
 /** Texto livre: os padrões vêm de GET /liberacao/tipos junto com os criados pelo time. */
 export type TipoOperacao = string;
 
+/** Empresa do grupo que faz a operação. Opcional no card. */
+export type EmpresaOperacao = "SEC" | "FIDC";
+
+export const EMPRESAS: EmpresaOperacao[] = ["SEC", "FIDC"];
+
 export type PosicaoParecer = "FAVORAVEL" | "COM_RESSALVAS" | "DESFAVORAVEL";
 
 export type CorLiberacao = "VERMELHO" | "LARANJA" | "AMARELO" | "VERDE" | "AZUL" | "ROXO" | "ROSA" | "CINZA";
@@ -111,6 +116,8 @@ export type LiberacaoCard = {
   /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
   pracaPagamento: PracaPagamento | null;
   tipoOperacao: TipoOperacao | null;
+  /** SEC ou FIDC; nula quando ninguém marcou. */
+  empresa: EmpresaOperacao | null;
   valor: number | null;
   /** Taxa da operação, em % (2,5 = 2,5%). */
   taxa: number | null;
@@ -360,6 +367,7 @@ export type DadosCard = {
   cedenteCnpj: string;
   cedenteNome?: string | null;
   tipoOperacao: TipoOperacao | null;
+  empresa: EmpresaOperacao | null;
   valor: number | null;
   taxa: number | null;
   tac: number | null;

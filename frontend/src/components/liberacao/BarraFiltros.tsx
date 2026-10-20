@@ -6,7 +6,7 @@ import CampoData from "@/components/ui/CampoData";
 import { useDiretorio, useEtiquetas, useTiposOperacao } from "@/hooks/useLiberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
-import { ROTULO_RESULTADO, type Resultado } from "@/types/liberacao";
+import { EMPRESAS, ROTULO_RESULTADO, type Resultado } from "@/types/liberacao";
 import {
   ROTULO_FINALIZADOS,
   ROTULO_ORDEM,
@@ -106,6 +106,11 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
       return { chave: `e-${id}`, rotulo: <>etiqueta: {etiqueta?.nome ?? "…"}</>, tirar: () => mudar({ etiquetas: filtros.etiquetas.filter(item => item !== id) }) };
     }),
     ...filtros.tipos.map(tipo => ({ chave: `t-${tipo}`, rotulo: <>{tipo}</>, tirar: () => mudar({ tipos: filtros.tipos.filter(item => item !== tipo) }) })),
+    ...filtros.empresas.map(empresa => ({
+      chave: `emp-${empresa}`,
+      rotulo: <>empresa: {empresa}</>,
+      tirar: () => mudar({ empresas: filtros.empresas.filter(item => item !== empresa) }),
+    })),
     ...filtros.resultados.map(resultado => ({
       chave: `r-${resultado}`,
       rotulo: <>{ROTULO_RESULTADO[resultado]}</>,
@@ -210,6 +215,16 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
                 </div>
               </section>
               <section>
+                <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Empresa</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {EMPRESAS.map(empresa => (
+                    <Chip key={empresa} ativo={filtros.empresas.includes(empresa)} onClick={() => mudar({ empresas: alternar(filtros.empresas, empresa) })}>
+                      {empresa}
+                    </Chip>
+                  ))}
+                </div>
+              </section>
+              <section>
                 <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Resultado</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {(Object.keys(ROTULO_RESULTADO) as Resultado[]).map(resultado => (
@@ -258,7 +273,7 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
               {ativos > 0 && (
                 <button
                   type="button"
-                  onClick={() => mudar({ membros: [], etiquetas: [], tipos: [], resultados: [], criador: null, de: null, ate: null, prazo: null })}
+                  onClick={() => mudar({ membros: [], etiquetas: [], tipos: [], empresas: [], resultados: [], criador: null, de: null, ate: null, prazo: null })}
                   className="text-xs font-medium text-[#612035] hover:underline dark:text-[#e8a3b6]"
                 >
                   limpar filtros

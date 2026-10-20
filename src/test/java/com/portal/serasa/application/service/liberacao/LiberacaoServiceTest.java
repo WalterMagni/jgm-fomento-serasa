@@ -13,6 +13,7 @@ import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.exception.TransicaoInvalidaException;
 import com.portal.serasa.domain.model.CompanyDetail;
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
+import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
 import com.portal.serasa.domain.model.liberacao.QuadroOpiniao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
@@ -779,6 +780,37 @@ class LiberacaoServiceTest {
         assertThat(semEspacoInsecavel(evento.getValorDepois())).isEqualTo("R$ 2.500,50");
         assertThat(evento.getUsuarioId()).isEqualTo(auxiliar.getId());
         verify(cardRepository).saveAndFlush(card);
+    }
+
+    @Test
+    @DisplayName("editar: marcar a empresa grava evento EDICAO do campo 'empresa'; tirar volta a nula")
+    void shouldRecordEmpresaChange() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        DadosCard dados = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, null, null, null, null, null, EmpresaOperacao.FIDC);
+
+        LiberacaoCardEntity editado = service.editar(card.getId(), card.getVersion(), dados, auxiliar);
+
+        assertThat(editado.getEmpresa()).isEqualTo(EmpresaOperacao.FIDC);
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getCampo()).isEqualTo("empresa");
+        assertThat(evento.getValorAntes()).isEqualTo("—");
+        assertThat(evento.getValorDepois()).isEqualTo("FIDC");
+
+        DadosCard semEmpresa = new DadosCard(CNPJ, null, card.getTipoOperacao(), card.getValor(), card.getPrazo(),
+                card.getParecerOrigem(), null, null);
+        assertThat(service.editar(card.getId(), card.getVersion(), semEmpresa, auxiliar).getEmpresa()).isNull();
+    }
+
+    @Test
+    @DisplayName("criar: guarda a empresa da operação")
+    void shouldStoreEmpresaOnCreate() {
+        naBase(CNPJ, "ACME");
+
+        LiberacaoCardEntity criado = service.criar(new DadosCard(CNPJ, null, "Duplicata", null, null, null, null, null,
+                null, null, null, null, EmpresaOperacao.SEC), auxiliar);
+
+        assertThat(criado.getEmpresa()).isEqualTo(EmpresaOperacao.SEC);
     }
 
     @Test

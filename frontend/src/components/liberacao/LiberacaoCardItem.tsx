@@ -6,7 +6,7 @@ import NotaNoCard from "@/components/nota/NotaNoCard";
 import { RESSALVA } from "@/lib/ressalva";
 import { ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard, type Parecer } from "@/types/liberacao";
 import Avatar from "./Avatar";
-import { TOM } from "./cores";
+import { TOM, TOM_EMPRESA } from "./cores";
 import {
   COR_POSICAO,
   COR_RESULTADO,
@@ -90,15 +90,25 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
             </span>
           )}
         </div>
-        {prazo && card.prazo && (
-          <span
-            className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${CLASSE_PRAZO[prazo]}`}
-            title={prazo === "vencido" ? "Prazo vencido" : prazo === "perto" ? "Vence em menos de 24 h" : "Prazo"}
-          >
-            <Icon name="schedule" size={11} />
-            {textoPrazo(card.prazo)}
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {prazo && card.prazo && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${CLASSE_PRAZO[prazo]}`}
+              title={prazo === "vencido" ? "Prazo vencido" : prazo === "perto" ? "Vence em menos de 24 h" : "Prazo"}
+            >
+              <Icon name="schedule" size={11} />
+              {textoPrazo(card.prazo)}
+            </span>
+          )}
+          {card.empresa && (
+            <span
+              title={`Operação da ${card.empresa}`}
+              className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${TOM_EMPRESA[card.empresa]}`}
+            >
+              {card.empresa}
+            </span>
+          )}
+        </div>
       </div>
 
       <h3 className="mt-1.5 line-clamp-2 font-sans text-[13px] font-semibold leading-snug text-slate-800 dark:text-slate-100">

@@ -33,7 +33,9 @@ public record LiberacaoCardRequest(
         /** TAC em R$. */
         @DecimalMin(value = "0.00", message = "TAC não pode ser negativa") BigDecimal tac,
         /** Em aberto não confirmado do cedente, em R$. */
-        @DecimalMin(value = "0.00", message = "Tranche não pode ser negativa") BigDecimal tranche) {
+        @DecimalMin(value = "0.00", message = "Tranche não pode ser negativa") BigDecimal tranche,
+        /** SEC ou FIDC; nula deixa o card sem empresa. */
+        com.portal.serasa.domain.model.liberacao.EmpresaOperacao empresa) {
 
     /** @param carteira linha do sacado na AR, quando veio do PDF */
     public record Sacado(

@@ -17,11 +17,14 @@ import {
   type PropostaAr,
   type PropostaImportada,
   type Sacado,
+  EMPRESAS,
+  type EmpresaOperacao,
   type TipoOperacao,
 } from "@/types/liberacao";
 import CedentePicker, { type CedenteEscolhido } from "./CedentePicker";
 import SacadoBusca from "./SacadoBusca";
 import { CarteiraLinha, ImportarProposta } from "./PropostaAr";
+import { TOM_EMPRESA } from "./cores";
 import { HistoricoSacado } from "./DetalheSecoes";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, ROTULO } from "./Dialogo";
 import {
@@ -43,6 +46,7 @@ type LinhaSacado = { chave: number; documento: string; nome: string | null; valo
 export type ValoresIniciais = {
   cedente: CedenteEscolhido | null;
   tipoOperacao: TipoOperacao | null;
+  empresa?: EmpresaOperacao | null;
   valor: number | null;
   taxa?: number | null;
   tac?: number | null;
@@ -193,6 +197,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
     setTipoNovo("");
     setCriandoTipo(false);
   }
+  const [empresa, setEmpresa] = useState<EmpresaOperacao | null>(inicial?.empresa ?? null);
   const [valor, setValor] = useState(moedaParaCampo(inicial?.valor));
   const [taxa, setTaxa] = useState(taxaParaCampo(inicial?.taxa));
   const [tac, setTac] = useState(moedaParaCampo(inicial?.tac));
@@ -278,6 +283,7 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
       cedenteCnpj: cedente.cnpj,
       cedenteNome: cedente.cadastrado ? null : cedente.nome.trim(),
       tipoOperacao: tipo,
+      empresa,
       valor: valorNumero,
       taxa: parseTaxa(taxa),
       tac: parseMoeda(tac),
@@ -369,6 +375,29 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
             )}
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Opcional. Tipo novo fica disponível para todos.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend className={ROTULO}>Empresa</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {EMPRESAS.map(opcao => (
+              <button
+                key={opcao}
+                type="button"
+                aria-pressed={empresa === opcao}
+                onClick={() => setEmpresa(atual => (atual === opcao ? null : opcao))}
+                className={`min-h-9 min-w-16 cursor-pointer rounded-lg border px-3 text-xs font-semibold transition-colors focus:outline-none
+                  focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                    empresa === opcao
+                      ? "border-transparent " + TOM_EMPRESA[opcao]
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  }`}
+              >
+                {opcao}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">Opcional. Aparece no canto do card.</p>
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-[1.4fr_1fr_1fr]">

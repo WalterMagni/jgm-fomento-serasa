@@ -28,6 +28,8 @@ public record LiberacaoCardResponse(
         /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
         Praca pracaPagamento,
         String tipoOperacao,
+        /** SEC ou FIDC; nula quando ninguém marcou. */
+        com.portal.serasa.domain.model.liberacao.EmpresaOperacao empresa,
         BigDecimal valor,
         /** Taxa da operação, em %. */
         BigDecimal taxa,

@@ -168,6 +168,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
               inicial={{
                 cedente: { cnpj: card.cedenteCnpj, nome: card.cedenteNome, cadastrado: card.cedenteCadastrado },
                 tipoOperacao: card.tipoOperacao,
+                empresa: card.empresa,
                 valor: card.valor,
                 taxa: card.taxa,
                 tac: card.tac,
@@ -208,6 +209,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                     <span className="font-display text-xl font-semibold tracking-tight">{formatMoeda(card.valor)}</span>
                   </Dado>
                   <Dado rotulo="Tipo">{card.tipoOperacao ?? "—"}</Dado>
+                  <Dado rotulo="Empresa">{card.empresa ?? "—"}</Dado>
                   <Dado rotulo="Taxa">
                     <span className="font-display text-xl font-semibold tabular-nums tracking-tight">{formatTaxa(card.taxa)}</span>
                   </Dado>

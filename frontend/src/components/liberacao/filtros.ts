@@ -1,5 +1,5 @@
 import { textoPlano } from "@/components/ui/mencao/mencoes";
-import type { LiberacaoCard, Resultado } from "@/types/liberacao";
+import type { EmpresaOperacao, LiberacaoCard, Resultado } from "@/types/liberacao";
 
 /**
  * Filtros e ordenação do quadro.
@@ -22,6 +22,7 @@ export type Filtros = {
   membros: string[];
   etiquetas: string[];
   tipos: string[];
+  empresas: EmpresaOperacao[];
   resultados: Resultado[];
   criador: string | null;
   de: string | null;
@@ -65,6 +66,7 @@ export function lerFiltros(params: URLSearchParams): Filtros {
     etiquetas: lista(params.get("etiqueta")),
     // Tipo é texto livre e pode ter vírgula; separa por barra vertical.
     tipos: (params.get("tipo") ?? "").split("|").filter(Boolean),
+    empresas: lista(params.get("empresa")).filter((valor): valor is EmpresaOperacao => valor === "SEC" || valor === "FIDC"),
     resultados: lista(params.get("resultado")).filter((valor): valor is Resultado => ["APROVADO", "REPROVADO", "PARCIAL"].includes(valor)),
     criador: params.get("criador"),
     de: params.get("de"),
@@ -87,6 +89,7 @@ export function escreverFiltros(atuais: URLSearchParams, filtros: Filtros): URLS
   definir("membro", filtros.membros.join(","));
   definir("etiqueta", filtros.etiquetas.join(","));
   definir("tipo", filtros.tipos.join("|"));
+  definir("empresa", filtros.empresas.join(","));
   definir("resultado", filtros.resultados.join(","));
   definir("criador", filtros.criador);
   definir("de", filtros.de);
@@ -104,6 +107,7 @@ export function contarAtivos(filtros: Filtros) {
     filtros.membros.length +
     filtros.etiquetas.length +
     filtros.tipos.length +
+    filtros.empresas.length +
     filtros.resultados.length +
     (filtros.criador ? 1 : 0) +
     (filtros.de || filtros.ate ? 1 : 0) +
@@ -160,6 +164,7 @@ export function aplicarFiltros(cards: LiberacaoCard[], filtros: Filtros, euId: s
     if (filtros.membros.length > 0 && !filtros.membros.some(id => card.membros.some(membro => membro.id === id))) return false;
     if (filtros.etiquetas.length > 0 && !filtros.etiquetas.some(id => card.etiquetas.some(etiqueta => etiqueta.id === id))) return false;
     if (filtros.tipos.length > 0 && (!card.tipoOperacao || !filtros.tipos.includes(card.tipoOperacao))) return false;
+    if (filtros.empresas.length > 0 && (!card.empresa || !filtros.empresas.includes(card.empresa))) return false;
     if (filtros.criador && card.criadoPorId !== filtros.criador) return false;
 
     const criado = new Date(card.criadoEm);

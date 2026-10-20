@@ -4,6 +4,7 @@ import com.portal.serasa.domain.exception.ConflitoEdicaoException;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.domain.exception.TransicaoInvalidaException;
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
+import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
@@ -81,11 +82,18 @@ public class LiberacaoService {
      * @param taxa     taxa da operação, em % (2,5 = 2,5%)
      * @param tac      tarifa de abertura de crédito, em R$
      * @param tranche  em aberto não confirmado do cedente, em R$; vem da AR, mas é editável
+     * @param empresa  SEC ou FIDC; nula deixa o card sem empresa
      */
     public record DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao,
                             BigDecimal valor, LocalDateTime prazo, String parecerOrigem,
                             PosicaoParecer posicaoOrigem, List<DadosSacado> sacados, PropostaAr proposta,
-                            BigDecimal taxa, BigDecimal tac, BigDecimal tranche) {
+                            BigDecimal taxa, BigDecimal tac, BigDecimal tranche, EmpresaOperacao empresa) {
+
+        public DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao, BigDecimal valor,
+                         LocalDateTime prazo, String parecerOrigem, PosicaoParecer posicaoOrigem, List<DadosSacado> sacados,
+                         PropostaAr proposta, BigDecimal taxa, BigDecimal tac, BigDecimal tranche) {
+            this(cedenteCnpj, cedenteNome, tipoOperacao, valor, prazo, parecerOrigem, posicaoOrigem, sacados, proposta, taxa, tac, tranche, null);
+        }
 
         public DadosCard(String cedenteCnpj, String cedenteNome, String tipoOperacao, BigDecimal valor,
                          LocalDateTime prazo, String parecerOrigem, PosicaoParecer posicaoOrigem, List<DadosSacado> sacados,
@@ -229,6 +237,7 @@ public class LiberacaoService {
                 .cedenteCnpj(cnpj)
                 .cedenteNome(resolverNomeCedente(cnpj, dados.cedenteNome()))
                 .tipoOperacao(TipoOperacao.resolver(dados.tipoOperacao(), cardRepository.tiposUsados()))
+                .empresa(dados.empresa())
                 .valor(dados.valor())
                 .taxa(dados.taxa())
                 .tac(dados.tac())
@@ -288,6 +297,10 @@ public class LiberacaoService {
         if (!Objects.equals(tipo, card.getTipoOperacao())) {
             mudancas.add(new String[]{"tipoOperacao", rotulo(card.getTipoOperacao()), rotulo(tipo)});
             card.setTipoOperacao(tipo);
+        }
+        if (dados.empresa() != card.getEmpresa()) {
+            mudancas.add(new String[]{"empresa", rotulo(card.getEmpresa()), rotulo(dados.empresa())});
+            card.setEmpresa(dados.empresa());
         }
         if (!mesmoValor(dados.taxa(), card.getTaxa())) {
             mudancas.add(new String[]{"taxa", percentual(card.getTaxa()), percentual(dados.taxa())});
@@ -1321,6 +1334,10 @@ public class LiberacaoService {
 
     private static String rotulo(String tipo) {
         return tipo == null ? "—" : tipo;
+    }
+
+    private static String rotulo(EmpresaOperacao empresa) {
+        return empresa == null ? "—" : empresa.name();
     }
 
     /** "AR de 08/10/2026 15:59" para o histórico; nulo quando o card não tinha proposta. */

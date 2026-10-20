@@ -61,6 +61,8 @@ Botão **Nova análise** (ou o **+** na coluna Origem).
    **prazo para decisão** — todos opcionais. Se o
    tipo que você precisa não está na lista, use **+ Novo tipo**: ele passa a aparecer para
    todo mundo. O prazo pode ser digitado (dd/mm/aaaa hh:mm) ou escolhido no calendário.
+   **Empresa** (**SEC** ou **FIDC**) também é opcional: marcada, aparece como selo no canto
+   do card e dá para filtrar o quadro por ela.
 3. **Sacados**: um CNPJ ou CPF por linha, com valor opcional. **Dá para colar vários de
    uma vez** — copie a lista do e-mail ou da planilha e cole na primeira linha.
 4. **Parecer da origem**: a posição (**Favorável**, **Com ressalvas** ou **Desfavorável**) e o
