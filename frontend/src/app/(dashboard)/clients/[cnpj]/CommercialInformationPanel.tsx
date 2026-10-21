@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { baixarPlanilhaFichas } from "@/lib/planilhaFichaComercial";
 import { abrirAnexoFicha, baixarAnexoFicha, iconeAnexo, tamanhoArquivo, type AnexoFicha } from "@/lib/anexoFicha";
 
 type CommercialRecord = {
@@ -275,129 +276,6 @@ function OverdueHeader() {
       </span>
     </span>
   );
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** Ficha vertical: uma coluna por registro (a mais recente entra à direita), pro time printar a planilha. */
-function blankMoney(value: string) {
-  const formatted = formatMoney(value);
-  return formatted === "—" ? "" : formatted;
-}
-
-function blankDate(value: string) {
-  const formatted = formatDate(value);
-  return formatted === "—" ? "" : formatted;
-}
-
-function blankPercent(value: string) {
-  const formatted = formatPercent(value);
-  return formatted === "—" ? "" : formatted;
-}
-
-function sortRecordsForSheet(records: CommercialRecord[]) {
-  const toTime = (record: CommercialRecord) => {
-    const match = formatDate(record.data).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!match) return 0;
-    return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])).getTime();
-  };
-  return [...records].sort((a, b) => toTime(a) - toTime(b));
-}
-
-type SheetRow = { kind: "section"; label: string } | { kind: "field"; label: string; values: string[] };
-
-function buildSheetRows(records: CommercialRecord[]): SheetRow[] {
-  const field = (label: string, pick: (record: CommercialRecord) => string): SheetRow => ({
-    kind: "field",
-    label,
-    values: records.map(pick),
-  });
-
-  return [
-    field("Data", (record) => blankDate(record.data)),
-    field("Tipo", (record) => record.tipo || ""),
-    field("Cliente desde", (record) => blankDate(record.clienteDesde)),
-    field("Ultima Operação", (record) => blankDate(record.ultimaOperacaoData)),
-    field("Limite", (record) => blankMoney(record.limite)),
-    { kind: "section", label: "Riscos" },
-    field("Risco Dupl", (record) => blankMoney(record.riscoDuplicata)),
-    field("Vencimento da última duplicata", (record) => blankDate(record.vencidosValor)),
-    field("Risco Comissária", (record) => blankMoney(record.riscoComissaria)),
-    // Ainda não existe campo de vencimento para comissária/cheque no cadastro: linha vai vazia pra ficha bater com o modelo do time.
-    field("Vencimento da última Comissária", () => ""),
-    field("Risco Cheque", (record) => blankMoney(record.riscoCheque)),
-    field("Vencimento do última Cheque", () => ""),
-    field("Valor vencido", (record) => blankMoney(record.vencidosValorMonetario)),
-    field("Data do vencido", (record) => blankDate(record.vencidosData)),
-    { kind: "section", label: "Performance" },
-    field("VOP", (record) => blankMoney(record.vop)),
-    field("L1 (Pontual)", (record) => blankPercent(record.pontual)),
-    field("L2 (Atraso)", (record) => blankPercent(record.atraso)),
-    field("L3 (Cartório)", (record) => blankPercent(record.cartorio)),
-    field("L4 (Recompra)", (record) => blankPercent(record.recompra)),
-    field("Observação", (record) => record.observacao || ""),
-  ];
-}
-
-const SHEET_TITLE_STYLE = "background-color:#1F3864;color:#FFFFFF;font-weight:bold;text-align:center;";
-const SHEET_SECTION_STYLE = "background-color:#BDD7EE;color:#1F3864;font-weight:bold;";
-const SHEET_LABEL_STYLE = "background-color:#DDEBF7;color:#1F3864;font-weight:bold;";
-const SHEET_HEADER_STYLE = "background-color:#FFFFFF;color:#1F3864;font-weight:bold;text-align:center;";
-const SHEET_VALUE_STYLE = "text-align:center;";
-
-function downloadCommercialXls(records: CommercialRecord[], companyName?: string) {
-  const ordered = sortRecordsForSheet(records);
-  const columns = ordered.length;
-  const totalColumns = columns + 1;
-  const rows = buildSheetRows(ordered);
-
-  const titleRow = `<tr><td colspan="${totalColumns}" style="${SHEET_TITLE_STYLE}">${escapeHtml(companyName || "Razão Social Cedente")}</td></tr>`;
-
-  const headerRow = `<tr><td style="${SHEET_LABEL_STYLE}"></td>${ordered
-    .map((record) => `<td style="${SHEET_HEADER_STYLE}">${escapeHtml(record.parceiro || "Nome do Parceiro")}</td>`)
-    .join("")}</tr>`;
-
-  const bodyRows = rows
-    .map((row) => {
-      if (row.kind === "section") {
-        return `<tr><td colspan="${totalColumns}" style="${SHEET_SECTION_STYLE}">${escapeHtml(row.label)}</td></tr>`;
-      }
-      return `<tr><td style="${SHEET_LABEL_STYLE}">${escapeHtml(row.label)}</td>${row.values
-        .map((value) => `<td style="${SHEET_VALUE_STYLE}">${escapeHtml(value)}</td>`)
-        .join("")}</tr>`;
-    })
-    .join("");
-
-  const table = `
-    <html>
-      <head><meta charset="UTF-8" /></head>
-      <body>
-        <table border="1" cellspacing="0">
-          <tbody>
-            ${titleRow}
-            ${headerRow}
-            ${bodyRows}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `;
-
-  const blob = new Blob([table], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `informacoes-comerciais-${new Date().toISOString().slice(0, 10)}.xls`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 function Field({
@@ -874,7 +752,7 @@ function CommercialInformationModal({
   );
 }
 
-export function CommercialInformationPanel({ cnpj, companyName }: { cnpj: string; companyName?: string }) {
+export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
   const cleanCnpj = cnpj ? cnpj.replace(/\D/g, "") : "";
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
@@ -1088,7 +966,7 @@ export function CommercialInformationPanel({ cnpj, companyName }: { cnpj: string
             <span className="px-1 text-xs text-gray-300 dark:text-gray-600">|</span>
             <button
               type="button"
-              onClick={() => downloadCommercialXls(records, companyName)}
+              onClick={() => baixarPlanilhaFichas(records.map((record) => record.id))}
               className="text-xs text-gray-400 underline underline-offset-2 transition-colors hover:text-primary dark:hover:text-primary-light"
             >
               exportar XLS

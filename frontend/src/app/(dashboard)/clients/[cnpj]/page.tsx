@@ -2365,7 +2365,7 @@ export default function ClientDashboardPage() {
       </section>
 
       <section id="comercial" className="scroll-mt-20">
-        <CommercialInformationPanel cnpj={cleanCnpj} companyName={companyLabel} />
+        <CommercialInformationPanel cnpj={cleanCnpj} />
       </section>
 
       <section id="equipe" className="scroll-mt-20">

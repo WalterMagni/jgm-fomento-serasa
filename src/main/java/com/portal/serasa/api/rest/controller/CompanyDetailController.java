@@ -1,6 +1,7 @@
 package com.portal.serasa.api.rest.controller;
 
 import com.portal.serasa.api.rest.dto.request.CompanyDetailCreateRequest;
+import com.portal.serasa.api.rest.dto.request.CommercialInformationExportRequest;
 import com.portal.serasa.api.rest.dto.request.CompanyCommercialInformationRequest;
 import com.portal.serasa.api.rest.dto.request.CompanyDocumentFileOperationRequest;
 import com.portal.serasa.api.rest.dto.request.CompanyDocumentRootRequest;
@@ -24,6 +25,7 @@ import com.portal.serasa.api.rest.mapper.PersonAnalysisDtoMapper;
 import com.portal.serasa.domain.model.PersonAnalysis;
 import com.portal.serasa.application.port.out.CreditAnalysisRepository;
 import com.portal.serasa.application.service.ClientProfileService;
+import com.portal.serasa.application.service.CompanyCommercialInformationExportService;
 import com.portal.serasa.application.service.CompanyCommercialInformationService;
 import com.portal.serasa.application.service.CompanyCommercialInformationService.CompanyCommercialInformationView;
 import com.portal.serasa.application.service.CompanyDocumentService;
@@ -88,6 +90,7 @@ public class CompanyDetailController {
 
     private final CompanyDetailService companyDetailService;
     private final CompanyCommercialInformationService companyCommercialInformationService;
+    private final CompanyCommercialInformationExportService companyCommercialInformationExportService;
     private final CompanyDocumentService companyDocumentService;
     private final CompanyNoteService companyNoteService;
     private final ClientProfileService clientProfileService;
@@ -331,6 +334,19 @@ public class CompanyDetailController {
                                 attachments.getOrDefault(view.getRecord().getId(), List.of())))
                         .toList()
         );
+    }
+
+    /** Planilha .xlsx das fichas que a tela mostra. POST porque a lista de ids pode ser longa. */
+    @PostMapping("/commercial-information/export")
+    public ResponseEntity<?> exportCommercialInformation(@Valid @RequestBody CommercialInformationExportRequest request) {
+        if (getAuthenticatedUser() == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
+        }
+        String nome = "informacoes-comerciais-" + java.time.LocalDate.now() + ".xlsx";
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + nome + "\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(companyCommercialInformationExportService.exportar(request.ids()));
     }
 
     @GetMapping("/{cnpj}/commercial-information")

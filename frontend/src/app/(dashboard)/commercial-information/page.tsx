@@ -13,8 +13,9 @@ import { BOTAO } from "@/components/ui/botao";
 import LinhaFicha, { CabecalhoFichas, LinhasEsqueletoFichas, type FichaNaLista } from "@/components/comercial/LinhaFicha";
 import GavetaFicha from "@/components/comercial/GavetaFicha";
 import TabelaFichas from "@/components/comercial/TabelaFichas";
-import { diasDesde, formatCnpj, formatMoeda, normalizar } from "@/lib/formatadores";
+import { diasDesde, formatMoeda, normalizar } from "@/lib/formatadores";
 import { prepararFicha, type FichaComercialApi } from "@/types/informacao-comercial";
+import { baixarPlanilhaFichas } from "@/lib/planilhaFichaComercial";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 const POR_PAGINA = 20;
@@ -69,81 +70,6 @@ function useVisao(): [Visao, (v: Visao) => void] {
     () => "fichas" as Visao,
   );
   return [visao, gravarVisao];
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function exportXls(records: FichaComercialApi[]) {
-  const clean = (value: string | null | undefined) => (value && value.trim() ? value : "-");
-  const headers = [
-    "Cedente",
-    "CNPJ",
-    "Data",
-    "Tipo",
-    "Parceiro",
-    "Desde",
-    "Ultima operacao data",
-    "Ultima operacao valor",
-    "Risco duplicata",
-    "Risco cheque",
-    "Risco comissaria",
-    "Ultimo vencimento duplicata",
-    "Valor vencido",
-    "Limite",
-    "VOP",
-    "L1 pontual",
-    "L2 atraso",
-    "L3 cartorio",
-    "L4 recompra",
-    "Observacao",
-  ];
-
-  const rows = records.map((record) => [
-    clean(record.empresa),
-    record.cnpj ? formatCnpj(record.cnpj) : "-",
-    clean(record.data),
-    clean(record.tipo),
-    clean(record.parceiro),
-    clean(record.clienteDesde),
-    clean(record.ultimaOperacaoData),
-    clean(record.ultimaOperacaoValor),
-    clean(record.riscoDuplicata),
-    clean(record.riscoCheque),
-    clean(record.riscoComissaria),
-    clean(record.vencidosValor),
-    clean(record.vencidosValorMonetario),
-    clean(record.limite),
-    clean(record.vop),
-    clean(record.pontual),
-    clean(record.atraso),
-    clean(record.cartorio),
-    clean(record.recompra),
-    clean(record.observacao),
-  ]);
-
-  const table = `
-    <html>
-      <head><meta charset="UTF-8" /></head>
-      <body>
-        <table border="1">
-          <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
-          <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
-        </table>
-      </body>
-    </html>
-  `;
-
-  const blob = new Blob([table], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `informacoes-comerciais-carteira-${new Date().toISOString().slice(0, 10)}.xls`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 function useCommercialInformation() {
@@ -322,7 +248,7 @@ function InformacoesComerciais() {
         acoes={
           <button
             type="button"
-            onClick={() => exportXls(lista)}
+            onClick={() => baixarPlanilhaFichas(lista.map(ficha => ficha.id))}
             disabled={lista.length === 0}
             title={algumFiltro ? "Exporta só as fichas filtradas" : "Exporta todas as fichas"}
             className={BOTAO.fantasma}
