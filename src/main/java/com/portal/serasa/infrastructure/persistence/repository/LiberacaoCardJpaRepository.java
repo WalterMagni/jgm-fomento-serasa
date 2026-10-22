@@ -34,6 +34,14 @@ public interface LiberacaoCardJpaRepository extends JpaRepository<LiberacaoCardE
             """)
     List<LiberacaoCardEntity> finalizadosNaoArquivados();
 
+    /** A tela de Arquivo: todo card arquivado, o finalizado mais recente primeiro. */
+    @Query("""
+            select c from LiberacaoCardEntity c
+            where c.excluidoEm is null and c.arquivadoEm is not null
+            order by coalesce(c.declinadoEm, c.finalizadoEm, c.arquivadoEm) desc
+            """)
+    List<LiberacaoCardEntity> arquivados();
+
     /**
      * Cor e etiquetas mudam por consulta direta, sem passar pela versão do card: são ações
      * rápidas, ortogonais aos campos, e não podem invalidar o formulário aberto de outra pessoa.

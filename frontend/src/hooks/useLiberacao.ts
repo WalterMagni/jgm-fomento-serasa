@@ -258,6 +258,35 @@ export function useMoverCard() {
   });
 }
 
+/** A tela de Arquivo: todos os cards arquivados. Fica sob a chave da lista: arquivar e desarquivar a recarregam. */
+export function useArquivoLiberacao() {
+  return useQuery<LiberacaoCard[]>({
+    queryKey: [...LISTA_KEY, "arquivo"],
+    queryFn: () => pedir(`${API_BASE_URL}/liberacao/arquivo`, {}, "Falha ao carregar o arquivo"),
+    staleTime: 30 * 1000,
+  });
+}
+
+/** O cliente declinou: o card vai direto para Finalizados. */
+export function useDeclinarCard() {
+  const queryClient = useQueryClient();
+  return useMutation<LiberacaoCard, Error, { card: LiberacaoCard; motivo: string }>({
+    mutationFn: ({ card, motivo }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/${card.id}/declinio`,
+        { method: "POST", body: JSON.stringify({ de: card.etapa, motivo: motivo.trim() || null }) },
+        "Falha ao declinar",
+      ),
+    onSuccess: card => {
+      queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+      queryClient.invalidateQueries({ queryKey: detalheKey(card.id) });
+      queryClient.invalidateQueries({ queryKey: RESUMO_KEY });
+      toast.success(`#${card.numero} declinado: foi para Finalizados`);
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 /** Arquiva ou desarquiva um finalizado. O quadro recarrega: arquivado sai da lista. */
 export function useArquivarCard() {
   const queryClient = useQueryClient();

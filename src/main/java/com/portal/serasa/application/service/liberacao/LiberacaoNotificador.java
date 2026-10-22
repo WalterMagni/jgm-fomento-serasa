@@ -158,7 +158,8 @@ public class LiberacaoNotificador {
             case APROVADO -> card.getResultado() == null ? "aprovado" : card.getResultado().rotulo().toLowerCase();
             case REPROVADO -> "reprovado";
             case ASSINATURA -> "enviado para assinatura";
-            case FINALIZADO -> "finalizado" + (card.getResultado() == null ? "" : " (" + card.getResultado().rotulo().toLowerCase() + ")");
+            case FINALIZADO -> card.getDeclinadoEm() != null ? "declinado pelo cliente"
+                    : "finalizado" + (card.getResultado() == null ? "" : " (" + card.getResultado().rotulo().toLowerCase() + ")");
             case ORIGEM -> "devolvido à Origem";
             default -> null;
         };

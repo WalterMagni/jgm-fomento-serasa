@@ -1,4 +1,4 @@
-import { ETAPAS_DECIDIDAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard, type PosicaoParecer } from "@/types/liberacao";
+import { ETAPAS_DECIDIDAS, ROTULO_ETAPA_CURTO, type Desfecho, type EtapaLiberacao, type LiberacaoCard, type PosicaoParecer } from "@/types/liberacao";
 
 export function formatDocumento(documento: string | null | undefined) {
   if (!documento) return "";
@@ -245,6 +245,26 @@ export const ICONE_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL", strin
   REPROVADO: "cancel",
   PARCIAL: "remove_circle",
 };
+
+/** O cliente declinou: cinza, porque não é decisão de crédito, é o fim do negócio. */
+export const DECLINIO = {
+  chip: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+  caixa: "border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100",
+  icone: "do_not_disturb_on",
+};
+
+export const COR_DESFECHO: Record<Desfecho, string> = { ...COR_RESULTADO, DECLINADO: DECLINIO.chip };
+export const ICONE_DESFECHO: Record<Desfecho, string> = { ...ICONE_RESULTADO, DECLINADO: DECLINIO.icone };
+
+/** Declinado vale por cima do resultado; em aberto, nulo. */
+export function desfecho(card: Pick<LiberacaoCard, "declinadoEm" | "resultado">): Desfecho | null {
+  return card.declinadoEm ? "DECLINADO" : card.resultado;
+}
+
+/** Quando o card terminou: o declínio ou a decisão; o arquivamento só se faltar os dois (dado antigo). */
+export function dataDoFim(card: Pick<LiberacaoCard, "declinadoEm" | "finalizadoEm" | "arquivadoEm">) {
+  return card.declinadoEm ?? card.finalizadoEm ?? card.arquivadoEm;
+}
 
 /** Cor do anel do avatar de parecer. Aguardando fica tracejado, sem cor. */
 export const COR_POSICAO: Record<PosicaoParecer, string> = {

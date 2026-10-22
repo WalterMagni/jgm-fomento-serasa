@@ -2,6 +2,7 @@ package com.portal.serasa.api.rest.controller;
 
 import com.portal.serasa.api.rest.dto.request.LiberacaoCardRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoComentarioRequest;
+import com.portal.serasa.api.rest.dto.request.LiberacaoDeclinioRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoOrganizacaoRequests;
 import com.portal.serasa.api.rest.dto.request.LiberacaoParecerRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoPendenciaRequest;
@@ -159,6 +160,21 @@ public class LiberacaoController {
                         .toList();
         return ResponseEntity.ok(assembler.card(liberacaoService.transicionar(
                 id, request.de(), request.para(), pendencias, request.observacao(), decisoes, request.ressalva(), autor), autor));
+    }
+
+    /** O cliente declinou: o card vai direto para Finalizados, com o motivo (opcional). */
+    @PostMapping("/{id}/declinio")
+    public ResponseEntity<LiberacaoCardResponse> declinar(@PathVariable UUID id,
+                                                          @Valid @RequestBody LiberacaoDeclinioRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(liberacaoService.declinar(id, request.de(), request.motivo(), autor), autor));
+    }
+
+    /** A tela de Arquivo: todos os cards arquivados. Os filtros ficam na tela. */
+    @GetMapping("/arquivo")
+    public ResponseEntity<List<LiberacaoCardResponse>> arquivo() {
+        UserEntity usuario = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.cards(liberacaoService.arquivados(), usuario));
     }
 
     /** Arquiva ou desarquiva um card finalizado. */

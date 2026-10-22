@@ -322,8 +322,8 @@ class LiberacaoExportServiceTest {
             Row cabecalho = cards.getRow(0);
             Row linha = cards.getRow(1);
             int ultima = 39;
-            // depois de "Horas em Assinatura" vêm Taxa, TAC, Tranche, as duas colunas da Diretoria e a Empresa
-            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 7));
+            // depois de "Horas em Assinatura" vêm Taxa, TAC, Tranche, as duas colunas da Diretoria, a Empresa e as do desfecho
+            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 11));
             assertThat(cabecalho.getCell(ultima + 4).getStringCellValue()).isEqualTo("Horas na Diretoria");
             assertThat(cabecalho.getCell(ultima + 5).getStringCellValue()).isEqualTo("Motivo do envio à Diretoria");
             assertThat(cabecalho.getCell(ultima + 6).getStringCellValue()).isEqualTo("Empresa");
@@ -634,7 +634,7 @@ class LiberacaoExportServiceTest {
 
         try (XSSFWorkbook planilha = exportar(id)) {
             Row cards = planilha.getSheet("Cards").getRow(0);
-            assertThat(cards.getLastCellNum()).as("46 colunas: 0 a 45").isEqualTo((short) 46);
+            assertThat(cards.getLastCellNum()).as("50 colunas: 0 a 49").isEqualTo((short) 50);
             for (int i = 0; i < CABECALHO_AR_CARDS.length; i++) {
                 assertThat(cards.getCell(26 + i).getStringCellValue()).as("Cards, coluna %d", 26 + i).isEqualTo(CABECALHO_AR_CARDS[i]);
             }
@@ -652,7 +652,7 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AT, Sacados até U)")
+    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AX, Sacados até U)")
     void shouldExtendAutoFilterToArColumns() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -662,7 +662,7 @@ class LiberacaoExportServiceTest {
         try (XSSFWorkbook planilha = exportar(id)) {
             XSSFSheet cards = planilha.getSheet("Cards");
             XSSFSheet sacados = planilha.getSheet("Sacados");
-            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AT2");
+            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AX2");
             assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:U2");
         }
     }
@@ -792,5 +792,19 @@ class LiberacaoExportServiceTest {
     @DisplayName("exportar: sem cards é recusado")
     void shouldRejectEmpty() {
         assertThatThrownBy(() -> service.exportar(List.of())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("desfecho: declinado vence o resultado; em aberto fica vazio")
+    void shouldDescribeOutcome() {
+        LiberacaoCardEntity card = LiberacaoCardEntity.builder().etapa(EtapaLiberacao.FINALIZADO)
+                .resultado(com.portal.serasa.domain.model.liberacao.ResultadoLiberacao.PARCIAL).build();
+        assertThat(LiberacaoExportService.desfecho(card)).isEqualTo("Parcialmente aprovado");
+
+        card.setDeclinadoEm(java.time.LocalDateTime.now());
+        assertThat(LiberacaoExportService.desfecho(card)).isEqualTo("Declinado");
+
+        LiberacaoCardEntity aberto = LiberacaoCardEntity.builder().etapa(EtapaLiberacao.COMITE).build();
+        assertThat(LiberacaoExportService.desfecho(aberto)).isNull();
     }
 }

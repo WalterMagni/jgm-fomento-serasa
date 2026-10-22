@@ -476,6 +476,10 @@ public class LiberacaoService {
             card.setRodada(card.getRodada() + 1);
             // De volta ao Comitê: a Diretoria não decidiu esta rodada. O histórico guarda a anterior.
             limparDiretoria(card);
+            // Reabrir um declinado é o cliente voltando atrás: a marca sai, o histórico fica.
+            card.setDeclinadoEm(null);
+            card.setDeclinadoPorNome(null);
+            card.setMotivoDeclinio(null);
         }
         if (para == EtapaLiberacao.DIRETORIA) {
             card.setMotivoDiretoria(motivoDiretoria);
@@ -635,6 +639,56 @@ public class LiberacaoService {
         sacadoRepository.saveAll(sacados);
     }
 
+    // ---------------------------------------------------------------- declínio
+
+    /**
+     * O cliente declinou a operação: de qualquer etapa em aberto o card vai direto para
+     * Finalizados, com a marca de quem registrou, quando e o motivo (opcional).
+     *
+     * <p>O resultado do crédito fica como está: um aprovado que o cliente recusou continua
+     * aprovado, e quem lê o card vê as duas coisas. Antes da decisão o resultado é nulo. A data de
+     * finalização também só nasce aqui se ainda não havia decisão: é ela que para o prazo e tira o
+     * card dos atrasados.</p>
+     *
+     * <p>Quem pode é quem pode mexer no card na etapa (todo mundo na Origem, analista depois).
+     * Reabrir no Comitê desfaz a marca.</p>
+     *
+     * @param de etapa em que a tela viu o card, como em {@link #transicionar}
+     */
+    @Transactional
+    public LiberacaoCardEntity declinar(UUID id, EtapaLiberacao de, String motivo, UserEntity autor) {
+        LiberacaoCardEntity card = buscar(id);
+        if (card.getEtapa() != de) {
+            throw new ConflitoEdicaoException("O card já está em " + LiberacaoAutorizacao.rotulo(card.getEtapa())
+                    + ", movido por " + card.getAtualizadoPorNome() + ". Recarregue o quadro.");
+        }
+        if (card.getEtapa().terminal()) {
+            throw new TransicaoInvalidaException("O card já está finalizado.");
+        }
+        autorizacao.exigirEdicao(card, autor);
+
+        LocalDateTime agora = LocalDateTime.now();
+        String motivoLimpo = textoOuNulo(motivo);
+        card.setEtapa(EtapaLiberacao.FINALIZADO);
+        card.setEtapaDesde(agora);
+        if (card.getFinalizadoEm() == null) {
+            card.setFinalizadoEm(agora);
+        }
+        card.setDeclinadoEm(agora);
+        card.setDeclinadoPorNome(autor.getName());
+        card.setMotivoDeclinio(motivoLimpo);
+        card.setArquivadoEm(null);
+        card.setArquivadoPorNome(null);
+        tocar(card, autor);
+        LiberacaoCardEntity salvo = cardRepository.saveAndFlush(card);
+
+        registrar(salvo, TipoEventoLiberacao.TRANSICAO, de, EtapaLiberacao.FINALIZADO, "declinio", null,
+                "Declinado pelo cliente", motivoLimpo, autor);
+        Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.usuarios(motivo));
+        eventos.publishEvent(new LiberacaoEvento.Movido(salvo, de, EtapaLiberacao.FINALIZADO, autor, mencionados, trecho(motivo)));
+        return salvo;
+    }
+
     // ------------------------------------------------------------- arquivamento
 
     /**
@@ -652,6 +706,12 @@ public class LiberacaoService {
             return card;
         }
         return marcarArquivado(card, arquivar, autor);
+    }
+
+    /** A tela de Arquivo. Só leitura: qualquer usuário logado vê. */
+    @Transactional(readOnly = true)
+    public List<LiberacaoCardEntity> arquivados() {
+        return cardRepository.arquivados();
     }
 
     /** "Arquivar todos" da coluna Finalizados. Devolve quantos foram arquivados. */

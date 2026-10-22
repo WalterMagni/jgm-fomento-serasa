@@ -10,6 +10,7 @@ import { TOM, TOM_EMPRESA } from "./cores";
 import {
   COR_POSICAO,
   COR_RESULTADO,
+  DECLINIO,
   ICONE_RESULTADO,
   ICONE_POSICAO,
   aguardando,
@@ -134,7 +135,15 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
         </p>
       )}
 
-      {card.resultado && card.ressalva && card.resultado !== "REPROVADO" ? (
+      {card.declinadoEm ? (
+        <p
+          title={`Declinado pelo cliente${card.motivoDeclinio ? `: ${card.motivoDeclinio}` : ""}${card.resultado ? ` (crédito: ${ROTULO_RESULTADO[card.resultado].toLowerCase()})` : ""}`}
+          className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${DECLINIO.chip}`}
+        >
+          <Icon name={DECLINIO.icone} size={11} />
+          Declinado
+        </p>
+      ) : card.resultado && card.ressalva && card.resultado !== "REPROVADO" ? (
         <p
           title={`Ressalva: ${card.ressalva}`}
           className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${RESSALVA.chip}`}

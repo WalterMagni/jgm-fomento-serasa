@@ -1762,6 +1762,90 @@ class LiberacaoServiceTest {
         assertThat(semLista.getResultado()).isNull();
     }
 
+    // ------------------------------------------------------------- declínio
+
+    @Test
+    @DisplayName("declinar antes da decisão: vai para Finalizados sem resultado, com data de finalização, marca e evento")
+    void shouldDeclineOpenCardStraightToFinalizado() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+
+        LiberacaoCardEntity declinado = service.declinar(card.getId(), EtapaLiberacao.COMITE, "  Cliente fechou com outro fundo ", analista);
+
+        assertThat(declinado.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(declinado.getResultado()).isNull();
+        assertThat(declinado.getFinalizadoEm()).isNotNull();
+        assertThat(declinado.getDeclinadoEm()).isNotNull();
+        assertThat(declinado.getDeclinadoPorNome()).isEqualTo("Andressa");
+        assertThat(declinado.getMotivoDeclinio()).isEqualTo("Cliente fechou com outro fundo");
+        LiberacaoEventoEntity evento = eventosGravados().get(0);
+        assertThat(evento.getTipo()).isEqualTo(TipoEventoLiberacao.TRANSICAO);
+        assertThat(evento.getEtapaDe()).isEqualTo(EtapaLiberacao.COMITE);
+        assertThat(evento.getEtapaPara()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(evento.getCampo()).isEqualTo("declinio");
+        assertThat(evento.getValorDepois()).isEqualTo("Declinado pelo cliente");
+        assertThat(evento.getTexto()).isEqualTo("Cliente fechou com outro fundo");
+        verify(eventos).publishEvent(any(com.portal.serasa.application.service.liberacao.LiberacaoEvento.Movido.class));
+    }
+
+    @Test
+    @DisplayName("declinar aprovado: o resultado e a data da decisão ficam; motivo é opcional")
+    void shouldKeepCreditDecisionWhenApprovedCardIsDeclined() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.APROVADO);
+        LocalDateTime decidido = LocalDateTime.now().minusDays(1);
+        card.setFinalizadoEm(decidido);
+        card.setResultado(ResultadoLiberacao.APROVADO);
+
+        LiberacaoCardEntity declinado = service.declinar(card.getId(), EtapaLiberacao.APROVADO, "   ", analista);
+
+        assertThat(declinado.getEtapa()).isEqualTo(EtapaLiberacao.FINALIZADO);
+        assertThat(declinado.getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(declinado.getFinalizadoEm()).isEqualTo(decidido);
+        assertThat(declinado.getMotivoDeclinio()).isNull();
+    }
+
+    @Test
+    @DisplayName("declinar: na Origem qualquer um; do Comitê em diante só analista")
+    void shouldRequireAnalystToDeclineAfterOrigem() {
+        LiberacaoCardEntity naOrigem = card(EtapaLiberacao.ORIGEM);
+        assertThat(service.declinar(naOrigem.getId(), EtapaLiberacao.ORIGEM, null, auxiliar).getDeclinadoEm()).isNotNull();
+
+        LiberacaoCardEntity noComite = card(EtapaLiberacao.COMITE);
+        assertThatThrownBy(() -> service.declinar(noComite.getId(), EtapaLiberacao.COMITE, null, auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+        assertThat(noComite.getEtapa()).isEqualTo(EtapaLiberacao.COMITE);
+    }
+
+    @Test
+    @DisplayName("declinar: finalizado não declina; tela desatualizada toma conflito")
+    void shouldRejectDeclineOfFinalizedOrStaleCard() {
+        LiberacaoCardEntity finalizado = card(EtapaLiberacao.FINALIZADO);
+        assertThatThrownBy(() -> service.declinar(finalizado.getId(), EtapaLiberacao.FINALIZADO, null, analista))
+                .isInstanceOf(TransicaoInvalidaException.class);
+
+        LiberacaoCardEntity movido = card(EtapaLiberacao.ASSINATURA);
+        assertThatThrownBy(() -> service.declinar(movido.getId(), EtapaLiberacao.APROVADO, null, analista))
+                .isInstanceOf(ConflitoEdicaoException.class);
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("reabrir declinado no Comitê tira a marca de declínio")
+    void shouldClearDeclineWhenReopened() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+        card.setFinalizadoEm(LocalDateTime.now().minusDays(1));
+        card.setDeclinadoEm(LocalDateTime.now().minusDays(1));
+        card.setDeclinadoPorNome("Andressa");
+        card.setMotivoDeclinio("Desistiu");
+        when(userRepository.findByComiteTrueOrderByNameAsc()).thenReturn(List.of(usuario("Bruna")));
+
+        LiberacaoCardEntity reaberto = service.transicionar(card.getId(), EtapaLiberacao.FINALIZADO,
+                EtapaLiberacao.COMITE, null, "Cliente voltou", analista);
+
+        assertThat(reaberto.getDeclinadoEm()).isNull();
+        assertThat(reaberto.getDeclinadoPorNome()).isNull();
+        assertThat(reaberto.getMotivoDeclinio()).isNull();
+    }
+
     // ----------------------------------------------------------- reabertura
 
     @Test

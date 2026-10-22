@@ -175,9 +175,10 @@ public class LiberacaoExportService {
                 "AR emitida em", "Limite individual", "Comprometimento atual (%)", "Comprometimento após (%)",
                 "Concentração após (%)", "Prazo médio (dias)", "Face liberados", "Desconto", "Líquido",
                 "Vencidos do cedente", "A vencer do cedente", "Liquidados do cedente", "Recomprados do cedente",
-                "Horas em Assinatura", "Taxa (%)", "TAC", "Tranche", "Horas na Diretoria", "Motivo do envio à Diretoria", "Empresa"},
+                "Horas em Assinatura", "Taxa (%)", "TAC", "Tranche", "Horas na Diretoria", "Motivo do envio à Diretoria", "Empresa",
+                "Desfecho", "Declinado em", "Declinado por", "Motivo do declínio"},
                 new int[]{6, 38, 20, 22, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 20, 16, 22, 17, 11, 11, 11, 15, 60,
-                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18, 11, 10, 14, 16, 11, 60, 10});
+                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18, 11, 10, 14, 16, 11, 60, 10, 16, 17, 22, 60});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             Row row = aba.createRow(linha++);
@@ -246,9 +247,13 @@ public class LiberacaoExportService {
             moeda(row, c++, card.getTranche(), estilos);
             horas(row, c++, horas.get(EtapaLiberacao.DIRETORIA), estilos);
             texto(row, c++, MencaoParser.textoPlano(card.getMotivoDiretoria()), estilos.quebra);
-            texto(row, c, card.getEmpresa() == null ? null : card.getEmpresa().name(), estilos.texto);
+            texto(row, c++, card.getEmpresa() == null ? null : card.getEmpresa().name(), estilos.texto);
+            texto(row, c++, desfecho(card), estilos.texto);
+            dataHora(row, c++, card.getDeclinadoEm(), estilos);
+            texto(row, c++, card.getDeclinadoPorNome(), estilos.texto);
+            texto(row, c, MencaoParser.textoPlano(card.getMotivoDeclinio()), estilos.quebra);
         }
-        fechar(aba, linha, 45);
+        fechar(aba, linha, 49);
     }
 
     private void abaSacados(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {
@@ -531,6 +536,17 @@ public class LiberacaoExportService {
             cell.setCellValue(valor);
         }
         cell.setCellStyle(estilos.dataHora);
+    }
+
+    /** Como o card terminou: declinado pelo cliente ou o resultado do crédito. Vazio em aberto. */
+    static String desfecho(LiberacaoCardEntity card) {
+        if (card.getDeclinadoEm() != null) {
+            return "Declinado";
+        }
+        if (!card.getEtapa().decidida() || card.getResultado() == null) {
+            return null;
+        }
+        return card.getResultado().rotulo();
     }
 
     private static String praca(Dados dados, String documento) {

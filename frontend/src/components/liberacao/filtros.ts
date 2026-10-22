@@ -1,5 +1,6 @@
 import { textoPlano } from "@/components/ui/mencao/mencoes";
-import type { EmpresaOperacao, LiberacaoCard, Resultado } from "@/types/liberacao";
+import { DESFECHOS, type Desfecho, type EmpresaOperacao, type LiberacaoCard } from "@/types/liberacao";
+import { desfecho } from "./formatters";
 
 /**
  * Filtros e ordenação do quadro.
@@ -23,7 +24,8 @@ export type Filtros = {
   etiquetas: string[];
   tipos: string[];
   empresas: EmpresaOperacao[];
-  resultados: Resultado[];
+  /** Desfecho: o resultado do crédito ou "declinado". A chave na URL continua "resultado". */
+  resultados: Desfecho[];
   criador: string | null;
   de: string | null;
   ate: string | null;
@@ -67,7 +69,7 @@ export function lerFiltros(params: URLSearchParams): Filtros {
     // Tipo é texto livre e pode ter vírgula; separa por barra vertical.
     tipos: (params.get("tipo") ?? "").split("|").filter(Boolean),
     empresas: lista(params.get("empresa")).filter((valor): valor is EmpresaOperacao => valor === "SEC" || valor === "FIDC"),
-    resultados: lista(params.get("resultado")).filter((valor): valor is Resultado => ["APROVADO", "REPROVADO", "PARCIAL"].includes(valor)),
+    resultados: lista(params.get("resultado")).filter((valor): valor is Desfecho => (DESFECHOS as string[]).includes(valor)),
     criador: params.get("criador"),
     de: params.get("de"),
     ate: params.get("ate"),
@@ -138,7 +140,10 @@ export function aplicarFiltros(cards: LiberacaoCard[], filtros: Filtros, euId: s
 
   return cards.filter(card => {
     if (filtros.finalizados === "ocultar" && card.etapa === "FINALIZADO") return false;
-    if (filtros.resultados.length > 0 && (!card.resultado || !filtros.resultados.includes(card.resultado))) return false;
+    if (filtros.resultados.length > 0) {
+      const fim = desfecho(card);
+      if (!fim || !filtros.resultados.includes(fim)) return false;
+    }
 
     if (termo) {
       const naBusca =

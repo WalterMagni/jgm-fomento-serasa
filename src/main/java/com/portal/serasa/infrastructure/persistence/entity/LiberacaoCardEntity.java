@@ -163,4 +163,14 @@ public class LiberacaoCardEntity {
 
     @Column(name = "enviado_diretoria_em")
     private LocalDateTime enviadoDiretoriaEm;
+
+    /** O cliente declinou: o card foi direto para Finalizados. Some ao reabrir. Ver V94. */
+    @Column(name = "declinado_em")
+    private LocalDateTime declinadoEm;
+
+    @Column(name = "declinado_por_nome", length = 200)
+    private String declinadoPorNome;
+
+    @Column(name = "motivo_declinio", columnDefinition = "TEXT")
+    private String motivoDeclinio;
 }

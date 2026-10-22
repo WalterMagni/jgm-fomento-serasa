@@ -16,10 +16,12 @@ import { ResumoProposta, rotuloProposta } from "./PropostaAr";
 import { PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
 import Dialogo from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
+import DeclinarDialog from "./DeclinarDialog";
 import {
   COR_ETAPA,
   COR_POSICAO,
   COR_RESULTADO,
+  DECLINIO,
   ICONE_POSICAO,
   ICONE_RESULTADO,
   ICONE_ETAPA,
@@ -67,6 +69,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
     marcarLidasDoCard(`/liberacao?card=${cardId}`);
   }, [cardId, marcarLidasDoCard]);
   const [abrindoPendencia, setAbrindoPendencia] = useState(false);
+  const [declinando, setDeclinando] = useState(false);
 
   const card = data?.card;
 
@@ -99,6 +102,11 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
           {ROTULO_ETAPA[card.etapa]}
         </span>
         <span className="font-mono text-slate-400">#{card.numero}</span>
+        {card.declinadoEm && (
+          <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 ${DECLINIO.chip}`}>
+            <Icon name={DECLINIO.icone} size={11} /> declinado
+          </span>
+        )}
         {card.arquivadoEm && (
           <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800">
             <Icon name="inventory_2" size={11} /> arquivado
@@ -256,6 +264,19 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                     </Dado>
                   )}
                 </dl>
+                {card.declinadoEm && (
+                  <div className={`mt-4 rounded-xl border px-3.5 py-2.5 text-sm ${DECLINIO.caixa}`}>
+                    <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
+                      <Icon name={DECLINIO.icone} size={13} />
+                      Declinado pelo cliente
+                      {card.declinadoPorNome && <span className="font-medium normal-case tracking-normal">· registrado por {card.declinadoPorNome}</span>}
+                      <span className="font-medium normal-case tracking-normal">· {formatDataHora(card.declinadoEm)}</span>
+                    </p>
+                    <p className="mt-1 leading-relaxed">
+                      {card.motivoDeclinio ? <TextoRico texto={card.motivoDeclinio} /> : <span className="text-slate-500">Sem motivo informado.</span>}
+                    </p>
+                  </div>
+                )}
                 {card.motivoDiretoria && (
                   <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-sm text-teal-950 dark:border-teal-900/60 dark:bg-teal-950/30 dark:text-teal-50">
                     <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-teal-800 dark:text-teal-300">
@@ -414,6 +435,19 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                 );
               })}
               {card.destinos.length === 0 && <p className="text-xs text-slate-400">Sem movimentos a partir daqui.</p>}
+              {card.etapa !== "FINALIZADO" && card.podeEditar && (
+                <button
+                  type="button"
+                  onClick={() => setDeclinando(true)}
+                  className="flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 text-left
+                    text-sm font-medium text-slate-600 transition-colors hover:border-slate-400 hover:bg-white focus:outline-none
+                    focus-visible:ring-2 focus-visible:ring-[#612035] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <Icon name={DECLINIO.icone} size={15} />
+                  Cliente declinou
+                  <span className="ml-auto text-[11px] font-normal text-slate-400">vai p/ Finalizados</span>
+                </button>
+              )}
             </div>
             {card.etapa === "FINALIZADO" && ehAnalista && (
               <button
@@ -457,6 +491,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
         </aside>
       </div>
 
+      {declinando && <DeclinarDialog card={card} onFechar={() => setDeclinando(false)} />}
       {abrindoPendencia && (
         <PendenciaDialog
           titulo={`Nova pendência em #${card.numero}`}

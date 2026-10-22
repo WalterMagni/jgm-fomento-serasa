@@ -81,7 +81,9 @@ function descrever(evento: EventoLiberacao): ReactNode {
         <>
           moveu de <strong className="font-semibold">{evento.etapaDe ? ROTULO_ETAPA_CURTO[evento.etapaDe] : "?"}</strong> para{" "}
           <strong className="font-semibold">{evento.etapaPara ? ROTULO_ETAPA_CURTO[evento.etapaPara] : "?"}</strong>
-          {evento.campo === "resultado" && evento.valorDepois && <> · <strong className="font-semibold">{evento.valorDepois}</strong></>}
+          {(evento.campo === "resultado" || evento.campo === "declinio") && evento.valorDepois && (
+            <> · <strong className="font-semibold">{evento.valorDepois}</strong></>
+          )}
         </>
       );
     case "REABERTURA":

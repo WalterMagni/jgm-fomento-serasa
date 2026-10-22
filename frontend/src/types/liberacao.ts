@@ -13,6 +13,16 @@ export const ROTULO_RESULTADO: Record<Resultado, string> = {
   PARCIAL: "Parcialmente aprovado",
 };
 
+/** Como o card terminou: o resultado do crédito ou o declínio do cliente, que vale por cima. */
+export type Desfecho = Resultado | "DECLINADO";
+
+export const DESFECHOS: Desfecho[] = ["APROVADO", "PARCIAL", "REPROVADO", "DECLINADO"];
+
+export const ROTULO_DESFECHO: Record<Desfecho, string> = {
+  ...ROTULO_RESULTADO,
+  DECLINADO: "Declinado",
+};
+
 /** Rótulo curto, para botões e chips apertados. */
 export const ROTULO_RESULTADO_CURTO: Record<Resultado, string> = {
   APROVADO: "Aprovado",
@@ -149,6 +159,10 @@ export type LiberacaoCard = {
   motivoDiretoria: string | null;
   enviadoDiretoriaPorNome: string | null;
   enviadoDiretoriaEm: string | null;
+  /** O cliente declinou: o card foi direto para Finalizados. Nulos fora disso. */
+  declinadoEm: string | null;
+  declinadoPorNome: string | null;
+  motivoDeclinio: string | null;
   /** Aprovados inteiros mais o aprovado dos parciais; nulo sem nenhuma decisão. */
   valorAprovado: number | null;
   ultimaAtividade: string | null;

@@ -28,7 +28,7 @@ A tela está marcada como **beta**: o fluxo ainda pode mudar conforme o time usa
 | **Aprovado** | A analista aprovou, inteiro ou em parte. Próximo passo: **Enviar para assinatura**. |
 | **Reprovado** | A analista reprovou. Próximo passo: **Finalizar**. |
 | **Assinatura** | Aguardando a assinatura do contrato. Assinado, **Finalizar**. |
-| **Finalizados** | Fim de linha, com o resultado: **Aprovado**, **Reprovado** ou **Parcialmente aprovado**. Fica até alguém **arquivar**. |
+| **Finalizados** | Fim de linha, com o resultado: **Aprovado**, **Reprovado**, **Parcialmente aprovado** ou **Declinado** (o cliente desistiu). Fica até alguém **arquivar**. |
 
 No topo de cada coluna aparecem quantos cards ela tem e a soma dos valores. Com sete colunas,
 o quadro rola para o lado (no trackpad, ou com Shift + roda do mouse).
@@ -180,12 +180,22 @@ da Assinatura e do Reprovado, **Finalizar**. Em qualquer uma dessas colunas dá 
 **Reabrir no Comitê** — o card volta com rodada nova de pareceres, e o resultado é refeito na
 nova decisão. O prazo para de correr assim que o card é decidido.
 
-### Arquivar
+### Cliente declinou
+
+Se o cliente desiste da operação, abra o card e use **Cliente declinou**, embaixo de "Mover
+para". Vale em qualquer etapa antes de Finalizados (na Origem qualquer pessoa; depois, analista).
+O motivo é opcional. O card vai direto para **Finalizados** com a marca **Declinado**; se o
+crédito já tinha sido decidido, a decisão continua registrada no card. Se o cliente voltar
+atrás, **Reabrir no Comitê** tira a marca.
+
+### Arquivar e a tela Arquivo
 
 Em Finalizados, quem é analista **arquiva** o card (botão no card) ou a coluna inteira
-(**arquivar todos**, no topo da coluna). Arquivado sai do quadro, mas continua no relatório.
-Para ver de novo, use **Finalizados: com arquivados** na barra de filtros; dentro do card,
-**Desarquivar** devolve ao quadro.
+(**arquivar todos**, no topo da coluna). Arquivado sai do quadro e vai para a tela
+**Arquivo** (botão no topo da esteira). Lá dá para filtrar pelo período em que o card terminou
+(atalhos: este mês, mês passado, últimos 90 dias, este ano) e pelo desfecho — **Aprovado**,
+**Parcial**, **Reprovado** ou **Declinado** — e gerar o **relatório** do que está filtrado.
+Sem filtro, é o relatório geral. Clicar no card abre o detalhe; **Desarquivar** devolve ao quadro.
 
 ---
 
@@ -264,7 +274,7 @@ Dentro do card, na coluna da direita:
 - **Só os meus**: cards que você criou, acompanha ou em que dá parecer.
 - **Filtros**: membro, etiqueta, tipo, prazo (vencido, hoje, próximos 7 dias), quem criou e
   período de criação.
-- **Resultado**: aprovado, reprovado ou parcialmente aprovado.
+- **Resultado**: aprovado, parcialmente aprovado, reprovado ou declinado.
 - **Finalizados**: por padrão aparecem os não arquivados. **Com arquivados** traz os arquivados
   de volta para consulta; **ocultos** tira a coluna do quadro.
 - **Ordenar**: prazo mais próximo, última atividade, mais recentes, mais antigos, maior valor
@@ -278,7 +288,9 @@ Os filtros ficam no endereço da página: copie o link para mandar a mesma visã
 
 Botão **Relatório XLSX**. A planilha leva **exatamente os cards que estão na tela**, com os
 filtros aplicados, em seis abas: Cards, Sacados, Pareceres, Pendências, Histórico e
-Comentários. A aba Cards traz também quanto tempo cada card passou em cada etapa.
+Comentários. A aba Cards traz também quanto tempo cada card passou em cada etapa e o
+**desfecho** (com data, quem registrou e motivo do declínio). Para relatório de período dos
+arquivados, use a tela **Arquivo**.
 
 ---
 

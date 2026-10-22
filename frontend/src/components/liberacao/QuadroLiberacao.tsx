@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   closestCenter,
@@ -134,7 +135,7 @@ export default function QuadroLiberacao() {
 
   function arquivarTodos() {
     const quantos = (porEtapa.get("FINALIZADO") ?? []).filter(card => !card.arquivadoEm).length;
-    if (confirmar(`Arquivar ${quantos === 1 ? "o card finalizado" : `os ${quantos} cards finalizados`}? Eles saem do quadro, mas continuam no relatório e voltam com o filtro "com arquivados".`)) {
+    if (confirmar(`Arquivar ${quantos === 1 ? "o card finalizado" : `os ${quantos} cards finalizados`}? Eles saem do quadro e vão para a tela Arquivo, onde entram no relatório.`)) {
       arquivarFinalizados.mutate();
     }
   }
@@ -195,6 +196,13 @@ export default function QuadroLiberacao() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/liberacao/arquivo"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm text-slate-600 transition-colors hover:bg-white
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Icon name="inventory_2" size={16} /> Arquivo
+          </Link>
           <button
             type="button"
             onClick={() => setManualAberto(true)}

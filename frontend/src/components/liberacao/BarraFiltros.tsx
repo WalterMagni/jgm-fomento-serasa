@@ -6,7 +6,7 @@ import CampoData from "@/components/ui/CampoData";
 import { useDiretorio, useEtiquetas, useTiposOperacao } from "@/hooks/useLiberacao";
 import Avatar from "./Avatar";
 import { TOM } from "./cores";
-import { EMPRESAS, ROTULO_RESULTADO, type Resultado } from "@/types/liberacao";
+import { DESFECHOS, EMPRESAS, ROTULO_DESFECHO } from "@/types/liberacao";
 import {
   ROTULO_FINALIZADOS,
   ROTULO_ORDEM,
@@ -113,7 +113,7 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
     })),
     ...filtros.resultados.map(resultado => ({
       chave: `r-${resultado}`,
-      rotulo: <>{ROTULO_RESULTADO[resultado]}</>,
+      rotulo: <>{ROTULO_DESFECHO[resultado]}</>,
       tirar: () => mudar({ resultados: filtros.resultados.filter(item => item !== resultado) }),
     })),
     ...(filtros.criador ? [{ chave: "c", rotulo: <>criado por {nome(filtros.criador)}</>, tirar: () => mudar({ criador: null }) }] : []),
@@ -227,9 +227,9 @@ export default function BarraFiltros({ filtros, onMudar, visiveis, total, onExpo
               <section>
                 <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Resultado</h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {(Object.keys(ROTULO_RESULTADO) as Resultado[]).map(resultado => (
+                  {DESFECHOS.map(resultado => (
                     <Chip key={resultado} ativo={filtros.resultados.includes(resultado)} onClick={() => mudar({ resultados: alternar(filtros.resultados, resultado) })}>
-                      {ROTULO_RESULTADO[resultado]}
+                      {ROTULO_DESFECHO[resultado]}
                     </Chip>
                   ))}
                 </div>

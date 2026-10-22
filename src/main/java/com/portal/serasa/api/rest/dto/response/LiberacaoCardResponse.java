@@ -62,6 +62,10 @@ public record LiberacaoCardResponse(
         String motivoDiretoria,
         String enviadoDiretoriaPorNome,
         LocalDateTime enviadoDiretoriaEm,
+        /** O cliente declinou: quem registrou, quando e por quê (opcional). Nulos fora disso. */
+        LocalDateTime declinadoEm,
+        String declinadoPorNome,
+        String motivoDeclinio,
         /** Aprovados inteiros mais o valor aprovado dos parciais; nulo sem nenhuma decisão. */
         BigDecimal valorAprovado,
         /** O mais recente entre edição, evento e comentário: base de "ordenar por atividade". */
