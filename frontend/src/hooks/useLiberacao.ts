@@ -12,6 +12,7 @@ import type {
   LiberacaoCard,
   LiberacaoDetalhe,
   LiberacaoResumo,
+  MotivoReprovacao,
   NovaPendencia,
   PessoaDiretorio,
   PosicaoParecer,
@@ -226,6 +227,8 @@ type Mover = {
   decisoes?: DecisaoSacado[];
   /** Ao aprovar com ressalva: o texto de quem aprova. */
   ressalva?: string;
+  /** Ao reprovar: ids dos motivos marcados, ao menos um. */
+  motivosReprovacao?: string[];
 };
 
 /**
@@ -597,6 +600,32 @@ export function useTiposOperacao() {
 }
 
 // --------------------------------------------------------- etiquetas, cor, membros
+
+const MOTIVOS_REPROVACAO_KEY = ["liberacaoMotivosReprovacao"] as const;
+
+/** Motivos de reprovação, desativados inclusive: a escolha filtra, o admin vê todos. */
+export function useMotivosReprovacao() {
+  return useQuery<MotivoReprovacao[]>({
+    queryKey: MOTIVOS_REPROVACAO_KEY,
+    queryFn: () => pedir(`${API_BASE_URL}/liberacao/motivos-reprovacao`, {}, "Falha ao carregar os motivos de reprovação"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Lista de motivos: só o admin altera; o servidor confere. */
+export function useSalvarMotivoReprovacao() {
+  const queryClient = useQueryClient();
+  return useMutation<MotivoReprovacao, Error, { id?: string; nome: string; ordem?: number; ativo?: boolean }>({
+    mutationFn: ({ id, ...corpo }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/motivos-reprovacao${id ? `/${id}` : ""}`,
+        { method: id ? "PATCH" : "POST", body: JSON.stringify(corpo) },
+        "Falha ao salvar o motivo",
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: MOTIVOS_REPROVACAO_KEY }),
+    onError: error => toast.error(error.message),
+  });
+}
 
 const ETIQUETAS_KEY = ["liberacaoEtiquetas"] as const;
 

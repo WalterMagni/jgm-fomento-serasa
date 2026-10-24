@@ -94,6 +94,15 @@ public class LiberacaoAutorizacao {
         }
     }
 
+    /** Catálogos da esteira, como os motivos de reprovação: todos usam, só o admin altera. */
+    public void exigirAdmin(UserEntity usuario) {
+        exigirAutenticado(usuario);
+        String papel = usuario.getRole() == null ? "" : usuario.getRole().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!papel.equals("ADMIN") && !papel.equals("ROLE_ADMIN")) {
+            throw new AcessoNegadoException("Só admin altera os catálogos da esteira.");
+        }
+    }
+
     /** Responde quem recebeu a pendência, ou uma analista cobrindo a colega. */
     public void exigirResposta(LiberacaoPendenciaEntity pendencia, UserEntity usuario) {
         exigirAutenticado(usuario);

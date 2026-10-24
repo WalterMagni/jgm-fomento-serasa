@@ -145,7 +145,7 @@ Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprov
 |---|---|---|
 | **O** | Operador | Quem é analista, antes da decisão: com o card na Origem, no Comitê ou em Pendência. |
 | **C** | Comitê | Quem é analista, com o card no Comitê ou em Pendência. No parcial, pede o valor aprovado. |
-| **D** | Diretoria | Preenchido sozinho quando a Diretoria decide: aprovar repete o C, reprovar reprova todos. |
+| **D** | Diretoria | Preenchido quando a Diretoria decide: aprovar repete o C, reprovar reprova todos. Com o card na Diretoria, quem tem o perfil clica no D para aprovar ou reprovar. |
 
 Clique no quadrado para escolher; clique de novo na mesma opção (ou em **Limpar**) para
 desmarcar. No mesmo menu fica o **parecer** daquele quadrado: escreva o porquê e clique em
@@ -165,7 +165,9 @@ Quem decide é a analista, movendo o card do Comitê (ou da Pendência) para **A
 - **Aprovar** abre a decisão (D) de cada sacado: **Aprovado**, **Reprovado** ou **Parcial** (no
   parcial, com o valor aprovado). O que já foi marcado no quadrado D vem preenchido.
   Basta um sacado aprovado ou parcial; se todos forem reprovados, use **Reprovar**.
-- **Reprovar** reprova todos os sacados de uma vez e pede só a observação.
+- **Reprovar** reprova todos os sacados de uma vez e pede o **motivo**: marque um ou mais da lista
+  (ex.: *Sacado sem Limite*, *Praça de Pgto*). A observação é opcional. Os motivos ficam no card e
+  saem no relatório Excel. A lista fica em **Motivos**, no topo da esteira; só o administrador altera.
 
 O resultado do card sai das decisões dos sacados:
 

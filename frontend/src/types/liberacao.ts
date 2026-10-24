@@ -46,6 +46,9 @@ export const CORES: CorLiberacao[] = ["VERMELHO", "LARANJA", "AMARELO", "VERDE",
 
 export type Etiqueta = { id: string; nome: string; cor: CorLiberacao };
 
+/** Motivo que se marca ao reprovar. Desativado some da escolha; o card reprovado guarda o nome. */
+export type MotivoReprovacao = { id: string; nome: string; ordem: number; ativo: boolean };
+
 export type TipoEventoLiberacao =
   | "CRIACAO"
   | "EDICAO"
@@ -163,6 +166,8 @@ export type LiberacaoCard = {
   declinadoEm: string | null;
   declinadoPorNome: string | null;
   motivoDeclinio: string | null;
+  /** Motivos marcados ao reprovar, na ordem da lista. Vazio fora de Reprovado. */
+  motivosReprovacao: string[];
   /** Aprovados inteiros mais o aprovado dos parciais; nulo sem nenhuma decisão. */
   valorAprovado: number | null;
   ultimaAtividade: string | null;

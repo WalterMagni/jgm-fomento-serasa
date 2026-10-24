@@ -153,10 +153,20 @@ export function CardFace({ card, sobreposicao = false }: { card: LiberacaoCard; 
           {card.resultado === "PARCIAL" && card.valorAprovado != null && <span className="font-normal">· {formatMoeda(card.valorAprovado)}</span>}
         </p>
       ) : card.resultado && (
-        <p className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${COR_RESULTADO[card.resultado]}`}>
-          <Icon name={ICONE_RESULTADO[card.resultado]} size={11} />
+        <p
+          title={card.motivosReprovacao.length > 0 ? `Motivos da reprovação: ${card.motivosReprovacao.join(", ")}` : undefined}
+          className={`mt-2 inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${COR_RESULTADO[card.resultado]}`}
+        >
+          <Icon name={ICONE_RESULTADO[card.resultado]} size={11} className="shrink-0" />
           {ROTULO_RESULTADO[card.resultado]}
           {card.resultado === "PARCIAL" && card.valorAprovado != null && <span className="font-normal">· {formatMoeda(card.valorAprovado)}</span>}
+          {/* O primeiro motivo já diz o essencial; os outros ficam no título e no detalhe. */}
+          {card.resultado === "REPROVADO" && card.motivosReprovacao.length > 0 && (
+            <span className="truncate font-normal">
+              · {card.motivosReprovacao[0]}
+              {card.motivosReprovacao.length > 1 && ` +${card.motivosReprovacao.length - 1}`}
+            </span>
+          )}
         </p>
       )}
 

@@ -21,7 +21,9 @@ public record LiberacaoTransicaoRequest(
         /** Ao aprovar: situação de cada sacado. Reprovar reprova todos sem precisar mandar. */
         @Valid @Size(max = 200) List<DecisaoSacado> decisoes,
         /** Aprovação com ressalva: o texto de quem aprova. Só vale indo para Aprovado. */
-        @Size(max = 4000) String ressalva) {
+        @Size(max = 4000) String ressalva,
+        /** Ao reprovar: ids do catálogo de motivos, ao menos um. Só vale indo para Reprovado. */
+        @Size(max = 30) List<java.util.UUID> motivosReprovacao) {
 
     public record DecisaoSacado(@jakarta.validation.constraints.NotBlank String documento,
                                 com.portal.serasa.domain.model.liberacao.ResultadoLiberacao situacao,

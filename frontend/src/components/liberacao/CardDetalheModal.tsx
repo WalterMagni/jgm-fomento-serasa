@@ -264,6 +264,24 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                     </Dado>
                   )}
                 </dl>
+                {card.motivosReprovacao.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm text-rose-950 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-50">
+                    <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-rose-800 dark:text-rose-300">
+                      <Icon name="block" size={13} />
+                      Motivos da reprovação
+                    </p>
+                    <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                      {card.motivosReprovacao.map(motivo => (
+                        <li
+                          key={motivo}
+                          className="rounded-full border border-rose-200 bg-white px-2 py-0.5 text-xs font-medium text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
+                        >
+                          {motivo}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {card.declinadoEm && (
                   <div className={`mt-4 rounded-xl border px-3.5 py-2.5 text-sm ${DECLINIO.caixa}`}>
                     <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">

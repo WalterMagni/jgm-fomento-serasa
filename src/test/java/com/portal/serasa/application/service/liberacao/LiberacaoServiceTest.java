@@ -24,6 +24,7 @@ import com.portal.serasa.domain.model.liberacao.TipoEventoLiberacao;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoEventoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoMembroEntity;
+import com.portal.serasa.infrastructure.persistence.entity.LiberacaoMotivoReprovacaoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoParecerEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoPendenciaEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoSacadoEntity;
@@ -88,6 +89,7 @@ class LiberacaoServiceTest {
     @Mock private LiberacaoParecerJpaRepository parecerRepository;
     @Mock private LiberacaoPendenciaJpaRepository pendenciaRepository;
     @Mock private LiberacaoEventoJpaRepository eventoRepository;
+    @Mock private com.portal.serasa.infrastructure.persistence.repository.LiberacaoMotivoReprovacaoJpaRepository motivoReprovacaoRepository;
     @Mock private UserRepository userRepository;
     @Mock private CompanyDetailRepository companyDetailRepository;
     @Mock private com.portal.serasa.application.port.out.ClientRepository clientRepository;
@@ -104,6 +106,21 @@ class LiberacaoServiceTest {
     @Mock private ApplicationEventPublisher eventos;
 
     @InjectMocks private LiberacaoService service;
+
+    // Catálogo de motivos de reprovação (V95), fora de ordem de propósito: o card guarda na ordem do catálogo.
+    private static final LiberacaoMotivoReprovacaoEntity MOTIVO_PRACA = motivoReprovacao("Praça de Pgto", 16, true);
+    private static final LiberacaoMotivoReprovacaoEntity MOTIVO_SEM_LIMITE = motivoReprovacao("Sacado sem Limite", 11, true);
+    private static final LiberacaoMotivoReprovacaoEntity MOTIVO_DESATIVADO = motivoReprovacao("Motivo antigo", 20, false);
+
+    private static LiberacaoMotivoReprovacaoEntity motivoReprovacao(String nome, int ordem, boolean ativo) {
+        return LiberacaoMotivoReprovacaoEntity.builder().id(UUID.randomUUID()).nome(nome).ordem(ordem).ativo(ativo).build();
+    }
+
+    /** Reprova com um motivo do catálogo: reprovar sem motivo é recusado. */
+    private LiberacaoCardEntity reprovar(LiberacaoCardEntity card, EtapaLiberacao de, UserEntity autor) {
+        return service.transicionar(card.getId(), de, EtapaLiberacao.REPROVADO, null, null, List.of(), null,
+                List.of(MOTIVO_PRACA.getId()), autor);
+    }
 
     private UserEntity auxiliar;
     private UserEntity analista;
@@ -124,6 +141,13 @@ class LiberacaoServiceTest {
                 .analista(true).build();
         diretor = UserEntity.builder().id(UUID.randomUUID()).name("Walter").email("walter@jgm.com")
                 .analista(true).diretoria(true).build();
+        when(motivoReprovacaoRepository.findAllById(any())).thenAnswer(inv -> {
+            java.util.Set<UUID> ids = new java.util.HashSet<>();
+            inv.<Iterable<UUID>>getArgument(0).forEach(ids::add);
+            return java.util.stream.Stream.of(MOTIVO_SEM_LIMITE, MOTIVO_PRACA, MOTIVO_DESATIVADO)
+                    .filter(motivo -> ids.contains(motivo.getId()))
+                    .toList();
+        });
 
         // O banco gera id e numero; aqui o save simula isso.
         when(cardRepository.saveAndFlush(any())).thenAnswer(inv -> {
@@ -1406,8 +1430,7 @@ class LiberacaoServiceTest {
         comUmParecer(card);
         sacadosSao(card);
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.REPROVADO, null, null, analista);
+        LiberacaoCardEntity movido = reprovar(card, EtapaLiberacao.COMITE, analista);
 
         assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.REPROVADO);
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);
@@ -1474,8 +1497,7 @@ class LiberacaoServiceTest {
         LiberacaoSacadoEntity b = comiteDecidiu(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.APROVADO, null);
         sacadosSao(card, a, b);
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
-                EtapaLiberacao.REPROVADO, null, null, analista);
+        LiberacaoCardEntity movido = reprovar(card, EtapaLiberacao.COMITE, analista);
 
         // reprovar marca o C de todos e o C é copiado para a situação final
         assertThat(a.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.REPROVADO);
@@ -1498,6 +1520,104 @@ class LiberacaoServiceTest {
         assertThat(eventos.get(2).getValorDepois()).isEqualTo(ResultadoLiberacao.REPROVADO.rotulo());
     }
 
+    // ------------------------------------------------------ motivos da reprovação
+
+    @Test
+    @DisplayName("reprovar sem motivo é recusado antes de mexer nos sacados")
+    void shouldRequireAReasonToReject() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO,
+                null, "sem motivo", analista))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Marque ao menos um motivo da reprovação.");
+        assertThat(a.getOpiniaoComite()).isNull();
+        verify(cardRepository, never()).saveAndFlush(any());
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("reprovar com motivos: o card guarda os nomes na ordem do catálogo, e histórico e notificação os trazem antes da observação")
+    void shouldKeepRejectionReasonsInCatalogOrder() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO,
+                null, "Ver e-mail do sacado.", List.of(), null,
+                List.of(MOTIVO_PRACA.getId(), MOTIVO_SEM_LIMITE.getId(), MOTIVO_PRACA.getId()), analista);
+
+        assertThat(movido.getMotivosReprovacao()).containsExactly("Sacado sem Limite", "Praça de Pgto");
+        assertThat(ultimoEvento().getTexto())
+                .isEqualTo("Motivos da reprovação: Sacado sem Limite, Praça de Pgto.\n\nVer e-mail do sacado.");
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(evento.capture());
+        assertThat(evento.getValue()).isInstanceOfSatisfying(LiberacaoEvento.Movido.class, movidoEvento ->
+                assertThat(movidoEvento.trecho()).startsWith("Motivos da reprovação: Sacado sem Limite, Praça de Pgto."));
+    }
+
+    @Test
+    @DisplayName("reprovar com motivo desativado ou fora do catálogo é recusado")
+    void shouldRefuseInactiveOrUnknownReasons() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+
+        for (UUID motivo : List.of(MOTIVO_DESATIVADO.getId(), UUID.randomUUID())) {
+            assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO,
+                    null, null, List.of(), null, List.of(MOTIVO_PRACA.getId(), motivo), analista))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageStartingWith("Motivo de reprovação fora da lista atual.");
+        }
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("motivo de reprovação só vale indo para Reprovado")
+    void shouldRefuseReasonsOutsideRejection() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.APROVADO,
+                null, null, List.of(), null, List.of(MOTIVO_PRACA.getId()), analista))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Motivo de reprovação só ao reprovar.");
+    }
+
+    @Test
+    @DisplayName("Diretoria→Reprovado também pede motivo e o guarda no card")
+    void shouldRequireAndKeepReasonsWhenDiretoriaRejects() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.DIRETORIA);
+        sacadosSao(card, comiteDecidiu(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.APROVADO, null));
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.DIRETORIA, EtapaLiberacao.REPROVADO,
+                null, null, diretor))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Marque ao menos um motivo da reprovação.");
+
+        assertThat(reprovar(card, EtapaLiberacao.DIRETORIA, diretor).getMotivosReprovacao()).containsExactly("Praça de Pgto");
+    }
+
+    @Test
+    @DisplayName("os motivos seguem para Finalizados e saem ao reabrir no Comitê")
+    void shouldKeepReasonsUntilReopened() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.REPROVADO);
+        card.setResultado(ResultadoLiberacao.REPROVADO);
+        card.setFinalizadoEm(LocalDateTime.now().minusDays(1));
+        card.setMotivosReprovacao(List.of("Praça de Pgto"));
+
+        LiberacaoCardEntity finalizado = service.transicionar(card.getId(), EtapaLiberacao.REPROVADO,
+                EtapaLiberacao.FINALIZADO, null, null, analista);
+        assertThat(finalizado.getMotivosReprovacao()).containsExactly("Praça de Pgto");
+
+        when(userRepository.findByComiteTrueOrderByNameAsc()).thenReturn(List.of(usuario("Bruna")));
+        LiberacaoCardEntity reaberto = service.transicionar(card.getId(), EtapaLiberacao.FINALIZADO,
+                EtapaLiberacao.COMITE, null, "Cliente trouxe garantia", analista);
+        assertThat(reaberto.getMotivosReprovacao()).isNull();
+    }
+
     @Test
     @DisplayName("reprovar: sacado que já estava reprovado não gera evento; só os que mudaram")
     void shouldOnlyRecordEventsForSacadosThatChangedOnReject() {
@@ -1507,7 +1627,7 @@ class LiberacaoServiceTest {
         LiberacaoSacadoEntity b = sacado(card, SACADO_B, "Sacado B", "500", 1);
         sacadosSao(card, a, b);
 
-        service.transicionar(card.getId(), EtapaLiberacao.COMITE, EtapaLiberacao.REPROVADO, null, null, analista);
+        reprovar(card, EtapaLiberacao.COMITE, analista);
 
         List<LiberacaoEventoEntity> eventos = eventosGravados();
         assertThat(eventos).extracting(LiberacaoEventoEntity::getTipo)
@@ -1525,8 +1645,7 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0), sacado(card, SACADO_B, "Sacado B", "500", 1));
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,
-                EtapaLiberacao.REPROVADO, null, null, analista);
+        LiberacaoCardEntity movido = reprovar(card, EtapaLiberacao.PENDENCIA, analista);
 
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);
     }
@@ -4106,8 +4225,7 @@ class LiberacaoServiceTest {
         LiberacaoSacadoEntity b = comiteDecidiu(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.PARCIAL, "200");
         sacadosSao(card, a, b);
 
-        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.DIRETORIA,
-                EtapaLiberacao.REPROVADO, null, null, diretor);
+        LiberacaoCardEntity movido = reprovar(card, EtapaLiberacao.DIRETORIA, diretor);
 
         assertThat(movido.getEtapa()).isEqualTo(EtapaLiberacao.REPROVADO);
         assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.REPROVADO);

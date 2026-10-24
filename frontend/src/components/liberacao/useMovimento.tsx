@@ -13,6 +13,7 @@ import {
 } from "@/types/liberacao";
 import AprovarDialog from "./AprovarDialog";
 import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, ROTULO } from "./Dialogo";
+import { EscolhaMotivosReprovacao } from "./MotivosReprovacao";
 import PendenciaDialog from "./PendenciaDialog";
 
 type Confirmacao = {
@@ -28,6 +29,8 @@ type Confirmacao = {
   semObservacao?: boolean;
   /** A observação vira motivo obrigatório (envio à Diretoria). */
   motivoObrigatorio?: boolean;
+  /** Reprovar: marcar ao menos um motivo da lista. */
+  motivosReprovacao?: boolean;
 };
 
 const CLASSE_TOM = {
@@ -40,9 +43,9 @@ const CLASSE_TOM = {
  * Pede o que cada movimento exige antes de chamar o servidor.
  *
  * <p>Mesma regra para arrastar e para o botão "Mover" do detalhe: ir para Pendência pergunta
- * para quem; aprovar pede a decisão de cada sacado (o C); enviar à Diretoria pede o motivo; na
- * Diretoria, aprovar e reprovar só confirmam; reprovar, devolver e reabrir confirmam com espaço
- * para observação. Saindo do Comitê com parecer faltando, confirma antes. O resto —
+ * para quem; aprovar pede a decisão de cada sacado (o C); enviar à Diretoria pede o motivo;
+ * reprovar pede os motivos da lista, de onde vier; na Diretoria, aprovar só confirma; reprovar,
+ * devolver e reabrir confirmam com espaço para observação. Saindo do Comitê com parecer faltando, confirma antes. O resto —
  * Origem para Comitê, assinatura, finalizar — vai direto: é o caminho do dia a dia.</p>
  */
 export function useMovimento(euId?: string) {
@@ -50,12 +53,19 @@ export function useMovimento(euId?: string) {
   const [pendenciaPara, setPendenciaPara] = useState<LiberacaoCard | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
   const [observacao, setObservacao] = useState("");
+  const [motivos, setMotivos] = useState<string[]>([]);
   const [aprovar, setAprovar] = useState<{ card: LiberacaoCard; aviso: string | null } | null>(null);
 
   function executar(
     card: LiberacaoCard,
     para: EtapaLiberacao,
-    extra?: { pendencias?: NovaPendencia[]; observacao?: string; decisoes?: DecisaoSacado[]; ressalva?: string },
+    extra?: {
+      pendencias?: NovaPendencia[];
+      observacao?: string;
+      decisoes?: DecisaoSacado[];
+      ressalva?: string;
+      motivosReprovacao?: string[];
+    },
   ) {
     mover.mutate(
       { id: card.id, de: card.etapa, para, ...extra },
@@ -65,6 +75,7 @@ export function useMovimento(euId?: string) {
           setConfirmacao(null);
           setAprovar(null);
           setObservacao("");
+          setMotivos([]);
         },
       },
     );
@@ -77,6 +88,7 @@ export function useMovimento(euId?: string) {
     // A Diretoria dá sim ou não à proposta do Comitê: só confirma, sem ressalva nem observação.
     if (card.etapa === "DIRETORIA") {
       const aprova = para === "APROVADO";
+      setMotivos([]);
       setConfirmacao({
         card,
         para,
@@ -87,6 +99,7 @@ export function useMovimento(euId?: string) {
           ? <>Vale a decisão do Comitê (C) em cada sacado. A decisão é final.</>
           : <>Todos os sacados ficam reprovados. A decisão é final.</>,
         semObservacao: true,
+        motivosReprovacao: !aprova,
       });
       return;
     }
@@ -142,6 +155,7 @@ export function useMovimento(euId?: string) {
       return;
     }
     if (para === "REPROVADO") {
+      setMotivos([]);
       setConfirmacao({
         card,
         para,
@@ -149,6 +163,7 @@ export function useMovimento(euId?: string) {
         tom: "perigo",
         rotulo: "Reprovar",
         texto: <>Todos os sacados ficam reprovados. Depois, é só finalizar o card.</>,
+        motivosReprovacao: true,
       });
       return;
     }
@@ -194,7 +209,7 @@ export function useMovimento(euId?: string) {
           titulo={confirmacao.titulo}
           subtitulo={`${ROTULO_ETAPA_CURTO[confirmacao.card.etapa]} → ${ROTULO_ETAPA_CURTO[confirmacao.para]}`}
           onFechar={() => setConfirmacao(null)}
-          largura="sm"
+          largura={confirmacao.motivosReprovacao ? "md" : "sm"}
           rodape={
             <>
               <button type="button" onClick={() => setConfirmacao(null)} className={BOTAO_SECUNDARIO}>
@@ -203,11 +218,18 @@ export function useMovimento(euId?: string) {
               <button
                 type="button"
                 data-autofocus
-                disabled={mover.isPending || (!!confirmacao.motivoObrigatorio && !observacao.trim())}
+                disabled={
+                  mover.isPending ||
+                  (!!confirmacao.motivoObrigatorio && !observacao.trim()) ||
+                  (!!confirmacao.motivosReprovacao && motivos.length === 0)
+                }
                 onClick={() =>
                   confirmacao.aoConfirmar
                     ? confirmacao.aoConfirmar()
-                    : executar(confirmacao.card, confirmacao.para, { observacao: observacao.trim() || undefined })
+                    : executar(confirmacao.card, confirmacao.para, {
+                        observacao: observacao.trim() || undefined,
+                        motivosReprovacao: confirmacao.motivosReprovacao ? motivos : undefined,
+                      })
                 }
                 className={CLASSE_TOM[confirmacao.tom]}
               >
@@ -219,6 +241,7 @@ export function useMovimento(euId?: string) {
         >
           <div className="space-y-4 px-5 py-5 text-sm text-slate-700 dark:text-slate-300">
             <div>{confirmacao.texto}</div>
+            {confirmacao.motivosReprovacao && <EscolhaMotivosReprovacao marcados={motivos} onMudar={setMotivos} />}
             {!confirmacao.semObservacao && (
             <div>
               <label htmlFor="mov-obs" className={ROTULO}>

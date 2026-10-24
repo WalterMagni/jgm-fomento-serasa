@@ -176,9 +176,9 @@ public class LiberacaoExportService {
                 "Concentração após (%)", "Prazo médio (dias)", "Face liberados", "Desconto", "Líquido",
                 "Vencidos do cedente", "A vencer do cedente", "Liquidados do cedente", "Recomprados do cedente",
                 "Horas em Assinatura", "Taxa (%)", "TAC", "Tranche", "Horas na Diretoria", "Motivo do envio à Diretoria", "Empresa",
-                "Desfecho", "Declinado em", "Declinado por", "Motivo do declínio"},
+                "Desfecho", "Declinado em", "Declinado por", "Motivo do declínio", "Motivos da reprovação"},
                 new int[]{6, 38, 20, 22, 12, 13, 16, 17, 22, 22, 17, 22, 17, 30, 46, 11, 11, 20, 16, 22, 17, 11, 11, 11, 15, 60,
-                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18, 11, 10, 14, 16, 11, 60, 10, 16, 17, 22, 60});
+                        17, 16, 14, 14, 14, 11, 16, 14, 16, 16, 16, 18, 18, 11, 10, 14, 16, 11, 60, 10, 16, 17, 22, 60, 50});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             Row row = aba.createRow(linha++);
@@ -251,9 +251,10 @@ public class LiberacaoExportService {
             texto(row, c++, desfecho(card), estilos.texto);
             dataHora(row, c++, card.getDeclinadoEm(), estilos);
             texto(row, c++, card.getDeclinadoPorNome(), estilos.texto);
-            texto(row, c, MencaoParser.textoPlano(card.getMotivoDeclinio()), estilos.quebra);
+            texto(row, c++, MencaoParser.textoPlano(card.getMotivoDeclinio()), estilos.quebra);
+            texto(row, c, card.getMotivosReprovacao() == null ? "" : String.join(", ", card.getMotivosReprovacao()), estilos.quebra);
         }
-        fechar(aba, linha, 49);
+        fechar(aba, linha, 50);
     }
 
     private void abaSacados(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {

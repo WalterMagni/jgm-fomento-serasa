@@ -17,12 +17,14 @@ import com.portal.serasa.infrastructure.persistence.entity.LiberacaoCardEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoEventoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoMembroEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoParecerEntity;
+import com.portal.serasa.infrastructure.persistence.entity.LiberacaoMotivoReprovacaoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoPendenciaEntity;
 import com.portal.serasa.infrastructure.persistence.entity.LiberacaoSacadoEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoCardJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoEventoJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoMembroJpaRepository;
+import com.portal.serasa.infrastructure.persistence.repository.LiberacaoMotivoReprovacaoJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoParecerJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoPendenciaJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.LiberacaoSacadoJpaRepository;
@@ -70,6 +72,7 @@ public class LiberacaoService {
     private final LiberacaoParecerJpaRepository parecerRepository;
     private final LiberacaoPendenciaJpaRepository pendenciaRepository;
     private final LiberacaoEventoJpaRepository eventoRepository;
+    private final LiberacaoMotivoReprovacaoJpaRepository motivoReprovacaoRepository;
     private final UserRepository userRepository;
     private final EmpresaResolver empresaResolver;
     private final LiberacaoAutorizacao autorizacao;
@@ -409,9 +412,26 @@ public class LiberacaoService {
     public LiberacaoCardEntity transicionar(UUID id, EtapaLiberacao de, EtapaLiberacao para,
                                             List<NovaPendencia> pendencias, String observacao,
                                             List<DecisaoSacado> decisoes, String ressalva, UserEntity autor) {
+        return transicionar(id, de, para, pendencias, observacao, decisoes, ressalva, List.of(), autor);
+    }
+
+    /**
+     * Move o card; indo para Reprovado, com os motivos marcados do catálogo.
+     *
+     * @param motivosReprovacao ids do catálogo; reprovar pede ao menos um, e só reprovar aceita
+     */
+    @Transactional
+    public LiberacaoCardEntity transicionar(UUID id, EtapaLiberacao de, EtapaLiberacao para,
+                                            List<NovaPendencia> pendencias, String observacao,
+                                            List<DecisaoSacado> decisoes, String ressalva,
+                                            List<UUID> motivosReprovacao, UserEntity autor) {
         String ressalvaLimpa = textoOuNulo(ressalva);
         if (ressalvaLimpa != null && para != EtapaLiberacao.APROVADO) {
             throw new IllegalArgumentException("Ressalva só ao aprovar.");
+        }
+        List<UUID> idsMotivos = motivosReprovacao == null ? List.of() : motivosReprovacao;
+        if (!idsMotivos.isEmpty() && para != EtapaLiberacao.REPROVADO) {
+            throw new IllegalArgumentException("Motivo de reprovação só ao reprovar.");
         }
         LiberacaoCardEntity card = buscar(id);
         if (card.getEtapa() != de) {
@@ -452,6 +472,7 @@ public class LiberacaoService {
         if (para == EtapaLiberacao.DIRETORIA) {
             exigirPropostaDoComite(card);
         }
+        List<String> motivos = para == EtapaLiberacao.REPROVADO ? motivosDaReprovacao(idsMotivos) : null;
         // Calculado na decisão; Assinatura e Finalizados herdam; voltar ao Comitê desfaz.
         ResultadoLiberacao resultado = para.decisao() ? decidir(card, de, para, decisoesSacados, autor)
                 : para.decidida() ? card.getResultado()
@@ -504,6 +525,12 @@ public class LiberacaoService {
         } else if (!para.decidida()) {
             card.setRessalva(null);
         }
+        // Os motivos também: nascem na reprovação, seguem para Finalizados e saem ao reabrir.
+        if (para.decisao()) {
+            card.setMotivosReprovacao(motivos);
+        } else if (!para.decidida()) {
+            card.setMotivosReprovacao(null);
+        }
         card.setArquivadoEm(null);
         card.setArquivadoPorNome(null);
         tocar(card, autor);
@@ -519,6 +546,12 @@ public class LiberacaoService {
 
         // Saiu do Comitê com parecer faltando: fica dito no histórico, junto da observação.
         String texto = textoOuNulo(observacao);
+        if (motivos != null) {
+            // Na frente da observação: no histórico e no resumo da notificação de decisão.
+            String linha = "Motivos da reprovação: " + String.join(", ", motivos) + ".";
+            texto = texto == null ? linha : linha + "\n\n" + texto;
+        }
+        String resumo = texto;
         if (para.decisao() && salvo.getRessalva() != null) {
             String comRessalva = "Aprovado com ressalva: " + salvo.getRessalva();
             texto = texto == null ? comRessalva : comRessalva + "\n\n" + texto;
@@ -532,7 +565,7 @@ public class LiberacaoService {
                 de, para, decidiu ? "resultado" : null, null, decidiu ? resultado.rotulo() : null,
                 texto, autor);
         Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.usuarios(observacao));
-        eventos.publishEvent(new LiberacaoEvento.Movido(salvo, de, para, autor, mencionados, trecho(observacao)));
+        eventos.publishEvent(new LiberacaoEvento.Movido(salvo, de, para, autor, mencionados, trecho(resumo)));
 
         for (NovaPendencia pendencia : novasPendencias) {
             abrirPendencia(salvo, pendencia, autor);
@@ -606,6 +639,26 @@ public class LiberacaoService {
         if (!sacados.isEmpty() && sacados.stream().allMatch(sacado -> sacado.getOpiniaoComite() == ResultadoLiberacao.REPROVADO)) {
             throw new TransicaoInvalidaException("Todos os sacados estão reprovados no C: o Comitê mesmo reprova o card.");
         }
+    }
+
+    /**
+     * Os nomes dos motivos marcados, na ordem do catálogo. Reprovar pede ao menos um, e todos
+     * ativos: motivo desativado enquanto a tela estava aberta é recusado, não gravado.
+     */
+    private List<String> motivosDaReprovacao(List<UUID> ids) {
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("Marque ao menos um motivo da reprovação.");
+        }
+        Set<UUID> distintos = Set.copyOf(ids);
+        List<LiberacaoMotivoReprovacaoEntity> marcados = motivoReprovacaoRepository.findAllById(distintos);
+        if (marcados.size() != distintos.size() || marcados.stream().anyMatch(motivo -> !Boolean.TRUE.equals(motivo.getAtivo()))) {
+            throw new IllegalArgumentException("Motivo de reprovação fora da lista atual. Recarregue a página e marque de novo.");
+        }
+        return marcados.stream()
+                .sorted(java.util.Comparator.comparing(LiberacaoMotivoReprovacaoEntity::getOrdem)
+                        .thenComparing(LiberacaoMotivoReprovacaoEntity::getNome))
+                .map(LiberacaoMotivoReprovacaoEntity::getNome)
+                .toList();
     }
 
     /** A decisão de quem decidiu o card (C ou D) vira a situação: é ela que conta daqui em diante. */

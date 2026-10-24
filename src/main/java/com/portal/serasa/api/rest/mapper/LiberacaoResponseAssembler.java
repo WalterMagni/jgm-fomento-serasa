@@ -265,6 +265,7 @@ public class LiberacaoResponseAssembler {
                 .declinadoEm(card.getDeclinadoEm())
                 .declinadoPorNome(card.getDeclinadoPorNome())
                 .motivoDeclinio(card.getMotivoDeclinio())
+                .motivosReprovacao(card.getMotivosReprovacao() == null ? List.of() : card.getMotivosReprovacao())
                 .enviadoDiretoriaPorNome(card.getEnviadoDiretoriaPorNome())
                 .enviadoDiretoriaEm(card.getEnviadoDiretoriaEm())
                 .valorAprovado(valorAprovado)

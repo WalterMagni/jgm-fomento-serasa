@@ -29,6 +29,7 @@ import { CardFace } from "@/components/liberacao/LiberacaoCardItem";
 import NovoCardDialog from "@/components/liberacao/NovoCardDialog";
 import { COR_ETAPA, aguardando, confirmar } from "@/components/liberacao/formatters";
 import { useMovimento } from "@/components/liberacao/useMovimento";
+import MotivosReprovacaoDialog from "@/components/liberacao/MotivosReprovacao";
 import { useTempoReal } from "@/components/notificacoes/NotificacoesProvider";
 import { exportarLiberacao, useArquivarFinalizados, useLiberacaoCards, useLiberacaoResumo, useUsuarioAtual } from "@/hooks/useLiberacao";
 import { ETAPAS, ROTULO_ETAPA_CURTO, type EtapaLiberacao, type LiberacaoCard } from "@/types/liberacao";
@@ -80,6 +81,7 @@ export default function QuadroLiberacao() {
   const ehCelular = useEhCelular();
 
   const [manualAberto, setManualAberto] = useState(false);
+  const [motivosAberto, setMotivosAberto] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [novoAberto, setNovoAberto] = useState(false);
   const [arrastando, setArrastando] = useState<LiberacaoCard | null>(null);
@@ -203,6 +205,15 @@ export default function QuadroLiberacao() {
           >
             <Icon name="inventory_2" size={16} /> Arquivo
           </Link>
+          <button
+            type="button"
+            onClick={() => setMotivosAberto(true)}
+            title="Motivos que se marcam ao reprovar um card"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm text-slate-600 transition-colors hover:bg-white
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Icon name="block" size={16} /> Motivos
+          </button>
           <button
             type="button"
             onClick={() => setManualAberto(true)}
@@ -370,6 +381,7 @@ export default function QuadroLiberacao() {
       {/* Depois do detalhe: a confirmação de mover precisa ficar por cima dele. */}
       {movimento.dialogo}
 
+      {motivosAberto && <MotivosReprovacaoDialog podeEditar={eu?.admin ?? false} onFechar={() => setMotivosAberto(false)} />}
       {manualAberto && <ManualDrawer conteudo={MANUAL_LIBERACAO} rotulo="Manual de uso da esteira de liberação" onFechar={() => setManualAberto(false)} />}
     </div>
   );

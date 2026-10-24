@@ -58,6 +58,7 @@ public class LiberacaoController {
     private final LiberacaoService liberacaoService;
     private final LiberacaoComentarioService comentarioService;
     private final LiberacaoOrganizacaoService organizacaoService;
+    private final com.portal.serasa.application.service.liberacao.LiberacaoMotivoReprovacaoService motivoReprovacaoService;
     private final LiberacaoExportService exportService;
     private final LiberacaoResponseAssembler assembler;
     private final UsuarioLogado usuarioLogado;
@@ -159,7 +160,8 @@ public class LiberacaoController {
                         .map(decisao -> new LiberacaoService.DecisaoSacado(decisao.documento(), decisao.situacao(), decisao.valorAprovado()))
                         .toList();
         return ResponseEntity.ok(assembler.card(liberacaoService.transicionar(
-                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, request.ressalva(), autor), autor));
+                id, request.de(), request.para(), pendencias, request.observacao(), decisoes, request.ressalva(),
+                request.motivosReprovacao(), autor), autor));
     }
 
     /** O cliente declinou: o card vai direto para Finalizados, com o motivo (opcional). */
@@ -335,6 +337,38 @@ public class LiberacaoController {
         return ResponseEntity.ok(organizacaoService.etiquetas().stream()
                 .map(etiqueta -> new EtiquetaResponse(etiqueta.getId(), etiqueta.getNome(), etiqueta.getCor()))
                 .toList());
+    }
+
+    // ------------------------------------------------- motivos de reprovação
+
+    public record MotivoReprovacaoResponse(UUID id, String nome, int ordem, boolean ativo) {
+    }
+
+    public record MotivoReprovacaoRequest(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 120) String nome,
+                                          Integer ordem, Boolean ativo) {
+    }
+
+    /** Os motivos que se marcam ao reprovar. Todos leem (os desativados também, para o admin); só o admin altera. */
+    @GetMapping("/motivos-reprovacao")
+    public ResponseEntity<List<MotivoReprovacaoResponse>> motivosReprovacao() {
+        return ResponseEntity.ok(motivoReprovacaoService.listar().stream().map(LiberacaoController::motivo).toList());
+    }
+
+    @PostMapping("/motivos-reprovacao")
+    public ResponseEntity<MotivoReprovacaoResponse> criarMotivoReprovacao(@Valid @RequestBody MotivoReprovacaoRequest request) {
+        var motivo = motivoReprovacaoService.criar(request.nome(), request.ordem(), usuarioLogado.obter());
+        return ResponseEntity.status(201).body(motivo(motivo));
+    }
+
+    @PatchMapping("/motivos-reprovacao/{motivoId}")
+    public ResponseEntity<MotivoReprovacaoResponse> editarMotivoReprovacao(@PathVariable UUID motivoId,
+                                                                           @Valid @RequestBody MotivoReprovacaoRequest request) {
+        var motivo = motivoReprovacaoService.editar(motivoId, request.nome(), request.ordem(), request.ativo(), usuarioLogado.obter());
+        return ResponseEntity.ok(motivo(motivo));
+    }
+
+    private static MotivoReprovacaoResponse motivo(com.portal.serasa.infrastructure.persistence.entity.LiberacaoMotivoReprovacaoEntity motivo) {
+        return new MotivoReprovacaoResponse(motivo.getId(), motivo.getNome(), motivo.getOrdem(), Boolean.TRUE.equals(motivo.getAtivo()));
     }
 
     @PostMapping("/etiquetas")

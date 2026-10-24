@@ -173,4 +173,9 @@ public class LiberacaoCardEntity {
 
     @Column(name = "motivo_declinio", columnDefinition = "TEXT")
     private String motivoDeclinio;
+
+    /** Motivos marcados ao reprovar, pelo nome do momento. Nulo fora de Reprovado. Ver V95. */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "motivos_reprovacao", columnDefinition = "jsonb")
+    private java.util.List<String> motivosReprovacao;
 }

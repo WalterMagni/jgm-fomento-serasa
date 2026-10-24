@@ -322,8 +322,9 @@ class LiberacaoExportServiceTest {
             Row cabecalho = cards.getRow(0);
             Row linha = cards.getRow(1);
             int ultima = 39;
-            // depois de "Horas em Assinatura" vêm Taxa, TAC, Tranche, as duas colunas da Diretoria, a Empresa e as do desfecho
-            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 11));
+            // depois de "Horas em Assinatura" vêm Taxa, TAC, Tranche, as duas colunas da Diretoria, a Empresa, as do desfecho
+            // e os motivos da reprovação
+            assertThat(cabecalho.getLastCellNum()).isEqualTo((short) (ultima + 12));
             assertThat(cabecalho.getCell(ultima + 4).getStringCellValue()).isEqualTo("Horas na Diretoria");
             assertThat(cabecalho.getCell(ultima + 5).getStringCellValue()).isEqualTo("Motivo do envio à Diretoria");
             assertThat(cabecalho.getCell(ultima + 6).getStringCellValue()).isEqualTo("Empresa");
@@ -382,6 +383,23 @@ class LiberacaoExportServiceTest {
             // o card ainda não foi decidido: nada de resultado nem de 'Decidido por'
             assertThat(linha.getCell(17).getStringCellValue()).isEmpty();
             assertThat(linha.getCell(19).getStringCellValue()).isEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: card reprovado traz os motivos na última coluna, separados por vírgula; sem reprovação, vazia")
+    void shouldExportRejectionReasonsInLastColumn() throws Exception {
+        UUID reprovadoId = UUID.randomUUID();
+        UUID abertoId = UUID.randomUUID();
+        LiberacaoCardEntity reprovado = card(reprovadoId, 46L, EtapaLiberacao.REPROVADO, ResultadoLiberacao.REPROVADO);
+        reprovado.setMotivosReprovacao(List.of("Sacado sem Limite", "Praça de Pgto"));
+        when(cardRepository.findAllById(any())).thenReturn(List.of(reprovado, card(abertoId, 47L, EtapaLiberacao.COMITE, null)));
+
+        try (XSSFWorkbook planilha = exportar(reprovadoId, abertoId)) {
+            Sheet cards = planilha.getSheet("Cards");
+            assertThat(cards.getRow(0).getCell(50).getStringCellValue()).isEqualTo("Motivos da reprovação");
+            assertThat(cards.getRow(1).getCell(50).getStringCellValue()).isEqualTo("Sacado sem Limite, Praça de Pgto");
+            assertThat(cards.getRow(2).getCell(50).getStringCellValue()).isEmpty();
         }
     }
 
@@ -634,7 +652,7 @@ class LiberacaoExportServiceTest {
 
         try (XSSFWorkbook planilha = exportar(id)) {
             Row cards = planilha.getSheet("Cards").getRow(0);
-            assertThat(cards.getLastCellNum()).as("50 colunas: 0 a 49").isEqualTo((short) 50);
+            assertThat(cards.getLastCellNum()).as("51 colunas: 0 a 50").isEqualTo((short) 51);
             for (int i = 0; i < CABECALHO_AR_CARDS.length; i++) {
                 assertThat(cards.getCell(26 + i).getStringCellValue()).as("Cards, coluna %d", 26 + i).isEqualTo(CABECALHO_AR_CARDS[i]);
             }
@@ -652,7 +670,7 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AX, Sacados até U)")
+    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AY, Sacados até U)")
     void shouldExtendAutoFilterToArColumns() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -662,7 +680,7 @@ class LiberacaoExportServiceTest {
         try (XSSFWorkbook planilha = exportar(id)) {
             XSSFSheet cards = planilha.getSheet("Cards");
             XSSFSheet sacados = planilha.getSheet("Sacados");
-            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AX2");
+            assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AY2");
             assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:U2");
         }
     }

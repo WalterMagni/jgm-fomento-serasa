@@ -66,6 +66,8 @@ public record LiberacaoCardResponse(
         LocalDateTime declinadoEm,
         String declinadoPorNome,
         String motivoDeclinio,
+        /** Motivos marcados ao reprovar, na ordem do catálogo. Vazio fora de Reprovado. */
+        List<String> motivosReprovacao,
         /** Aprovados inteiros mais o valor aprovado dos parciais; nulo sem nenhuma decisão. */
         BigDecimal valorAprovado,
         /** O mais recente entre edição, evento e comentário: base de "ordenar por atividade". */
