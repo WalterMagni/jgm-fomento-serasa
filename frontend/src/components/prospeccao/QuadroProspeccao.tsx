@@ -268,7 +268,9 @@ export default function QuadroProspeccao() {
             ? { tipo: "aceite", resposta: RESPOSTA_DO_DESTINO[destino] ?? "ACEITO" }
             : acao === "resultado"
               ? { tipo: "resultado", resultado: RESULTADO_DO_DESTINO[destino] ?? "APROVADO" }
-              : { tipo: "contrato" },
+              : acao === "cancelar"
+                ? { tipo: "cancelar" }
+                : { tipo: "contrato" },
       );
       setArrastesComAcao(n => n + 1);
       abrir(card.id);

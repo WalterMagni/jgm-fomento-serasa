@@ -114,10 +114,15 @@ export function rotuloAcao(de: EstagioProspeccao, para: EstagioProspeccao) {
 }
 
 /**
- * Passagem que só acontece pela ação própria — decisão ou resposta do cliente. Espelha
+ * Passagem que só acontece pela ação própria — decisão, resposta do cliente, cancelamento. Espelha
  * {@code EstagioProspeccao.acaoPropria} no servidor, que recusa a troca simples nesses casos.
  */
-export type AcaoPropria = "decidir" | "aceite" | "comite" | "resultado" | "concluir";
+export type AcaoPropria = "decidir" | "aceite" | "comite" | "resultado" | "concluir" | "cancelar";
+
+/** Do Aprovado ao Contrato o card pode ser cancelado e cair em Reprovado. Espelha {@code cancelavel()}. */
+export function cancelavel(estagio: EstagioProspeccao) {
+  return (["APROVADO", "DOCUMENTACAO", "COMITE", "AGUARDANDO_ACEITE", "CONTRATO"] as EstagioProspeccao[]).includes(estagio);
+}
 
 export function acaoPropria(de: EstagioProspeccao, para: EstagioProspeccao): AcaoPropria | null {
   if (de === "EM_ANALISE" && (para === "APROVADO" || para === "REPROVADO")) return "decidir";
@@ -125,6 +130,7 @@ export function acaoPropria(de: EstagioProspeccao, para: EstagioProspeccao): Aca
   if (para === "COMITE") return "comite";
   if (de === "COMITE") return "resultado";
   if (de === "CONTRATO" && para === "HABILITADO") return "concluir";
+  if (para === "REPROVADO" && cancelavel(de)) return "cancelar";
   return null;
 }
 

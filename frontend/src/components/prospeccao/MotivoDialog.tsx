@@ -21,8 +21,13 @@ export default function MotivoDialog({
   enviando,
 }: {
   destino: EstagioProspeccao;
-  /** motivo: enum + observação (obrigatória em Outro). texto: só observação, obrigatória ou não. */
-  modo: { tipo: "motivo" } | { tipo: "texto"; titulo: string; rotulo: string; obrigatorio: boolean; botao: string };
+  /**
+   * motivo: enum + observação (obrigatória em Outro), com título, botão e aviso próprios quando a
+   * passagem não é a simples (o cancelamento). texto: só observação, obrigatória ou não.
+   */
+  modo:
+    | { tipo: "motivo"; titulo?: string; botao?: string; aviso?: string }
+    | { tipo: "texto"; titulo: string; rotulo: string; obrigatorio: boolean; botao: string };
   onConfirmar: (dados: { motivoRecusa?: MotivoRecusa; observacao?: string }) => void;
   onFechar: () => void;
   enviando: boolean;
@@ -43,19 +48,20 @@ export default function MotivoDialog({
 
   return (
     <Dialogo
-      titulo={modo.tipo === "motivo" ? `${ROTULO_ESTAGIO[destino]}: qual o motivo?` : modo.titulo}
+      titulo={modo.tipo === "motivo" ? (modo.titulo ?? `${ROTULO_ESTAGIO[destino]}: qual o motivo?`) : modo.titulo}
       onFechar={onFechar}
       largura="sm"
       rodape={
         <>
           <button type="button" onClick={onFechar} className={BOTAO_SECUNDARIO}>Cancelar</button>
           <button type="button" onClick={confirmar} disabled={!valido || enviando} className={BOTAO_PRIMARIO}>
-            {enviando ? "Salvando…" : modo.tipo === "motivo" ? ROTULO_ESTAGIO[destino] : modo.botao}
+            {enviando ? "Salvando…" : modo.tipo === "motivo" ? (modo.botao ?? ROTULO_ESTAGIO[destino]) : modo.botao}
           </button>
         </>
       }
     >
       <div className="space-y-4 px-5 py-4">
+        {modo.tipo === "motivo" && modo.aviso && <p className="text-sm text-slate-600 dark:text-slate-300">{modo.aviso}</p>}
         {modo.tipo === "motivo" && (
           <fieldset>
             <legend className={ROTULO}>Motivo</legend>

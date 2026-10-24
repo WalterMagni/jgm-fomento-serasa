@@ -52,6 +52,7 @@ class ProspeccaoDecisaoServiceTest {
     @Mock private ProspeccaoAceiteJpaRepository aceiteRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher acontecimentos;
     @Mock private ProspeccaoRodadaComite rodadaComite;
+    @Mock private com.portal.serasa.infrastructure.persistence.repository.ProspeccaoParecerJpaRepository parecerRepository;
 
     private final ProspeccaoAutorizacao autorizacao = new ProspeccaoAutorizacao();
     private ProspeccaoDecisaoService service;
@@ -60,7 +61,7 @@ class ProspeccaoDecisaoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ProspeccaoDecisaoService(prospeccaoService, autorizacao, decisaoRepository, condicaoRepository, aceiteRepository, acontecimentos, rodadaComite);
+        service = new ProspeccaoDecisaoService(prospeccaoService, autorizacao, decisaoRepository, condicaoRepository, aceiteRepository, acontecimentos, rodadaComite, parecerRepository);
         dona = UserEntity.builder().id(UUID.randomUUID()).name("Andressa").role("ROLE_USER").build();
         outra = UserEntity.builder().id(UUID.randomUUID()).name("Mychelly").role("ROLE_USER").build();
         when(decisaoRepository.save(any())).thenAnswer(inv -> {
@@ -81,6 +82,83 @@ class ProspeccaoDecisaoServiceTest {
                 .build();
         when(prospeccaoService.buscar(card.getId())).thenReturn(card);
         return card;
+    }
+
+    // ------------------------------------------------------------ cancelamento
+
+    @Test
+    @DisplayName("cancelar na documentação: cai em Reprovado com o motivo, a timeline diz de onde e o aviso sai")
+    void shouldCancelApprovedCard() {
+        ProspeccaoEntity card = card(EstagioProspeccao.DOCUMENTACAO);
+        when(prospeccaoService.mover(any(), any(), any(), any(), any(), any())).thenReturn(card);
+
+        service.cancelar(card.getId(), MotivoRecusa.RECUPERACAO_JUDICIAL, "  Pediu RJ ontem  ", dona);
+
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.RECUPERACAO_JUDICIAL, "Pediu RJ ontem",
+                "Reprovado depois da aprovação, em Documentação — Recuperação judicial: Pediu RJ ontem", dona);
+        verify(parecerRepository, never()).apagarAguardando(any(), any());
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(acontecimentos).publishEvent(evento.capture());
+        assertThat(evento.getValue()).isInstanceOfSatisfying(ProspeccaoAcontecimento.Cancelado.class, cancelado -> {
+            assertThat(cancelado.de()).isEqualTo(EstagioProspeccao.DOCUMENTACAO);
+            assertThat(cancelado.comite()).isEmpty();
+        });
+    }
+
+    @Test
+    @DisplayName("cancelar no comitê: os pareceres que faltavam deixam de ser esperados e os membros da rodada são avisados")
+    void shouldCancelDuringComiteClearingPendingOpinions() {
+        ProspeccaoEntity card = card(EstagioProspeccao.COMITE);
+        card.setRodadaComite(2);
+        UUID membro = UUID.randomUUID();
+        when(parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(card.getId(), 2)).thenReturn(List.of(
+                com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity.builder().usuarioId(membro).build()));
+        when(prospeccaoService.mover(any(), any(), any(), any(), any(), any())).thenReturn(card);
+
+        service.cancelar(card.getId(), MotivoRecusa.OUTRO, "Cliente perdeu o contrato principal", dona);
+
+        verify(parecerRepository).apagarAguardando(card.getId(), 2);
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(acontecimentos).publishEvent(evento.capture());
+        assertThat(evento.getValue()).isInstanceOfSatisfying(ProspeccaoAcontecimento.Cancelado.class,
+                cancelado -> assertThat(cancelado.comite()).containsExactly(membro));
+    }
+
+    @Test
+    @DisplayName("cancelar: só a dona (ou o admin); antes da aprovação, nos desfechos ou sem motivo é recusado")
+    void shouldRefuseCancellationOutsideTheRules() {
+        ProspeccaoEntity aprovado = card(EstagioProspeccao.APROVADO);
+        assertThatThrownBy(() -> service.cancelar(aprovado.getId(), MotivoRecusa.SEGMENTO, null, outra))
+                .isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> service.cancelar(aprovado.getId(), null, null, dona))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Informe o motivo do cancelamento.");
+
+        ProspeccaoEntity emAnalise = card(EstagioProspeccao.EM_ANALISE);
+        assertThatThrownBy(() -> service.cancelar(emAnalise.getId(), MotivoRecusa.SEGMENTO, null, dona))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessage("Antes da aprovação, quem reprova é a decisão da análise.");
+
+        ProspeccaoEntity reprovado = card(EstagioProspeccao.REPROVADO);
+        assertThatThrownBy(() -> service.cancelar(reprovado.getId(), MotivoRecusa.SEGMENTO, null, dona))
+                .isInstanceOf(TransicaoInvalidaException.class)
+                .hasMessage("Card encerrado: não há o que cancelar.");
+
+        verify(prospeccaoService, never()).mover(any(), any(), any(), any(), any(), any());
+        verify(acontecimentos, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("admin cancela card de outra analista")
+    void shouldLetAdminCancel() {
+        ProspeccaoEntity card = card(EstagioProspeccao.CONTRATO);
+        UserEntity admin = UserEntity.builder().id(UUID.randomUUID()).name("Admin").role("ADMIN").build();
+        when(prospeccaoService.mover(any(), any(), any(), any(), any(), any())).thenReturn(card);
+
+        service.cancelar(card.getId(), MotivoRecusa.DECISAO_DIRETORIA, null, admin);
+
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.DECISAO_DIRETORIA, null,
+                "Reprovado depois da aprovação, em Contrato — Decisão da diretoria", admin);
     }
 
     private ComandoDecisao aprovacao(String limite, Condicao... condicoes) {

@@ -93,6 +93,33 @@ class DiasUteisTest {
     }
 
     @Test
+    @DisplayName("minutosUteisEntre: conta ao minuto, sem arredondar as pontas para a hora cheia")
+    void shouldCountExactMinutes() {
+        java.time.LocalDateTime inicio = java.time.LocalDateTime.of(2026, 10, 22, 17, 40);
+        // meia hora não vira duas horas (a das 17h e a das 18h inteiras, como antes)
+        assertThat(DiasUteis.minutosUteisEntre(inicio, inicio.plusMinutes(30))).isEqualTo(30);
+        assertThat(DiasUteis.horasUteisEntre(inicio, inicio.plusMinutes(30))).isZero();
+        assertThat(DiasUteis.horasUteisEntre(inicio, inicio.plusHours(24))).isEqualTo(24);
+    }
+
+    @Test
+    @DisplayName("caso do time: card das 17h de quinta, às 12h de sexta tem 19h úteis — longe das 24h")
+    void shouldNotReachTwentyFourHoursByNextNoon() {
+        java.time.LocalDateTime quinta17h = java.time.LocalDateTime.of(2026, 10, 22, 17, 0);
+        java.time.LocalDateTime sexta12h = java.time.LocalDateTime.of(2026, 10, 23, 12, 0);
+        assertThat(DiasUteis.minutosUteisEntre(quinta17h, sexta12h)).isEqualTo(19 * 60);
+    }
+
+    @Test
+    @DisplayName("card das 17h de sexta completa 24h úteis só às 17h de segunda: o fim de semana não conta")
+    void shouldCrossWeekendWhenCountingTwentyFourHours() {
+        java.time.LocalDateTime sexta17h = java.time.LocalDateTime.of(2026, 10, 23, 17, 0);
+        java.time.LocalDateTime segunda17h = java.time.LocalDateTime.of(2026, 10, 26, 17, 0);
+        assertThat(DiasUteis.minutosUteisEntre(sexta17h, segunda17h)).isEqualTo(24 * 60);
+        assertThat(DiasUteis.minutosUteisEntre(sexta17h, segunda17h.minusMinutes(1))).isLessThan(24 * 60);
+    }
+
+    @Test
     @DisplayName("entre: data final anterior à inicial não é negativa")
     void shouldClampInvertedRange() {
         assertThat(DiasUteis.entre(LocalDate.of(2026, 9, 21), LocalDate.of(2026, 9, 1))).isZero();

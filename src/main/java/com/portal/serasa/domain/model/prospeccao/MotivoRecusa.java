@@ -16,5 +16,18 @@ public enum MotivoRecusa {
     RECUPERACAO_JUDICIAL,
     DECISAO_DIRETORIA,
     /** Exige observação preenchida — é a válvula de escape, não o default. */
-    OUTRO
+    OUTRO;
+
+    /** Como o time lê o motivo — o mesmo texto da tela. */
+    public String rotulo() {
+        return switch (this) {
+            case QUANTIDADE_DE_RESTRICOES -> "Quantidade de restrições";
+            case SEGMENTO -> "Segmento";
+            case PEFIN_COM_FUNDO -> "Pefin com fundo";
+            case PROCESSO_COM_FIDC -> "Processo com FIDC";
+            case RECUPERACAO_JUDICIAL -> "Recuperação judicial";
+            case DECISAO_DIRETORIA -> "Decisão da diretoria";
+            case OUTRO -> "Outro";
+        };
+    }
 }

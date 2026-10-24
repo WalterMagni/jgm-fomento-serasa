@@ -75,6 +75,11 @@ public sealed interface ProspeccaoAcontecimento {
     record Concluido(ProspeccaoEntity card, UserEntity autor) implements ProspeccaoAcontecimento {
     }
 
+    /** Cancelado depois da aprovação: quem colhia documento ou dava parecer para de esperar. */
+    record Cancelado(ProspeccaoEntity card, com.portal.serasa.domain.model.prospeccao.EstagioProspeccao de,
+                     java.util.List<UUID> comite, UserEntity autor, String trecho) implements ProspeccaoAcontecimento {
+    }
+
     /** Mudou algo que não pede aviso a ninguém, mas o quadro dos outros precisa atualizar. */
     record Alterado(ProspeccaoEntity card, UserEntity autor) implements ProspeccaoAcontecimento {
     }

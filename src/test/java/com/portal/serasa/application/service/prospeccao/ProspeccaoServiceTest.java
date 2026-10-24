@@ -424,6 +424,20 @@ class ProspeccaoServiceTest {
     }
 
     @Test
+    @DisplayName("prazo de Nova é 24 horas úteis: recém-chegado não está atrasado; parado há duas semanas, está")
+    void shouldGiveNewCardsTwentyFourBusinessHours() {
+        ProspeccaoEntity novo = card(EstagioProspeccao.NOVA);
+        assertThat(novo.getPrazoEstagioHoras()).isEqualTo(24);
+        novo.setEstagioDesde(LocalDateTime.now().minusMinutes(5));
+        assertThat(service.slaEstourado(novo)).isFalse();
+        assertThat(service.slaEmAtencao(novo)).isFalse();
+
+        // Duas semanas têm dez dias úteis, por mais feriados que caiam no meio.
+        novo.setEstagioDesde(LocalDateTime.now().minusDays(14));
+        assertThat(service.slaEstourado(novo)).isTrue();
+    }
+
+    @Test
     @DisplayName("prazo: tempo com pendência aberta não conta, nem a pausa fechada nem a corrente")
     void shouldDiscountPausedHours() {
         // Segunda-feira 9h até quarta 9h: 48 horas úteis corridas no estágio.

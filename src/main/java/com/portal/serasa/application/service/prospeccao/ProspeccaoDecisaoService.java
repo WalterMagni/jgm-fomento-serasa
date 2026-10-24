@@ -51,6 +51,7 @@ public class ProspeccaoDecisaoService {
     private final ProspeccaoAceiteJpaRepository aceiteRepository;
     private final org.springframework.context.ApplicationEventPublisher acontecimentos;
     private final ProspeccaoRodadaComite rodadaComite;
+    private final com.portal.serasa.infrastructure.persistence.repository.ProspeccaoParecerJpaRepository parecerRepository;
 
     /** Condição pedida na decisão: produto do catálogo e valor. */
     public record Condicao(String produto, BigDecimal valor) {
@@ -104,6 +105,43 @@ public class ProspeccaoDecisaoService {
             acontecimentos.publishEvent(new ProspeccaoAcontecimento.AprovadoNaAnalise(atualizado, autor, resumo));
         }
         return completa;
+    }
+
+    /**
+     * Cancela um card já aprovado: o cliente teve um problema que impede de seguir (pedido do time
+     * em 2026-10-24). Vale do Aprovado ao Contrato, só para a dona do card ou o admin, e cai em
+     * Reprovado com o motivo da lista — reabre como qualquer desfecho. A timeline conta de qual
+     * estágio o card caiu; no comitê, os pareceres que faltavam deixam de ser esperados.
+     */
+    @Transactional
+    public ProspeccaoEntity cancelar(UUID id, MotivoRecusa motivo, String observacao, UserEntity autor) {
+        ProspeccaoEntity card = prospeccaoService.buscar(id);
+        autorizacao.exigirDona(card, autor);
+        EstagioProspeccao origem = card.getEstagio();
+        if (!origem.cancelavel()) {
+            throw new TransicaoInvalidaException(origem.terminal()
+                    ? "Card encerrado: não há o que cancelar."
+                    : "Antes da aprovação, quem reprova é a decisão da análise.");
+        }
+        if (motivo == null) {
+            throw new IllegalArgumentException("Informe o motivo do cancelamento.");
+        }
+        String texto = limpar(observacao);
+        String historico = "Reprovado depois da aprovação, em " + ProspeccaoExportService.rotulo(origem)
+                + " — " + motivo.rotulo() + (texto == null ? "" : ": " + texto);
+        List<UUID> comite = origem == EstagioProspeccao.COMITE
+                ? parecerRepository.findByProspeccaoIdAndRodadaOrderByCriadoEmAsc(id, card.getRodadaComite()).stream()
+                        .map(com.portal.serasa.infrastructure.persistence.entity.ProspeccaoParecerEntity::getUsuarioId)
+                        .filter(java.util.Objects::nonNull)
+                        .toList()
+                : List.of();
+
+        ProspeccaoEntity movido = prospeccaoService.mover(id, EstagioProspeccao.REPROVADO, motivo, texto, historico, autor);
+        if (origem == EstagioProspeccao.COMITE) {
+            parecerRepository.apagarAguardando(id, card.getRodadaComite());
+        }
+        acontecimentos.publishEvent(new ProspeccaoAcontecimento.Cancelado(movido, origem, comite, autor, historico));
+        return movido;
     }
 
     /**

@@ -49,7 +49,6 @@ public class ClientProfileService {
     private final ApiUsageLogService apiUsageLogService;
     private final CompanyShareholderService companyShareholderService;
     private final EmailService emailService;
-    private final com.portal.serasa.application.service.prospeccao.ProspeccaoEntradaAutomatica prospeccaoEntradaAutomatica;
     private final com.portal.serasa.application.service.empresa.EmpresaNotaService empresaNotaService;
 
     @Value("${billing.serasa.cost-per-query:0.00}")
@@ -87,9 +86,9 @@ public class ClientProfileService {
             emailService.notificarCedenteAsync(saved);
         }
 
-        // Visão cedente SIM também abre card na esteira de prospecção, em NOVA. O sinal é
-        // calculado, não é veredito: quem aprova ou reprova continua sendo a analista.
-        prospeccaoEntradaAutomatica.aoSalvarAnalise(saved);
+        // Visão cedente SIM não abre card na esteira de prospecção (pedido do time em 2026-10-24):
+        // atualizar a consulta fazia o card voltar. Quem quer o card traz pela esteira, em
+        // "Puxar visão cedente".
 
         replicateSerasaAnalysisToRegisteredGroup(documentNumber, saved);
 

@@ -160,6 +160,16 @@ public class ProspeccaoNotificador {
             if (card.getComercialId() != null) {
                 novas.add(new Nova(card.getComercialId(), TipoNotificacao.DECISAO, empresa + " habilitada", resumo(card, null), link));
             }
+        } else if (acontecimento instanceof ProspeccaoAcontecimento.Cancelado cancelado) {
+            // O comercial para de colher documento ou aceite; a dona fica sabendo se foi o admin;
+            // no comitê, os membros da rodada param de esperar o próprio parecer.
+            List<UUID> interessados = new ArrayList<>();
+            interessados.add(card.getComercialId());
+            interessados.add(card.getAnalistaId());
+            interessados.addAll(cancelado.comite());
+            interessados.stream().filter(Objects::nonNull).distinct()
+                    .forEach(id -> novas.add(new Nova(id, TipoNotificacao.DECISAO,
+                            empresa + " reprovada depois da aprovação", resumo(card, acontecimento.trecho()), link)));
         } else if (acontecimento instanceof ProspeccaoAcontecimento.Comentado comentado && !comentado.edicao()) {
             for (UUID interessado : interessados(card)) {
                 novas.add(new Nova(interessado, TipoNotificacao.COMENTARIO, autor + " comentou em " + empresa,

@@ -534,6 +534,27 @@ export function useReabrirProspeccao() {
   });
 }
 
+/** Reprova card já aprovado (o cancelamento): do Aprovado ao Contrato, com o motivo. Só a dona ou o admin. */
+export function useCancelarProspeccao() {
+  const invalidar = useInvalidar();
+  return useMutation<Prospeccao, Error, { id: string; motivo: MotivoRecusa; observacao?: string }>({
+    mutationFn: async ({ id, motivo, observacao }) => {
+      const res = await fetch(`${API_BASE_URL}/prospeccao/${id}/cancelamento`, {
+        method: "POST",
+        headers: getAuthHeaders("application/json"),
+        body: JSON.stringify({ motivo, observacao }),
+      });
+      if (!res.ok) throw new Error(await extractErrorMessage(res, "Falha ao reprovar o card"));
+      return res.json();
+    },
+    onSuccess: card => {
+      invalidar(card.id);
+      toast.success("Card reprovado");
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 export function useRegistrarEvento() {
   const invalidar = useInvalidar();
   return useMutation<unknown, Error, { id: string; canal?: CanalContato | null; texto: string }>({

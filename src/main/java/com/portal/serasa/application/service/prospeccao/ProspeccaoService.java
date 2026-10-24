@@ -86,7 +86,7 @@ public class ProspeccaoService {
     }
 
     /**
-     * Entrada automática: uma análise resultou {@code visaoCedente = SIM}.
+     * Entrada pela visão cedente: alguém trouxe uma análise com {@code visaoCedente = SIM}.
      *
      * <p>O sinal é calculado a partir do Serasa, não é veredito humano — por isso ele só cria o
      * card em NOVA, e quem aprova ou reprova continua sendo a analista. Se já houver card
@@ -186,6 +186,16 @@ public class ProspeccaoService {
     @Transactional
     ProspeccaoEntity mover(UUID id, EstagioProspeccao destino, MotivoRecusa motivo,
                            String observacao, UserEntity autor) {
+        return mover(id, destino, motivo, observacao, observacao, autor);
+    }
+
+    /**
+     * Mesma troca, com o texto da timeline diferente da observação que fica no card — o
+     * cancelamento conta de onde o card caiu.
+     */
+    @Transactional
+    ProspeccaoEntity mover(UUID id, EstagioProspeccao destino, MotivoRecusa motivo,
+                           String observacao, String historico, UserEntity autor) {
         ProspeccaoEntity card = buscar(id);
         EstagioProspeccao origem = card.getEstagio();
 
@@ -217,7 +227,7 @@ public class ProspeccaoService {
         card.setClosedAt(destino.terminal() ? LocalDateTime.now() : null);
         prospeccaoRepository.save(card);
 
-        registrarEvento(card, TipoEventoProspeccao.TRANSICAO, origem, destino, null, observacao, autor);
+        registrarEvento(card, TipoEventoProspeccao.TRANSICAO, origem, destino, null, historico, autor);
 
         // Card aberto antes de o QSA ser carregado nasceu sem bloco de sócio. Ao ser aprovado (o
         // comercial começa a juntar documentos) e ao entrar na documentação, o checklist é
@@ -384,13 +394,18 @@ public class ProspeccaoService {
      * agora.</p>
      */
     public long horasNoEstagio(ProspeccaoEntity card) {
+        return minutosNoEstagio(card) / 60;
+    }
+
+    /** O mesmo, ao minuto: é com ele que o prazo estoura, e não com a hora arredondada. */
+    long minutosNoEstagio(ProspeccaoEntity card) {
         LocalDateTime agora = LocalDateTime.now();
-        long total = DiasUteis.horasUteisEntre(card.getEstagioDesde(), agora);
-        long pausadas = card.getHorasPausadas() == null ? 0 : card.getHorasPausadas();
+        long total = DiasUteis.minutosUteisEntre(card.getEstagioDesde(), agora);
+        long pausados = (card.getHorasPausadas() == null ? 0 : card.getHorasPausadas()) * 60L;
         if (card.getPausadoDesde() != null) {
-            pausadas += DiasUteis.horasUteisEntre(card.getPausadoDesde(), agora);
+            pausados += DiasUteis.minutosUteisEntre(card.getPausadoDesde(), agora);
         }
-        return Math.max(0, total - pausadas);
+        return Math.max(0, total - pausados);
     }
 
     /** Começa a pausa do prazo, se ainda não estiver pausado. */
@@ -413,7 +428,7 @@ public class ProspeccaoService {
 
     /** Estourou o prazo do estágio. Estágio sem prazo, como a coleta de documentos, nunca estoura. */
     public boolean slaEstourado(ProspeccaoEntity card) {
-        return card.getEstagio().contaSla() && horasNoEstagio(card) > card.getPrazoEstagioHoras();
+        return card.getEstagio().contaSla() && minutosNoEstagio(card) > card.getPrazoEstagioHoras() * 60L;
     }
 
     /** Perto de estourar: 70% do prazo, que é o ponto do amarelo na tela. */
@@ -421,7 +436,7 @@ public class ProspeccaoService {
         if (!card.getEstagio().contaSla() || slaEstourado(card)) {
             return false;
         }
-        return horasNoEstagio(card) >= Math.ceil(card.getPrazoEstagioHoras() * 0.7);
+        return minutosNoEstagio(card) >= Math.ceil(card.getPrazoEstagioHoras() * 60 * 0.7);
     }
 
     /** Dias corridos desde a última cobrança, ou desde a entrada no estágio se nunca houve. */

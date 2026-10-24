@@ -102,6 +102,24 @@ class ProspeccaoNotificadorTest {
     }
 
     @Test
+    @DisplayName("cancelado depois da aprovação avisa o comercial, a dona e os membros do comitê da rodada, cada um uma vez")
+    void shouldNotifyEveryoneWaitingOnCancellation() {
+        UUID comercial = UUID.randomUUID();
+        UUID membro = UUID.randomUUID();
+        card.setComercialId(comercial);
+
+        List<Nova> novas = notificador.destinatarios(new ProspeccaoAcontecimento.Cancelado(card, EstagioProspeccao.COMITE,
+                List.of(membro, dona.getId()), autor, "Reprovado depois da aprovação, em Comitê — Segmento"));
+
+        assertThat(novas).extracting(Nova::destinatarioId).containsExactly(comercial, dona.getId(), membro);
+        assertThat(novas).allSatisfy(n -> {
+            assertThat(n.tipo()).isEqualTo(TipoNotificacao.DECISAO);
+            assertThat(n.titulo()).isEqualTo("ACME LTDA reprovada depois da aprovação");
+            assertThat(n.resumo()).contains("Segmento");
+        });
+    }
+
+    @Test
     @DisplayName("comentário: menção vem antes, e avisa a dona e quem já comentou")
     void shouldPutMentionFirstOnComment() {
         UUID marcada = UUID.randomUUID();

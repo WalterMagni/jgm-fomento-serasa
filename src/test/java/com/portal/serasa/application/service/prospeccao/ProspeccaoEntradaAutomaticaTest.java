@@ -44,42 +44,13 @@ class ProspeccaoEntradaAutomaticaTest {
     }
 
     @Test
-    @DisplayName("visão cedente SIM abre card em triagem")
-    void shouldOpenCardWhenAssignorProfileDetected() {
-        when(prospeccaoService.criarPorAnalise(any(), any(), any()))
-                .thenReturn(ProspeccaoEntity.builder().id(UUID.randomUUID()).build());
-
-        entrada.aoSalvarAnalise(analise("SIM", "ACME LTDA"));
-
-        verify(prospeccaoService).criarPorAnalise("11222333000181", "ACME LTDA", 42L);
-    }
-
-    @Test
-    @DisplayName("visão cedente NAO ou PENDENTE não abre nada")
-    void shouldIgnoreNonAssignor() {
-        entrada.aoSalvarAnalise(analise("NAO", "ACME LTDA"));
-        entrada.aoSalvarAnalise(analise("PENDENTE", "ACME LTDA"));
-        entrada.aoSalvarAnalise(null);
-
-        verify(prospeccaoService, never()).criarPorAnalise(any(), any(), any());
-    }
-
-    @Test
     @DisplayName("sem razão social, o CNPJ vira o nome do card em vez de nulo")
     void shouldFallBackToCnpjAsName() {
-        entrada.aoSalvarAnalise(analise("SIM", null));
+        when(creditAnalysisRepository.findLatestByVisaoCedente("SIM")).thenReturn(List.of(analise("SIM", null)));
+
+        entrada.trazerEscolhidas(List.of("11222333000181"));
 
         verify(prospeccaoService).criarPorAnalise("11222333000181", "11222333000181", 42L);
-    }
-
-    @Test
-    @DisplayName("falha ao abrir card não derruba o enriquecimento — a consulta ao Serasa é paga")
-    void shouldSwallowFailureToProtectPaidQuery() {
-        when(prospeccaoService.criarPorAnalise(any(), any(), any()))
-                .thenThrow(new IllegalArgumentException("CNPJ deve ter 14 dígitos"));
-
-        // Sem exceção propagada: perder o card é recuperável pelo backfill, perder a análise não.
-        entrada.aoSalvarAnalise(analise("SIM", "ACME LTDA"));
     }
 
     @Test

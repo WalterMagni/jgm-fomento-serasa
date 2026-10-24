@@ -22,28 +22,43 @@ public final class DiasUteis {
     }
 
     /**
-     * Horas úteis decorridas entre dois instantes.
+     * Horas úteis inteiras decorridas entre dois instantes.
      *
-     * <p>O time mede a análise em horas, não em dias: doze horas para alguém pegar, vinte e quatro
-     * para decidir. Conta-se a hora que cai em dia útil — fim de semana e feriado nacional são
-     * pulados por inteiro. Não se modela expediente das nove às dezoito: seria preciso acertar
-     * horário de almoço, plantão e exceção, e errar isso deixaria o prazo mais confuso do que
-     * ausente.</p>
+     * <p>O time mede a análise em horas, não em dias: vinte e quatro horas para alguém pegar,
+     * vinte e quatro para decidir. Conta-se o tempo que cai em dia útil — fim de semana e feriado
+     * nacional são pulados por inteiro. Não se modela expediente das nove às dezoito: seria
+     * preciso acertar horário de almoço, plantão e exceção, e errar isso deixaria o prazo mais
+     * confuso do que ausente.</p>
      */
     public static long horasUteisEntre(java.time.LocalDateTime inicio, java.time.LocalDateTime fim) {
+        return minutosUteisEntre(inicio, fim) / 60;
+    }
+
+    /**
+     * Minutos úteis decorridos entre dois instantes.
+     *
+     * <p>Conta ao minuto, e não hora cheia: arredondar as pontas para a hora inteira fazia um card
+     * das 17h40 ganhar a hora das 17h toda, e o atraso aparecia antes das vinte e quatro horas.</p>
+     */
+    public static long minutosUteisEntre(java.time.LocalDateTime inicio, java.time.LocalDateTime fim) {
         if (inicio == null || fim == null || !fim.isAfter(inicio)) {
             return 0;
         }
         Set<LocalDate> feriados = feriadosNacionais(inicio.getYear(), fim.getYear());
-        long horas = 0;
-        java.time.LocalDateTime cursor = inicio.truncatedTo(java.time.temporal.ChronoUnit.HOURS);
-        while (cursor.isBefore(fim)) {
-            if (util(cursor.toLocalDate(), feriados)) {
-                horas++;
+        long minutos = 0;
+        for (LocalDate dia = inicio.toLocalDate(); !dia.isAfter(fim.toLocalDate()); dia = dia.plusDays(1)) {
+            if (!util(dia, feriados)) {
+                continue;
             }
-            cursor = cursor.plusHours(1);
+            java.time.LocalDateTime abre = dia.atStartOfDay();
+            java.time.LocalDateTime fecha = dia.plusDays(1).atStartOfDay();
+            java.time.LocalDateTime de = inicio.isAfter(abre) ? inicio : abre;
+            java.time.LocalDateTime ate = fim.isBefore(fecha) ? fim : fecha;
+            if (ate.isAfter(de)) {
+                minutos += java.time.Duration.between(de, ate).toMinutes();
+            }
         }
-        return horas;
+        return minutos;
     }
 
     /**

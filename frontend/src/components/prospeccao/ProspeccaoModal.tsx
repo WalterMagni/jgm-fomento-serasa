@@ -15,6 +15,7 @@ import {
 import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import {
   useAssumirProspeccao,
+  useCancelarProspeccao,
   useEnviarComite,
   useExcluirProspeccoes,
   useProspeccaoDetalhe,
@@ -38,7 +39,7 @@ import PendenciasBloco from "./PendenciasBloco";
 import ProspeccaoTimeline from "./ProspeccaoTimeline";
 import ResumoAba from "./ResumoAba";
 import { TOTAL_CAMPOS_COMERCIAIS, camposPreenchidos } from "./DadosComerciaisForm";
-import { CLASSE_BADGE_SEMAFORO, acaoPropria, confirmarExclusao, ehAvanco, formatCnpj, rotuloAcao, semaforoDe, textoPrazo } from "./formatters";
+import { CLASSE_BADGE_SEMAFORO, acaoPropria, cancelavel, confirmarExclusao, ehAvanco, formatCnpj, rotuloAcao, semaforoDe, textoPrazo } from "./formatters";
 
 type Aba = "resumo" | "dados" | "decisao" | "documentos" | "comite" | "contrato" | "historico";
 
@@ -47,7 +48,8 @@ export type AcaoAberta =
   | { tipo: "decidir" }
   | { tipo: "aceite"; resposta: RespostaCliente }
   | { tipo: "resultado"; resultado: ResultadoComite }
-  | { tipo: "contrato" };
+  | { tipo: "contrato" }
+  | { tipo: "cancelar" };
 
 /** Resultado do comitê que cada destino representa — para o arraste abrir já marcado. */
 export const RESULTADO_DO_DESTINO: Partial<Record<EstagioProspeccao, ResultadoComite>> = {
@@ -67,7 +69,8 @@ export const RESPOSTA_DO_DESTINO: Partial<Record<EstagioProspeccao, RespostaClie
 type Pergunta =
   | { destino: EstagioProspeccao; modo: "motivo" }
   | { destino: EstagioProspeccao; modo: "recusa" }
-  | { modo: "reabrir" };
+  | { modo: "reabrir" }
+  | { modo: "cancelar" };
 
 const BOTAO_ACAO =
   "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors " +
@@ -99,14 +102,18 @@ export default function ProspeccaoModal({
   const reabrir = useReabrirProspeccao();
   const excluir = useExcluirProspeccoes();
   const enviarComite = useEnviarComite();
+  const cancelar = useCancelarProspeccao();
   const { data: eu } = useUsuarioAtual();
   const [aba, setAba] = useState<Aba>(acaoInicial?.tipo === "contrato" ? "contrato" : "resumo");
-  const [pergunta, setPergunta] = useState<Pergunta | null>(null);
-  const [acao, setAcao] = useState<AcaoAberta | null>(acaoInicial?.tipo === "contrato" ? null : acaoInicial);
+  // Arrastar para Reprovado depois da aprovação já abre a pergunta do cancelamento.
+  const [pergunta, setPergunta] = useState<Pergunta | null>(acaoInicial?.tipo === "cancelar" ? { modo: "cancelar" } : null);
+  const [acao, setAcao] = useState<AcaoAberta | null>(
+    acaoInicial?.tipo === "contrato" || acaoInicial?.tipo === "cancelar" ? null : acaoInicial,
+  );
   const [abrindoPendencia, setAbrindoPendencia] = useState(false);
 
   const card = data?.card;
-  const ocupado = transicionar.isPending || assumir.isPending || reabrir.isPending || enviarComite.isPending;
+  const ocupado = transicionar.isPending || assumir.isPending || reabrir.isPending || enviarComite.isPending || cancelar.isPending;
 
   function mover(destino: EstagioProspeccao) {
     if (destino === "REPROVADO" || destino === "INERTE") {
@@ -125,6 +132,10 @@ export default function ProspeccaoModal({
     const fechar = { onSuccess: () => setPergunta(null) };
     if (pergunta.modo === "reabrir") {
       reabrir.mutate({ id: cardId, texto: dados.observacao ?? "" }, fechar);
+      return;
+    }
+    if (pergunta.modo === "cancelar") {
+      if (dados.motivoRecusa) cancelar.mutate({ id: cardId, motivo: dados.motivoRecusa, observacao: dados.observacao }, fechar);
       return;
     }
     transicionar.mutate({ id: cardId, estagio: pergunta.destino, ...dados }, fechar);
@@ -329,6 +340,24 @@ export default function ProspeccaoModal({
                     {rotuloAcao(card.estagio, destino)}
                   </button>
                 ))}
+                {cancelavel(card.estagio) && (
+                  <button
+                    type="button"
+                    onClick={() => setPergunta({ modo: "cancelar" })}
+                    disabled={ocupado || !data.podeDecidir}
+                    title="O cliente teve um problema que impede de seguir: o card vai para Reprovado, com o motivo"
+                    className={`${SECUNDARIO} text-rose-700 dark:text-rose-300`}
+                  >
+                    <Icon name="block" size={15} />
+                    Reprovar
+                  </button>
+                )}
+                {/* Botão travado sem explicação parece defeito: diz quem pode. */}
+                {cancelavel(card.estagio) && !data.podeDecidir && (
+                  <span className="text-[11px] text-slate-400">
+                    Reprova {card.analistaNome ? `quem assumiu (${card.analistaNome})` : "quem assumiu o card"} ou um admin
+                  </span>
+                )}
                 {ehTerminal(card.estagio) && (
                   <button type="button" onClick={() => setPergunta({ modo: "reabrir" })} disabled={ocupado} className={SECUNDARIO}>
                     <Icon name="restart_alt" size={15} />
@@ -470,17 +499,24 @@ export default function ProspeccaoModal({
 
       {pergunta && (
         <MotivoDialog
-          destino={pergunta.modo === "reabrir" ? "NOVA" : pergunta.destino}
+          destino={pergunta.modo === "reabrir" ? "NOVA" : pergunta.modo === "cancelar" ? "REPROVADO" : pergunta.destino}
           modo={
             pergunta.modo === "motivo"
               ? { tipo: "motivo" }
+              : pergunta.modo === "cancelar"
+                ? {
+                    tipo: "motivo",
+                    titulo: `Reprovar ${card?.razaoSocial ?? "o card"}?`,
+                    botao: "Reprovar",
+                    aviso: `O card sai de ${card ? ROTULO_ESTAGIO[card.estagio] : "onde está"} e vai para Reprovado. O histórico guarda de onde saiu, e dá para reabrir depois.`,
+                  }
               : pergunta.modo === "recusa"
                 ? { tipo: "texto", titulo: "O cliente recusou", rotulo: "O que o cliente disse? (opcional)", obrigatorio: false, botao: "Registrar recusa" }
                 : { tipo: "texto", titulo: "Reabrir o card", rotulo: "Por que reabrir?", obrigatorio: true, botao: "Reabrir em Nova" }
           }
           onConfirmar={confirmarPergunta}
           onFechar={() => setPergunta(null)}
-          enviando={transicionar.isPending || reabrir.isPending}
+          enviando={transicionar.isPending || reabrir.isPending || cancelar.isPending}
         />
       )}
     </>

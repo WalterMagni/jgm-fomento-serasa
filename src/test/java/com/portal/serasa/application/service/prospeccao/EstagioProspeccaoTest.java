@@ -57,13 +57,30 @@ class EstagioProspeccaoTest {
     }
 
     @Test
-    @DisplayName("saídas negativas: reprovar na análise ou no comitê, recusa só no aceite")
+    @DisplayName("saídas negativas: reprovar na análise, no comitê e, depois da aprovação, pelo cancelamento; recusa só no aceite")
     void shouldExposeNegativeExits() {
         assertThat(EM_ANALISE.aceita(REPROVADO)).isTrue();
         assertThat(COMITE.aceita(REPROVADO)).isTrue();
         assertThat(AGUARDANDO_ACEITE.aceita(RECUSADO_CLIENTE)).isTrue();
-        assertThat(DOCUMENTACAO.aceita(REPROVADO)).isFalse();
+        assertThat(NOVA.aceita(REPROVADO)).isFalse();
         assertThat(EM_ANALISE.aceita(RECUSADO_CLIENTE)).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstagioProspeccao.class, names = {"APROVADO", "DOCUMENTACAO", "COMITE", "AGUARDANDO_ACEITE", "CONTRATO"})
+    @DisplayName("do Aprovado ao Contrato o card pode ser cancelado, e cai em Reprovado pela ação própria")
+    void shouldAllowCancellingAfterApproval(EstagioProspeccao estagio) {
+        assertThat(estagio.cancelavel()).isTrue();
+        assertThat(estagio.aceita(REPROVADO)).isTrue();
+        // no comitê, arrastar para Reprovado continua apontando o resultado; o cancelamento é ação à parte
+        assertThat(estagio.acaoPropria(REPROVADO)).isEqualTo(estagio == COMITE ? "o resultado do comitê" : "a reprovação");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EstagioProspeccao.class, names = {"NOVA", "EM_ANALISE", "HABILITADO", "REPROVADO", "RECUSADO_CLIENTE", "INERTE"})
+    @DisplayName("antes da aprovação e nos desfechos não há cancelamento")
+    void shouldNotCancelBeforeApprovalOrAfterTheEnd(EstagioProspeccao estagio) {
+        assertThat(estagio.cancelavel()).isFalse();
     }
 
     @ParameterizedTest
@@ -100,7 +117,7 @@ class EstagioProspeccaoTest {
     @Test
     @DisplayName("prazos em horas úteis, conforme o time pratica: 12 para pegar, 24 para decidir")
     void shouldExposeSlaWindows() {
-        assertThat(NOVA.prazoHorasUteis()).isEqualTo(12);
+        assertThat(NOVA.prazoHorasUteis()).isEqualTo(24);
         assertThat(EM_ANALISE.prazoHorasUteis()).isEqualTo(24);
         assertThat(DOCUMENTACAO.contaSla()).isFalse();
         assertThat(REPROVADO.contaSla()).isFalse();

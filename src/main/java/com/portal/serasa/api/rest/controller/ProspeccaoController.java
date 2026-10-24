@@ -469,6 +469,18 @@ public class ProspeccaoController {
                 id, request.estagio(), request.motivoRecusa(), request.observacao(), autor)));
     }
 
+    /**
+     * Cancela um card aprovado: do Aprovado ao Contrato, o cliente teve um problema que impede de
+     * seguir. Só a dona do card (ou o admin); cai em Reprovado com o motivo.
+     */
+    @PostMapping("/{id}/cancelamento")
+    public ResponseEntity<ProspeccaoResponse> cancelar(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.portal.serasa.api.rest.dto.request.ProspeccaoCancelamentoRequest request) {
+        return ResponseEntity.ok(toResponse(
+                decisaoService.cancelar(id, request.motivo(), request.observacao(), usuarioAutenticado())));
+    }
+
     @PatchMapping("/{id}/reabrir")
     public ResponseEntity<ProspeccaoResponse> reabrir(
             @PathVariable UUID id,

@@ -35,10 +35,9 @@ O **comercial** é opcional: escolha da lista, digite o nome de quem ainda não 
 portal, ou deixe "sem comercial" para cliente direto. Os **dados comerciais** (faturamento,
 ticket médio, prazos…) também podem ser preenchidos já na abertura, ou depois.
 
-**O sistema abre sozinho.** Sempre que uma consulta ao Serasa indica perfil de cedente,
-a empresa aparece em Nova automaticamente. O card mostra "VC" no rodapé.
-
-**Você traz o que já existia.** Botão **puxar visão cedente**, aba *Escolher empresas*:
+**Você traz da visão cedente.** Consultar o Serasa **não abre card sozinho** (antes abria, e
+atualizar a consulta fazia o card voltar). Quando a empresa tem perfil de cedente e vale entrar,
+use o botão **puxar visão cedente**, aba *Escolher empresas*:
 busque por razão social ou CNPJ, marque o que quiser e traga. A aba *Trazer um lote* serve
 para a carga inicial — ela mostra quantas empresas entrariam antes de você confirmar e
 limita o tamanho do lote, porque não há como desfazer em massa.
@@ -75,6 +74,12 @@ ninguém trabalha em dobro sem saber.
 abaixo, os botões mostram só o que vale naquele estágio: o próximo passo em destaque, e ao
 lado os retrocessos (devolver, devolver ao comercial, contraproposta, comitê devolveu) e as saídas. **Reprovar** e
 **Mover para inerte** pedem o motivo de uma lista fechada; se escolher "Outro", descreva.
+
+**Reprovar depois de aprovado.** Do Aprovado ao Contrato, se o cliente tiver um problema que
+impede de seguir, quem assumiu o card (ou o admin) clica em **Reprovar** — ou arrasta para
+Reprovado. Pede o motivo da mesma lista da recusa e, se quiser, uma observação. O card vai para
+**Reprovado**, o histórico diz de qual etapa saiu, e quem esperava por ele (comercial, comitê) é
+avisado. No comitê, os pareceres que faltavam deixam de ser esperados. Dá para reabrir depois.
 
 **Decidir.** Em análise, quem assumiu o card clica em **Decidir** — só ela (ou o admin) pode.
 Para **aprovar**: limite, condições por produto (duplicata, cheque próprio…, quantas linhas
@@ -162,8 +167,9 @@ teclado: Tab até o card, Espaço pega e solta; Enter abre.
 | **âmbar** | perto de estourar (a partir de 70% do prazo) |
 | **vermelho** | prazo estourado |
 
-Prazos da análise: **12 horas úteis** para alguém pegar e **24 horas úteis** para decidir.
-Fim de semana e feriado nacional não contam.
+Prazos da análise: **24 horas úteis** para alguém pegar e **24 horas úteis** para decidir.
+Fim de semana e feriado nacional não contam: card que entra às 17h de sexta só atrasa às 17h de
+segunda.
 
 **Aprovado, Documentação e Aguardando aceite não têm prazo** — quem responde é o cliente. O que corre
 ali é o silêncio, em dias corridos: **30 dias** sem retorno deixa o card âmbar, **45 dias**
