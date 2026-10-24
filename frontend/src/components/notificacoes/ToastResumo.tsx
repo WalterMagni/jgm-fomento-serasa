@@ -7,8 +7,18 @@ import { VISUAL } from "./visual";
 const LINHAS = 3;
 
 /**
- * Aviso de rajada: várias notificações num toast só, as mais novas em cima. Cada linha leva ao
- * card; "Ver todas" abre o sino com a lista inteira.
+ * Uma linha por destino: o que aponta para o mesmo card (ou processo) junta, na ordem da mais nova.
+ * O título não separa a empresa, então a linha mostra o mais novo e conta o resto.
+ */
+function porDestino(itens: Notificacao[]) {
+  const grupos = new Map<string, Notificacao[]>();
+  for (const item of itens) grupos.set(item.link, [...(grupos.get(item.link) ?? []), item]);
+  return [...grupos.values()];
+}
+
+/**
+ * Aviso de rajada: várias notificações num toast só, as mais novas em cima, agrupadas por card.
+ * Cada linha leva ao card; "Ver todas" abre o sino com a lista inteira.
  */
 export default function ToastResumo({
   itens,
@@ -21,7 +31,8 @@ export default function ToastResumo({
   onVerTodas: () => void;
   onFechar: () => void;
 }) {
-  const resto = itens.length - LINHAS;
+  const grupos = porDestino(itens);
+  const resto = grupos.slice(LINHAS).reduce((total, grupo) => total + grupo.length, 0);
   return (
     <div
       role="status"
@@ -36,20 +47,29 @@ export default function ToastResumo({
           <p className="text-sm font-semibold text-grafite dark:text-white">{itens.length} novas notificações</p>
         </div>
         <ul className="mt-2.5 space-y-0.5">
-          {itens.slice(0, LINHAS).map(notificacao => {
+          {grupos.slice(0, LINHAS).map(grupo => {
+            const [notificacao] = grupo;
             const visual = VISUAL[notificacao.tipo] ?? VISUAL.DECISAO;
             return (
-              <li key={notificacao.id}>
+              <li key={notificacao.link}>
                 <button
                   type="button"
                   onClick={() => onAbrir(notificacao)}
-                  title={notificacao.titulo}
+                  title={grupo.map(item => item.titulo).join("\n")}
                   className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/70"
                 >
                   <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${visual.cor}`}>
                     <Icon name={visual.icone} size={13} />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[13px] text-slate-700 dark:text-slate-200">{notificacao.titulo}</span>
+                  {grupo.length > 1 && (
+                    <span
+                      className="shrink-0 rounded-full bg-[#612035]/10 px-1.5 text-[11px] font-bold leading-[18px] text-[#612035] dark:bg-[#612035]/40 dark:text-[#f2c4d1]"
+                      aria-label={`e mais ${grupo.length - 1} neste card`}
+                    >
+                      +{grupo.length - 1}
+                    </span>
+                  )}
                 </button>
               </li>
             );

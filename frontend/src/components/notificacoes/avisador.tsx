@@ -9,6 +9,22 @@ import ToastResumo from "./ToastResumo";
 const JANELA_MS = 600;
 
 /**
+ * Se a pessoa está olhando para o destino do link agora: aba visível, mesma página e os parâmetros
+ * do link que estão na URL batem — ao menos um presente, para o quadro sem card aberto não contar.
+ * O {@code nome} do link da Judit pode ter saído da URL; o {@code processo} basta.
+ */
+export function estaVendo(link: string) {
+  if (document.visibilityState !== "visible") return false;
+  const alvo = new URL(link, window.location.origin);
+  const aqui = new URL(window.location.href);
+  if (alvo.pathname !== aqui.pathname) return false;
+  const parametros = [...alvo.searchParams];
+  const presentes = parametros.filter(([chave]) => aqui.searchParams.has(chave));
+  if (parametros.length > 0 && presentes.length === 0) return false;
+  return presentes.every(([chave, valor]) => aqui.searchParams.get(chave) === valor);
+}
+
+/**
  * Um aviso de notificação por vez no canto da tela.
  *
  * <p>Rajada (vários processos da Judit prontos, o comitê inteiro dando parecer) espera a janela

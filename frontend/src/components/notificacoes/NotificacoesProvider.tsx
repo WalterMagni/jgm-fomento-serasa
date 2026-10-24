@@ -3,10 +3,10 @@
 import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { NOTIFICACOES_KEY, abrirUrlDoCanal, useNotificacoes } from "@/hooks/useNotificacoes";
+import { NOTIFICACOES_KEY, abrirUrlDoCanal, useMarcarLidasDoLink, useNotificacoes } from "@/hooks/useNotificacoes";
 import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import type { EntregaNotificacao, ListagemNotificacoes } from "@/types/notificacao";
-import { criarAvisador } from "./avisador";
+import { criarAvisador, estaVendo } from "./avisador";
 import { prepararSom, reivindicarAviso, tocarSino } from "./som";
 
 const TempoRealContexto = createContext<{ conectado: boolean }>({ conectado: false });
@@ -26,7 +26,8 @@ export function usePainelDoSino() {
  * Mantém o canal de notificações aberto enquanto o portal está aberto.
  *
  * <p>Recebe dois tipos de evento: {@code notificacao}, só para esta pessoa — atualiza o sino,
- * mostra o aviso (um por vez: rajada vira resumo) e toca o som — e
+ * mostra o aviso (um por vez: rajada vira resumo; nenhum se a pessoa já está no card) e toca o
+ * som — e
  * {@code quadro}, para todos — um card mudou, as telas da esteira se atualizam sozinhas.</p>
  *
  * <p>Se a conexão cai, tenta de novo com espera crescente (1 s, 2 s, 4 s… até 30 s), sempre com
@@ -41,14 +42,17 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
   const setSinoAberto = painelDoSino[1];
   const { data: eu } = useUsuarioAtual();
   const { data: listagem } = useNotificacoes(conectado);
+  const { mutate: marcarLidasDoLink } = useMarcarLidasDoLink();
 
-  // O handler do canal vive mais que um render: lê preferência e roteador por ref.
+  // O handler do canal vive mais que um render: lê preferência, roteador e marcação por ref.
   const somLigado = useRef(true);
   const navegar = useRef(router.push);
+  const marcarLidas = useRef(marcarLidasDoLink);
   useEffect(() => {
     somLigado.current = eu?.somNotificacao ?? true;
     navegar.current = router.push;
-  }, [eu?.somNotificacao, router.push]);
+    marcarLidas.current = marcarLidasDoLink;
+  }, [eu?.somNotificacao, router.push, marcarLidasDoLink]);
 
   useEffect(() => prepararSom(), []);
 
@@ -72,6 +76,12 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
         naoLidas,
         itens: [notificacao, ...(anterior?.itens ?? []).filter(item => item.id !== notificacao.id)].slice(0, 20),
       }));
+      // Quem já está no card vê a mudança chegar nele: sem aviso nem som, e a notificação fica lida,
+      // como ao abrir o card.
+      if (estaVendo(notificacao.link)) {
+        marcarLidas.current(notificacao.link);
+        return;
+      }
       avisador.avisar(notificacao);
       if (somLigado.current && (await reivindicarAviso(notificacao.id))) tocarSino();
     }
