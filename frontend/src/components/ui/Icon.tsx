@@ -3,7 +3,7 @@
 import {
   ArchiveIcon, ArrowBendUpLeftIcon, ArrowClockwiseIcon, ArrowCounterClockwiseIcon, ArrowDownIcon, ArrowLeftIcon,
   ArrowRightIcon, ArrowSquareOutIcon, ArrowUUpLeftIcon, ArrowUpIcon, ArrowsClockwiseIcon, ArrowsDownUpIcon,
-  ArrowsInLineVerticalIcon, ArrowsLeftRightIcon, ArrowsOutIcon, AtIcon, BankIcon, BellSlashIcon, BookOpenIcon,
+  ArrowsInLineVerticalIcon, ArrowsLeftRightIcon, ArrowsOutIcon, AtIcon, BankIcon, BellIcon, BellSlashIcon, BookOpenIcon,
   BracketsCurlyIcon, BrainIcon, BriefcaseIcon, BuildingsIcon, CalendarBlankIcon, CalendarIcon, CaretDoubleLeftIcon,
   CaretDoubleRightIcon, CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpDownIcon, CaretUpIcon,
   ChartBarIcon, ChatCenteredTextIcon, ChatCircleIcon, CheckCircleIcon, CheckIcon, ChecksIcon, CircleIcon, CircleNotchIcon,
@@ -72,7 +72,7 @@ const ICONS: Record<string, PhosphorIcon> = {
   slideshow: PresentationIcon,
   // esteira de prospecção
   conveyor_belt: FunnelIcon, task_alt: CheckCircleIcon, folder_supervised: FolderUserIcon, flag: FlagIcon,
-  block: ProhibitIcon, visibility_off: EyeSlashIcon, notifications_off: BellSlashIcon, campaign: MegaphoneIcon,
+  block: ProhibitIcon, visibility_off: EyeSlashIcon, notifications: BellIcon, notifications_off: BellSlashIcon, campaign: MegaphoneIcon,
   add_circle: PlusCircleIcon, remove_circle: MinusCircleIcon, restart_alt: ArrowClockwiseIcon,
   help: QuestionIcon, help_outline: QuestionIcon, menu_book: BookOpenIcon,
   palette: PaletteIcon, contract: ScrollIcon, verified: SealCheckIcon, do_not_disturb_on: MinusCircleIcon, storefront: StorefrontIcon,

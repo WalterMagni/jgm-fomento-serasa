@@ -1,27 +1,32 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { NOTIFICACOES_KEY, abrirUrlDoCanal, useNotificacoes } from "@/hooks/useNotificacoes";
 import { useUsuarioAtual } from "@/hooks/useLiberacao";
 import type { EntregaNotificacao, ListagemNotificacoes } from "@/types/notificacao";
+import { criarAvisador } from "./avisador";
 import { prepararSom, reivindicarAviso, tocarSino } from "./som";
-import ToastJudit, { ehDaJudit } from "./ToastJudit";
 
 const TempoRealContexto = createContext<{ conectado: boolean }>({ conectado: false });
+const SinoContexto = createContext<[boolean, Dispatch<SetStateAction<boolean>>]>([false, () => undefined]);
 
 /** Se o canal em tempo real está de pé. Telas que fazem polling param quando está. */
 export function useTempoReal() {
   return useContext(TempoRealContexto).conectado;
 }
 
+/** Painel do sino aberto ou fechado. Fica no provider para o aviso de rajada conseguir abrir. */
+export function usePainelDoSino() {
+  return useContext(SinoContexto);
+}
+
 /**
  * Mantém o canal de notificações aberto enquanto o portal está aberto.
  *
  * <p>Recebe dois tipos de evento: {@code notificacao}, só para esta pessoa — atualiza o sino,
- * mostra o toast e toca o som — e
+ * mostra o aviso (um por vez: rajada vira resumo) e toca o som — e
  * {@code quadro}, para todos — um card mudou, as telas da esteira se atualizam sozinhas.</p>
  *
  * <p>Se a conexão cai, tenta de novo com espera crescente (1 s, 2 s, 4 s… até 30 s), sempre com
@@ -32,6 +37,8 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
   const router = useRouter();
   const pathname = usePathname();
   const [conectado, setConectado] = useState(false);
+  const painelDoSino = useState(false);
+  const setSinoAberto = painelDoSino[1];
   const { data: eu } = useUsuarioAtual();
   const { data: listagem } = useNotificacoes(conectado);
 
@@ -50,6 +57,7 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
     let fonte: EventSource | null = null;
     let espera: ReturnType<typeof setTimeout> | undefined;
     let tentativas = 0;
+    const avisador = criarAvisador({ navegar: link => navegar.current(link), abrirSino: () => setSinoAberto(true) });
 
     function reconectarDepois() {
       if (!ativo) return;
@@ -64,27 +72,7 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
         naoLidas,
         itens: [notificacao, ...(anterior?.itens ?? []).filter(item => item.id !== notificacao.id)].slice(0, 20),
       }));
-      if (ehDaJudit(notificacao)) {
-        toast.custom(
-          id => (
-            <ToastJudit
-              notificacao={notificacao}
-              onAbrir={() => {
-                toast.dismiss(id);
-                navegar.current(notificacao.link);
-              }}
-              onFechar={() => toast.dismiss(id)}
-            />
-          ),
-          { duration: 15000 },
-        );
-      } else {
-        toast(notificacao.titulo, {
-          description: notificacao.resumo ?? undefined,
-          action: { label: "Abrir", onClick: () => navegar.current(notificacao.link) },
-          duration: 8000,
-        });
-      }
+      avisador.avisar(notificacao);
       if (somLigado.current && (await reivindicarAviso(notificacao.id))) tocarSino();
     }
 
@@ -147,9 +135,10 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
     return () => {
       ativo = false;
       clearTimeout(espera);
+      avisador.parar();
       fonte?.close();
     };
-  }, [queryClient]);
+  }, [queryClient, setSinoAberto]);
 
   // Contagem no título da aba: aparece mesmo com o portal em segundo plano. Reaplicada ao trocar
   // de página, porque o Next reescreve o título na navegação.
@@ -159,5 +148,9 @@ export default function NotificacoesProvider({ children }: { children: ReactNode
     document.title = naoLidas > 0 ? `(${naoLidas > 99 ? "99+" : naoLidas}) ${base}` : base;
   }, [naoLidas, pathname]);
 
-  return <TempoRealContexto.Provider value={{ conectado }}>{children}</TempoRealContexto.Provider>;
+  return (
+    <TempoRealContexto.Provider value={{ conectado }}>
+      <SinoContexto.Provider value={painelDoSino}>{children}</SinoContexto.Provider>
+    </TempoRealContexto.Provider>
+  );
 }

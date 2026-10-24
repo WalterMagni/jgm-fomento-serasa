@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, type CSSProperties } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import NotificacoesProvider from "@/components/notificacoes/NotificacoesProvider";
@@ -96,8 +96,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <CascaNova pathname={pathname} userName={userName} userInitials={userInitials} onSair={logout}>
         {children}
       </CascaNova>
-      {/* Fora do <main> (z-0 + overflow) para a notificação não ficar presa atrás do topo. */}
-      <Toaster richColors position="top-right" offset={80} toastOptions={{ style: { zIndex: 9999 } }} />
+      {/* Fora do <main> (z-0 + overflow) para a notificação não ficar presa atrás do topo. O próprio
+          Toaster já fica acima de tudo; z-index em cada toast quebraria o empilhamento entre eles.
+          Largura dos avisos personalizados (Judit, resumo), para os toasts se alinharem. */}
+      <Toaster richColors position="top-right" offset={80} style={{ "--width": "380px" } as CSSProperties} />
     </NotificacoesProvider>
     </QueryClientProvider>
   );
