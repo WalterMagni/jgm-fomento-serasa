@@ -327,6 +327,12 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                   valorOperacao={card.valor}
                   podeOperador={ehAnalista && (card.etapa === "ORIGEM" || card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
                   podeComite={ehAnalista && (card.etapa === "COMITE" || card.etapa === "PENDENCIA")}
+                  // O servidor diz quem decide na Diretoria; o D leva ao mesmo aprovar/reprovar do "Mover para".
+                  onDecidirCard={
+                    card.etapa === "DIRETORIA" && card.destinos.some(destino => destino.etapa === "APROVADO" && destino.permitido)
+                      ? para => onMover(card, para)
+                      : undefined
+                  }
                   quadro={ETAPAS_DECIDIDAS.includes(card.etapa) ? null : "COMITE"}
                 />
               </Secao>

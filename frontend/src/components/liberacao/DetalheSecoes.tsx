@@ -93,10 +93,13 @@ const COR_QUADRADO: Record<Resultado, string> = {
 type Quadro = "O" | "C" | "D";
 const NOME_QUADRO: Record<Quadro, string> = { O: "Operador", C: "Comitê", D: "Diretoria" };
 
+/** Só o fundo da cor da decisão, para a amostra pequena dos menus. */
+const fundoDecisao = (opcao: Resultado) => COR_QUADRADO[opcao].split(" ").filter(classe => classe.startsWith("bg-")).join(" ");
+
 /**
- * Um quadrado (C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
- * e o valor aprovado do parcial. Fora disso só mostra a cor e, ao passar o mouse, quem
- * marcou e quando.
+ * Um quadrado (O, C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
+ * e o valor aprovado do parcial — ou, no D, aprovar ou reprovar o card. Fora disso só mostra a
+ * cor e, ao passar o mouse, quem marcou e quando.
  */
 function Quadrado({
   letra,
@@ -108,6 +111,8 @@ function Quadrado({
   valorAtual,
   ocupado,
   onMarcar,
+  decidirCard,
+  dica,
   parecer,
   salvandoParecer,
   onParecer,
@@ -122,6 +127,10 @@ function Quadrado({
   valorAtual?: number | null;
   ocupado: boolean;
   onMarcar: (situacao: Resultado | null, valorAprovado?: number) => void;
+  /** No lugar das três decisões, aprovar ou reprovar o card inteiro (o D). */
+  decidirCard?: (para: "APROVADO" | "REPROVADO") => void;
+  /** Como o quadrado se preenche, no título, enquanto vazio e travado. */
+  dica?: string;
   parecer: string | null;
   salvandoParecer: boolean;
   onParecer: (texto: string, aoSalvar: () => void) => void;
@@ -146,7 +155,7 @@ function Quadrado({
 
   const titulo = `${letra} · ${NOME_QUADRO[letra]}: ${situacao ? ROTULO_RESULTADO[situacao] : "sem decisão"}${
     situacao && porNome ? ` — ${porNome}${em ? `, ${formatDataHora(em)}` : ""}` : ""
-  }`;
+  }${!situacao && !editavel && dica ? ` (${dica})` : ""}`;
 
   function escolher(opcao: Resultado | null) {
     if (opcao === "PARCIAL" && pedirValor) {
@@ -189,7 +198,29 @@ function Quadrado({
           <p className="px-2 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
             {letra} · {NOME_QUADRO[letra]}
           </p>
-          {parcial ? (
+          {decidirCard ? (
+            <>
+              <p className="px-2 pb-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                A Diretoria decide o card inteiro: aprovando, vale o C de cada sacado.
+              </p>
+              {(["APROVADO", "REPROVADO"] as const).map(opcao => (
+                <button
+                  key={opcao}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setAberto(false);
+                    decidirCard(opcao);
+                  }}
+                  className="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-slate-700
+                    hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  <span className={`h-3.5 w-3.5 rounded ${fundoDecisao(opcao)}`} />
+                  {opcao === "APROVADO" ? "Aprovar o card" : "Reprovar o card"}
+                </button>
+              ))}
+            </>
+          ) : parcial ? (
             <form
               className="flex items-center gap-1 p-1"
               onSubmit={event => {
@@ -228,7 +259,7 @@ function Quadrado({
                   className="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left text-xs font-medium text-slate-700
                     hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
-                  <span className={`h-3.5 w-3.5 rounded ${COR_QUADRADO[opcao].split(" ").filter(classe => classe.startsWith("bg-")).join(" ")}`} />
+                  <span className={`h-3.5 w-3.5 rounded ${fundoDecisao(opcao)}`} />
                   {ROTULO_RESULTADO_CURTO[opcao]}
                   {situacao === opcao && <Icon name="check" size={12} className="ml-auto text-slate-400" />}
                 </button>
@@ -306,19 +337,22 @@ function PareceresSacado({ sacado }: { sacado: Sacado }) {
 }
 
 /**
- * Os quadrados do sacado: C (decisão do Comitê) e D (Diretoria). Só o C se marca; o D é preenchido
- * quando a Diretoria aprova (repete o C) ou reprova o card. A Origem não decide: o O saiu da tela.
+ * Os quadrados do sacado: O (operador), C (decisão do Comitê) e D (Diretoria). O C se marca por
+ * sacado; o D é preenchido quando a Diretoria aprova (repete o C) ou reprova o card — com o card na
+ * Diretoria, clicar no D leva a essa decisão.
  */
 function QuadradosSacado({
   cardId,
   sacado,
   podeOperador,
   podeComite,
+  onDecidirCard,
 }: {
   cardId: string;
   sacado: Sacado;
   podeOperador: boolean;
   podeComite: boolean;
+  onDecidirCard?: (para: "APROVADO" | "REPROVADO") => void;
 }) {
   const decidir = useDecidirSacado();
   const opinar = useOpinarSacado();
@@ -367,10 +401,12 @@ function QuadradosSacado({
         situacao={sacado.decisaoDiretoria}
         porNome={sacado.decisaoDiretoriaPorNome}
         em={sacado.decisaoDiretoriaEm}
-        editavel={false}
+        editavel={Boolean(onDecidirCard)}
         valorAtual={sacado.valorAprovadoDiretoria}
         ocupado={false}
         onMarcar={() => undefined}
+        decidirCard={onDecidirCard}
+        dica="preenchido quando a Diretoria aprova ou reprova o card"
         parecer={sacado.parecerDiretoria}
         salvandoParecer={escrever.isPending}
         onParecer={salvar("DIRETORIA")}
@@ -385,6 +421,7 @@ export function SacadosLista({
   valorOperacao,
   podeOperador,
   podeComite,
+  onDecidirCard,
   quadro,
 }: {
   cardId: string;
@@ -394,6 +431,8 @@ export function SacadosLista({
   podeOperador: boolean;
   /** Analista com o card no Comitê ou em Pendência: marca o C. */
   podeComite: boolean;
+  /** Perfil Diretoria com o card na Diretoria: o D abre aprovar ou reprovar o card. */
+  onDecidirCard?: (para: "APROVADO" | "REPROVADO") => void;
   /** Quem decide agora, para a conta de decididos; nulo depois da decisão (vale a situação). */
   quadro: "COMITE" | "DIRETORIA" | null;
 }) {
@@ -439,7 +478,13 @@ export function SacadosLista({
               {sacado.valor != null && (
                 <span className="text-sm tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.valor)}</span>
               )}
-              <QuadradosSacado cardId={cardId} sacado={sacado} podeOperador={podeOperador} podeComite={podeComite} />
+              <QuadradosSacado
+                cardId={cardId}
+                sacado={sacado}
+                podeOperador={podeOperador}
+                podeComite={podeComite}
+                onDecidirCard={onDecidirCard}
+              />
               {(sacado.documento.length === 14 || sacado.documento.length === 11) && (
                 <a
                   // CPF vai para a ficha de Pessoas Físicas; sem ficha, a página oferece a consulta Serasa PF (com custo).
