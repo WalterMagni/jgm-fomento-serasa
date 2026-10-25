@@ -111,15 +111,9 @@ export default function LinhaFicha({
         ) : (
           <span className="text-xs italic text-[#8A877E]">não informado</span>
         )}
-        {(ficha.tipo || (ficha.attachments?.length ?? 0) > 0) && (
+        {ficha.tipo && (
           <span className="mt-1 flex items-center gap-2 text-[11.5px] text-suave">
-            {ficha.tipo && <span>por {ficha.tipo.toLowerCase()}</span>}
-            {(ficha.attachments?.length ?? 0) > 0 && (
-              <span className="inline-flex items-center gap-0.5" title={`${ficha.attachments!.length} anexo(s)`}>
-                <Icon name="attach_file" size={13} />
-                {ficha.attachments!.length}
-              </span>
-            )}
+            <span>por {ficha.tipo.toLowerCase()}</span>
           </span>
         )}
       </span>

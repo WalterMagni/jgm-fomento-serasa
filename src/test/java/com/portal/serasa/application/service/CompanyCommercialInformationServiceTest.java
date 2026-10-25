@@ -1,11 +1,8 @@
 package com.portal.serasa.application.service;
 
 import com.portal.serasa.infrastructure.persistence.entity.ClientEntity;
-import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialInformationAttachmentEntity;
-import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialInformationEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.ClientJpaRepository;
-import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialInformationAttachmentJpaRepository;
 import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialInformationJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,81 +36,75 @@ class CompanyCommercialInformationServiceTest {
     @Mock
     private CompanyCommercialInformationJpaRepository commercialInformationJpaRepository;
     @Mock
-    private CompanyCommercialInformationAttachmentJpaRepository attachmentJpaRepository;
+    private com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialReferenceFileJpaRepository referenceFileJpaRepository;
     @InjectMocks
     private CompanyCommercialInformationService service;
 
     private final UserEntity author = UserEntity.builder().id(UUID.randomUUID()).name("Autora").build();
-    private final UUID recordId = UUID.randomUUID();
+
+    private ClientEntity client;
 
     @BeforeEach
     void setUp() {
-        ClientEntity client = ClientEntity.builder().id(UUID.randomUUID()).documentNumber(CNPJ).build();
-        CompanyCommercialInformationEntity record = CompanyCommercialInformationEntity.builder()
-                .id(recordId).clientId(client.getId()).authorUserId(author.getId()).build();
+        client = ClientEntity.builder().id(UUID.randomUUID()).documentNumber(CNPJ).build();
         lenient().when(clientJpaRepository.findByDocumentNumber(CNPJ)).thenReturn(Optional.of(client));
-        lenient().when(commercialInformationJpaRepository.findById(recordId)).thenReturn(Optional.of(record));
     }
 
     private static MultipartFile file(String name, String type, int size) {
         return new MockMultipartFile("files", name, type, new byte[size]);
     }
 
-    @Test
-    @DisplayName("anexar: PDF e imagem entram; tipo genérico cai na extensão")
-    @SuppressWarnings("unchecked")
-    void shouldStorePdfAndImages() {
-        service.addAttachments(CNPJ, recordId, List.of(
-                file("ar.pdf", "application/pdf", 10),
-                file("print.png", "image/png", 10),
-                file("extrato.PDF", "application/octet-stream", 10)), author);
+    // ---------------------------------------------- colinha (arquivo de referência)
 
-        ArgumentCaptor<List<CompanyCommercialInformationAttachmentEntity>> salvos = ArgumentCaptor.forClass(List.class);
-        verify(attachmentJpaRepository).saveAll(salvos.capture());
-        assertThat(salvos.getValue()).extracting(CompanyCommercialInformationAttachmentEntity::getContentType)
+    @Test
+    @DisplayName("colinha: grava um arquivo por empresa, com quem enviou; enviar outro grava por cima, na mesma chave")
+    void shouldReplaceReferenceFile() {
+        var info = org.mockito.Mockito.mock(
+                com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialReferenceFileJpaRepository.ReferenceInfo.class);
+        when(referenceFileJpaRepository.findInfoByClientId(client.getId())).thenReturn(Optional.of(info));
+
+        service.replaceReference(CNPJ, file("dados-externos.pdf", "application/pdf", 10), author);
+        service.replaceReference(CNPJ, file("print.png", "image/png", 10), author);
+        // navegador que manda tipo genérico: vale a extensão
+        service.replaceReference(CNPJ, file("extrato.PDF", "application/octet-stream", 10), author);
+
+        ArgumentCaptor<com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialReferenceFileEntity> salvos =
+                ArgumentCaptor.forClass(com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialReferenceFileEntity.class);
+        verify(referenceFileJpaRepository, org.mockito.Mockito.times(3)).save(salvos.capture());
+        assertThat(salvos.getAllValues()).allSatisfy(salvo -> {
+            assertThat(salvo.getClientId()).isEqualTo(client.getId());
+            assertThat(salvo.getUploadedByName()).isEqualTo("Autora");
+            assertThat(salvo.getUploadedAt()).isNotNull();
+        });
+        assertThat(salvos.getAllValues()).extracting(
+                        com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialReferenceFileEntity::getContentType)
                 .containsExactly("application/pdf", "image/png", "application/pdf");
-        assertThat(salvos.getValue()).allSatisfy(anexo -> assertThat(anexo.getRecordId()).isEqualTo(recordId));
     }
 
     @Test
-    @DisplayName("anexar: arquivo acima de 5 MB é recusado")
-    void shouldRejectFileOver5Mb() {
-        MultipartFile grande = file("grande.pdf", "application/pdf", (int) CompanyCommercialInformationService.MAX_ATTACHMENT_SIZE + 1);
-
-        assertThatThrownBy(() -> service.addAttachments(CNPJ, recordId, List.of(grande), author))
+    @DisplayName("colinha: sem arquivo, acima de 5 MB ou fora de PDF e imagem é recusado, e nada é gravado")
+    void shouldRefuseInvalidReferenceFile() {
+        assertThatThrownBy(() -> service.replaceReference(CNPJ, null, author))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Escolha um arquivo PDF ou imagem");
+        assertThatThrownBy(() -> service.replaceReference(CNPJ, file("grande.pdf", "application/pdf", 5 * 1024 * 1024 + 1), author))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("5 MB");
-        verify(attachmentJpaRepository, never()).saveAll(any());
-    }
-
-    @Test
-    @DisplayName("anexar: fora de PDF e imagem (inclusive SVG) é recusado")
-    void shouldRejectOtherTypes() {
-        assertThatThrownBy(() -> service.addAttachments(CNPJ, recordId, List.of(file("planilha.xlsx", "application/vnd.ms-excel", 10)), author))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.addAttachments(CNPJ, recordId, List.of(file("logo.svg", "image/svg+xml", 10)), author))
-                .isInstanceOf(IllegalArgumentException.class);
-        verify(attachmentJpaRepository, never()).saveAll(any());
-    }
-
-    @Test
-    @DisplayName("anexar: só quem criou a ficha anexa")
-    void shouldRejectNonAuthor() {
-        UserEntity outra = UserEntity.builder().id(UUID.randomUUID()).build();
-
-        assertThatThrownBy(() -> service.addAttachments(CNPJ, recordId, List.of(file("ar.pdf", "application/pdf", 10)), outra))
-                .isInstanceOf(IllegalArgumentException.class);
-        verify(attachmentJpaRepository, never()).saveAll(any());
-    }
-
-    @Test
-    @DisplayName("anexar: passa do limite de anexos por ficha")
-    void shouldRejectOverLimit() {
-        when(attachmentJpaRepository.countByRecordId(recordId))
-                .thenReturn((long) CompanyCommercialInformationService.MAX_ATTACHMENTS_PER_RECORD);
-
-        assertThatThrownBy(() -> service.addAttachments(CNPJ, recordId, List.of(file("ar.pdf", "application/pdf", 10)), author))
+        assertThatThrownBy(() -> service.replaceReference(CNPJ, file("logo.svg", "image/svg+xml", 10), author))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("no máximo");
+                .hasMessageContaining("não é PDF nem imagem");
+        verify(referenceFileJpaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("colinha: remover é idempotente")
+    void shouldDeleteReferenceFileOnlyWhenPresent() {
+        when(referenceFileJpaRepository.existsById(client.getId())).thenReturn(false, true);
+
+        service.deleteReference(CNPJ);
+        verify(referenceFileJpaRepository, never()).deleteById(any());
+
+        service.deleteReference(CNPJ);
+        verify(referenceFileJpaRepository).deleteById(client.getId());
     }
 }

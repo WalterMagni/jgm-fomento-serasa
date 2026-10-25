@@ -9,32 +9,29 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Anexo da ficha comercial. Ver V93. */
+/** A "colinha" das informações comerciais: um arquivo por empresa. Ver V97. */
 @Entity
-@Table(name = "company_commercial_information_attachments")
+@Table(name = "company_commercial_reference_file")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CompanyCommercialInformationAttachmentEntity {
+public class CompanyCommercialReferenceFileEntity {
 
+    /** Um por empresa: substituir é gravar por cima, na mesma chave. */
     @Id
-    @UuidGenerator
-    private UUID id;
-
-    @Column(name = "record_id", nullable = false)
-    private UUID recordId;
+    @Column(name = "client_id")
+    private UUID clientId;
 
     @Column(name = "file_name")
     private String fileName;
 
-    @Column(name = "content_type")
+    @Column(name = "content_type", nullable = false)
     private String contentType;
 
     @Column(name = "file_size")
@@ -44,6 +41,9 @@ public class CompanyCommercialInformationAttachmentEntity {
     @Column(name = "data", columnDefinition = "bytea", nullable = false)
     private byte[] data;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "uploaded_by_name", length = 200)
+    private String uploadedByName;
+
+    @Column(name = "uploaded_at", nullable = false)
+    private LocalDateTime uploadedAt;
 }

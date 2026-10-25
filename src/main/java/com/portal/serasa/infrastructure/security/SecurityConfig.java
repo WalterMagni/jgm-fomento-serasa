@@ -57,6 +57,9 @@ public class SecurityConfig {
                         // EventSource não manda Authorization: o canal confere um ticket de uso
                         // único emitido com JWT. Ver TicketSse.
                         .requestMatchers(HttpMethod.GET, "/api/v1/notificacoes/stream").permitAll()
+                        // Aba nova também não manda Authorization: o arquivo abre por um ticket de
+                        // poucos minutos, emitido com JWT. Ver TicketArquivo.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/arquivos/*").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

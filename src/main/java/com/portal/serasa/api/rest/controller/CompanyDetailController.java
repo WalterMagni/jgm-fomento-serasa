@@ -37,9 +37,7 @@ import com.portal.serasa.domain.model.CompanyDetail;
 import com.portal.serasa.domain.model.CreditAnalysis;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.infrastructure.persistence.entity.ClientEntity;
-import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialInformationAttachmentEntity;
 import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialInformationEntity;
-import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialInformationAttachmentJpaRepository.AttachmentInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.serasa.infrastructure.email.EmailService;
 import com.portal.serasa.infrastructure.email.PdfReportService;
@@ -91,6 +89,7 @@ public class CompanyDetailController {
     private final CompanyDetailService companyDetailService;
     private final CompanyCommercialInformationService companyCommercialInformationService;
     private final CompanyCommercialInformationExportService companyCommercialInformationExportService;
+    private final com.portal.serasa.application.service.arquivo.TicketArquivo ticketArquivo;
     private final CompanyDocumentService companyDocumentService;
     private final CompanyNoteService companyNoteService;
     private final ClientProfileService clientProfileService;
@@ -326,12 +325,9 @@ public class CompanyDetailController {
             return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
         }
         List<CompanyCommercialInformationView> views = companyCommercialInformationService.listAll();
-        Map<UUID, List<AttachmentInfo>> attachments = companyCommercialInformationService.attachmentsByRecord(
-                views.stream().map(view -> view.getRecord().getId()).toList());
         return ResponseEntity.ok(
                 views.stream()
-                        .map(view -> toCommercialInformationResponse(view, currentUser,
-                                attachments.getOrDefault(view.getRecord().getId(), List.of())))
+                        .map(view -> toCommercialInformationResponse(view, currentUser))
                         .toList()
         );
     }
@@ -358,12 +354,9 @@ public class CompanyDetailController {
         }
         String normalized = cnpj.replaceAll("\\D", "");
         List<CompanyCommercialInformationEntity> records = companyCommercialInformationService.listByCnpj(normalized);
-        Map<UUID, List<AttachmentInfo>> attachments = companyCommercialInformationService.attachmentsByRecord(
-                records.stream().map(CompanyCommercialInformationEntity::getId).toList());
         return ResponseEntity.ok(
                 records.stream()
-                        .map(record -> toCommercialInformationResponse(record, currentUser,
-                                attachments.getOrDefault(record.getId(), List.of())))
+                        .map(record -> toCommercialInformationResponse(record, currentUser))
                         .toList()
         );
     }
@@ -410,52 +403,66 @@ public class CompanyDetailController {
         return ResponseEntity.ok(java.util.Map.of("message", "Informação comercial removida com sucesso"));
     }
 
-    @PostMapping(value = "/{cnpj}/commercial-information/{recordId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> addCommercialInformationAttachments(
-            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
-            @PathVariable UUID recordId,
-            @RequestPart(value = "files", required = false) java.util.List<MultipartFile> files) {
-        UserEntity currentUser = getAuthenticatedUser();
-        if (currentUser == null) {
+    // ---------- Colinha: arquivo de referência das informações comerciais, um por empresa ----------
+
+    /** Nome, tipo, tamanho, quem e quando — sem o arquivo. 204 quando ninguém enviou. */
+    @GetMapping("/{cnpj}/commercial-information/reference")
+    public ResponseEntity<?> getCommercialReference(@PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj) {
+        if (getAuthenticatedUser() == null) {
             return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
         }
-        String normalized = cnpj.replaceAll("\\D", "");
-        return ResponseEntity.ok(toCommercialInformationResponse(
-                companyCommercialInformationService.addAttachments(normalized, recordId, files, currentUser), currentUser));
+        return companyCommercialInformationService.referenceInfo(cnpj.replaceAll("\\D", ""))
+                .<ResponseEntity<?>>map(info -> ResponseEntity.ok(referenceResponse(info)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    @DeleteMapping("/{cnpj}/commercial-information/{recordId}/attachments/{attachmentId}")
-    public ResponseEntity<?> deleteCommercialInformationAttachment(
+    /** Envia a colinha; se já havia uma, ela é substituída. */
+    @PutMapping(value = "/{cnpj}/commercial-information/reference", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> replaceCommercialReference(
             @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
-            @PathVariable UUID recordId,
-            @PathVariable UUID attachmentId) {
+            @RequestPart(value = "file", required = false) MultipartFile file) {
         UserEntity currentUser = getAuthenticatedUser();
         if (currentUser == null) {
             return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
         }
-        String normalized = cnpj.replaceAll("\\D", "");
-        companyCommercialInformationService.deleteAttachment(normalized, recordId, attachmentId, currentUser);
-        return ResponseEntity.ok(java.util.Map.of("message", "Anexo removido com sucesso"));
+        return ResponseEntity.ok(referenceResponse(
+                companyCommercialInformationService.replaceReference(cnpj.replaceAll("\\D", ""), file, currentUser)));
     }
 
-    @GetMapping("/{cnpj}/commercial-information/{recordId}/attachments/{attachmentId}")
-    public ResponseEntity<?> downloadCommercialInformationAttachment(
-            @PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj,
-            @PathVariable UUID recordId,
-            @PathVariable UUID attachmentId) {
-        UserEntity currentUser = getAuthenticatedUser();
-        if (currentUser == null) {
+    /** Link curto para abrir a colinha numa aba nova. Ver {@link com.portal.serasa.application.service.arquivo.TicketArquivo}. */
+    @PostMapping("/{cnpj}/commercial-information/reference/link")
+    public ResponseEntity<?> linkCommercialReference(@PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj) {
+        if (getAuthenticatedUser() == null) {
             return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
         }
         String normalized = cnpj.replaceAll("\\D", "");
-        CompanyCommercialInformationAttachmentEntity attachment =
-                companyCommercialInformationService.getAttachment(normalized, recordId, attachmentId);
-        String fileName = attachment.getFileName() != null ? attachment.getFileName() : "informacao-comercial-anexo";
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(attachment.getContentType()))
-                .header("Content-Disposition", "attachment; filename=\"" + fileName.replace("\"", "") + "\"")
-                .header("X-Content-Type-Options", "nosniff")
-                .body(attachment.getData());
+        companyCommercialInformationService.getReference(normalized);
+        String ticket = ticketArquivo.emitir(() -> {
+            var colinha = companyCommercialInformationService.getReference(normalized);
+            return new com.portal.serasa.application.service.arquivo.TicketArquivo.Arquivo(
+                    colinha.getFileName(), colinha.getContentType(), colinha.getData());
+        });
+        return ResponseEntity.ok(java.util.Map.of("ticket", ticket));
+    }
+
+    @DeleteMapping("/{cnpj}/commercial-information/reference")
+    public ResponseEntity<?> deleteCommercialReference(@PathVariable @NotBlank @Size(min = 14, max = 18) String cnpj) {
+        if (getAuthenticatedUser() == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Não autenticado"));
+        }
+        companyCommercialInformationService.deleteReference(cnpj.replaceAll("\\D", ""));
+        return ResponseEntity.noContent().build();
+    }
+
+    private static java.util.Map<String, Object> referenceResponse(
+            com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialReferenceFileJpaRepository.ReferenceInfo info) {
+        java.util.Map<String, Object> corpo = new java.util.LinkedHashMap<>();
+        corpo.put("fileName", info.getFileName());
+        corpo.put("contentType", info.getContentType());
+        corpo.put("fileSize", info.getFileSize());
+        corpo.put("uploadedByName", info.getUploadedByName());
+        corpo.put("uploadedAt", info.getUploadedAt());
+        return corpo;
     }
 
     // ---------- Empresas parceiras (vínculo manual entre CNPJs do mesmo grupo) ----------
@@ -1008,14 +1015,8 @@ public class CompanyDetailController {
                 .build();
     }
 
-    private CompanyCommercialInformationResponse toCommercialInformationResponse(CompanyCommercialInformationEntity record, UserEntity currentUser) {
-        return toCommercialInformationResponse(record, currentUser, companyCommercialInformationService
-                .attachmentsByRecord(List.of(record.getId())).getOrDefault(record.getId(), List.of()));
-    }
-
     private CompanyCommercialInformationResponse toCommercialInformationResponse(CompanyCommercialInformationEntity record,
-                                                                                 UserEntity currentUser,
-                                                                                 List<AttachmentInfo> attachments) {
+                                                                                 UserEntity currentUser) {
         return CompanyCommercialInformationResponse.builder()
                 .id(record.getId())
                 .authorName(record.getAuthorName())
@@ -1042,13 +1043,11 @@ public class CompanyDetailController {
                 .observacao(record.getNotes())
                 .createdAt(record.getCreatedAt())
                 .updatedAt(record.getUpdatedAt())
-                .attachments(toAttachmentResponses(attachments))
                 .build();
     }
 
     private CompanyCommercialInformationResponse toCommercialInformationResponse(CompanyCommercialInformationView view,
-                                                                                 UserEntity currentUser,
-                                                                                 List<AttachmentInfo> attachments) {
+                                                                                 UserEntity currentUser) {
         CompanyCommercialInformationEntity record = view.getRecord();
         ClientEntity client = view.getClient();
         return CompanyCommercialInformationResponse.builder()
@@ -1079,15 +1078,7 @@ public class CompanyDetailController {
                 .observacao(record.getNotes())
                 .createdAt(record.getCreatedAt())
                 .updatedAt(record.getUpdatedAt())
-                .attachments(toAttachmentResponses(attachments))
                 .build();
-    }
-
-    private List<CompanyCommercialInformationResponse.Attachment> toAttachmentResponses(List<AttachmentInfo> attachments) {
-        return attachments.stream()
-                .map(info -> new CompanyCommercialInformationResponse.Attachment(
-                        info.getId(), info.getFileName(), info.getContentType(), info.getFileSize()))
-                .toList();
     }
 
     private boolean canManageCommercialInformation(CompanyCommercialInformationEntity record, UserEntity currentUser) {

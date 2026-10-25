@@ -3,12 +3,12 @@ package com.portal.serasa.application.service;
 import com.portal.serasa.api.rest.dto.request.CompanyCommercialInformationRequest;
 import com.portal.serasa.domain.exception.EntityNotFoundException;
 import com.portal.serasa.infrastructure.persistence.entity.ClientEntity;
-import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialInformationAttachmentEntity;
+import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialReferenceFileEntity;
 import com.portal.serasa.infrastructure.persistence.entity.CompanyCommercialInformationEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.ClientJpaRepository;
-import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialInformationAttachmentJpaRepository;
-import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialInformationAttachmentJpaRepository.AttachmentInfo;
+import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialReferenceFileJpaRepository;
+import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialReferenceFileJpaRepository.ReferenceInfo;
 import com.portal.serasa.infrastructure.persistence.repository.CompanyCommercialInformationJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,10 +17,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -30,8 +30,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CompanyCommercialInformationService {
 
-    static final long MAX_ATTACHMENT_SIZE = 5L * 1024 * 1024;
-    static final int MAX_ATTACHMENTS_PER_RECORD = 10;
+    static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
     /** PDF e imagem que o navegador mostra. SVG fica de fora: pode carregar script. */
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp");
@@ -41,7 +40,7 @@ public class CompanyCommercialInformationService {
 
     private final ClientJpaRepository clientJpaRepository;
     private final CompanyCommercialInformationJpaRepository commercialInformationJpaRepository;
-    private final CompanyCommercialInformationAttachmentJpaRepository attachmentJpaRepository;
+    private final CompanyCommercialReferenceFileJpaRepository referenceFileJpaRepository;
 
     @Transactional(readOnly = true)
     public List<CompanyCommercialInformationEntity> listByCnpj(String cnpj) {
@@ -106,72 +105,56 @@ public class CompanyCommercialInformationService {
         commercialInformationJpaRepository.delete(entity);
     }
 
+    // ---------------------------------------------- colinha (arquivo de referência)
+
+    /** O arquivo de referência da empresa, sem os bytes. Vazio quando ninguém enviou. */
     @Transactional(readOnly = true)
-    public Map<UUID, List<AttachmentInfo>> attachmentsByRecord(Collection<UUID> recordIds) {
-        if (recordIds.isEmpty()) {
-            return Map.of();
-        }
-        return attachmentJpaRepository.findInfoByRecordIdIn(recordIds).stream()
-                .collect(Collectors.groupingBy(AttachmentInfo::getRecordId));
+    public Optional<ReferenceInfo> referenceInfo(String cnpj) {
+        return referenceFileJpaRepository.findInfoByClientId(getClientByCnpj(cnpj).getId());
     }
 
+    /**
+     * Grava o arquivo de referência da empresa — a "colinha" que o time consulta ao preencher as
+     * fichas. É um por empresa: enviar outro substitui o anterior. Qualquer usuário do portal envia,
+     * e fica dito quem e quando.
+     */
     @Transactional
-    public CompanyCommercialInformationEntity addAttachments(String cnpj, UUID recordId, List<MultipartFile> files, UserEntity currentUser) {
-        CompanyCommercialInformationEntity record = getRecord(cnpj, recordId);
-        assertCanManage(record, currentUser);
-        List<MultipartFile> received = files == null ? List.of() : files.stream().filter(file -> file != null && !file.isEmpty()).toList();
-        if (received.isEmpty()) {
-            throw new IllegalArgumentException("Nenhum arquivo enviado");
+    public ReferenceInfo replaceReference(String cnpj, MultipartFile file, UserEntity currentUser) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Escolha um arquivo PDF ou imagem");
         }
-        if (attachmentJpaRepository.countByRecordId(recordId) + received.size() > MAX_ATTACHMENTS_PER_RECORD) {
-            throw new IllegalArgumentException("Cada informação comercial aceita no máximo " + MAX_ATTACHMENTS_PER_RECORD + " anexos");
-        }
-        List<CompanyCommercialInformationAttachmentEntity> attachments = received.stream()
-                .map(file -> CompanyCommercialInformationAttachmentEntity.builder()
-                        .recordId(recordId)
-                        .fileName(file.getOriginalFilename())
-                        .contentType(acceptedType(file))
-                        .fileSize(file.getSize())
-                        .data(readBytes(file))
-                        .createdAt(LocalDateTime.now())
-                        .build())
-                .toList();
-        attachmentJpaRepository.saveAll(attachments);
-        return record;
-    }
-
-    @Transactional
-    public void deleteAttachment(String cnpj, UUID recordId, UUID attachmentId, UserEntity currentUser) {
-        CompanyCommercialInformationEntity record = getRecord(cnpj, recordId);
-        assertCanManage(record, currentUser);
-        attachmentJpaRepository.delete(getAttachmentEntity(recordId, attachmentId));
-    }
-
-    @Transactional(readOnly = true)
-    public CompanyCommercialInformationAttachmentEntity getAttachment(String cnpj, UUID recordId, UUID attachmentId) {
-        getRecord(cnpj, recordId);
-        return getAttachmentEntity(recordId, attachmentId);
-    }
-
-    private CompanyCommercialInformationAttachmentEntity getAttachmentEntity(UUID recordId, UUID attachmentId) {
-        return attachmentJpaRepository.findByIdAndRecordId(attachmentId, recordId)
-                .orElseThrow(() -> new EntityNotFoundException("Anexo não encontrado"));
-    }
-
-    private CompanyCommercialInformationEntity getRecord(String cnpj, UUID recordId) {
         ClientEntity client = getClientByCnpj(cnpj);
-        CompanyCommercialInformationEntity record = commercialInformationJpaRepository.findById(recordId)
-                .orElseThrow(() -> new EntityNotFoundException("Informação comercial não encontrada"));
-        if (!record.getClientId().equals(client.getId())) {
-            throw new EntityNotFoundException("Informação comercial não encontrada para esta empresa");
+        referenceFileJpaRepository.save(CompanyCommercialReferenceFileEntity.builder()
+                .clientId(client.getId())
+                .fileName(file.getOriginalFilename())
+                .contentType(acceptedType(file))
+                .fileSize(file.getSize())
+                .data(readBytes(file))
+                .uploadedByName(currentUser.getName())
+                .uploadedAt(LocalDateTime.now())
+                .build());
+        return referenceFileJpaRepository.findInfoByClientId(client.getId())
+                .orElseThrow(() -> new IllegalStateException("Arquivo de referência não foi gravado"));
+    }
+
+    @Transactional(readOnly = true)
+    public CompanyCommercialReferenceFileEntity getReference(String cnpj) {
+        return referenceFileJpaRepository.findById(getClientByCnpj(cnpj).getId())
+                .orElseThrow(() -> new EntityNotFoundException("Nenhum arquivo de referência para esta empresa"));
+    }
+
+    @Transactional
+    public void deleteReference(String cnpj) {
+        UUID clientId = getClientByCnpj(cnpj).getId();
+        if (referenceFileJpaRepository.existsById(clientId)) {
+            referenceFileJpaRepository.deleteById(clientId);
         }
-        return record;
     }
 
     /** O tipo que o navegador mandou; sem ele (ou genérico), o da extensão. Fora de PDF e imagem, recusa. */
     private String acceptedType(MultipartFile file) {
         String name = file.getOriginalFilename() == null ? "arquivo" : file.getOriginalFilename();
-        if (file.getSize() > MAX_ATTACHMENT_SIZE) {
+        if (file.getSize() > MAX_FILE_SIZE) {
             throw new IllegalArgumentException("\"" + name + "\" passa de 5 MB");
         }
         String type = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
@@ -189,7 +172,7 @@ public class CompanyCommercialInformationService {
         try {
             return file.getBytes();
         } catch (IOException ex) {
-            throw new IllegalArgumentException("Não foi possível ler o anexo enviado");
+            throw new IllegalArgumentException("Não foi possível ler o arquivo enviado");
         }
     }
 

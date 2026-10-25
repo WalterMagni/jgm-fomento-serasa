@@ -5,7 +5,7 @@ import Icon from "@/components/ui/Icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { baixarPlanilhaFichas } from "@/lib/planilhaFichaComercial";
-import { abrirAnexoFicha, baixarAnexoFicha, iconeAnexo, tamanhoArquivo, type AnexoFicha } from "@/lib/anexoFicha";
+import { ColinhaComercial } from "./ColinhaComercial";
 
 type CommercialRecord = {
   id: string;
@@ -33,13 +33,7 @@ type CommercialRecord = {
   canManage?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  attachments?: AnexoFicha[];
 };
-
-/** Mudanças de anexo do formulário, aplicadas depois de salvar a ficha. */
-type AttachmentChanges = { newFiles: File[]; removedIds: string[] };
-
-const noAttachmentChanges: AttachmentChanges = { newFiles: [], removedIds: [] };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -49,37 +43,6 @@ function getAuthHeaders() {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-}
-
-function getAuthOnlyHeaders(): Record<string, string> {
-  const token = localStorage.getItem("serasa_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
-// SVG fica de fora: pode carregar script. O backend recusa o mesmo conjunto.
-const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"];
-const ACCEPTED_EXTENSIONS = /\.(pdf|png|jpe?g|gif|webp)$/i;
-
-function isAcceptedFile(file: File) {
-  return ACCEPTED_TYPES.includes(file.type) || (!file.type && ACCEPTED_EXTENSIONS.test(file.name));
-}
-
-function fileKey(file: File) {
-  return `${file.name}-${file.size}-${file.lastModified}`;
-}
-
-/** Print colado vem sem nome útil; ganha um com data para não virar "image.png" repetido. */
-function extractPastedFiles(items: DataTransferItemList) {
-  return Array.from(items)
-    .filter((item) => item.kind === "file")
-    .map((item) => item.getAsFile())
-    .filter((file): file is File => file !== null)
-    .map((file, index) => {
-      if (!file.type.startsWith("image/")) return file;
-      const extension = file.type.split("/")[1] || "png";
-      return new File([file], `print-${Date.now()}-${index + 1}.${extension}`, { type: file.type, lastModified: file.lastModified });
-    });
 }
 
 async function extractErrorMessage(res: Response, fallback: string) {
@@ -345,161 +308,11 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function AttachmentChip({
-  name,
-  contentType,
-  size,
-  onOpen,
-  onDownload,
-  onRemove,
-}: {
-  name: string;
-  contentType: string | null | undefined;
-  size: number | null | undefined;
-  onOpen?: () => void;
-  onDownload?: () => void;
-  onRemove?: () => void;
-}) {
-  const label = (
-    <>
-      <Icon name={iconeAnexo(contentType)} className="text-base text-primary" />
-      <span className="truncate">{name}</span>
-      {size ? <span className="shrink-0 text-[11px] font-normal text-gray-400">{tamanhoArquivo(size)}</span> : null}
-    </>
-  );
-  return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-border-light bg-white pl-2.5 pr-1 text-xs font-sans font-semibold text-grafite dark:border-border-dark dark:bg-gray-900 dark:text-gray-200">
-      {onOpen ? (
-        <button type="button" onClick={onOpen} title="Abrir" className="inline-flex min-h-8 min-w-0 items-center gap-1.5 hover:text-primary">
-          {label}
-        </button>
-      ) : (
-        <span className="inline-flex min-h-8 min-w-0 items-center gap-1.5">{label}</span>
-      )}
-      {onDownload && (
-        <button
-          type="button"
-          onClick={onDownload}
-          aria-label={`Baixar ${name}`}
-          title="Baixar"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary dark:hover:bg-gray-800"
-        >
-          <Icon name="download" className="text-sm" />
-        </button>
-      )}
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remover ${name}`}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800"
-        >
-          <Icon name="close" className="text-sm" />
-        </button>
-      )}
-    </span>
-  );
-}
-
-/** Anexos no formulário: escolher, arrastar ou colar (Ctrl+V em qualquer ponto do formulário). */
-function AttachmentField({
-  existing,
-  changes,
-  onAddFiles,
-  onRemoveNew,
-  onRemoveExisting,
-}: {
-  existing: AnexoFicha[];
-  changes: AttachmentChanges;
-  onAddFiles: (files: File[]) => void;
-  onRemoveNew: (file: File) => void;
-  onRemoveExisting: (id: string) => void;
-}) {
-  const [isDragActive, setIsDragActive] = useState(false);
-  const kept = existing.filter((attachment) => !changes.removedIds.includes(attachment.id));
-
-  return (
-    <div>
-      <span className="text-xs font-sans font-bold uppercase tracking-wide text-gray-400">Anexos</span>
-      <div
-        className={`mt-1 rounded-lg border border-dashed px-4 py-4 transition-colors ${
-          isDragActive ? "border-primary bg-primary/5" : "border-border-light bg-white dark:border-border-dark dark:bg-gray-900"
-        }`}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setIsDragActive(true);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragActive(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          if (event.currentTarget.contains(event.relatedTarget as Node)) return;
-          setIsDragActive(false);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setIsDragActive(false);
-          onAddFiles(Array.from(event.dataTransfer.files));
-        }}
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-sans font-semibold text-grafite dark:text-white">
-              Arraste o arquivo aqui ou cole um print (Ctrl+V)
-            </p>
-            <p className="mt-0.5 text-xs text-gray-500">PDF ou imagem (PNG, JPG, GIF, WEBP), até 5 MB cada. Opcional.</p>
-          </div>
-          <label className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border-light px-4 text-sm font-sans font-bold text-primary transition-colors hover:bg-primary/5 focus-within:ring-2 focus-within:ring-primary dark:border-border-dark">
-            <Icon name="attach_file" className="text-base" />
-            Escolher arquivo
-            <input
-              type="file"
-              multiple
-              accept={ACCEPTED_TYPES.join(",")}
-              className="sr-only"
-              onChange={(event) => {
-                onAddFiles(Array.from(event.target.files ?? []));
-                event.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-        {(kept.length > 0 || changes.newFiles.length > 0) && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {kept.map((attachment) => (
-              <AttachmentChip
-                key={attachment.id}
-                name={attachment.fileName || "anexo"}
-                contentType={attachment.contentType}
-                size={attachment.fileSize}
-                onRemove={() => onRemoveExisting(attachment.id)}
-              />
-            ))}
-            {changes.newFiles.map((file) => (
-              <AttachmentChip
-                key={fileKey(file)}
-                name={file.name}
-                contentType={file.type}
-                size={file.size}
-                onRemove={() => onRemoveNew(file)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function ExpandedCommercialRecord({
-  cnpj,
   record,
   onEdit,
   onDelete,
 }: {
-  cnpj: string;
   record: CommercialRecord;
   onEdit: () => void;
   onDelete: () => void;
@@ -572,23 +385,6 @@ function ExpandedCommercialRecord({
           {record.observacao || "—"}
         </p>
       </div>
-      {record.attachments && record.attachments.length > 0 && (
-        <div className="mt-3 rounded-lg border border-border-light bg-white px-3 py-2 dark:border-border-dark dark:bg-gray-950">
-          <p className="text-[10px] font-sans font-bold uppercase tracking-wide text-gray-400">Anexos</p>
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            {record.attachments.map((attachment) => (
-              <AttachmentChip
-                key={attachment.id}
-                name={attachment.fileName || "anexo"}
-                contentType={attachment.contentType}
-                size={attachment.fileSize}
-                onOpen={() => abrirAnexoFicha(cnpj, record.id, attachment)}
-                onDownload={() => baixarAnexoFicha(cnpj, record.id, attachment)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -596,48 +392,19 @@ function ExpandedCommercialRecord({
 function CommercialInformationModal({
   open,
   draft,
-  attachmentChanges,
   isSaving,
   onChange,
-  onAttachmentChanges,
   onClose,
   onSave,
 }: {
   open: boolean;
   draft: CommercialRecord;
-  attachmentChanges: AttachmentChanges;
   isSaving: boolean;
   onChange: (name: keyof CommercialRecord, value: string) => void;
-  onAttachmentChanges: (changes: AttachmentChanges) => void;
   onClose: () => void;
   onSave: () => void;
 }) {
   if (!open) return null;
-
-  const addFiles = (files: File[]) => {
-    const rejectedType = files.filter((file) => !isAcceptedFile(file));
-    const tooBig = files.filter((file) => isAcceptedFile(file) && file.size > MAX_ATTACHMENT_BYTES);
-    if (rejectedType.length > 0) {
-      toast.error(`Só PDF ou imagem: ${rejectedType.map((file) => file.name).join(", ")}`);
-    }
-    if (tooBig.length > 0) {
-      toast.error(`Passa de 5 MB: ${tooBig.map((file) => file.name).join(", ")}`);
-    }
-    const existingKeys = new Set(attachmentChanges.newFiles.map(fileKey));
-    const accepted = files.filter(
-      (file) => isAcceptedFile(file) && file.size <= MAX_ATTACHMENT_BYTES && !existingKeys.has(fileKey(file)),
-    );
-    if (accepted.length > 0) {
-      onAttachmentChanges({ ...attachmentChanges, newFiles: [...attachmentChanges.newFiles, ...accepted] });
-    }
-  };
-
-  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    const files = extractPastedFiles(event.clipboardData.items);
-    if (files.length === 0) return;
-    event.preventDefault();
-    addFiles(files);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -659,7 +426,7 @@ function CommercialInformationModal({
           </button>
         </div>
 
-        <div className="overflow-y-auto px-6 py-5" onPaste={handlePaste}>
+        <div className="overflow-y-auto px-6 py-5">
           <div className="space-y-6">
             <FormSection title="Operação">
               <Field label="Data" name="data" value={draft.data} onChange={onChange} placeholder="dd/MM/aaaa" inputMode="numeric" />
@@ -711,21 +478,6 @@ function CommercialInformationModal({
                 placeholder="Registre contexto, retorno do parceiro, motivo de pausa ou qualquer ponto importante para o comercial."
               />
             </label>
-
-            <AttachmentField
-              existing={draft.attachments ?? []}
-              changes={attachmentChanges}
-              onAddFiles={addFiles}
-              onRemoveNew={(file) =>
-                onAttachmentChanges({
-                  ...attachmentChanges,
-                  newFiles: attachmentChanges.newFiles.filter((item) => fileKey(item) !== fileKey(file)),
-                })
-              }
-              onRemoveExisting={(id) =>
-                onAttachmentChanges({ ...attachmentChanges, removedIds: [...attachmentChanges.removedIds, id] })
-              }
-            />
           </div>
         </div>
 
@@ -757,7 +509,6 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState<CommercialRecord>(emptyRecord);
-  const [attachmentChanges, setAttachmentChanges] = useState<AttachmentChanges>(noAttachmentChanges);
   const [expandedRecordIds, setExpandedRecordIds] = useState<Set<string>>(new Set());
 
   const recordsQuery = useQuery<CommercialRecord[]>({
@@ -780,10 +531,8 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
   const records = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
 
   const saveRecord = useMutation({
-    mutationFn: async ({ record, changes }: { record: CommercialRecord; changes: AttachmentChanges }) => {
+    mutationFn: async (record: CommercialRecord) => {
       const isEditing = Boolean(record.id);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { attachments, ...fields } = record;
       const response = await fetch(
         isEditing
           ? `${API_BASE_URL}/company/${cleanCnpj}/commercial-information/${record.id}`
@@ -791,7 +540,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
         {
           method: isEditing ? "PUT" : "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify(fields),
+          body: JSON.stringify(record),
         },
       );
 
@@ -799,24 +548,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
         throw new Error(await extractErrorMessage(response, "Erro ao salvar informação comercial"));
       }
 
-      const saved = normalizeRecord(await response.json());
-      const attachmentsUrl = `${API_BASE_URL}/company/${cleanCnpj}/commercial-information/${saved.id}/attachments`;
-      // A ficha já está salva; se o anexo falhar, o aviso diz isso para não parecer que nada foi gravado.
-      for (const id of changes.removedIds) {
-        const removed = await fetch(`${attachmentsUrl}/${id}`, { method: "DELETE", headers: getAuthOnlyHeaders() });
-        if (!removed.ok) {
-          throw new Error(`Ficha salva, mas o anexo não foi removido: ${await extractErrorMessage(removed, "erro")}`);
-        }
-      }
-      if (changes.newFiles.length > 0) {
-        const body = new FormData();
-        changes.newFiles.forEach((file) => body.append("files", file));
-        const uploaded = await fetch(attachmentsUrl, { method: "POST", headers: getAuthOnlyHeaders(), body });
-        if (!uploaded.ok) {
-          throw new Error(`Ficha salva, mas o anexo não subiu: ${await extractErrorMessage(uploaded, "erro")}`);
-        }
-      }
-      return saved;
+      return normalizeRecord(await response.json());
     },
     onSuccess: (savedRecord) => {
       toast.success("Informação comercial salva");
@@ -824,11 +556,8 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
       setExpandedRecordIds((current) => new Set(current).add(savedRecord.id));
       setModalOpen(false);
       setDraft(emptyRecord);
-      setAttachmentChanges(noAttachmentChanges);
     },
     onError: (error: Error) => {
-      // Ficha salva com anexo falho: a lista precisa mostrar o que entrou.
-      queryClient.invalidateQueries({ queryKey: ["companyCommercialInformation", cleanCnpj] });
       toast.error(error.message || "Erro ao salvar informação comercial");
     },
   });
@@ -897,18 +626,16 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
   const openNewRecord = () => {
     const today = new Intl.DateTimeFormat("pt-BR").format(new Date());
     setDraft({ ...emptyRecord, data: today });
-    setAttachmentChanges(noAttachmentChanges);
     setModalOpen(true);
   };
 
   const openEditRecord = (record: CommercialRecord) => {
     setDraft(record);
-    setAttachmentChanges(noAttachmentChanges);
     setModalOpen(true);
   };
 
   const saveDraft = () => {
-    saveRecord.mutate({ record: draft, changes: attachmentChanges });
+    saveRecord.mutate(draft);
   };
 
   const handleDeleteRecord = (record: CommercialRecord) => {
@@ -929,6 +656,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
           <p className="mt-1 text-xs font-sans text-gray-500">
             Resumo operacional por parceiro, risco, limite, VOP e performance.
           </p>
+          <ColinhaComercial cnpj={cleanCnpj} />
         </div>
         <button
           type="button"
@@ -1036,20 +764,7 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
                             {formatDate(record.data)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-sans font-bold text-grafite dark:text-white">
-                          <span className="inline-flex items-center gap-1.5">
-                            {record.parceiro || "—"}
-                            {record.attachments && record.attachments.length > 0 && (
-                              <span
-                                className="inline-flex items-center gap-0.5 text-xs font-normal text-gray-400"
-                                title={`${record.attachments.length} anexo(s)`}
-                              >
-                                <Icon name="attach_file" className="text-sm" />
-                                {record.attachments.length}
-                              </span>
-                            )}
-                          </span>
-                        </td>
+                        <td className="px-4 py-3 font-sans font-bold text-grafite dark:text-white">{record.parceiro || "—"}</td>
                         <td className="px-4 py-3 text-grafite dark:text-gray-200">{formatMoney(record.ultimaOperacaoValor)}</td>
                         <td className="px-4 py-3 text-grafite dark:text-gray-200">{formatMoney(record.limite)}</td>
                         <td className="px-4 py-3 text-grafite dark:text-gray-200">{summarizeRisk(record)}</td>
@@ -1061,7 +776,6 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
                         <tr className="bg-primary/5 dark:bg-primary/10">
                           <td colSpan={8} className="px-4 pb-4 pt-0">
                             <ExpandedCommercialRecord
-                              cnpj={cleanCnpj}
                               record={record}
                               onEdit={() => openEditRecord(record)}
                               onDelete={() => handleDeleteRecord(record)}
@@ -1081,10 +795,8 @@ export function CommercialInformationPanel({ cnpj }: { cnpj: string }) {
       <CommercialInformationModal
         open={modalOpen}
         draft={draft}
-        attachmentChanges={attachmentChanges}
         isSaving={saveRecord.isPending}
         onChange={updateDraft}
-        onAttachmentChanges={setAttachmentChanges}
         onClose={() => setModalOpen(false)}
         onSave={saveDraft}
       />
