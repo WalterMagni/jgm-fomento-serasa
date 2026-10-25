@@ -442,9 +442,19 @@ export function SacadosLista({
   const comValor = sacados.filter(sacado => sacado.valor != null);
   const soma = comValor.reduce((total, sacado) => total + (sacado.valor ?? 0), 0);
   const divergente = valorOperacao != null && comValor.length > 0 && Math.abs(soma - valorOperacao) >= 0.01;
-  const decididos = sacados.filter(sacado =>
-    quadro === "COMITE" ? sacado.opiniaoComite : quadro === "DIRETORIA" ? sacado.decisaoDiretoria : sacado.situacao,
-  );
+  const decisao = (sacado: Sacado) =>
+    quadro === "COMITE"
+      ? { resultado: sacado.opiniaoComite, parcial: sacado.valorAprovadoComite }
+      : quadro === "DIRETORIA"
+        ? { resultado: sacado.decisaoDiretoria, parcial: sacado.valorAprovadoDiretoria }
+        : { resultado: sacado.situacao, parcial: sacado.valorAprovado };
+  const decididos = sacados.filter(sacado => decisao(sacado).resultado);
+  // Aprovados inteiros mais o valor aprovado dos parciais, pela decisão que vale agora: a mesma
+  // conta do valor aprovado do card, que só existe depois da decisão.
+  const aprovado = decididos.reduce((total, sacado) => {
+    const { resultado, parcial } = decisao(sacado);
+    return total + (resultado === "APROVADO" ? (sacado.valor ?? 0) : resultado === "PARCIAL" ? (parcial ?? 0) : 0);
+  }, 0);
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-700">
@@ -525,6 +535,12 @@ export function SacadosLista({
             {divergente && <Icon name="warning" size={12} />}
             Soma dos sacados <strong className="tabular-nums">{formatMoeda(soma)}</strong>
             {divergente && <span>≠ {formatMoeda(valorOperacao)}</span>}
+          </span>
+        )}
+        {decididos.length > 0 && (
+          <span className="flex items-center gap-1 text-slate-500" title="Aprovados inteiros mais o valor aprovado dos parciais">
+            Aprovado{" "}
+            <strong className={`tabular-nums ${aprovado > 0 ? "text-emerald-700 dark:text-emerald-300" : ""}`}>{formatMoeda(aprovado)}</strong>
           </span>
         )}
         <span className="ml-auto text-slate-500">
