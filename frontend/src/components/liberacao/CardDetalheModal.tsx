@@ -6,15 +6,31 @@ import Icon from "@/components/ui/Icon";
 import NotaDaEquipe from "@/components/nota/NotaDaEquipe";
 import { RESSALVA } from "@/lib/ressalva";
 import TextoRico, { MencoesProvider } from "@/components/ui/mencao/TextoRico";
-import { useArquivarCard, useCadastrarEmpresa, useEditarCard, useExcluirCard, useLiberacaoDetalhe, useNovaPendencia } from "@/hooks/useLiberacao";
-import { ETAPAS_DECIDIDAS, ROTULO_ETAPA, ROTULO_POSICAO, ROTULO_RESULTADO, type LiberacaoCard } from "@/types/liberacao";
+import {
+  useArquivarCard,
+  useCadastrarEmpresa,
+  useEditarCard,
+  useEditarParecerOrigem,
+  useExcluirCard,
+  useLiberacaoDetalhe,
+  useNovaPendencia,
+} from "@/hooks/useLiberacao";
+import {
+  ETAPAS_DECIDIDAS,
+  ROTULO_ETAPA,
+  ROTULO_POSICAO,
+  ROTULO_RESULTADO,
+  type LiberacaoCard,
+  type PosicaoParecer,
+} from "@/types/liberacao";
 import CardForm from "./CardForm";
+import ParecerOrigemCampos from "./ParecerOrigemCampos";
 import Anexos from "./Anexos";
 import Atividade from "./Atividade";
 import OrganizacaoCard from "./OrganizacaoCard";
 import { ResumoProposta, rotuloProposta } from "./PropostaAr";
 import { PareceresComite, PendenciasLista, SacadosLista, Secao } from "./DetalheSecoes";
-import Dialogo from "./Dialogo";
+import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./Dialogo";
 import PendenciaDialog from "./PendenciaDialog";
 import DeclinarDialog from "./DeclinarDialog";
 import {
@@ -43,6 +59,82 @@ type Props = {
   onFechar: () => void;
   onMover: (card: LiberacaoCard, para: LiberacaoCard["etapa"]) => void;
 };
+
+/**
+ * O parecer da origem, editável no próprio lugar em qualquer etapa por quem edita o card ou por quem
+ * o criou — a origem costuma completar o parecer depois que o card já andou (pedido do time,
+ * 2026-10-26). Antes, só pelo "Editar" da operação, e só até o Comitê para quem não é analista.
+ */
+function ParecerOrigem({ card }: { card: LiberacaoCard }) {
+  const salvar = useEditarParecerOrigem();
+  const [editando, setEditando] = useState(false);
+  const [posicao, setPosicao] = useState<PosicaoParecer | null>(card.posicaoOrigem);
+  const [texto, setTexto] = useState(card.parecerOrigem ?? "");
+  const vazio = !card.parecerOrigem && !card.posicaoOrigem;
+
+  function abrir() {
+    setPosicao(card.posicaoOrigem);
+    setTexto(card.parecerOrigem ?? "");
+    setEditando(true);
+  }
+
+  function gravar() {
+    salvar.mutate(
+      { id: card.id, parecerOrigem: texto.trim() || null, posicaoOrigem: posicao, version: card.version },
+      { onSuccess: () => setEditando(false) },
+    );
+  }
+
+  return (
+    <Secao
+      titulo="Parecer da origem"
+      icone="description"
+      acao={
+        !editando && (
+          <span className="inline-flex items-center gap-1.5">
+            {card.posicaoOrigem && (
+              <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ${COR_POSICAO[card.posicaoOrigem]}`}>
+                <Icon name={ICONE_POSICAO[card.posicaoOrigem]} size={11} />
+                {ROTULO_POSICAO[card.posicaoOrigem]}
+              </span>
+            )}
+            {card.podeEditarParecerOrigem && (
+              <button
+                type="button"
+                onClick={abrir}
+                className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs font-medium text-slate-600
+                  hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Icon name={vazio ? "add" : "edit"} size={13} /> {vazio ? "Adicionar parecer" : "Editar"}
+              </button>
+            )}
+          </span>
+        )
+      }
+    >
+      {editando ? (
+        <div className="space-y-3">
+          <ParecerOrigemCampos id={`parecer-origem-${card.id}`} posicao={posicao} onPosicao={setPosicao} parecer={texto} onParecer={setTexto} />
+          <div className="flex justify-end gap-2">
+            <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setEditando(false)} disabled={salvar.isPending}>
+              Cancelar
+            </button>
+            <button type="button" className={BOTAO_PRIMARIO} onClick={gravar} disabled={salvar.isPending}>
+              {salvar.isPending && <Icon name="progress_activity" size={14} className="animate-spin" />}
+              Salvar parecer
+            </button>
+          </div>
+        </div>
+      ) : card.parecerOrigem ? (
+        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+          <TextoRico texto={card.parecerOrigem} />
+        </p>
+      ) : (
+        <p className="text-sm text-slate-400">Sem parecer.</p>
+      )}
+    </Secao>
+  );
+}
 
 function Dado({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -355,26 +447,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                 />
               </Secao>
 
-              <Secao
-                titulo="Parecer da origem"
-                icone="description"
-                acao={
-                  card.posicaoOrigem && (
-                    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ${COR_POSICAO[card.posicaoOrigem]}`}>
-                      <Icon name={ICONE_POSICAO[card.posicaoOrigem]} size={11} />
-                      {ROTULO_POSICAO[card.posicaoOrigem]}
-                    </span>
-                  )
-                }
-              >
-                {card.parecerOrigem ? (
-                  <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                    <TextoRico texto={card.parecerOrigem} />
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-400">Sem parecer.</p>
-                )}
-              </Secao>
+              <ParecerOrigem key={card.id} card={card} />
 
               {(card.etapa !== "ORIGEM" || data.pareceres.length > 0) && (
                 <Secao titulo="Comitê" icone="gavel">

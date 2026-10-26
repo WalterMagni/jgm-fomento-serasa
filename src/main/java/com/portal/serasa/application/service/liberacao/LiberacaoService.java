@@ -375,6 +375,46 @@ public class LiberacaoService {
         return salvo;
     }
 
+    /**
+     * Edita só o parecer da origem (texto e posição), em qualquer etapa — o parecer costuma ser
+     * completado depois que o card já andou. Pode quem edita o card e quem o criou. Mesma conferência
+     * de versão, mesmo histórico e mesmo aviso aos marcados da edição completa.
+     */
+    @Transactional
+    public LiberacaoCardEntity editarParecerOrigem(UUID id, Long versao, String parecerOrigem, PosicaoParecer posicao,
+                                                   UserEntity autor) {
+        LiberacaoCardEntity card = buscar(id);
+        autorizacao.exigirEdicaoParecerOrigem(card, autor);
+        if (versao == null || !versao.equals(card.getVersion())) {
+            throw new ConflitoEdicaoException("O card foi alterado por " + card.getAtualizadoPorNome()
+                    + " em " + card.getAtualizadoEm().format(HORA) + ". Recarregue para ver a versão atual.");
+        }
+
+        String parecer = textoOuNulo(parecerOrigem);
+        String parecerAnterior = card.getParecerOrigem();
+        List<String[]> mudancas = new ArrayList<>();
+        if (!Objects.equals(parecer, parecerAnterior)) {
+            mudancas.add(new String[]{"parecerOrigem", parecerAnterior, parecer});
+            card.setParecerOrigem(parecer);
+        }
+        if (posicao != card.getPosicaoOrigem()) {
+            mudancas.add(new String[]{"posicaoOrigem", rotuloPosicao(card.getPosicaoOrigem()), rotuloPosicao(posicao)});
+            card.setPosicaoOrigem(posicao);
+        }
+        if (mudancas.isEmpty()) {
+            return card;
+        }
+
+        tocar(card, autor);
+        LiberacaoCardEntity salvo = cardRepository.saveAndFlush(card);
+        for (String[] mudanca : mudancas) {
+            registrar(salvo, TipoEventoLiberacao.EDICAO, null, null, mudanca[0], mudanca[1], mudanca[2], null, autor);
+        }
+        Set<UUID> mencionados = acompanharMencionados(id, MencaoParser.novosUsuarios(parecerAnterior, parecer));
+        eventos.publishEvent(new LiberacaoEvento.Editado(salvo, autor, mencionados, trecho(parecer)));
+        return salvo;
+    }
+
     // ------------------------------------------------------------- transições
 
     /**

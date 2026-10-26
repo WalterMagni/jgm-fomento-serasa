@@ -41,6 +41,7 @@ o quadro rola para o lado (no trackpad, ou com Shift + roda do mouse).
 |---|---|---|
 | Criar card | todos | — |
 | Editar campos, etiquetas e cor | todos | só analista |
+| Editar o parecer da origem | todos | analista ou quem criou o card |
 | Apagar | todos | só analista |
 | Mover | todos (para o Comitê) | só analista |
 | Comentar e marcar pessoas | todos | todos |
@@ -66,7 +67,8 @@ Botão **Nova análise** (ou o **+** na coluna Origem).
 3. **Sacados**: um CNPJ ou CPF por linha, com valor opcional. **Dá para colar vários de
    uma vez** — copie a lista do e-mail ou da planilha e cole na primeira linha.
 4. **Parecer da origem**: a posição (**Favorável**, **Com ressalvas** ou **Desfavorável**) e o
-   que a análise encontrou.
+   que a análise encontrou. Não precisa estar pronto na criação: no detalhe do card, a seção
+   **Parecer da origem** tem **Adicionar parecer** (ou **Editar**) em qualquer etapa.
 
 Ao terminar de digitar o CNPJ do sacado, aparecem o nome e a praça (cidade/UF), como no
 cedente. Se o sacado já foi **reprovado** ou **parcialmente aprovado** em outro card, aparece

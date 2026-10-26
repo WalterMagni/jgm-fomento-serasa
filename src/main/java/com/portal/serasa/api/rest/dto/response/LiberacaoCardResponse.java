@@ -84,6 +84,8 @@ public record LiberacaoCardResponse(
         int anexos,
         List<Pessoa> membros,
         boolean podeEditar,
+        /** Editar o parecer da origem: quem edita o card ou quem o criou, em qualquer etapa. */
+        boolean podeEditarParecerOrigem,
         /** Cada etapa de destino possível, com o motivo quando esta pessoa não pode mover. */
         List<Destino> destinos) {
 

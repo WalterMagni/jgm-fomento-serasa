@@ -485,6 +485,47 @@ class LiberacaoServiceTest {
     }
 
     @Test
+    @DisplayName("editarParecerOrigem: quem criou o card edita o parecer no Comitê, mesmo sem ser analista")
+    void shouldLetCreatorEditOriginOpinionInComite() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+
+        LiberacaoCardEntity editado = service.editarParecerOrigem(card.getId(), card.getVersion(),
+                "  Cliente antigo, pagou em dia as três últimas.  ", PosicaoParecer.FAVORAVEL, auxiliar);
+
+        assertThat(editado.getParecerOrigem()).isEqualTo("Cliente antigo, pagou em dia as três últimas.");
+        assertThat(editado.getPosicaoOrigem()).isEqualTo(PosicaoParecer.FAVORAVEL);
+        assertThat(editado.getAtualizadoPorId()).isEqualTo(auxiliar.getId());
+        verify(cardRepository).saveAndFlush(card);
+        verify(eventoRepository, times(2)).save(any());
+    }
+
+    @Test
+    @DisplayName("editarParecerOrigem: no Comitê, quem não é analista nem criou o card é AcessoNegado")
+    void shouldDenyOtherNonAnalystEditingOriginOpinion() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        UserEntity outro = UserEntity.builder().id(UUID.randomUUID()).name("Carla").email("carla@jgm.com").build();
+
+        assertThatThrownBy(() -> service.editarParecerOrigem(card.getId(), card.getVersion(), "x", null, outro))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessageContaining("quem criou o card");
+        verify(cardRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("editarParecerOrigem: versão diferente é conflito; sem mudança não grava nada")
+    void shouldCheckVersionAndSkipNoOpOriginOpinionEdit() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+
+        assertThatThrownBy(() -> service.editarParecerOrigem(card.getId(), 999L, "x", null, analista))
+                .isInstanceOf(ConflitoEdicaoException.class);
+
+        service.editarParecerOrigem(card.getId(), card.getVersion(), "Cliente antigo", null, analista);
+
+        verify(cardRepository, never()).saveAndFlush(any());
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("editar: card inexistente ou apagado é EntityNotFound")
     void shouldFailWhenCardDoesNotExist() {
         UUID inexistente = UUID.randomUUID();

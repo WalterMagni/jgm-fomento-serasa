@@ -181,6 +181,8 @@ export type LiberacaoCard = {
   anexos: number;
   membros: Pessoa[];
   podeEditar: boolean;
+  /** Editar só o parecer da origem: quem edita o card ou quem o criou, em qualquer etapa. */
+  podeEditarParecerOrigem: boolean;
   destinos: Destino[];
 };
 

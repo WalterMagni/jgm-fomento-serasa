@@ -217,6 +217,33 @@ export function useEditarCard() {
   });
 }
 
+/** Só o parecer da origem (texto e posição), em qualquer etapa. Mesma conferência de versão do editar. */
+export function useEditarParecerOrigem() {
+  const atualizar = useAtualizarCache();
+  const queryClient = useQueryClient();
+  return useMutation<
+    LiberacaoCard,
+    Error,
+    { id: string; parecerOrigem: string | null; posicaoOrigem: PosicaoParecer | null; version: number }
+  >({
+    mutationFn: ({ id, ...corpo }) =>
+      pedir<LiberacaoCard>(
+        `${API_BASE_URL}/liberacao/${id}/parecer-origem`,
+        { method: "PATCH", body: JSON.stringify(corpo) },
+        "Falha ao salvar o parecer",
+      ),
+    onSuccess: card => {
+      atualizar(card);
+      toast.success("Parecer da origem salvo");
+    },
+    onError: (error, { id }) =>
+      avisarConflito(error, () => {
+        queryClient.invalidateQueries({ queryKey: detalheKey(id) });
+        queryClient.invalidateQueries({ queryKey: LISTA_KEY });
+      }),
+  });
+}
+
 type Mover = {
   id: string;
   de: EtapaLiberacao;

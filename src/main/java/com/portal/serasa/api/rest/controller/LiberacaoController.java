@@ -4,6 +4,7 @@ import com.portal.serasa.api.rest.dto.request.LiberacaoCardRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoComentarioRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoDeclinioRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoOrganizacaoRequests;
+import com.portal.serasa.api.rest.dto.request.LiberacaoParecerOrigemRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoParecerRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoPendenciaRequest;
 import com.portal.serasa.api.rest.dto.request.LiberacaoRespostaRequest;
@@ -147,6 +148,15 @@ public class LiberacaoController {
         UserEntity autor = usuarioLogado.obter();
         return ResponseEntity.ok(assembler.card(
                 liberacaoService.editar(id, request.version(), dados(request), autor), autor));
+    }
+
+    /** Só o parecer da origem: quem edita o card ou quem o criou, em qualquer etapa. */
+    @PatchMapping("/{id}/parecer-origem")
+    public ResponseEntity<LiberacaoCardResponse> editarParecerOrigem(@PathVariable UUID id,
+                                                                     @Valid @RequestBody LiberacaoParecerOrigemRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        return ResponseEntity.ok(assembler.card(liberacaoService.editarParecerOrigem(id, request.version(),
+                request.parecerOrigem(), request.posicaoOrigem(), autor), autor));
     }
 
     @PatchMapping("/{id}/etapa")

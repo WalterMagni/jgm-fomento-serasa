@@ -293,6 +293,7 @@ public class LiberacaoResponseAssembler {
                         .map(user -> new LiberacaoCardResponse.Pessoa(user.getId(), user.getName(), iniciais(user.getName())))
                         .toList())
                 .podeEditar(autorizacao.podeEditar(card, usuario))
+                .podeEditarParecerOrigem(autorizacao.podeEditarParecerOrigem(card, usuario))
                 // Avançar primeiro, devolver por último: é a ordem em que a tela lista os botões.
                 .destinos(card.getEtapa().destinos().stream()
                         .sorted(Comparator.comparing((EtapaLiberacao etapa) -> etapa.ordinal() < card.getEtapa().ordinal())

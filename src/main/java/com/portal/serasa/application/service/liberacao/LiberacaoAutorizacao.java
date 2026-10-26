@@ -39,6 +39,22 @@ public class LiberacaoAutorizacao {
     }
 
     /**
+     * O parecer da origem: além de quem edita o card, quem o criou, em qualquer etapa. A origem
+     * escreve o parecer e costuma completá-lo depois que o card já andou (pedido do time, 2026-10-26).
+     */
+    public boolean podeEditarParecerOrigem(LiberacaoCardEntity card, UserEntity usuario) {
+        return podeEditar(card, usuario)
+                || (usuario != null && usuario.getId() != null && usuario.getId().equals(card.getCriadoPorId()));
+    }
+
+    public void exigirEdicaoParecerOrigem(LiberacaoCardEntity card, UserEntity usuario) {
+        exigirAutenticado(usuario);
+        if (!podeEditarParecerOrigem(card, usuario)) {
+            throw new AcessoNegadoException("A partir do Comitê, só analista ou quem criou o card altera o parecer da origem.");
+        }
+    }
+
+    /**
      * Por que esta pessoa não pode mover o card para {@code destino} agora. Vazio = pode.
      *
      * @param registrados    quantos pareceres a rodada vigente já tem
