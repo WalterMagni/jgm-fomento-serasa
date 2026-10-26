@@ -1,8 +1,12 @@
 package com.portal.serasa.application.service.judit;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -12,6 +16,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -77,7 +82,17 @@ public final class JuditLeitura {
             List<Contagem> classes,
             List<Contagem> assuntos,
             List<Contagem> fases,
-            List<Contagem> estados) {
+            List<Contagem> estados,
+            /** Estadual, Federal, do Trabalho... */
+            List<Contagem> justicas) {
+    }
+
+    /**
+     * Algo no resumo que merece olhar antes do On Demand. Os agregados não se cruzam: "3 na área penal"
+     * pode ser a empresa como vítima. {@code quantidade} é o maior número entre as dimensões que
+     * acusaram (área, classe, assunto, justiça), para não somar o mesmo processo duas vezes.
+     */
+    public record PontoDeAtencao(String tipo, String titulo, int quantidade) {
     }
 
     public record Andamento(LocalDate data, String texto) {
@@ -136,7 +151,62 @@ public final class JuditLeitura {
                 contagens(raiz.path("classifications")),
                 contagens(raiz.path("subjects")),
                 contagens(raiz.path("phases")),
-                contagens(raiz.path("states")));
+                contagens(raiz.path("states")),
+                contagens(raiz.path("justices")));
+    }
+
+    // ── Pontos de atenção (da pré-consulta) ──────────────────────────────────────────────────────
+
+    /** "Cláusula penal" é assunto cível (multa de contrato), não crime. "Discriminação" não é crime aqui. */
+    private static final Pattern CRIMINAL = Pattern.compile(
+            "(?<!CLAUSULA )\\bPENA(L|IS)?\\b|\\bCRIM|INQUERITO POLICIAL|TERMO CIRCUNSTANCIADO|CONTRAVENC");
+    private static final Pattern EXECUCAO_FISCAL = Pattern.compile("EXECUCAO FISCAL|DIVIDA ATIVA");
+    private static final Pattern RECUPERACAO_FALENCIA = Pattern.compile(
+            "RECUPERACAO (JUDICIAL|EXTRAJUDICIAL)|FALENCIA|CONCORDATA|INSOLVENCIA");
+    /** Só a justiça e a área exata: "DIREITO PROCESSUAL CIVIL E DO TRABALHO" é a árvore do processo civil. */
+    private static final Pattern TRABALHISTA = Pattern.compile("^(JUSTICA DO TRABALHO|DIREITO DO TRABALHO)$");
+
+    /** Na ordem em que a tela mostra: do mais grave ao mais comum. Só os que acusaram. */
+    public static List<PontoDeAtencao> pontosDeAtencao(Resumo resumo) {
+        List<PontoDeAtencao> pontos = new ArrayList<>();
+        adicionar(pontos, "CRIMINAL", "Processo criminal",
+                maior(CRIMINAL, resumo.areas(), resumo.classes(), resumo.assuntos()));
+        adicionar(pontos, "RECUPERACAO_FALENCIA", "Recuperação judicial ou falência",
+                maior(RECUPERACAO_FALENCIA, resumo.classes(), resumo.assuntos()));
+        adicionar(pontos, "EXECUCAO_FISCAL", "Execução fiscal",
+                maior(EXECUCAO_FISCAL, resumo.classes(), resumo.assuntos()));
+        adicionar(pontos, "TITULO_CONTESTADO", "Protesto, negativação ou duplicata contestada",
+                Math.min(resumo.total(), soma(ASSUNTO_TITULO_CONTESTADO, resumo.assuntos())));
+        adicionar(pontos, "TRABALHISTA", "Justiça do Trabalho",
+                maior(TRABALHISTA, resumo.justicas(), resumo.areas()));
+        return pontos;
+    }
+
+    private static void adicionar(List<PontoDeAtencao> pontos, String tipo, String titulo, int quantidade) {
+        if (quantidade > 0) {
+            pontos.add(new PontoDeAtencao(tipo, titulo, quantidade));
+        }
+    }
+
+    @SafeVarargs
+    private static int maior(Pattern padrao, List<Contagem>... dimensoes) {
+        int maior = 0;
+        for (List<Contagem> dimensao : dimensoes) {
+            maior = Math.max(maior, soma(padrao, dimensao));
+        }
+        return maior;
+    }
+
+    /** Dentro de uma dimensão os valores não se repetem num processo: dá para somar. */
+    private static int soma(Pattern padrao, List<Contagem> dimensao) {
+        return dimensao.stream()
+                .filter(c -> c.valor() != null && padrao.matcher(semAcento(c.valor())).find())
+                .mapToInt(Contagem::quantidade)
+                .sum();
+    }
+
+    private static String semAcento(String valor) {
+        return Normalizer.normalize(valor, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase(Locale.ROOT).strip();
     }
 
     /** Junta as grafias que viram "não informado" e ordena da maior contagem para a menor. */
@@ -206,6 +276,43 @@ public final class JuditLeitura {
                 tituloContestado,
                 topAssuntosReu,
                 lista);
+    }
+
+    // ── On Demand (/requests + /responses) ───────────────────────────────────────────────────────
+
+    /**
+     * As respostas do On Demand no formato da lista do Data Lake ({@code {"lawsuits": [...]}}): cada
+     * item {@code lawsuit} do {@code page_data} traz em {@code response_data} o mesmo processo, com os
+     * mesmos campos. Assim a página, o detalhar e a exportação leem os dois do mesmo jeito.
+     */
+    public static ObjectNode listaDoOnDemand(JsonNode respostas) {
+        ObjectNode lista = JsonNodeFactory.instance.objectNode();
+        ArrayNode processos = lista.putArray("lawsuits");
+        for (JsonNode item : respostas.path("page_data")) {
+            if ("lawsuit".equals(item.path("response_type").asText(""))) {
+                processos.add(item.path("response_data"));
+            }
+        }
+        return lista;
+    }
+
+    /**
+     * Junta as listas guardadas (ré e autora) numa só. Um registro é o processo numa instância: no
+     * recurso a empresa pode trocar de polo, e o mesmo registro viria nas duas — entra uma vez.
+     */
+    public static ObjectNode juntarListas(List<JsonNode> listas) {
+        ObjectNode junta = JsonNodeFactory.instance.objectNode();
+        ArrayNode processos = junta.putArray("lawsuits");
+        Set<String> vistos = new LinkedHashSet<>();
+        for (JsonNode lista : listas) {
+            for (JsonNode registro : listaCrua(lista)) {
+                String cnj = texto(registro.path("code"));
+                if (cnj == null || vistos.add(cnj + "#" + registro.path("instance").asText(""))) {
+                    processos.add(registro);
+                }
+            }
+        }
+        return junta;
     }
 
     /** A doc diz {@code response_data}; a rota síncrona devolveu {@code lawsuits}. Aceita os dois. */

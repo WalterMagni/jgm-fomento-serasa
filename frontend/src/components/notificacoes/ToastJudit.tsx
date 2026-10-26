@@ -4,9 +4,17 @@ import Icon from "@/components/ui/Icon";
 import { SelosJudit } from "@/components/judit/JuditPecas";
 import type { Notificacao } from "@/types/notificacao";
 
-/** Aviso que vem da Judit — detalhe de processo pronto ou falho. As outras notificações usam o toast padrão. */
+/**
+ * Aviso que vem da Judit — detalhe de processo ou consulta On Demand, pronto ou falho. As outras
+ * notificações usam o toast padrão.
+ */
 export function ehDaJudit(notificacao: Pick<Notificacao, "tipo">) {
-  return notificacao.tipo === "JUDIT_PROCESSO_PRONTO" || notificacao.tipo === "JUDIT_PROCESSO_FALHOU";
+  return notificacao.tipo.startsWith("JUDIT_");
+}
+
+/** Consulta dos processos da empresa (On Demand), não o detalhe de um processo. */
+function ehConsulta(notificacao: Pick<Notificacao, "tipo">) {
+  return notificacao.tipo === "JUDIT_CONSULTA_PRONTA" || notificacao.tipo === "JUDIT_CONSULTA_FALHOU";
 }
 
 /**
@@ -22,7 +30,7 @@ export default function ToastJudit({
   onAbrir: () => void;
   onFechar: () => void;
 }) {
-  const falhou = notificacao.tipo === "JUDIT_PROCESSO_FALHOU";
+  const falhou = notificacao.tipo === "JUDIT_PROCESSO_FALHOU" || notificacao.tipo === "JUDIT_CONSULTA_FALHOU";
   return (
     <div
       role="status"
@@ -51,7 +59,7 @@ export default function ToastJudit({
               onClick={onAbrir}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#15BE62] px-3 text-xs font-semibold text-[#05301A] transition-colors hover:bg-[#13AB58]"
             >
-              <Icon name="open_in_new" size={13} /> Abrir processo
+              <Icon name="open_in_new" size={13} /> {ehConsulta(notificacao) ? "Ver processos" : "Abrir processo"}
             </button>
             <button
               type="button"

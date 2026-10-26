@@ -1,6 +1,6 @@
 package com.portal.serasa.domain.model;
 
-/** Onde está uma consulta à Judit. Só o detalhe de processo passa por PENDENTE: é a única assíncrona. */
+/** Onde está uma consulta à Judit. Só o detalhe e o On Demand passam por PENDENTE: são os assíncronos. */
 public enum SituacaoConsultaJudit {
     /** Pedido feito (e cobrado); o backend está esperando a Judit buscar no tribunal. */
     PENDENTE,

@@ -1,11 +1,13 @@
 package com.portal.serasa.infrastructure.persistence.repository;
 
+import com.portal.serasa.domain.model.PoloJudit;
 import com.portal.serasa.domain.model.ServicoJudit;
 import com.portal.serasa.domain.model.SituacaoConsultaJudit;
 import com.portal.serasa.infrastructure.persistence.entity.JuditConsultaEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,6 +44,59 @@ public interface JuditConsultaJpaRepository extends JpaRepository<JuditConsultaE
 
     @Query("select coalesce(sum(c.custo), 0) from JuditConsultaEntity c where c.criadoEm >= :inicio")
     BigDecimal somarCustoDesde(@Param("inicio") LocalDateTime inicio);
+
+    /** O último On Demand do polo, em qualquer situação. */
+    Optional<JuditConsultaEntity> findFirstByDocumentoAndServicoAndPoloOrderByCriadoEmDesc(
+            String documento, ServicoJudit servico, PoloJudit polo);
+
+    /** O último On Demand concluído do polo: é o que a lista mostra enquanto outro está pendente. */
+    Optional<JuditConsultaEntity> findFirstByDocumentoAndServicoAndPoloAndSituacaoOrderByCriadoEmDesc(
+            String documento, ServicoJudit servico, PoloJudit polo, SituacaoConsultaJudit situacao);
+
+    /** Pedidos pendentes recentes, para o acompanhamento. São poucos: não precisa de projeção. */
+    List<JuditConsultaEntity> findBySituacaoAndCriadoEmAfterOrderByCriadoEmAsc(
+            SituacaoConsultaJudit situacao, LocalDateTime desde);
+
+    @Modifying
+    @Query("update JuditConsultaEntity c set c.verificadoEm = :quando where c.id = :id")
+    void marcarVerificado(@Param("id") UUID id, @Param("quando") LocalDateTime quando);
+
+    /** Linha do painel de consumo, sem a resposta (a lista inteira pode passar de 1 MB). */
+    interface ConsultaDoPainel {
+        UUID getId();
+
+        String getDocumento();
+
+        String getNomeEmpresa();
+
+        ServicoJudit getServico();
+
+        PoloJudit getPolo();
+
+        String getCnj();
+
+        SituacaoConsultaJudit getSituacao();
+
+        BigDecimal getCustoEstimado();
+
+        BigDecimal getCusto();
+
+        UUID getPreConsultaId();
+
+        Integer getTotalProcessos();
+
+        String getUsuarioNome();
+
+        LocalDateTime getCriadoEm();
+    }
+
+    @Query("""
+            select c.id as id, c.documento as documento, c.nomeEmpresa as nomeEmpresa, c.servico as servico,
+                   c.polo as polo, c.cnj as cnj, c.situacao as situacao, c.custoEstimado as custoEstimado,
+                   c.custo as custo, c.preConsultaId as preConsultaId, c.totalProcessos as totalProcessos,
+                   c.usuarioNome as usuarioNome, c.criadoEm as criadoEm
+            from JuditConsultaEntity c where c.criadoEm >= :inicio order by c.criadoEm desc""")
+    List<ConsultaDoPainel> doPainelDesde(@Param("inicio") LocalDateTime inicio);
 
     /**
      * Trava de transação do Postgres: duas consultas ao mesmo tempo esperam uma pela outra, para que

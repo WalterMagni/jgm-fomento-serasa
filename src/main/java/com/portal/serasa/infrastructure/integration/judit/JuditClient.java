@@ -2,8 +2,10 @@ package com.portal.serasa.infrastructure.integration.judit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.portal.serasa.domain.exception.ExternalApiException;
+import com.portal.serasa.domain.model.PoloJudit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -15,18 +17,21 @@ import java.util.function.Supplier;
 
 /**
  * Rotas da Judit. As síncronas (base histórica, sem esperar tribunal) respondem na hora; o detalhe
- * de processo é assíncrono: pede, acompanha a situação e busca as respostas. Só os pedidos cobram.
+ * de processo e o On Demand são assíncronos: pede, acompanha a situação e busca as respostas. Só os
+ * pedidos cobram.
  *
- * <p>O formato do corpo é o que funcionou nos testes de setembro ({@code scripts/judit-probe.sh}):
- * tudo dentro de {@code search}, filtros em {@code search.search_params}. A coleção do Postman que a
- * Judit mandou põe a paginação fora de {@code search} — não usamos paginação ainda; ver
- * docs/judit/02-implementacao.md.</p>
+ * <p>O formato do corpo é o que funcionou nos testes de setembro ({@code scripts/judit-probe.sh}) e de
+ * outubro: tudo dentro de {@code search}, filtros em {@code search.search_params}. Ver
+ * docs/judit/03-on-demand.md.</p>
  */
 @Slf4j
 @Component
 public class JuditClient {
 
     public static final String PROVIDER = "Judit";
+
+    /** Itens por página no {@code /responses}. Ler as páginas não cobra. */
+    private static final int TAMANHO_DA_PAGINA = 100;
 
     private final RestClient restClient;
     private final RestClient requestsClient;
@@ -43,19 +48,12 @@ public class JuditClient {
         this.properties = properties;
     }
 
-    /** Agregados: total de processos e contagens por polo, tribunal, área, classe, assunto e fase. */
-    public JsonNode resumo(String documento) {
-        return post("/lawsuits/synthetic", corpo(documento, null));
-    }
-
     /**
-     * Os processos (capa + último andamento). A rota devolve no máximo 1.000, sem avisar; quem chama
-     * compara com o total do resumo.
-     *
-     * @param polo {@code "Passive"} para só os processos em que o documento é réu; nulo traz todos
+     * A pré-consulta: total de processos e contagens por polo, tribunal, justiça, área, classe, assunto
+     * e fase, na base histórica. A lista vem pelo On Demand.
      */
-    public JsonNode processos(String documento, String polo) {
-        return post("/lawsuits", corpo(documento, polo));
+    public JsonNode resumo(String documento) {
+        return post("/lawsuits/synthetic", corpo(documento));
     }
 
     /**
@@ -69,6 +67,27 @@ public class JuditClient {
         search.put("search_key", cnj);
         corpo.put("with_attachments", false);
         corpo.putArray("judit_ia").add("summary");
+        return pedir(corpo);
+    }
+
+    /**
+     * Pede os processos do documento num polo, no Data Lake e nos tribunais ao vivo. Sem
+     * {@code on_demand: true} a Judit responde só do cache dela — visto no teste de 2026-10-26, em que o
+     * pedido voltou com {@code cached: true} e sem andamentos. Devolve o {@code request_id}.
+     */
+    public String pedirOnDemand(String documento, PoloJudit polo) {
+        ObjectNode corpo = objectMapper.createObjectNode();
+        ObjectNode search = corpo.putObject("search");
+        search.put("search_type", documento.length() == 11 ? "cpf" : "cnpj");
+        search.put("search_key", documento);
+        search.put("on_demand", true);
+        search.put("response_type", "lawsuits");
+        search.putObject("search_params").putObject("filter").put("side", polo.lado());
+        corpo.put("with_attachments", false);
+        return pedir(corpo);
+    }
+
+    private String pedir(ObjectNode corpo) {
         JsonNode resposta = chamar("/requests", () -> requestsClient.post().uri("/requests").body(corpo).retrieve().body(JsonNode.class));
         String requestId = resposta.path("request_id").asText(null);
         if (requestId == null || requestId.isBlank()) {
@@ -84,26 +103,38 @@ public class JuditClient {
         return resposta.path("status").asText("");
     }
 
-    /** As respostas de um pedido concluído: o processo (uma por instância) e o resumo de IA. Não cobra. */
+    /**
+     * As respostas de um pedido concluído, todas as páginas juntas no {@code page_data} da primeira:
+     * no detalhe, o processo (uma por instância) e o resumo de IA; no On Demand, um processo por item.
+     * Não cobra.
+     */
     public JsonNode respostasDoPedido(String requestId) {
+        JsonNode primeira = paginaDeRespostas(requestId, 1);
+        int paginas = primeira.path("all_pages_count").asInt(1);
+        if (paginas > 1 && primeira.path("page_data") instanceof ArrayNode itens) {
+            for (int pagina = 2; pagina <= paginas; pagina++) {
+                paginaDeRespostas(requestId, pagina).path("page_data").forEach(itens::add);
+            }
+        }
+        return primeira;
+    }
+
+    private JsonNode paginaDeRespostas(String requestId, int pagina) {
         return chamar("/responses", () -> requestsClient.get()
                 .uri(uri -> uri.path("/responses")
                         .queryParam("request_id", requestId)
-                        .queryParam("page", 1)
-                        .queryParam("page_size", 100)
+                        .queryParam("page", pagina)
+                        .queryParam("page_size", TAMANHO_DA_PAGINA)
                         .build())
                 .retrieve()
                 .body(JsonNode.class));
     }
 
-    private ObjectNode corpo(String documento, String polo) {
+    private ObjectNode corpo(String documento) {
         ObjectNode corpo = objectMapper.createObjectNode();
         ObjectNode search = corpo.putObject("search");
         search.put("search_type", documento.length() == 11 ? "cpf" : "cnpj");
         search.put("search_key", documento);
-        if (polo != null) {
-            search.putObject("search_params").putObject("filter").put("side", polo);
-        }
         return corpo;
     }
 

@@ -10,5 +10,10 @@ public enum ServicoJudit {
      * {@code /requests} por CNJ com {@code judit_ia: ["summary"]}: um processo direto no tribunal, com
      * todas as movimentações e resumo de IA. Assíncrono. Preço fixo por processo.
      */
-    DETALHE
+    DETALHE,
+    /**
+     * {@code /requests} por documento com {@code on_demand: true}: Data Lake + tribunais ao vivo, de um
+     * polo só. Assíncrono. Cobrado a cada 1.000 processos devolvidos.
+     */
+    ON_DEMAND
 }

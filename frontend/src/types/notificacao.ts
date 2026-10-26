@@ -11,7 +11,9 @@ export type TipoNotificacao =
   | "RESPOSTA_CLIENTE"
   | "DOCUMENTOS_COMPLETOS"
   | "JUDIT_PROCESSO_PRONTO"
-  | "JUDIT_PROCESSO_FALHOU";
+  | "JUDIT_PROCESSO_FALHOU"
+  | "JUDIT_CONSULTA_PRONTA"
+  | "JUDIT_CONSULTA_FALHOU";
 
 export type Notificacao = {
   id: string;

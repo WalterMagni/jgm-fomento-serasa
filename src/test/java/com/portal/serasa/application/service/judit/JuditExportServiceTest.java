@@ -47,7 +47,8 @@ class JuditExportServiceTest {
                 List.of(processo("0001", JuditLeitura.REU, new BigDecimal("1000.50")),
                         processo("0002", JuditLeitura.AUTOR, null)));
         when(juditService.processos(CNPJ)).thenReturn(new JuditService.ProcessosConsultados(
-                LocalDateTime.of(2026, 10, 15, 20, 50), "Walter", new BigDecimal("1.50"), false, false, 54, dados, java.util.Map.of()));
+                LocalDateTime.of(2026, 10, 15, 20, 50), "Walter", new BigDecimal("1.50"), false, false, false, 54, dados,
+                java.util.Map.of()));
     }
 
     private static XSSFWorkbook ler(JuditExportService.Planilha planilha) throws Exception {

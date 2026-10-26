@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { JuditDetalheConsultado, JuditProcessosConsultados, JuditSituacao } from "@/types/judit";
+import type {
+  JuditDetalheConsultado,
+  JuditPainelConsumo,
+  JuditPoloConsulta,
+  JuditProcessosConsultados,
+  JuditSituacao,
+} from "@/types/judit";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -25,39 +31,103 @@ async function pedir(url: string, init: RequestInit, fallback: string): Promise<
 const chave = (cnpj: string) => ["judit", cnpj] as const;
 const chaveLista = (cnpj: string) => ["juditProcessos", cnpj] as const;
 
-/** Só lê o que já foi consultado — não gasta. */
+const pendente = (situacao: JuditSituacao | undefined) =>
+  situacao?.onDemandReu?.situacao === "PENDENTE" || situacao?.onDemandAutor?.situacao === "PENDENTE";
+
+/**
+ * Só lê o que já foi consultado — não gasta. Com um On Demand pendente, relê a cada 15 s: o sino
+ * também avisa, mas quem está com a Visão 360º aberta vê o card mudar sozinho.
+ */
 export function useJudit(cnpj: string) {
   const limpo = cnpj.replace(/\D/g, "");
   return useQuery<JuditSituacao>({
     queryKey: chave(limpo),
     enabled: limpo.length === 14,
     queryFn: () => pedir(`${API_BASE_URL}/company/${limpo}/judit`, {}, "Não foi possível carregar os processos."),
+    refetchInterval: query => (pendente(query.state.data) ? 15000 : false),
   });
 }
 
-/** Consulta cobrada. O servidor confere a marca Judit e o limite do mês antes de chamar. */
-function useConsultaJudit(cnpj: string, caminho: string, sucesso: string) {
+/** Ação que devolve a situação nova do card. As que cobram passam pelas travas no servidor (marca e limite). */
+function useAcaoJudit<V>(cnpj: string, caminho: string, sucesso: string) {
   const limpo = cnpj.replace(/\D/g, "");
   const queryClient = useQueryClient();
-  return useMutation<JuditSituacao, Error, void>({
-    mutationFn: () => pedir(`${API_BASE_URL}/company/${limpo}/judit${caminho}`, { method: "POST" }, "Falha na consulta à Judit."),
+  return useMutation<JuditSituacao, Error, V>({
+    mutationFn: corpo =>
+      pedir(
+        `${API_BASE_URL}/company/${limpo}/judit${caminho}`,
+        { method: "POST", body: JSON.stringify(corpo ?? {}) },
+        "Falha na consulta à Judit.",
+      ),
     onSuccess: dados => {
       queryClient.setQueryData(chave(limpo), dados);
       queryClient.invalidateQueries({ queryKey: chaveLista(limpo) });
-      // O consumo do mês mudou para todas as empresas abertas.
+      // O consumo do mês mudou para todas as empresas abertas e para o painel.
       queryClient.invalidateQueries({ queryKey: ["judit"] });
+      queryClient.invalidateQueries({ queryKey: ["juditConsumo"] });
       toast.success(sucesso);
     },
     onError: error => toast.error(error.message),
   });
 }
 
+/** Pré-consulta (resumo do Data Lake): síncrona, cobra o preço fixo. */
 export function useConsultarResumoJudit(cnpj: string) {
-  return useConsultaJudit(cnpj, "/resumo", "Resumo processual atualizado");
+  return useAcaoJudit<{ nomeEmpresa?: string | null }>(cnpj, "/resumo", "Pré-consulta pronta");
 }
 
-export function useConsultarProcessosJudit(cnpj: string) {
-  return useConsultaJudit(cnpj, "/processos", "Lista de processos atualizada");
+/** Pede o On Demand de um polo. Cobra a estimativa; volta pendente e o sino avisa quando ficar pronto. */
+export function useConsultarOnDemand(cnpj: string) {
+  return useAcaoJudit<{ polo: JuditPoloConsulta; nomeEmpresa?: string | null }>(
+    cnpj,
+    "/on-demand",
+    "Pedido enviado à Judit — você recebe um aviso no sino quando ficar pronto",
+  );
+}
+
+/** Retoma o acompanhamento de um On Demand pendente. Não cobra. */
+export function useVerificarOnDemand(cnpj: string) {
+  return useAcaoJudit<{ polo: JuditPoloConsulta }>(cnpj, "/on-demand/verificar", "Verificando com a Judit");
+}
+
+/** Aba Consumo Judit: franquia do mês, consultas do período e liberações. Não cobra. */
+export function useJuditConsumo(dias: number) {
+  return useQuery<JuditPainelConsumo>({
+    queryKey: ["juditConsumo", dias],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/judit/consumo?dias=${dias}`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        const dados = await res.json().catch(() => ({}));
+        throw new Error(dados.message || dados.error || "Não foi possível carregar o consumo da Judit.");
+      }
+      return res.json();
+    },
+  });
+}
+
+/** Soma um valor ao limite do mês corrente. Só o admin; o servidor confere. */
+export function useLiberarJudit() {
+  const queryClient = useQueryClient();
+  return useMutation<JuditPainelConsumo, Error, { valor: number; motivo: string }>({
+    mutationFn: async corpo => {
+      const res = await fetch(`${API_BASE_URL}/judit/liberacoes`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(corpo),
+      });
+      if (!res.ok) {
+        const dados = await res.json().catch(() => ({}));
+        throw new Error(dados.message || dados.error || "Não foi possível liberar o valor.");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["juditConsumo"] });
+      queryClient.invalidateQueries({ queryKey: ["judit"] });
+      toast.success("Valor liberado no limite deste mês");
+    },
+    onError: error => toast.error(error.message),
+  });
 }
 
 /** A lista inteira da última busca, para a página de processos. Não cobra; nulo se nunca buscou. */

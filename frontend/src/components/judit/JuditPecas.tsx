@@ -3,7 +3,14 @@
 import { useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import { BOTAO } from "@/components/ui/botao";
-import type { JuditContagem, JuditPolo, JuditProcesso, JuditProcessos, JuditSituacao } from "@/types/judit";
+import type {
+  JuditContagem,
+  JuditPolo,
+  JuditPontoDeAtencao,
+  JuditProcesso,
+  JuditProcessos,
+  JuditSituacao,
+} from "@/types/judit";
 
 /**
  * Peças da Judit usadas no card da Visão 360º e na página de processos. Borda e destaques no verde
@@ -23,6 +30,12 @@ export function data(valor: string | null | undefined) {
   if (!valor) return "—";
   const [ano, mes, dia] = valor.slice(0, 10).split("-");
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : "—";
+}
+
+/** "14:32" de um LocalDateTime do backend (sem fuso: é a hora de Brasília, a mesma do navegador). */
+export function hora(valor: string | null | undefined) {
+  if (!valor) return "—";
+  return valor.slice(11, 16) || "—";
 }
 
 /** Sem acento e em minúsculas: "SÃO PAULO" casa com "sao paulo". */
@@ -355,12 +368,80 @@ export function LinhaProcesso({ processo: p, acao }: { processo: JuditProcesso; 
   );
 }
 
+const ICONE_DO_PONTO: Record<JuditPontoDeAtencao["tipo"], string> = {
+  CRIMINAL: "report",
+  RECUPERACAO_FALENCIA: "error",
+  EXECUCAO_FISCAL: "account_balance",
+  TITULO_CONTESTADO: "receipt_long",
+  TRABALHISTA: "groups",
+};
+
+/**
+ * O que a pré-consulta acusou: criminal, falência, execução fiscal, título contestado, trabalhista.
+ * Os agregados da Judit não se cruzam com o polo — a ressalva vai junto, sempre.
+ */
+export function PontosDeAtencao({ pontos }: { pontos: JuditPontoDeAtencao[] }) {
+  if (pontos.length === 0) {
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-gray-500">
+        <Icon name="check_circle" size={14} className="text-[#047857] dark:text-[#15BE62]" />
+        Nenhum ponto de atenção no resumo: sem criminal, falência, execução fiscal ou título contestado.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Pontos de atenção</div>
+      <ul className="flex flex-wrap gap-1.5">
+        {pontos.map(p => (
+          <li
+            key={p.tipo}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              p.tipo === "CRIMINAL" || p.tipo === "RECUPERACAO_FALENCIA"
+                ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+            }`}
+          >
+            <Icon name={ICONE_DO_PONTO[p.tipo]} size={14} />
+            {p.titulo} · {p.quantidade}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-gray-500">
+        O resumo não cruza área com polo: um processo criminal pode ter a empresa como vítima, e uma falência pode ser de
+        um cliente em que ela é credora. O On Demand mostra cada processo.
+      </p>
+    </div>
+  );
+}
+
+/** Onde o mês fica com esta consulta: dentro da franquia, no excedente ou passando do limite. */
+export function faixaDoMes(consumo: JuditSituacao["consumo"], custo: number) {
+  const depois = consumo.gastoMes + custo;
+  if (depois > consumo.limite) {
+    return {
+      tom: "limite" as const,
+      texto: `Passa do limite do mês (${moeda(consumo.limite)}): o mês ficaria em ${moeda(depois)}. Peça ao admin para liberar um valor a mais.`,
+    };
+  }
+  if (depois > consumo.franquia) {
+    return {
+      tom: "excedente" as const,
+      texto: `Entra no excedente: o mês fica em ${moeda(depois)}, ${moeda(depois - consumo.franquia)} acima da franquia de ${moeda(consumo.franquia)}.`,
+    };
+  }
+  return {
+    tom: "franquia" as const,
+    texto: `Dentro da franquia: o mês fica em ${moeda(depois)} de ${moeda(consumo.franquia)}, que já estão pagos.`,
+  };
+}
+
 /** Por que um botão que cobra está travado. Nulo = pode consultar. O servidor confere de novo. */
 export function motivoBloqueio(situacao: JuditSituacao, preco: number): string | null {
   if (!situacao.configurada) return "A chave da Judit não está configurada no servidor.";
   if (!situacao.podeUsar) return "Só quem tem a marca Judit (Configurações › Usuários) consulta.";
   if (situacao.consumo.gastoMes + preco > situacao.consumo.limite) {
-    return `O limite de ${moeda(situacao.consumo.limite)} do mês seria ultrapassado.`;
+    return `O limite de ${moeda(situacao.consumo.limite)} do mês seria ultrapassado. Peça ao admin para liberar um valor a mais.`;
   }
   return null;
 }

@@ -8,11 +8,12 @@ import { useApiUsage, useBillingSettings } from "@/hooks/useApiUsage";
 import { useImportCsv } from "@/hooks/useImportCsv";
 import { useImportClientCodes } from "@/hooks/useImportClientCodes";
 import PapeisUsuario from "@/components/liberacao/PapeisUsuario";
+import ConsumoJudit from "@/components/judit/ConsumoJudit";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"profile" | "consumo">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "consumo" | "judit">("profile");
   const { importCsv, isImporting: isImportingCsv } = useImportCsv();
   const { importCodes, isImporting: isImportingCodes } = useImportClientCodes();
   const [entityFilter, setEntityFilter] = useState<"ALL" | "PJ" | "PF">("ALL");
@@ -279,6 +280,7 @@ export default function SettingsPage() {
           opcoes={[
             { valor: "profile", rotulo: "Perfil e sistema" },
             { valor: "consumo", rotulo: "Consumo Serasa" },
+            { valor: "judit", rotulo: "Consumo Judit" },
           ]}
         />
       </header>
@@ -632,6 +634,8 @@ export default function SettingsPage() {
           </section>
         </div>
       )}
+
+      {activeTab === "judit" && <ConsumoJudit />}
     </div>
   );
 }

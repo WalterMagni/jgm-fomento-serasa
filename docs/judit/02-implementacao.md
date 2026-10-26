@@ -1,5 +1,9 @@
 # Judit — implementação (fase 1)
 
+> **Fase 2 em [03-on-demand.md](03-on-demand.md)** (2026-10-26): On Demand no lugar da lista do Data Lake,
+> franquia como piso da conta, trava de R$ 1.500 com liberação do admin e acompanhamento que sobrevive a
+> reinício. O que muda em relação a este documento está lá.
+
 Consulta de processos judiciais da empresa pela Judit, no card **Processos judiciais** da Visão 360º
 (borda e destaques no verde da Judit, `#15BE62`, com selo **Beta**). Branch `feat/judit`, migrations
 V89–V91. Anatomia do payload em [01-mapa-de-campos.md](01-mapa-de-campos.md).
@@ -88,7 +92,7 @@ Preços em `application.yml` (`judit.custo-*`), tabela de abr/2026. São estimat
 | Backend | `JuditClient`, `JuditService`, `JuditLeitura` (leitura da resposta, testável sem banco), `JuditController` |
 | Rotas do portal | Só leem: `GET …/judit` (card, sem a lista), `GET …/judit/processos` (lista inteira), `POST …/judit/exportar` (XLSX). Cobram: `POST …/judit/resumo`, `POST …/judit/processos` |
 | Frontend | `clients/[cnpj]/JuditPanel.tsx` (card), `clients/[cnpj]/processos/page.tsx` (página), `components/judit/JuditPecas.tsx`, `hooks/useJudit.ts`, marca em `PapeisUsuario.tsx` |
-| Variáveis | `JUDIT_API_KEY`, `JUDIT_AVISO_MENSAL`, `JUDIT_LIMITE_MENSAL` — no `.env` e repassadas pelo `docker-compose.yml` |
+| Variáveis | `JUDIT_API_KEY`, `JUDIT_FRANQUIA_MENSAL` (era `JUDIT_AVISO_MENSAL` até a fase 2), `JUDIT_LIMITE_MENSAL` — no `.env` e repassadas pelo `docker-compose.yml` |
 
 A resposta crua fica inteira no banco: dá para mudar a leitura (`JuditLeitura`) sem pagar consulta nova.
 

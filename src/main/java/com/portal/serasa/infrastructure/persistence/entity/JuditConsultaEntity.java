@@ -1,6 +1,7 @@
 package com.portal.serasa.infrastructure.persistence.entity;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.portal.serasa.domain.model.PoloJudit;
 import com.portal.serasa.domain.model.ServicoJudit;
 import com.portal.serasa.domain.model.SituacaoConsultaJudit;
 import jakarta.persistence.Column;
@@ -21,7 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Uma chamada cobrada pela Judit, com a resposta crua. Cache da tela e extrato do mês. Ver V89 e V91. */
+/** Uma chamada cobrada pela Judit, com a resposta crua. Cache da tela e extrato do mês. Ver V89, V91 e V99. */
 @Entity
 @Table(name = "judit_consulta")
 @Data
@@ -47,9 +48,30 @@ public class JuditConsultaEntity {
     @Column(nullable = false, length = 20)
     private ServicoJudit servico;
 
-    /** Estimativa pela tabela do contrato. A fatura da Judit é a palavra final. */
+    /**
+     * Estimativa pela tabela do contrato. A fatura da Judit é a palavra final. No On Demand nasce igual
+     * a {@link #custoEstimado} e vira o custo pelo total devolvido quando a resposta chega.
+     */
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal custo;
+
+    /** O que a tela prometeu antes de cobrar. Só no On Demand. */
+    @Column(name = "custo_estimado", precision = 10, scale = 2)
+    private BigDecimal custoEstimado;
+
+    /** O polo pedido. Só no On Demand. */
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 7)
+    private PoloJudit polo;
+
+    /** A pré-consulta (RESUMO) usada na estimativa do On Demand. Nula: a pessoa pulou a pré-consulta. */
+    @Column(name = "pre_consulta_id")
+    private UUID preConsultaId;
+
+    /** Para o painel de consumo e o aviso no sino. Nulo quando a tela não mandou e não há cadastro. */
+    @Column(name = "nome_empresa")
+    private String nomeEmpresa;
 
     @Column(name = "total_processos")
     private Integer totalProcessos;
@@ -77,6 +99,10 @@ public class JuditConsultaEntity {
 
     @Column(columnDefinition = "text")
     private String erro;
+
+    /** Última vez que o acompanhamento perguntou a situação à Judit. Nulo: ainda não perguntou. */
+    @Column(name = "verificado_em")
+    private LocalDateTime verificadoEm;
 
     @Column(name = "usuario_id")
     private UUID usuarioId;
