@@ -39,7 +39,8 @@ class JuditExportServiceTest {
         return new JuditLeitura.Processo(cnj, List.of(1, 2), "BANCO X EMPRESA", polo, List.of("BANCO DO BRASIL S/A"),
                 "TJPR", List.of("3ª VARA CÍVEL"), "PR", "CURITIBA", "DIREITO CIVIL", "EXECUÇÃO DE TÍTULO EXTRAJUDICIAL",
                 List.of("DUPLICATA", "CHEQUE"), valor, LocalDate.of(2026, 3, 2),
-                new JuditLeitura.Andamento(LocalDate.of(2026, 8, 11), "CITAÇÃO"), false, LocalDate.of(2026, 8, 23));
+                new JuditLeitura.Andamento(LocalDate.of(2026, 8, 11), "CITAÇÃO"), false, LocalDate.of(2026, 8, 23),
+                "ESTADUAL", "EM_TRAMITACAO", true);
     }
 
     private void listaGuardada() {
@@ -47,7 +48,8 @@ class JuditExportServiceTest {
                 List.of(processo("0001", JuditLeitura.REU, new BigDecimal("1000.50")),
                         processo("0002", JuditLeitura.AUTOR, null)));
         when(juditService.processos(CNPJ)).thenReturn(new JuditService.ProcessosConsultados(
-                LocalDateTime.of(2026, 10, 15, 20, 50), "Walter", new BigDecimal("1.50"), false, false, 54, dados, java.util.Map.of()));
+                LocalDateTime.of(2026, 10, 15, 20, 50), "Walter", new BigDecimal("1.50"), false, false, 54, dados, null,
+                java.util.Map.of()));
     }
 
     private static XSSFWorkbook ler(JuditExportService.Planilha planilha) throws Exception {

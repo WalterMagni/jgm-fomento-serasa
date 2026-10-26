@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { BOTAO } from "@/components/ui/botao";
 import { useConsultarProcessosJudit, useConsultarResumoJudit, useJudit } from "@/hooks/useJudit";
 import {
+  AlertaTituloContestado,
   BotaoCobrado,
   Carimbo,
   ListaContagem,
   Numero,
   PontosDeAtencao,
   SelosJudit,
-  TotaisDaLista,
   VERDE,
   moeda,
   motivoBloqueio,
 } from "@/components/judit/JuditPecas";
+import { PainelGeral } from "@/components/judit/painel/PainelGeral";
 import type { JuditResumo, JuditSituacao } from "@/types/judit";
 
 function nomeDoMes() {
@@ -63,7 +65,9 @@ export function JuditPanel({ cnpj, nomeEmpresa }: { cnpj: string; nomeEmpresa?: 
 function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?: string; situacao: JuditSituacao }) {
   const consultarResumo = useConsultarResumoJudit(cnpj);
   const consultarProcessos = useConsultarProcessosJudit(cnpj);
+  const router = useRouter();
   const { precos, resumo, processos } = situacao;
+  const paginaProcessos = `/clients/${cnpj}/processos${nomeEmpresa ? `?nome=${encodeURIComponent(nomeEmpresa)}` : ""}`;
 
   const bloqueio = (preco: number) => motivoBloqueio(situacao, preco);
 
@@ -103,9 +107,16 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
         </p>
       )}
 
+      {processos && <AlertaTituloContestado quantidade={processos.dados.tituloContestadoComoReu} />}
+      {temProcessos && <PontosDeAtencao pontos={resumo.pontosDeAtencao} />}
+
       {processos ? (
-        // Com a lista, os números são dela: processos únicos, não registros por instância.
-        <TotaisDaLista dados={processos.dados} totalNoResumo={processos.totalNoResumo} />
+        // Com a lista, o painel no desenho do Vadu: processos únicos, não registros por instância.
+        <PainelGeral
+          bloco={processos.painel.geral}
+          onArea={area => router.push(`${paginaProcessos}${paginaProcessos.includes("?") ? "&" : "?"}aba=processos&area=${encodeURIComponent(area ?? "")}`)}
+          onProcesso={cnj => router.push(`${paginaProcessos}${paginaProcessos.includes("?") ? "&" : "?"}processo=${encodeURIComponent(cnj)}`)}
+        />
       ) : resumo ? (
         <ResumoNumeros resumo={resumo.dados} />
       ) : (
@@ -115,9 +126,7 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
         </p>
       )}
 
-      {temProcessos && <PontosDeAtencao pontos={resumo.pontosDeAtencao} />}
-
-      {temProcessos && (
+      {temProcessos && !processos && (
         <details className="group rounded-lg border border-border-light dark:border-border-dark">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-500 [&::-webkit-details-marker]:hidden">
             <Icon name="expand_more" size={14} className="transition-transform group-open:rotate-180" />
@@ -135,12 +144,9 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
 
       <div className="flex flex-wrap items-center gap-2 border-t border-[#C6F1D6] pt-4 dark:border-[#15BE62]/25">
         {processos && (
-          <Link
-            href={`/clients/${cnpj}/processos${nomeEmpresa ? `?nome=${encodeURIComponent(nomeEmpresa)}` : ""}`}
-            className={BOTAO.judit}
-          >
+          <Link href={paginaProcessos} className={BOTAO.judit}>
             <Icon name="format_list_bulleted" size={16} />
-            Ver os {processos.dados.quantidade} processos
+            Instâncias e os {processos.dados.quantidade} processos
           </Link>
         )}
         {!processos && botaoLista}

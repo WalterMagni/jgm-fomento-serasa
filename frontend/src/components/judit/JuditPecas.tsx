@@ -5,11 +5,12 @@ import Icon from "@/components/ui/Icon";
 import { BOTAO } from "@/components/ui/botao";
 import type {
   JuditContagem,
+  JuditJustica,
   JuditPolo,
   JuditPontoDeAtencao,
   JuditProcesso,
-  JuditProcessos,
   JuditSituacao,
+  JuditSituacaoProcesso,
 } from "@/types/judit";
 
 /**
@@ -138,87 +139,55 @@ export function Carimbo({
   );
 }
 
-/** Os números da lista (processos únicos pelo CNJ), o alerta de título contestado e os assuntos como ré. */
-export function TotaisDaLista({
-  dados,
-  totalNoResumo,
-  onAssunto,
-}: {
-  dados: JuditProcessos;
-  totalNoResumo: number | null;
-  /** Com ele, os assuntos mais comuns viram botões que filtram a lista. */
-  onAssunto?: (valor: string) => void;
-}) {
+export const ROTULO_JUSTICA: Record<JuditJustica, string> = {
+  ESTADUAL: "Estadual",
+  TRABALHO: "Trabalhista",
+  FEDERAL: "Federal",
+  ELEITORAL: "Eleitoral",
+  MILITAR: "Militar",
+  SUPERIOR: "Superiores",
+  OUTRA: "Outras",
+};
+
+const SITUACAO: Record<JuditSituacaoProcesso, { rotulo: string; cor: string }> = {
+  EM_TRAMITACAO: { rotulo: "Em tramitação", cor: "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200" },
+  SUSPENSO: { rotulo: "Suspenso", cor: "bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200" },
+  ARQUIVADO: { rotulo: "Arquivado", cor: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300" },
+};
+
+export const AVISO_SITUACAO =
+  "Situação provável, deduzida do último andamento: a base histórica da Judit não traz a situação do processo.";
+
+export function rotuloSituacao(situacao: JuditSituacaoProcesso | null) {
+  return situacao ? SITUACAO[situacao].rotulo : "Sem andamento";
+}
+
+/** A situação deduzida, sempre com o aviso de que é dedução. */
+export function SeloSituacao({ situacao }: { situacao: JuditSituacaoProcesso | null }) {
   return (
-    <div className="space-y-3">
-      {dados.tituloContestadoComoReu >= ALERTA_TITULO_CONTESTADO && (
-        <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-          <Icon name="warning" size={18} className="mt-0.5 shrink-0" />
-          <span>
-            <strong>{dados.tituloContestadoComoReu} processos</strong> com a empresa como ré por protesto, negativação ou
-            duplicata contestada. Vários sacados dizendo que o título não era devido é o desenho de duplicata sem lastro —
-            não é prova, pede verificação antes de operar.
-          </span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Numero rotulo="Processos" valor={dados.quantidade} dica="Processos únicos pelo número CNJ, com as instâncias juntas." />
-        <Numero rotulo="Como ré" valor={dados.comoReu} destaque />
-        <Numero rotulo="Como autora" valor={dados.comoAutor} />
-        <Numero
-          rotulo="Valor das causas (ré)"
-          valor={dados.valorComoReu > 0 ? moeda(dados.valorComoReu) : "—"}
-          dica="Soma do valor da causa dos processos em que a empresa é ré. Não é dívida: é o que o autor pediu."
-        />
-      </div>
-
-      <NotaContagem registros={dados.registros} processos={dados.quantidade} totalNoResumo={totalNoResumo} />
-
-      {dados.assuntosComoReu.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="font-semibold text-gray-500">Mais comuns como ré:</span>
-          {dados.assuntosComoReu.map(a =>
-            onAssunto && a.valor ? (
-              <button
-                key={a.valor}
-                type="button"
-                onClick={() => onAssunto(a.valor!)}
-                title="Filtrar a lista por este assunto"
-                className="rounded-full bg-[#EFEDE6] px-2 py-0.5 text-[#5E5C55] transition-colors hover:bg-[#C6F1D6] hover:text-[#047857] dark:bg-white/10 dark:text-gray-300"
-              >
-                {a.valor} · {a.quantidade}
-              </button>
-            ) : (
-              <span key={a.valor} className="rounded-full bg-[#EFEDE6] px-2 py-0.5 text-[#5E5C55] dark:bg-white/10 dark:text-gray-300">
-                {a.valor} · {a.quantidade}
-              </span>
-            ),
-          )}
-        </div>
-      )}
-    </div>
+    <span
+      title={AVISO_SITUACAO}
+      className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+        situacao ? SITUACAO[situacao].cor : "bg-gray-50 text-gray-400"
+      }`}
+    >
+      {rotuloSituacao(situacao)}
+    </span>
   );
 }
 
-/**
- * Por que o número da Judit não bate com o da lista: ela conta um registro por instância, e no
- * recurso a empresa pode trocar de polo (ré na 1ª, recorrente na 2ª).
- */
-export function NotaContagem({ registros, processos, totalNoResumo }: { registros: number; processos: number; totalNoResumo: number | null }) {
-  const juntados = registros - processos;
-  const faltam = totalNoResumo !== null && totalNoResumo > registros ? totalNoResumo - registros : 0;
-  if (juntados <= 0 && faltam <= 0) return null;
+/** Vários sacados dizendo que o título protestado não era devido: o desenho de duplicata sem lastro. */
+export function AlertaTituloContestado({ quantidade }: { quantidade: number }) {
+  if (quantidade < ALERTA_TITULO_CONTESTADO) return null;
   return (
-    <p className="flex gap-1.5 text-[11px] text-gray-500">
-      <Icon name="info" size={13} className="mt-px shrink-0" />
+    <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+      <Icon name="warning" size={18} className="mt-0.5 shrink-0" />
       <span>
-        A Judit conta um registro por instância: {registros} registros viraram {processos} processos, porque {juntados}{" "}
-        {juntados === 1 ? "aparece" : "aparecem"} em 1ª e 2ª instância. Por isso o resumo da Judit mostra números maiores —
-        e no recurso a empresa pode trocar de polo (ré na 1ª, recorrente na 2ª); aqui conta como ré.
-        {faltam > 0 && ` O resumo informa ${totalNoResumo} registros e a lista trouxe ${registros}; a diferença é da Judit.`}
+        <strong>{quantidade} processos</strong> com a empresa como ré por protesto, negativação ou duplicata contestada.
+        Vários sacados dizendo que o título não era devido é o desenho de duplicata sem lastro — não é prova, pede
+        verificação antes de operar.
       </span>
-    </p>
+    </div>
   );
 }
 
@@ -350,7 +319,9 @@ export function LinhaProcesso({ processo: p, acao }: { processo: JuditProcesso; 
       <td className="px-3 py-2.5 text-gray-500">
         {p.ultimoAndamento ? (
           <>
-            <div className="whitespace-nowrap">{data(p.ultimoAndamento.data)}</div>
+            <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap">
+              {data(p.ultimoAndamento.data)} <SeloSituacao situacao={p.situacao} />
+            </div>
             <div className="line-clamp-2">{p.ultimoAndamento.texto ?? "—"}</div>
           </>
         ) : (

@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,11 +76,13 @@ public class JuditService {
     /**
      * @param somenteReu    a consulta pediu só os processos em que a empresa é ré (empresa acima de 1.000)
      * @param totalNoResumo total que o resumo informou; a lista pode vir menor
+     * @param painel        os blocos no desenho do Vadu; no card, só o geral
      * @param detalhes      situação do último detalhe de cada processo detalhado, por número CNJ
      */
     public record ProcessosConsultados(LocalDateTime consultadoEm, String consultadoPor, BigDecimal custo,
                                        boolean desatualizado, boolean somenteReu, Integer totalNoResumo,
-                                       JuditLeitura.Processos dados, Map<String, SituacaoConsultaJudit> detalhes) {
+                                       JuditLeitura.Processos dados, JuditPainel.Painel painel,
+                                       Map<String, SituacaoConsultaJudit> detalhes) {
     }
 
     /** O último detalhe pedido para um processo. {@code dados} nulo enquanto pendente ou se falhou. */
@@ -148,11 +151,13 @@ public class JuditService {
                 .map(c -> {
                     JsonNode portal = c.getResposta().path("_portal");
                     JuditLeitura.Processos dados = JuditLeitura.processos(c.getResposta(), documento);
+                    JuditPainel.Painel painel = JuditPainel.painel(dados.lista(), LocalDate.now());
                     return new ProcessosConsultados(c.getCriadoEm(), c.getUsuarioNome(), c.getCusto(),
                             c.getCriadoEm().isBefore(limiteValidade),
                             portal.path("somente_reu").asBoolean(false),
                             portal.path("total_no_resumo").isInt() ? portal.path("total_no_resumo").asInt() : null,
                             comLista ? dados : dados.semLista(),
+                            comLista ? painel : painel.soGeral(),
                             comLista ? detalhesDa(documento) : Map.of());
                 })
                 .orElse(null);

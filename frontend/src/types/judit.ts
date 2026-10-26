@@ -52,7 +52,78 @@ export type JuditProcesso = {
   ultimoAndamento: { data: string | null; texto: string | null } | null;
   emSegredo: boolean;
   fonteAtualizadaEm: string | null;
+  /** Pelo número CNJ. */
+  justica: JuditJustica;
+  /** Deduzida do último andamento — a base histórica da Judit não traz. Nula sem andamento. */
+  situacao: JuditSituacaoProcesso | null;
+  /** Banco, financeira, FIDC ou securitizadora do outro lado. */
+  segmentoFinanceiro: boolean;
 };
+
+export type JuditJustica = "ESTADUAL" | "TRABALHO" | "FEDERAL" | "ELEITORAL" | "MILITAR" | "SUPERIOR" | "OUTRA";
+
+export type JuditSituacaoProcesso = "EM_TRAMITACAO" | "SUSPENSO" | "ARQUIVADO";
+
+// ── Painel no desenho do Vadu (espelha JuditPainel no backend) ─────────────────────────────────
+
+export type JuditSoma = { quantidade: number; valor: number };
+
+export type JuditArea = {
+  /** Nula quando a Judit não informou. */
+  area: string | null;
+  quantidade: number;
+  porcentagem: number;
+  primeiroProcesso: string | null;
+  ultimaMovimentacao: string | null;
+};
+
+/** `periodo` é o ano ("2026") ou o mês ("2026-08"). */
+export type JuditPorPeriodo = { periodo: string; reu: number; autor: number; outros: number };
+
+export type JuditPorSituacao = { situacao: JuditSituacaoProcesso | null; quantidade: number; valor: number };
+
+export type JuditPorPolo = {
+  soma: JuditSoma;
+  situacoes: JuditPorSituacao[];
+  classes: JuditContagem[];
+  assuntos: JuditContagem[];
+};
+
+export type JuditParteResumo = { nome: string; quantidade: number; empresaRe: number; empresaAutora: number; valor: number };
+
+export type JuditUltimo = {
+  cnj: string | null;
+  tribunal: string | null;
+  uf: string | null;
+  classe: string | null;
+  polo: JuditPolo;
+  situacao: JuditSituacaoProcesso | null;
+  distribuidoEm: string | null;
+  ultimaMovimentacao: string | null;
+};
+
+export type JuditGrupoPolo = "REU" | "AUTOR" | "OUTROS";
+
+/** Um recorte da lista: todos os processos, ou os de uma justiça. */
+export type JuditBloco = {
+  total: JuditSoma;
+  comoReu: JuditSoma;
+  comoAutor: JuditSoma;
+  outros: JuditSoma;
+  porJustica: Partial<Record<JuditJustica, JuditSoma>>;
+  areas: JuditArea[];
+  porUf: JuditContagem[];
+  porAno: JuditPorPeriodo[];
+  ultimos12Meses: JuditPorPeriodo[];
+  porPolo: Record<JuditGrupoPolo, JuditPorPolo>;
+  segmentoFinanceiro: JuditSoma;
+  /** Vazia no card da Visão 360º. */
+  partes: JuditParteResumo[];
+  ultimos: JuditUltimo[];
+};
+
+/** `porJustica` vazio no card: lá só o geral. */
+export type JuditPainel = { geral: JuditBloco; porJustica: Partial<Record<JuditJustica, JuditBloco>> };
 
 export type JuditProcessos = {
   /** Linhas devolvidas (uma por instância). É o que a Judit cobra. */
@@ -84,6 +155,8 @@ export type JuditProcessosConsultados = Consultado & {
   somenteReu: boolean;
   totalNoResumo: number | null;
   dados: JuditProcessos;
+  /** Os blocos no desenho do Vadu, calculados da lista. */
+  painel: JuditPainel;
   /** Situação do último detalhe de cada processo detalhado, por número CNJ. Vazio no card. */
   detalhes: Record<string, JuditSituacaoConsulta>;
 };

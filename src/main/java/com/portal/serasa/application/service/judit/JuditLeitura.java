@@ -113,7 +113,16 @@ public final class JuditLeitura {
             LocalDate distribuidoEm,
             Andamento ultimoAndamento,
             boolean emSegredo,
-            LocalDate fonteAtualizadaEm) {
+            LocalDate fonteAtualizadaEm,
+            /** ESTADUAL, TRABALHO, FEDERAL, ELEITORAL, MILITAR, SUPERIOR ou OUTRA — pelo número CNJ. */
+            String justica,
+            /**
+             * EM_TRAMITACAO, SUSPENSO ou ARQUIVADO, deduzida do último andamento: a base histórica da
+             * Judit não traz a situação do processo. Nula sem andamento.
+             */
+            String situacao,
+            /** Banco, financeira, FIDC ou securitizadora do outro lado (a etiqueta {@code banking} da Judit ou o nome). */
+            boolean segmentoFinanceiro) {
     }
 
     public record Processos(
@@ -299,11 +308,13 @@ public final class JuditLeitura {
         LocalDate fonteAtualizadaEm = null;
         Andamento ultimo = null;
         boolean emSegredo = false;
+        boolean bancario = false;
 
         for (JsonNode linha : ordenadas) {
             if (linha.has("instance")) {
                 instancias.add(linha.path("instance").asInt());
             }
+            bancario |= linha.path("tags").path("banking").asBoolean(false);
             linha.path("subjects").forEach(s -> {
                 String nome = texto(s.path("name"));
                 if (nome != null) {
@@ -361,9 +372,11 @@ public final class JuditLeitura {
         BigDecimal valor = capa.path("amount").isNumber() && capa.path("amount").decimalValue().signum() > 0
                 ? capa.path("amount").decimalValue()
                 : null;
+        String numero = cnj.startsWith("sem-numero-") ? null : cnj;
+        boolean financeiro = bancario || contrapartes.stream().anyMatch(n -> FINANCEIRO.matcher(semAcento(n)).find());
 
         return new Processo(
-                cnj.startsWith("sem-numero-") ? null : cnj,
+                numero,
                 List.copyOf(instancias),
                 texto(capa.path("name")),
                 polo,
@@ -379,8 +392,69 @@ public final class JuditLeitura {
                 distribuidoEm,
                 ultimo,
                 emSegredo,
-                fonteAtualizadaEm);
+                fonteAtualizadaEm,
+                justica(numero, texto(capa.path("justice_description"))),
+                situacao(texto(capa.path("situation")), ultimo == null ? null : ultimo.texto()),
+                financeiro);
     }
+
+    // ── Justiça, situação e segmento financeiro ──────────────────────────────────────────────────
+
+    /** NNNNNNN-DD.AAAA.J.TR.OOOO — o J é o segmento da Justiça (Resolução CNJ 65/2008). */
+    private static final Pattern NUMERO_CNJ = Pattern.compile("^\\d{7}-\\d{2}\\.\\d{4}\\.(\\d)\\.\\d{2}\\.\\d{4}$");
+
+    /** Pelo número CNJ; sem número no padrão, pela descrição da Judit ("JUSTIÇA ESTADUAL"). */
+    static String justica(String cnj, String descricao) {
+        Matcher m = cnj == null ? null : NUMERO_CNJ.matcher(cnj);
+        if (m != null && m.matches()) {
+            return switch (m.group(1)) {
+                case "8" -> "ESTADUAL";
+                case "5" -> "TRABALHO";
+                case "4" -> "FEDERAL";
+                case "6" -> "ELEITORAL";
+                case "7", "9" -> "MILITAR";
+                default -> "SUPERIOR";
+            };
+        }
+        String d = descricao == null ? "" : semAcento(descricao);
+        if (d.contains("ESTADUAL")) return "ESTADUAL";
+        if (d.contains("TRABALHO")) return "TRABALHO";
+        if (d.contains("FEDERAL")) return "FEDERAL";
+        if (d.contains("ELEITORAL")) return "ELEITORAL";
+        if (d.contains("MILITAR")) return "MILITAR";
+        return "OUTRA";
+    }
+
+    /** Suspensão e arquivamento provisório: a execução parou (costuma ser falta de bens), mas não acabou. */
+    private static final Pattern SUSPENSO = Pattern.compile(
+            "ARQUIV\\w* PROVISORI|PROVISORIAMENTE ARQUIV|SUSPENS|SOBRESTA");
+    private static final Pattern REATIVADO = Pattern.compile("DESARQUIV|REATIVA");
+    private static final Pattern ARQUIVADO = Pattern.compile(
+            "ARQUIV|BAIXA DEFINITIVA|BAIXADO DEFINITIVAMENTE|EXTINT|TRANSIT\\w* EM JULGADO|PROCESSO FINDO");
+
+    /**
+     * A situação provável do processo. A base histórica da Judit traz "NÃO INFORMADO" na situação, então
+     * vale o texto do último andamento: arquivado, baixado, extinto ou transitado em julgado encerra;
+     * arquivamento provisório, suspensão ou sobrestamento suspende; o resto está em tramitação. É
+     * dedução — a tela avisa.
+     */
+    static String situacao(String situacaoDaJudit, String ultimoAndamento) {
+        for (String texto : new String[] {situacaoDaJudit, ultimoAndamento}) {
+            if (texto == null) {
+                continue;
+            }
+            String t = semAcento(texto);
+            if (SUSPENSO.matcher(t).find()) return "SUSPENSO";
+            if (REATIVADO.matcher(t).find()) return "EM_TRAMITACAO";
+            if (ARQUIVADO.matcher(t).find()) return "ARQUIVADO";
+        }
+        return ultimoAndamento == null ? null : "EM_TRAMITACAO";
+    }
+
+    /** Quem do outro lado é do mercado financeiro. "Crédito" sozinho pega cobradora; vale como sinal. */
+    private static final Pattern FINANCEIRO = Pattern.compile(
+            "\\bBANCO\\b|\\bBANK\\b|FINANCEIRA|\\bFIDC\\b|FUNDO DE INVESTIMENTO|SECURITIZ|COOPERATIVA DE CREDITO|"
+                    + "\\bCREDITO\\b|FOMENTO|FACTORING|CAIXA ECONOMICA|LEASING|ARRENDAMENTO MERCANTIL|\\bS\\.?A\\.? CFI\\b");
 
     private static boolean auxiliar(JsonNode parte) {
         String tipo = texto(parte.path("person_type"));
