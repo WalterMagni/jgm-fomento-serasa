@@ -16,6 +16,18 @@ export type JuditResumo = {
   assuntos: JuditContagem[];
   fases: JuditContagem[];
   estados: JuditContagem[];
+  /** Estadual, Federal, do Trabalho... */
+  justicas: JuditContagem[];
+};
+
+/**
+ * Algo no resumo que merece olhar antes da lista. Os agregados não se cruzam com o polo: "processo
+ * criminal" pode ser a empresa como vítima.
+ */
+export type JuditPontoDeAtencao = {
+  tipo: "CRIMINAL" | "RECUPERACAO_FALENCIA" | "EXECUCAO_FISCAL" | "TITULO_CONTESTADO" | "TRABALHISTA";
+  titulo: string;
+  quantidade: number;
 };
 
 export type JuditPolo = "REU" | "AUTOR" | "TERCEIRO" | "DESCONHECIDO";
@@ -65,7 +77,7 @@ type Consultado = {
   desatualizado: boolean;
 };
 
-export type JuditResumoConsultado = Consultado & { dados: JuditResumo };
+export type JuditResumoConsultado = Consultado & { dados: JuditResumo; pontosDeAtencao: JuditPontoDeAtencao[] };
 
 export type JuditProcessosConsultados = Consultado & {
   /** A empresa passou de 1.000 processos no resumo: a lista pediu só os de ré. */
@@ -122,8 +134,37 @@ export type JuditSituacao = {
   /** A chave da Judit está no servidor. */
   configurada: boolean;
   validadeDias: number;
-  consumo: { gastoMes: number; aviso: number; limite: number };
+  /** Mês do calendário. `limite` já soma o `liberado` pelo admin; a franquia é o piso da conta. */
+  consumo: { gastoMes: number; franquia: number; limite: number; liberado: number };
   precos: { resumo: number; processosPorMil: number; detalhe: number };
   resumo: JuditResumoConsultado | null;
   processos: JuditProcessosConsultados | null;
+};
+
+/** Aba Consumo Judit das Configurações. Espelha JuditConsumoService.Painel. */
+export type JuditConsultaDoPainel = {
+  id: string;
+  usuarioNome: string | null;
+  documento: string;
+  nomeEmpresa: string | null;
+  servico: "RESUMO" | "PROCESSOS" | "DETALHE";
+  /** Só no detalhe de processo. */
+  cnj: string | null;
+  situacao: JuditSituacaoConsulta;
+  custo: number;
+  totalProcessos: number | null;
+  criadoEm: string;
+};
+
+export type JuditLiberacao = { id: string; valor: number; motivo: string | null; adminNome: string | null; criadoEm: string };
+
+export type JuditPainelConsumo = {
+  /** Sempre o mês do calendário, não o período da tabela. */
+  mes: JuditSituacao["consumo"];
+  mesReferencia: string;
+  /** Quem vê é admin do portal: mostra o botão de liberar. */
+  podeLiberar: boolean;
+  liberacoes: JuditLiberacao[];
+  dias: number;
+  consultas: JuditConsultaDoPainel[];
 };

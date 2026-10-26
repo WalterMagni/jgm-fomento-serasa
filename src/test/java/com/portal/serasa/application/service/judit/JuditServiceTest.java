@@ -12,6 +12,7 @@ import com.portal.serasa.infrastructure.integration.judit.JuditProperties;
 import com.portal.serasa.infrastructure.persistence.entity.JuditConsultaEntity;
 import com.portal.serasa.infrastructure.persistence.entity.UserEntity;
 import com.portal.serasa.infrastructure.persistence.repository.JuditConsultaJpaRepository;
+import com.portal.serasa.infrastructure.persistence.repository.JuditLiberacaoJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,7 @@ class JuditServiceTest {
 
     @Mock private JuditClient client;
     @Mock private JuditConsultaJpaRepository consultas;
+    @Mock private JuditLiberacaoJpaRepository liberacoes;
     @Mock private ApplicationEventPublisher eventos;
 
     private JuditService service;
@@ -56,13 +58,16 @@ class JuditServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Limite de R$ 1.000 aqui para os testes de trava lerem redondo; em produção é R$ 1.500.
         JuditProperties properties = new JuditProperties("chave", "https://lawsuits.example", "https://requests.example",
                 new BigDecimal("0.75"), new BigDecimal("1.50"), new BigDecimal("0.35"),
-                new BigDecimal("900"), new BigDecimal("1000"), 30, 0, 1);
-        service = new JuditService(client, properties, consultas, JSON, eventos);
+                new BigDecimal("1000"), new BigDecimal("1000"), 30, 0, 1);
+        service = new JuditService(client, properties, consultas, new JuditFranquia(consultas, liberacoes, properties),
+                JSON, eventos);
         analistaJudit = UserEntity.builder().id(UUID.randomUUID()).name("Ana").email("ana@jgm.com.br")
                 .analista(true).judit(true).build();
         when(consultas.somarCustoDesde(any())).thenReturn(BigDecimal.ZERO);
+        when(liberacoes.somarDoMes(any())).thenReturn(BigDecimal.ZERO);
         when(consultas.findFirstByDocumentoAndServicoOrderByCriadoEmDesc(anyString(), any())).thenReturn(Optional.empty());
     }
 
@@ -84,7 +89,7 @@ class JuditServiceTest {
     void resumoGrava() {
         when(client.resumo(CNPJ)).thenReturn(resumoCom(57));
 
-        service.consultarResumo("12.021.039/0001-74", analistaJudit);
+        service.consultarResumo("12.021.039/0001-74", null, analistaJudit);
 
         ArgumentCaptor<JuditConsultaEntity> salva = ArgumentCaptor.forClass(JuditConsultaEntity.class);
         verify(consultas).save(salva.capture());
@@ -101,7 +106,7 @@ class JuditServiceTest {
     void semMarca() {
         UserEntity analista = UserEntity.builder().id(UUID.randomUUID()).name("Bia").analista(true).build();
 
-        assertThatThrownBy(() -> service.consultarResumo(CNPJ, analista)).isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> service.consultarResumo(CNPJ, null, analista)).isInstanceOf(AcessoNegadoException.class);
         verifyNoInteractions(client);
         verify(consultas, never()).save(any());
     }
@@ -111,7 +116,7 @@ class JuditServiceTest {
     void limiteBloqueia() {
         when(consultas.somarCustoDesde(any())).thenReturn(new BigDecimal("999.50"));
 
-        assertThatThrownBy(() -> service.consultarResumo(CNPJ, analistaJudit))
+        assertThatThrownBy(() -> service.consultarResumo(CNPJ, null, analistaJudit))
                 .isInstanceOf(LimiteJuditException.class)
                 .hasMessageContaining("R$ 999,50")
                 .hasMessageContaining("R$ 0,75");
@@ -125,7 +130,7 @@ class JuditServiceTest {
         when(consultas.somarCustoDesde(any())).thenReturn(new BigDecimal("999.25"));
         when(client.resumo(CNPJ)).thenReturn(resumoCom(3));
 
-        service.consultarResumo(CNPJ, analistaJudit);
+        service.consultarResumo(CNPJ, null, analistaJudit);
 
         verify(consultas).save(any());
     }
@@ -135,7 +140,7 @@ class JuditServiceTest {
     void resumoNaoEncontrado() {
         when(client.resumo(CNPJ)).thenThrow(new ExternalApiException(JuditClient.PROVIDER, 404, "nada", null));
 
-        service.consultarResumo(CNPJ, analistaJudit);
+        service.consultarResumo(CNPJ, null, analistaJudit);
 
         ArgumentCaptor<JuditConsultaEntity> salva = ArgumentCaptor.forClass(JuditConsultaEntity.class);
         verify(consultas).save(salva.capture());
@@ -149,7 +154,7 @@ class JuditServiceTest {
     void resumoErro() {
         when(client.resumo(CNPJ)).thenThrow(new ExternalApiException(JuditClient.PROVIDER, 502, "chave", null));
 
-        assertThatThrownBy(() -> service.consultarResumo(CNPJ, analistaJudit)).isInstanceOf(ExternalApiException.class);
+        assertThatThrownBy(() -> service.consultarResumo(CNPJ, null, analistaJudit)).isInstanceOf(ExternalApiException.class);
         verify(consultas, never()).save(any());
     }
 
@@ -157,12 +162,12 @@ class JuditServiceTest {
     @DisplayName("processos: exige resumo antes e recusa quando o resumo deu zero")
     void processosExigeResumo() {
 
-        assertThatThrownBy(() -> service.consultarProcessos(CNPJ, analistaJudit))
+        assertThatThrownBy(() -> service.consultarProcessos(CNPJ, null, analistaJudit))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("resumo");
 
         resumoGuardado(0);
-        assertThatThrownBy(() -> service.consultarProcessos(CNPJ, analistaJudit))
+        assertThatThrownBy(() -> service.consultarProcessos(CNPJ, null, analistaJudit))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("não encontrou");
         verifyNoInteractions(client);
@@ -175,7 +180,7 @@ class JuditServiceTest {
         when(client.processos(eq(CNPJ), isNull()))
                 .thenReturn(JSON.readTree("{\"lawsuits\": [{\"code\": \"A\"}, {\"code\": \"B\"}]}"));
 
-        service.consultarProcessos(CNPJ, analistaJudit);
+        service.consultarProcessos(CNPJ, null, analistaJudit);
 
         ArgumentCaptor<JuditConsultaEntity> salva = ArgumentCaptor.forClass(JuditConsultaEntity.class);
         verify(consultas).save(salva.capture());
@@ -192,7 +197,7 @@ class JuditServiceTest {
         resumoGuardado(1199);
         when(client.processos(CNPJ, "Passive")).thenReturn(JSON.readTree("{\"lawsuits\": []}"));
 
-        service.consultarProcessos(CNPJ, analistaJudit);
+        service.consultarProcessos(CNPJ, null, analistaJudit);
 
         verify(client).processos(CNPJ, "Passive");
     }
@@ -217,7 +222,7 @@ class JuditServiceTest {
     }
 
     @Test
-    @DisplayName("detalhar: cobra o preço do detalhe, grava PENDENTE com o request e avisa o acompanhador")
+    @DisplayName("detalhar: cobra o preço do detalhe e grava PENDENTE com o request — o acompanhador acha pelo banco")
     void detalharPede() throws Exception {
         listaCom(CNJ);
         when(consultas.findFirstByDocumentoAndCnjAndServicoOrderByCriadoEmDesc(CNPJ, CNJ, ServicoJudit.DETALHE))
@@ -239,10 +244,9 @@ class JuditServiceTest {
         assertThat(salva.getValue().getCnj()).isEqualTo(CNJ);
         assertThat(salva.getValue().getRequestId()).isEqualTo("req-9");
         assertThat(salva.getValue().getResposta()).isNull();
-        ArgumentCaptor<JuditService.DetalhePedido> pedido = ArgumentCaptor.forClass(JuditService.DetalhePedido.class);
-        verify(eventos).publishEvent(pedido.capture());
-        assertThat(pedido.getValue().nomeEmpresa()).isEqualTo("I G LABEGALINI");
-        assertThat(pedido.getValue().usuarioId()).isEqualTo(analistaJudit.getId());
+        assertThat(salva.getValue().getNomeEmpresa()).isEqualTo("I G LABEGALINI");
+        assertThat(salva.getValue().getUsuarioId()).isEqualTo(analistaJudit.getId());
+        verify(eventos, never()).publishEvent(any());
         verify(consultas).travarLimite(JuditService.TRAVA_LIMITE);
     }
 
@@ -301,5 +305,29 @@ class JuditServiceTest {
 
         assertThat(service.concluirDetalhe(id, JSON.readTree("{}"))).isFalse();
         assertThat(service.falharDetalhe(id, "x")).isFalse();
+    }
+
+    // ── franquia e liberação ────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("limite: o valor liberado pelo admin no mês soma ao limite")
+    void liberacaoSomaAoLimite() {
+        when(consultas.somarCustoDesde(any())).thenReturn(new BigDecimal("999.50"));
+        when(liberacoes.somarDoMes(any())).thenReturn(new BigDecimal("100"));
+        when(client.resumo(CNPJ)).thenReturn(resumoCom(3));
+
+        service.consultarResumo(CNPJ, null, analistaJudit);
+
+        verify(consultas).save(any());
+    }
+
+    @Test
+    @DisplayName("limite: a mensagem diz o que fazer — pedir ao admin")
+    void limiteMandaPedirAoAdmin() {
+        when(consultas.somarCustoDesde(any())).thenReturn(new BigDecimal("999.50"));
+
+        assertThatThrownBy(() -> service.consultarResumo(CNPJ, null, analistaJudit))
+                .isInstanceOf(LimiteJuditException.class)
+                .hasMessageContaining("admin");
     }
 }

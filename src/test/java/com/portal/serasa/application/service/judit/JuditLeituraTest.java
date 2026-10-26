@@ -281,4 +281,42 @@ class JuditLeituraTest {
         assertThat(detalhe.processo()).isNull();
         assertThat(detalhe.resumoIa()).isNull();
     }
+
+    // ── pontos de atenção ──────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("pontos de atenção: o maior entre as dimensões, sem confundir cláusula penal nem processo civil")
+    void pontosDeAtencao() throws Exception {
+        JuditLeitura.Resumo resumo = JuditLeitura.resumo(json("""
+                {'lawsuits_count': 60,
+                 'areas': [{'count': 2, 'value': 'DIREITO PENAL'},
+                           {'count': 10, 'value': 'DIREITO PROCESSUAL CIVIL E DO TRABALHO'}],
+                 'classifications': [{'count': 3, 'value': 'AÇÃO PENAL - PROCEDIMENTO ORDINÁRIO'},
+                                     {'count': 4, 'value': 'EXECUÇÃO FISCAL'}],
+                 'subjects': [{'count': 5, 'value': 'Cláusula Penal'},
+                              {'count': 1, 'value': 'Recuperação judicial e Falência'},
+                              {'count': 2, 'value': 'Protesto Indevido de Título'},
+                              {'count': 2, 'value': 'Inclusão Indevida em Cadastro de Inadimplentes'}],
+                 'justices': [{'count': 7, 'value': 'JUSTIÇA DO TRABALHO'}, {'count': 40, 'value': 'JUSTIÇA ESTADUAL'}]}
+                """));
+
+        assertThat(JuditLeitura.pontosDeAtencao(resumo)).containsExactly(
+                new JuditLeitura.PontoDeAtencao("CRIMINAL", "Processo criminal", 3),
+                new JuditLeitura.PontoDeAtencao("RECUPERACAO_FALENCIA", "Recuperação judicial ou falência", 1),
+                new JuditLeitura.PontoDeAtencao("EXECUCAO_FISCAL", "Execução fiscal", 4),
+                new JuditLeitura.PontoDeAtencao("TITULO_CONTESTADO", "Protesto, negativação ou duplicata contestada", 4),
+                new JuditLeitura.PontoDeAtencao("TRABALHISTA", "Justiça do Trabalho", 7));
+    }
+
+    @Test
+    @DisplayName("pontos de atenção: resumo limpo não acusa nada")
+    void pontosDeAtencaoLimpo() throws Exception {
+        JuditLeitura.Resumo resumo = JuditLeitura.resumo(json("""
+                {'lawsuits_count': 9, 'areas': [{'count': 9, 'value': 'DIREITO CIVIL'}],
+                 'subjects': [{'count': 9, 'value': 'Indenização por Dano Moral'}],
+                 'justices': [{'count': 9, 'value': 'JUSTIÇA ESTADUAL'}]}
+                """));
+
+        assertThat(JuditLeitura.pontosDeAtencao(resumo)).isEmpty();
+    }
 }

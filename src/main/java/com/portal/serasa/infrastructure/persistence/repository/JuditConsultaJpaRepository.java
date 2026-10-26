@@ -6,6 +6,7 @@ import com.portal.serasa.infrastructure.persistence.entity.JuditConsultaEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,6 +43,44 @@ public interface JuditConsultaJpaRepository extends JpaRepository<JuditConsultaE
 
     @Query("select coalesce(sum(c.custo), 0) from JuditConsultaEntity c where c.criadoEm >= :inicio")
     BigDecimal somarCustoDesde(@Param("inicio") LocalDateTime inicio);
+
+    /** Pedidos pendentes recentes, para o acompanhamento. São poucos: não precisa de projeção. */
+    List<JuditConsultaEntity> findBySituacaoAndCriadoEmAfterOrderByCriadoEmAsc(
+            SituacaoConsultaJudit situacao, LocalDateTime desde);
+
+    @Modifying
+    @Query("update JuditConsultaEntity c set c.verificadoEm = :quando where c.id = :id")
+    void marcarVerificado(@Param("id") UUID id, @Param("quando") LocalDateTime quando);
+
+    /** Linha do painel de consumo, sem a resposta (a lista inteira pode passar de 1 MB). */
+    interface ConsultaDoPainel {
+        UUID getId();
+
+        String getDocumento();
+
+        String getNomeEmpresa();
+
+        ServicoJudit getServico();
+
+        String getCnj();
+
+        SituacaoConsultaJudit getSituacao();
+
+        BigDecimal getCusto();
+
+        Integer getTotalProcessos();
+
+        String getUsuarioNome();
+
+        LocalDateTime getCriadoEm();
+    }
+
+    @Query("""
+            select c.id as id, c.documento as documento, c.nomeEmpresa as nomeEmpresa, c.servico as servico,
+                   c.cnj as cnj, c.situacao as situacao, c.custo as custo, c.totalProcessos as totalProcessos,
+                   c.usuarioNome as usuarioNome, c.criadoEm as criadoEm
+            from JuditConsultaEntity c where c.criadoEm >= :inicio order by c.criadoEm desc""")
+    List<ConsultaDoPainel> doPainelDesde(@Param("inicio") LocalDateTime inicio);
 
     /**
      * Trava de transação do Postgres: duas consultas ao mesmo tempo esperam uma pela outra, para que

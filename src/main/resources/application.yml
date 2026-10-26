@@ -72,7 +72,8 @@ billing:
     pf-cost-per-query: ${SERASA_PF_COST_PER_QUERY:15.52}
 
 # Judit: processos judiciais. Preços do plano anual, faixa de R$ 1.000/mês (tabela de abr/2026,
-# judit.io/calculadora-api). O aviso acende na tela; no limite o portal para de consultar.
+# judit.io/calculadora-api). A franquia é o piso da conta (o excedente é cobrado pela mesma tabela);
+# no limite o portal para de consultar até o admin liberar valor a mais no mês.
 judit:
   api-key: ${JUDIT_API_KEY:}
   lawsuits-url: ${JUDIT_LAWSUITS_URL:https://lawsuits.production.judit.io}
@@ -81,11 +82,12 @@ judit:
   custo-processos-por-mil: ${JUDIT_CUSTO_PROCESSOS_POR_MIL:1.50}
   # Detalhe de processo: consulta processual por CNJ (0,25) + resumo de IA (0,10).
   custo-detalhe: ${JUDIT_CUSTO_DETALHE:0.35}
-  # O detalhe é assíncrono: o backend pergunta à Judit a cada N segundos até o limite (no teste, ~50 s).
+  # O detalhe é assíncrono: o backend pergunta à Judit a partir de N segundos, com o intervalo
+  # crescendo com a idade do pedido, até o limite (no teste, ~50 s).
   acompanhamento-intervalo-segundos: ${JUDIT_ACOMPANHAMENTO_INTERVALO:5}
   acompanhamento-limite-minutos: ${JUDIT_ACOMPANHAMENTO_LIMITE:10}
-  aviso-mensal: ${JUDIT_AVISO_MENSAL:900}
-  limite-mensal: ${JUDIT_LIMITE_MENSAL:1000}
+  franquia-mensal: ${JUDIT_FRANQUIA_MENSAL:1000}
+  limite-mensal: ${JUDIT_LIMITE_MENSAL:1500}
   validade-dias: ${JUDIT_VALIDADE_DIAS:30}
 
 gemini:

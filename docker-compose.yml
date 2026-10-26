@@ -45,8 +45,9 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
       # Judit (processos judiciais). Sem a chave o card mostra o que já foi consultado, mas não consulta.
       JUDIT_API_KEY: ${JUDIT_API_KEY:-}
-      JUDIT_AVISO_MENSAL: ${JUDIT_AVISO_MENSAL:-900}
-      JUDIT_LIMITE_MENSAL: ${JUDIT_LIMITE_MENSAL:-1000}
+      # Franquia é o piso da conta; o limite é a trava do portal (o admin libera valor a mais no mês).
+      JUDIT_FRANQUIA_MENSAL: ${JUDIT_FRANQUIA_MENSAL:-1000}
+      JUDIT_LIMITE_MENSAL: ${JUDIT_LIMITE_MENSAL:-1500}
       SMTP_HOST: ${SMTP_HOST:-cloud29.mailgrid.net.br}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME}

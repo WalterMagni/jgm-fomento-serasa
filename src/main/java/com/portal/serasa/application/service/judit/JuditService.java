@@ -21,9 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -35,11 +35,12 @@ import java.util.UUID;
  * por empresa volta quando houver monitoramento. Duas travas antes de cada chamada cobrada:</p>
  * <ol>
  *   <li>o usuário tem a marca Judit (Settings, só admin marca);</li>
- *   <li>o gasto do mês mais o custo da chamada não passa do limite ({@code judit.limite-mensal}).</li>
+ *   <li>o gasto do mês mais o custo da chamada não passa do limite do mês ({@link JuditFranquia}).</li>
  * </ol>
  *
- * <p>As duas rotas usadas são da base histórica da Judit (Data Lake), não dos tribunais em tempo
- * real. A consulta On Demand ({@code /requests}) fica para depois da conversa com a Judit.</p>
+ * <p>As duas consultas por documento são da base histórica da Judit (Data Lake), não dos tribunais em
+ * tempo real: o resumo e, depois dele, a lista. O On Demand foi testado e ficou de fora (decisão de
+ * 2026-10-26, docs/judit/03-on-demand.md).</p>
  *
  * <p>Resultado não vence sozinho: depois de {@code judit.validade-dias} a tela marca como
  * desatualizado, mas só consulta de novo se alguém pedir.</p>
@@ -58,24 +59,17 @@ public class JuditService {
     private final JuditClient client;
     private final JuditProperties properties;
     private final JuditConsultaJpaRepository consultaRepository;
+    private final JuditFranquia franquia;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventos;
-
-    /**
-     * Detalhe pedido e gravado: o {@link JuditAcompanhador} pergunta à Judit até ficar pronto e
-     * notifica quem pediu. Publicado dentro da transação; o acompanhamento começa depois do commit.
-     */
-    public record DetalhePedido(UUID consultaId, String requestId, UUID usuarioId, String cnj, String cnpj,
-                                String nomeEmpresa) {
-    }
-    public record Consumo(BigDecimal gastoMes, BigDecimal aviso, BigDecimal limite) {
-    }
 
     public record Precos(BigDecimal resumo, BigDecimal processosPorMil, BigDecimal detalhe) {
     }
 
+    /** @param pontosDeAtencao o que olhar no resumo: criminal, falência, execução fiscal... */
     public record ResumoConsultado(LocalDateTime consultadoEm, String consultadoPor, BigDecimal custo,
-                                   boolean desatualizado, JuditLeitura.Resumo dados) {
+                                   boolean desatualizado, JuditLeitura.Resumo dados,
+                                   List<JuditLeitura.PontoDeAtencao> pontosDeAtencao) {
     }
 
     /**
@@ -99,10 +93,19 @@ public class JuditService {
             boolean podeUsar,
             boolean configurada,
             int validadeDias,
-            Consumo consumo,
+            JuditFranquia.Consumo consumo,
             Precos precos,
             ResumoConsultado resumo,
             ProcessosConsultados processos) {
+    }
+
+    /** Um detalhe esperando a Judit. É o que o {@link JuditAcompanhador} acompanha. */
+    public record Pendente(UUID consultaId, String requestId, UUID usuarioId, String documento, String cnj,
+                           String nomeEmpresa, LocalDateTime criadoEm, LocalDateTime verificadoEm) {
+    }
+
+    /** "Verificar agora" da tela: pergunta à Judit uma vez, mesmo passado o tempo do acompanhamento. */
+    public record VerificacaoPedida(Pendente pendente) {
     }
 
     @Transactional(readOnly = true)
@@ -112,8 +115,11 @@ public class JuditService {
 
         ResumoConsultado resumo = consultaRepository
                 .findFirstByDocumentoAndServicoOrderByCriadoEmDesc(documento, ServicoJudit.RESUMO)
-                .map(c -> new ResumoConsultado(c.getCriadoEm(), c.getUsuarioNome(), c.getCusto(),
-                        c.getCriadoEm().isBefore(limiteValidade), JuditLeitura.resumo(c.getResposta())))
+                .map(c -> {
+                    JuditLeitura.Resumo dados = JuditLeitura.resumo(c.getResposta());
+                    return new ResumoConsultado(c.getCriadoEm(), c.getUsuarioNome(), c.getCusto(),
+                            c.getCriadoEm().isBefore(limiteValidade), dados, JuditLeitura.pontosDeAtencao(dados));
+                })
                 .orElse(null);
 
         // Sem a lista: o card mostra só os totais, e a lista inteira pode passar de 1 MB.
@@ -124,7 +130,7 @@ public class JuditService {
                 usuario.isJudit(),
                 properties.configurada(),
                 properties.validadeDias(),
-                new Consumo(gastoDoMes(), properties.avisoMensal(), properties.limiteMensal()),
+                franquia.consumo(),
                 new Precos(properties.custoResumo(), properties.custoProcessosPorMil(), properties.custoDetalhe()),
                 resumo,
                 processos);
@@ -172,8 +178,8 @@ public class JuditService {
 
     /**
      * Pede à Judit o processo direto no tribunal, com resumo de IA. Cobra na hora (a Judit cobra o
-     * pedido) e volta PENDENTE; o {@link JuditAcompanhador} conclui e notifica. Pedir de novo enquanto
-     * o anterior está pendente não cobra outra vez.
+     * pedido) e volta PENDENTE; o {@link JuditAcompanhador} acha o pedido no banco, conclui e notifica.
+     * Pedir de novo enquanto o anterior está pendente não cobra outra vez.
      */
     @Transactional
     public DetalheConsultado detalhar(String cnpj, String cnj, String nomeEmpresa, UserEntity usuario) {
@@ -203,6 +209,7 @@ public class JuditService {
                 .servico(ServicoJudit.DETALHE)
                 .situacao(SituacaoConsultaJudit.PENDENTE)
                 .custo(properties.custoDetalhe())
+                .nomeEmpresa(nomeOuNulo(nomeEmpresa))
                 .requestId(requestId)
                 .usuarioId(usuario.getId())
                 .usuarioNome(usuario.getName())
@@ -210,23 +217,21 @@ public class JuditService {
                 .build());
         log.info("Judit DETALHE de {} ({}) pedido por {}: request {}, custo {}",
                 numero, documento, usuario.getEmail(), requestId, properties.custoDetalhe());
-        eventos.publishEvent(new DetalhePedido(consulta.getId(), requestId, usuario.getId(), numero, documento, nomeEmpresa));
         return detalheDe(consulta);
     }
 
     /**
-     * Retoma o acompanhamento de um detalhe pendente — o servidor pode ter reiniciado no meio, ou a
-     * Judit passou do tempo. Não cobra: só pergunta de novo.
+     * Retoma o acompanhamento de um detalhe pendente — a Judit pode ter passado do tempo do
+     * acompanhamento. Não cobra: só pergunta de novo.
      */
     @Transactional(readOnly = true)
-    public DetalheConsultado verificar(String cnpj, String cnj, String nomeEmpresa) {
+    public DetalheConsultado verificar(String cnpj, String cnj) {
         String documento = cnpj(cnpj);
         JuditConsultaEntity consulta = consultaRepository
                 .findFirstByDocumentoAndCnjAndServicoOrderByCriadoEmDesc(documento, numeroCnj(cnj), ServicoJudit.DETALHE)
                 .orElseThrow(() -> new IllegalArgumentException("Este processo ainda não foi detalhado."));
         if (consulta.getSituacao() == SituacaoConsultaJudit.PENDENTE) {
-            eventos.publishEvent(new DetalhePedido(consulta.getId(), consulta.getRequestId(), consulta.getUsuarioId(),
-                    consulta.getCnj(), documento, nomeEmpresa));
+            eventos.publishEvent(new VerificacaoPedida(pendenteDe(consulta)));
         }
         return detalheDe(consulta);
     }
@@ -259,6 +264,29 @@ public class JuditService {
         return true;
     }
 
+    /**
+     * Os detalhes ainda pendentes criados desde {@code desde}. O {@link JuditAcompanhador} decide, pela
+     * idade e pela última pergunta, quais já é hora de perguntar.
+     */
+    @Transactional(readOnly = true)
+    public List<Pendente> pendentesDesde(LocalDateTime desde) {
+        return consultaRepository
+                .findBySituacaoAndCriadoEmAfterOrderByCriadoEmAsc(SituacaoConsultaJudit.PENDENTE, desde)
+                .stream()
+                .map(JuditService::pendenteDe)
+                .toList();
+    }
+
+    @Transactional
+    public void marcarVerificado(UUID consultaId, LocalDateTime quando) {
+        consultaRepository.marcarVerificado(consultaId, quando);
+    }
+
+    private static Pendente pendenteDe(JuditConsultaEntity c) {
+        return new Pendente(c.getId(), c.getRequestId(), c.getUsuarioId(), c.getDocumento(), c.getCnj(),
+                c.getNomeEmpresa(), c.getCriadoEm(), c.getVerificadoEm());
+    }
+
     private DetalheConsultado detalheDe(JuditConsultaEntity c) {
         boolean desatualizado = c.getSituacao() == SituacaoConsultaJudit.CONCLUIDA
                 && c.getCriadoEm().isBefore(LocalDateTime.now().minusDays(properties.validadeDias()));
@@ -276,9 +304,11 @@ public class JuditService {
         return numero;
     }
 
+    // ── Consultas por documento (Data Lake) ──────────────────────────────────────────────────────
+
     /** Resumo processual (total e agregados). Preço fixo por documento. */
     @Transactional
-    public Situacao consultarResumo(String cnpj, UserEntity usuario) {
+    public Situacao consultarResumo(String cnpj, String nomeEmpresa, UserEntity usuario) {
         String documento = cnpj(cnpj);
         prepararConsulta(usuario, properties.custoResumo());
 
@@ -299,7 +329,7 @@ public class JuditService {
         }
 
         int total = resposta.path("lawsuits_count").asInt(0);
-        registrar(documento, ServicoJudit.RESUMO, properties.custoResumo(), total, resposta, usuario);
+        registrar(documento, ServicoJudit.RESUMO, properties.custoResumo(), total, resposta, nomeEmpresa, usuario);
         return situacao(documento, usuario);
     }
 
@@ -308,7 +338,7 @@ public class JuditService {
      * passa do corte de 1.000 da rota.
      */
     @Transactional
-    public Situacao consultarProcessos(String cnpj, UserEntity usuario) {
+    public Situacao consultarProcessos(String cnpj, String nomeEmpresa, UserEntity usuario) {
         String documento = cnpj(cnpj);
         JuditConsultaEntity resumo = consultaRepository
                 .findFirstByDocumentoAndServicoOrderByCriadoEmDesc(documento, ServicoJudit.RESUMO)
@@ -331,7 +361,8 @@ public class JuditService {
             portal.put("somente_reu", somenteReu);
             portal.put("total_no_resumo", totalNoResumo);
         }
-        registrar(documento, ServicoJudit.PROCESSOS, custo, registros, resposta, usuario);
+        String nome = nomeEmpresa == null || nomeEmpresa.isBlank() ? resumo.getNomeEmpresa() : nomeEmpresa;
+        registrar(documento, ServicoJudit.PROCESSOS, custo, registros, resposta, nome, usuario);
         return situacao(documento, usuario);
     }
 
@@ -340,6 +371,8 @@ public class JuditService {
         int blocos = Math.max(1, (registros + CORTE_DA_ROTA - 1) / CORTE_DA_ROTA);
         return properties.custoProcessosPorMil().multiply(BigDecimal.valueOf(blocos));
     }
+
+    // ── Travas ───────────────────────────────────────────────────────────────────────────────────
 
     /** Marca, chave configurada e limite do mês — nessa ordem. */
     private void prepararConsulta(UserEntity usuario, BigDecimal custoPrevisto) {
@@ -351,16 +384,18 @@ public class JuditService {
 
         // A trava fica até o commit, que é depois de gravar a consulta: a próxima já soma esta.
         consultaRepository.travarLimite(TRAVA_LIMITE);
-        BigDecimal gasto = gastoDoMes();
-        if (gasto.add(custoPrevisto).compareTo(properties.limiteMensal()) > 0) {
+        BigDecimal gasto = franquia.gastoDoMes();
+        BigDecimal limite = franquia.limiteDoMes();
+        if (gasto.add(custoPrevisto).compareTo(limite) > 0) {
             throw new LimiteJuditException(String.format(
-                    "Limite mensal da Judit atingido: %s gastos de %s neste mês. Esta consulta custaria %s.",
-                    reais(gasto), reais(properties.limiteMensal()), reais(custoPrevisto)));
+                    "Limite do mês da Judit atingido: %s gastos de %s. Esta consulta custaria %s. "
+                            + "Peça ao admin para liberar um valor a mais no mês.",
+                    reais(gasto), reais(limite), reais(custoPrevisto)));
         }
     }
 
     private void registrar(String documento, ServicoJudit servico, BigDecimal custo, int total,
-                           JsonNode resposta, UserEntity usuario) {
+                           JsonNode resposta, String nomeEmpresa, UserEntity usuario) {
         consultaRepository.save(JuditConsultaEntity.builder()
                 .documento(documento)
                 .cnpjEmpresa(documento)
@@ -369,15 +404,12 @@ public class JuditService {
                 .totalProcessos(total)
                 .requestId(resposta.path("request_id").isTextual() ? resposta.path("request_id").asText() : null)
                 .resposta(resposta)
+                .nomeEmpresa(nomeOuNulo(nomeEmpresa))
                 .usuarioId(usuario.getId())
                 .usuarioNome(usuario.getName())
                 .criadoEm(LocalDateTime.now())
                 .build());
         log.info("Judit {} de {} por {}: {} processo(s), custo {}", servico, documento, usuario.getEmail(), total, custo);
-    }
-
-    private BigDecimal gastoDoMes() {
-        return consultaRepository.somarCustoDesde(LocalDate.now().withDayOfMonth(1).atStartOfDay());
     }
 
     private static void exigirMarca(UserEntity usuario) {
@@ -394,8 +426,12 @@ public class JuditService {
         return documento;
     }
 
+    private static String nomeOuNulo(String nome) {
+        return nome == null || nome.isBlank() ? null : nome.strip();
+    }
+
     private static String reais(BigDecimal valor) {
         // O formatador separa "R$" com espaço não separável; na mensagem da tela vale o espaço comum.
-        return NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")).format(valor).replace('\u00A0', ' ');
+        return NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")).format(valor).replace(' ', ' ');
     }
 }

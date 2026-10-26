@@ -9,6 +9,7 @@ import {
   Carimbo,
   ListaContagem,
   Numero,
+  PontosDeAtencao,
   SelosJudit,
   TotaisDaLista,
   VERDE,
@@ -29,8 +30,8 @@ function nomeDoMes() {
  * abrir a página só lê o que já foi pago, e cada botão que cobra mostra o preço e pede confirmação.
  * Duas travas no servidor: marca Judit do usuário e limite do mês.</p>
  *
- * <p>As duas consultas são da base histórica (Data Lake); a On Demand, em tempo real nos
- * tribunais, vem depois da conversa com a Judit.</p>
+ * <p>As duas consultas são da base histórica (Data Lake). O On Demand, em tempo real nos tribunais,
+ * foi testado e ficou de fora (docs/judit/03-on-demand.md).</p>
  */
 export function JuditPanel({ cnpj, nomeEmpresa }: { cnpj: string; nomeEmpresa?: string }) {
   const { data: situacao, isLoading, isError, error } = useJudit(cnpj);
@@ -72,7 +73,7 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
       preco={precos.resumo}
       bloqueio={bloqueio(precos.resumo)}
       pendente={consultarResumo.isPending}
-      onConfirmar={() => consultarResumo.mutate()}
+      onConfirmar={() => consultarResumo.mutate({ nomeEmpresa: nomeEmpresa ?? null })}
       discreto={Boolean(resumo)}
     />
   );
@@ -83,7 +84,7 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
       preco={precos.processosPorMil}
       bloqueio={bloqueio(precos.processosPorMil)}
       pendente={consultarProcessos.isPending}
-      onConfirmar={() => consultarProcessos.mutate()}
+      onConfirmar={() => consultarProcessos.mutate({ nomeEmpresa: nomeEmpresa ?? null })}
       discreto={Boolean(processos)}
     />
   );
@@ -109,12 +110,14 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
         <ResumoNumeros resumo={resumo.dados} />
       ) : (
         <p className="text-sm text-gray-500">
-          Nunca consultado. O resumo traz quantos processos a empresa tem, como ré e como autora, e a distribuição por
-          assunto, classe e tribunal. Depois, a lista traz cada processo.
+          Nunca consultado. O resumo traz quantos processos a empresa tem, como ré e como autora, a distribuição por
+          assunto, classe e tribunal e os pontos de atenção. Depois, a lista traz cada processo.
         </p>
       )}
 
-      {resumo && resumo.dados.total > 0 && (
+      {temProcessos && <PontosDeAtencao pontos={resumo.pontosDeAtencao} />}
+
+      {temProcessos && (
         <details className="group rounded-lg border border-border-light dark:border-border-dark">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-500 [&::-webkit-details-marker]:hidden">
             <Icon name="expand_more" size={14} className="transition-transform group-open:rotate-180" />
@@ -182,21 +185,23 @@ function ResumoNumeros({ resumo }: { resumo: JuditResumo }) {
   );
 }
 
+/** Verde dentro da franquia (já paga), laranja no excedente, vermelho no limite do mês. */
 function ConsumoDoMes({ consumo }: { consumo: JuditSituacao["consumo"] }) {
-  const { gastoMes, aviso, limite } = consumo;
+  const { gastoMes, franquia, limite } = consumo;
+  const excedente = gastoMes > franquia;
   const cor =
     gastoMes >= limite
       ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
-      : gastoMes >= aviso
-        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-        : "border-border-light bg-white text-gray-500 dark:border-border-dark dark:bg-transparent dark:text-gray-400";
+      : excedente
+        ? "border-[#D1732C]/40 bg-[#D1732C]/10 text-[#a8551a] dark:text-[#f0a46b]"
+        : "border-[#15BE62]/40 bg-[#15BE62]/10 text-[#047857] dark:text-[#15BE62]";
   return (
     <span
       className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cor}`}
-      title={`Aviso em ${moeda(aviso)}; no limite o portal para de consultar. Valores pela tabela do contrato — a fatura da Judit é a palavra final.`}
+      title={`Franquia de ${moeda(franquia)} já paga; acima dela é excedente. Em ${moeda(limite)} o portal para de consultar até o admin liberar. Valores pela tabela do contrato — a fatura da Judit é a palavra final.`}
     >
-      {gastoMes >= aviso && <Icon name="warning" size={12} />}
-      Judit em {nomeDoMes()}: {moeda(gastoMes)} de {moeda(limite)}
+      {excedente && <Icon name="warning" size={12} />}
+      Judit em {nomeDoMes()}: {moeda(gastoMes)} {excedente ? `· excedente ${moeda(gastoMes - franquia)}` : `de ${moeda(franquia)}`}
     </span>
   );
 }

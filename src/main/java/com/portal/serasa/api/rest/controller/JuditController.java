@@ -20,8 +20,8 @@ import java.util.List;
 /**
  * Processos judiciais da empresa pela Judit: o card da Visão 360º e a página de processos.
  *
- * <p>Só {@code POST /resumo} e {@code POST /processos} chamam a Judit e cobram; as travas (marca
- * Judit, limite do mês) ficam no serviço. Os GET e a exportação leem o que já foi pago.</p>
+ * <p>Cobram: {@code POST /resumo}, {@code POST /processos} e o pedido de detalhe; as travas (marca
+ * Judit, limite do mês) ficam no serviço. Os GET, o "verificar" e a exportação leem o que já foi pago.</p>
  */
 @RestController
 @RequestMapping("/api/v1/company/{cnpj}/judit")
@@ -36,7 +36,7 @@ public class JuditController {
     public record ExportacaoRequest(List<String> cnjs) {
     }
 
-    /** @param nomeEmpresa vai no link da notificação, para a página abrir com o nome */
+    /** @param nomeEmpresa vai no painel de consumo e no link da notificação, para a página abrir com o nome */
     public record DetalheRequest(String nomeEmpresa) {
     }
 
@@ -83,19 +83,24 @@ public class JuditController {
 
     /** Retoma o acompanhamento de um detalhe pendente. Não cobra. */
     @PostMapping("/processos/{cnj}/detalhe/verificar")
-    public ResponseEntity<JuditService.DetalheConsultado> verificar(@PathVariable String cnpj, @PathVariable String cnj,
-                                                                    @RequestBody(required = false) DetalheRequest request) {
+    public ResponseEntity<JuditService.DetalheConsultado> verificar(@PathVariable String cnpj, @PathVariable String cnj) {
         usuarioLogado.obter();
-        return ResponseEntity.ok(juditService.verificar(cnpj, cnj, request == null ? null : request.nomeEmpresa()));
+        return ResponseEntity.ok(juditService.verificar(cnpj, cnj));
     }
 
+    /** O resumo processual (total e agregados, com os pontos de atenção). Cobra. */
     @PostMapping("/resumo")
-    public ResponseEntity<JuditService.Situacao> consultarResumo(@PathVariable String cnpj) {
-        return ResponseEntity.ok(juditService.consultarResumo(cnpj, usuarioLogado.obter()));
+    public ResponseEntity<JuditService.Situacao> consultarResumo(@PathVariable String cnpj,
+                                                                 @RequestBody(required = false) DetalheRequest request) {
+        return ResponseEntity.ok(juditService.consultarResumo(cnpj, request == null ? null : request.nomeEmpresa(),
+                usuarioLogado.obter()));
     }
 
+    /** A lista de processos do Data Lake. Exige o resumo antes. Cobra. */
     @PostMapping("/processos")
-    public ResponseEntity<JuditService.Situacao> consultarProcessos(@PathVariable String cnpj) {
-        return ResponseEntity.ok(juditService.consultarProcessos(cnpj, usuarioLogado.obter()));
+    public ResponseEntity<JuditService.Situacao> consultarProcessos(@PathVariable String cnpj,
+                                                                    @RequestBody(required = false) DetalheRequest request) {
+        return ResponseEntity.ok(juditService.consultarProcessos(cnpj, request == null ? null : request.nomeEmpresa(),
+                usuarioLogado.obter()));
     }
 }

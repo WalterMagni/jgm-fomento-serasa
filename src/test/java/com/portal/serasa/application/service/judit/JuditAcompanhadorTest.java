@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -28,37 +29,38 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Acompanha o pedido até a Judit terminar, grava e avisa quem pediu — uma vez só. */
+/** Pergunta à Judit pelos detalhes pendentes lidos do banco, grava e avisa quem pediu — uma vez só. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class JuditAcompanhadorTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String CNJ = "1009479-30.2024.8.26.0011";
+    private static final String CNPJ = "12021039000174";
 
     @Mock private JuditClient client;
     @Mock private JuditService juditService;
     @Mock private NotificacaoService notificacaoService;
 
     private JuditAcompanhador acompanhador;
-    private JuditService.DetalhePedido pedido;
+    private JuditService.Pendente pedido;
 
     @BeforeEach
     void setUp() {
-        acompanhador = acompanhadorCom(1);
-        pedido = new JuditService.DetalhePedido(UUID.randomUUID(), "req-9", UUID.randomUUID(), CNJ,
-                "12021039000174", "I G LABEGALINI LTDA EPP");
+        // Intervalo de 5 s, limite de 10 min.
+        JuditProperties properties = new JuditProperties("chave", "l", "r", BigDecimal.ONE, BigDecimal.ONE,
+                new BigDecimal("0.35"), BigDecimal.TEN, BigDecimal.TEN, 30, 5, 10);
+        acompanhador = new JuditAcompanhador(client, juditService, properties, notificacaoService);
+        pedido = pendente("req-9", LocalDateTime.now(), null);
         when(notificacaoService.notificar(any(), any(), anyString())).thenReturn(List.of());
     }
 
-    private JuditAcompanhador acompanhadorCom(int limiteMinutos) {
-        JuditProperties properties = new JuditProperties("chave", "l", "r", BigDecimal.ONE, BigDecimal.ONE,
-                new BigDecimal("0.35"), BigDecimal.TEN, BigDecimal.TEN, 30, 0, limiteMinutos);
-        return new JuditAcompanhador(client, juditService, properties, notificacaoService);
+    private static JuditService.Pendente pendente(String requestId, LocalDateTime criadoEm, LocalDateTime verificadoEm) {
+        return new JuditService.Pendente(UUID.randomUUID(), requestId, UUID.randomUUID(), CNPJ, CNJ,
+                "I G LABEGALINI LTDA EPP", criadoEm, verificadoEm);
     }
 
     @SuppressWarnings("unchecked")
@@ -70,18 +72,18 @@ class JuditAcompanhadorTest {
     }
 
     @Test
-    @DisplayName("pendente → completed: grava a resposta e notifica quem pediu, com link para o processo")
+    @DisplayName("completed: grava a resposta e notifica quem pediu, com link para o processo")
     void conclui() throws Exception {
         JsonNode respostas = JSON.readTree("""
                 {"page_data": [{"response_type": "summary", "response_data": {"data": ["## Resumo"]}},
                                {"response_type": "lawsuit", "response_data": {"code": "x", "steps": [{"step_id": "1"}, {"step_id": "2"}]}}]}""");
-        when(client.situacaoDoPedido("req-9")).thenReturn("pending", "pending", "completed");
+        when(client.situacaoDoPedido("req-9")).thenReturn("completed");
         when(client.respostasDoPedido("req-9")).thenReturn(respostas);
         when(juditService.concluirDetalhe(pedido.consultaId(), respostas)).thenReturn(true);
 
-        acompanhador.acompanhar(pedido);
+        acompanhador.verificar(pedido);
 
-        verify(client, times(3)).situacaoDoPedido("req-9");
+        verify(juditService).marcarVerificado(eq(pedido.consultaId()), any());
         NotificacaoService.Nova nova = notificacaoEnviada();
         assertThat(nova.destinatarioId()).isEqualTo(pedido.usuarioId());
         assertThat(nova.tipo()).isEqualTo(TipoNotificacao.JUDIT_PROCESSO_PRONTO);
@@ -92,17 +94,26 @@ class JuditAcompanhadorTest {
     }
 
     @Test
-    @DisplayName("falha de rede ao perguntar não encerra: tenta de novo")
-    void redeOscila() throws Exception {
-        when(client.situacaoDoPedido("req-9"))
-                .thenThrow(new ExternalApiException(JuditClient.PROVIDER, 0, "tempo", null))
-                .thenReturn("completed");
-        when(client.respostasDoPedido("req-9")).thenReturn(JSON.readTree("{\"page_data\": []}"));
-        when(juditService.concluirDetalhe(any(), any())).thenReturn(true);
+    @DisplayName("ainda pendente: só marca que perguntou, sem gravar nem avisar")
+    void aindaPendente() {
+        when(client.situacaoDoPedido("req-9")).thenReturn("pending");
 
-        acompanhador.acompanhar(pedido);
+        acompanhador.verificar(pedido);
 
-        assertThat(notificacaoEnviada().resumo()).contains("não encontrou o processo");
+        verify(juditService).marcarVerificado(eq(pedido.consultaId()), any());
+        verify(juditService, never()).concluirDetalhe(any(), any());
+        verify(notificacaoService, never()).notificar(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("falha de rede ao perguntar não encerra: a próxima volta pergunta de novo")
+    void redeOscila() {
+        when(client.situacaoDoPedido("req-9")).thenThrow(new ExternalApiException(JuditClient.PROVIDER, 0, "tempo", null));
+
+        acompanhador.verificar(pedido);
+
+        verify(juditService, never()).falharDetalhe(any(), any());
+        verify(notificacaoService, never()).notificar(any(), any(), any());
     }
 
     @Test
@@ -111,7 +122,7 @@ class JuditAcompanhadorTest {
         when(client.situacaoDoPedido("req-9")).thenReturn("error");
         when(juditService.falharDetalhe(any(), anyString())).thenReturn(true);
 
-        acompanhador.acompanhar(pedido);
+        acompanhador.verificar(pedido);
 
         verify(juditService).falharDetalhe(eq(pedido.consultaId()), anyString());
         assertThat(notificacaoEnviada().tipo()).isEqualTo(TipoNotificacao.JUDIT_PROCESSO_FALHOU);
@@ -125,21 +136,48 @@ class JuditAcompanhadorTest {
         when(client.respostasDoPedido("req-9")).thenReturn(JSON.readTree("{\"page_data\": []}"));
         when(juditService.concluirDetalhe(any(), any())).thenReturn(false);
 
-        acompanhador.acompanhar(pedido);
+        acompanhador.verificar(pedido);
 
         verify(notificacaoService, never()).notificar(any(), any(), any());
     }
 
     @Test
-    @DisplayName("passou do tempo: deixa pendente, sem falha nem aviso (o 'verificar agora' retoma)")
-    void tempoEsgotado() {
-        acompanhador = acompanhadorCom(0);
-        when(client.situacaoDoPedido("req-9")).thenReturn("pending");
+    @DisplayName("hora de perguntar: a cada 5 s nos 2 primeiros minutos, depois a cada 30 s, até 10 min")
+    void eHora() {
+        LocalDateTime agora = LocalDateTime.now();
 
-        acompanhador.acompanhar(pedido);
+        assertThat(acompanhador.eHora(pendente("r", agora, null), agora)).isTrue();
+        assertThat(acompanhador.eHora(pendente("r", agora.minusMinutes(1), agora.minusSeconds(3)), agora)).isFalse();
+        assertThat(acompanhador.eHora(pendente("r", agora.minusMinutes(1), agora.minusSeconds(5)), agora)).isTrue();
+        assertThat(acompanhador.eHora(pendente("r", agora.minusMinutes(5), agora.minusSeconds(20)), agora)).isFalse();
+        assertThat(acompanhador.eHora(pendente("r", agora.minusMinutes(5), agora.minusSeconds(31)), agora)).isTrue();
+        assertThat(acompanhador.eHora(pendente("r", agora.minusMinutes(11), null), agora)).isFalse();
+    }
 
-        verify(juditService, never()).falharDetalhe(any(), any());
-        verify(juditService, never()).concluirDetalhe(any(), any());
-        verify(notificacaoService, never()).notificar(any(), any(), any());
+    @Test
+    @DisplayName("job: lê os pendentes do banco (sobrevive a reinício) e pergunta só os que estão na hora")
+    void jobLeDoBanco() {
+        JuditService.Pendente cedo = pendente("req-cedo", LocalDateTime.now(), LocalDateTime.now());
+        when(juditService.pendentesDesde(any())).thenReturn(List.of(pedido, cedo));
+        when(client.situacaoDoPedido(anyString())).thenReturn("pending");
+
+        acompanhador.acompanharPendentes();
+
+        verify(client).situacaoDoPedido("req-9");
+        verify(client, never()).situacaoDoPedido("req-cedo");
+    }
+
+    @Test
+    @DisplayName("job: erro inesperado num pedido não impede os outros")
+    void jobSegueDepoisDeErro() {
+        JuditService.Pendente bom = pendente("req-bom", LocalDateTime.now(), null);
+        when(juditService.pendentesDesde(any())).thenReturn(List.of(pedido, bom));
+        when(client.situacaoDoPedido("req-9")).thenReturn("completed");
+        when(client.respostasDoPedido("req-9")).thenThrow(new IllegalStateException("payload estranho"));
+        when(client.situacaoDoPedido("req-bom")).thenReturn("pending");
+
+        acompanhador.acompanharPendentes();
+
+        verify(client).situacaoDoPedido("req-bom");
     }
 }

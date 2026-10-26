@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { JuditDetalheConsultado, JuditProcessosConsultados, JuditSituacao } from "@/types/judit";
+import type {
+  JuditDetalheConsultado,
+  JuditPainelConsumo,
+  JuditProcessosConsultados,
+  JuditSituacao,
+} from "@/types/judit";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
@@ -39,25 +44,72 @@ export function useJudit(cnpj: string) {
 function useConsultaJudit(cnpj: string, caminho: string, sucesso: string) {
   const limpo = cnpj.replace(/\D/g, "");
   const queryClient = useQueryClient();
-  return useMutation<JuditSituacao, Error, void>({
-    mutationFn: () => pedir(`${API_BASE_URL}/company/${limpo}/judit${caminho}`, { method: "POST" }, "Falha na consulta à Judit."),
+  return useMutation<JuditSituacao, Error, { nomeEmpresa?: string | null }>({
+    mutationFn: corpo =>
+      pedir(
+        `${API_BASE_URL}/company/${limpo}/judit${caminho}`,
+        { method: "POST", body: JSON.stringify(corpo ?? {}) },
+        "Falha na consulta à Judit.",
+      ),
     onSuccess: dados => {
       queryClient.setQueryData(chave(limpo), dados);
       queryClient.invalidateQueries({ queryKey: chaveLista(limpo) });
-      // O consumo do mês mudou para todas as empresas abertas.
+      // O consumo do mês mudou para todas as empresas abertas e para o painel.
       queryClient.invalidateQueries({ queryKey: ["judit"] });
+      queryClient.invalidateQueries({ queryKey: ["juditConsumo"] });
       toast.success(sucesso);
     },
     onError: error => toast.error(error.message),
   });
 }
 
+/** O nome vai junto para o painel de consumo, que lista as consultas por empresa. */
 export function useConsultarResumoJudit(cnpj: string) {
   return useConsultaJudit(cnpj, "/resumo", "Resumo processual atualizado");
 }
 
 export function useConsultarProcessosJudit(cnpj: string) {
   return useConsultaJudit(cnpj, "/processos", "Lista de processos atualizada");
+}
+
+/** Aba Consumo Judit: franquia do mês, consultas do período e liberações. Não cobra. */
+export function useJuditConsumo(dias: number) {
+  return useQuery<JuditPainelConsumo>({
+    queryKey: ["juditConsumo", dias],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/judit/consumo?dias=${dias}`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        const dados = await res.json().catch(() => ({}));
+        throw new Error(dados.message || dados.error || "Não foi possível carregar o consumo da Judit.");
+      }
+      return res.json();
+    },
+  });
+}
+
+/** Soma um valor ao limite do mês corrente. Só o admin; o servidor confere. */
+export function useLiberarJudit() {
+  const queryClient = useQueryClient();
+  return useMutation<JuditPainelConsumo, Error, { valor: number; motivo: string }>({
+    mutationFn: async corpo => {
+      const res = await fetch(`${API_BASE_URL}/judit/liberacoes`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(corpo),
+      });
+      if (!res.ok) {
+        const dados = await res.json().catch(() => ({}));
+        throw new Error(dados.message || dados.error || "Não foi possível liberar o valor.");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["juditConsumo"] });
+      queryClient.invalidateQueries({ queryKey: ["judit"] });
+      toast.success("Valor liberado no limite deste mês");
+    },
+    onError: error => toast.error(error.message),
+  });
 }
 
 /** A lista inteira da última busca, para a página de processos. Não cobra; nulo se nunca buscou. */
