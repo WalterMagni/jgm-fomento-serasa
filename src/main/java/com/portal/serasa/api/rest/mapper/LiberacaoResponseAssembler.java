@@ -76,6 +76,7 @@ public class LiberacaoResponseAssembler {
     private final LiberacaoService liberacaoService;
     private final com.portal.serasa.application.service.PaymentPlaceAnalysisService pracaService;
     private final com.portal.serasa.application.service.empresa.EmpresaNotaService notaService;
+    private final com.portal.serasa.application.service.liberacao.SerasaSacados serasaSacados;
 
     @Transactional(readOnly = true)
     public List<LiberacaoCardResponse> cards(List<LiberacaoCardEntity> cards, UserEntity usuario) {
@@ -172,6 +173,7 @@ public class LiberacaoResponseAssembler {
         Map<String, Boolean> empresas = new LinkedHashMap<>();
         mencionadas.forEach(cnpj -> empresas.put(cnpj, conhecidas.containsKey(cnpj)));
         var pracaSacados = pracaService.apontamentosPorDocumento(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList());
+        var serasa = serasaSacados.porDocumento(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList());
 
         return LiberacaoDetalheResponse.builder()
                 .card(card(card, usuario))
@@ -189,7 +191,7 @@ public class LiberacaoResponseAssembler {
                                     sacado.getDecisaoDiretoria(), sacado.getValorAprovadoDiretoria(),
                                     sacado.getDecisaoDiretoriaPorNome(), sacado.getDecisaoDiretoriaEm(),
                                     sacado.getParecerOrigem(), sacado.getParecerComite(), sacado.getParecerDiretoria(),
-                                    praca(pracaSacados.get(sacado.getCnpj())));
+                                    praca(pracaSacados.get(sacado.getCnpj())), serasa.get(sacado.getCnpj()));
                         })
                         .toList())
                 .pareceres(pareceres.stream().map(this::parecer).toList())

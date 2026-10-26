@@ -145,6 +145,20 @@ Operação, quantos títulos e o valor total — com o link para os detalhes na 
 Sacado da operação que também aparece em apontamentos ganha a etiqueta **praça de pagamento**
 com os números dele. A conta é a mesma da página da empresa.
 
+## Serasa do sacado
+
+Cada sacado mostra a **consulta Serasa mais recente** (empresa ou pessoa física):
+
+- **Com restrição** (laranja): quantas ocorrências e o valor total. Passando o mouse, aparece
+  quanto é de cada tipo (Pefin, Refin, Protestos, Cheques, Dívidas vencidas, Ações judiciais,
+  Falências).
+- **Nada consta** (verde): consultado, sem restrição.
+- **Sem consulta** (cinza): nunca consultado. Para consultar, abra a empresa pelo ícone ao lado
+  do sacado — a esteira não consulta sozinha, porque a consulta tem custo.
+
+A data da consulta fica **em âmbar quando tem mais de 30 dias**: vale consultar de novo antes de
+confiar no "Nada consta". A conta é a mesma da carteira e da página da empresa.
+
 ## Os quadrados O, C e D de cada sacado
 
 Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprovado,
@@ -309,7 +323,9 @@ Os filtros ficam no endereço da página: copie o link para mandar a mesma visã
 Botão **Relatório XLSX**. A planilha leva **exatamente os cards que estão na tela**, com os
 filtros aplicados, em seis abas: Cards, Sacados, Pareceres, Pendências, Histórico e
 Comentários. A aba Cards traz também quanto tempo cada card passou em cada etapa e o
-**desfecho** (com data, quem registrou e motivo do declínio). Para relatório de período dos
+**desfecho** (com data, quem registrou e motivo do declínio). A aba Sacados termina com o
+**Serasa** de cada sacado (com restrição, Nada consta ou Sem consulta), as ocorrências, o valor e
+a data da consulta mais recente. Para relatório de período dos
 arquivados, use a tela **Arquivo**.
 
 ---

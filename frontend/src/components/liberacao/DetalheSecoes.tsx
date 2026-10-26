@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import CampoNumero from "@/components/ui/CampoNumero";
-import { CUSTO_CONSULTA_PF } from "@/types/pessoa-resumo";
+import { CUSTO_CONSULTA_PF, TIPO_RESTRICAO } from "@/types/pessoa-resumo";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import TextoRico from "@/components/ui/mencao/TextoRico";
@@ -18,6 +18,7 @@ import {
   ROTULO_POSICAO,
   ROTULO_RESULTADO,
   ROTULO_RESULTADO_CURTO,
+  DIAS_CONSULTA_SERASA,
   type DecisaoAnterior,
   type LiberacaoCard,
   type OpiniaoOperador,
@@ -27,6 +28,7 @@ import {
   type PosicaoParecer,
   type QuadroOpiniao,
   type Sacado,
+  type SerasaSacado,
 } from "@/types/liberacao";
 import Avatar from "./Avatar";
 import { CarteiraLinha } from "./PropostaAr";
@@ -86,6 +88,59 @@ export function HistoricoSacado({ historico, compacto = false }: { historico: De
       ))}
       {historico.length > visiveis.length && <span className="text-[10.5px] text-slate-400">+{historico.length - visiveis.length}</span>}
     </div>
+  );
+}
+
+const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+
+/**
+ * A consulta Serasa mais recente do sacado (pedido do time em 2026-10-26): com restrição, a
+ * quantidade e o valor total; sem, "Nada consta"; nunca consultado, "Sem consulta". A data fica em
+ * âmbar passados {@link DIAS_CONSULTA_SERASA} dias. Só mostra o que já foi consultado: consultar
+ * tem custo e fica na página da empresa.
+ */
+function SerasaLinha({ serasa }: { serasa: SerasaSacado | null }) {
+  if (!serasa) {
+    return (
+      <p className="mt-0.5 flex items-center gap-1 text-[10.5px] text-slate-400">
+        <Icon name="radio_button_unchecked" size={11} />
+        Serasa: sem consulta
+      </p>
+    );
+  }
+  const dias = diasDesde(serasa.consultaEm);
+  const antiga = dias > DIAS_CONSULTA_SERASA;
+  const data = new Date(serasa.consultaEm).toLocaleDateString("pt-BR");
+  const quebra = serasa.restricoes
+    .map(restricao => `${TIPO_RESTRICAO[restricao.tipo].rotulo}: ${restricao.quantidade} · ${formatMoeda(restricao.valor)}`)
+    .join("\n");
+  return (
+    <p
+      className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px]"
+      title={`Última consulta Serasa em ${data}${quebra ? `\n${quebra}` : ""}`}
+    >
+      {serasa.ocorrencias > 0 ? (
+        <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-1 font-semibold text-orange-900 dark:bg-orange-900/40 dark:text-orange-100">
+          <Icon name="warning" size={11} />
+          Serasa: {serasa.ocorrencias} ocorrência{serasa.ocorrencias === 1 ? "" : "s"} · {formatMoeda(serasa.divida)}
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
+          <Icon name="check_circle" size={11} />
+          Serasa: Nada consta
+        </span>
+      )}
+      <span
+        className={
+          antiga
+            ? "rounded bg-amber-100 px-1 font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100"
+            : "text-slate-500"
+        }
+      >
+        consulta {data}
+        {antiga && ` · há ${dias} dias`}
+      </span>
+    </p>
   );
 }
 
@@ -657,6 +712,7 @@ export function SacadosLista({
                   {sacado.praca && <span className="text-slate-400"> · {sacado.praca}</span>}
                 </p>
                 <CarteiraLinha carteira={sacado.carteira} />
+                <SerasaLinha serasa={sacado.serasa} />
                 {sacado.pracaPagamento && (
                   <p
                     title="Praça de Pagamento: títulos decididos como pagos pelo cedente em que este sacado aparece"

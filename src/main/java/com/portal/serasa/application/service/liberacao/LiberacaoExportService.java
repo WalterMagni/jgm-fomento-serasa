@@ -87,6 +87,7 @@ public class LiberacaoExportService {
     private final LiberacaoEtiquetaJpaRepository etiquetaRepository;
     private final UserRepository userRepository;
     private final EmpresaResolver empresaResolver;
+    private final SerasaSacados serasaSacados;
 
     @Transactional(readOnly = true)
     public byte[] exportar(Collection<UUID> ids) {
@@ -127,12 +128,14 @@ public class LiberacaoExportService {
                          Map<UUID, List<LiberacaoEventoEntity>> eventos,
                          Map<UUID, List<LiberacaoComentarioEntity>> comentarios,
                          Map<UUID, List<String>> membros,
-                         Map<UUID, List<String>> etiquetas) {
+                         Map<UUID, List<String>> etiquetas,
+                         /** Última consulta Serasa de cada sacado; quem nunca foi consultado fica de fora. */
+                         Map<String, SerasaSacados.Resumo> serasa) {
     }
 
     private Dados carregar(List<UUID> ids) {
         if (ids.isEmpty()) {
-            return new Dados(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+            return new Dados(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
         }
         Map<UUID, String> nomesUsuarios = new java.util.HashMap<>();
         List<LiberacaoMembroEntity> membros = membroRepository.findByCardIdIn(ids);
@@ -157,7 +160,8 @@ public class LiberacaoExportService {
                         Collectors.mapping(membro -> nomesUsuarios.getOrDefault(membro.getUsuarioId(), "?"), Collectors.toList()))),
                 cardEtiquetaRepository.findByCardIdIn(ids).stream().collect(Collectors.groupingBy(
                         vinculo -> vinculo.getCardId(),
-                        Collectors.mapping(vinculo -> nomesEtiquetas.getOrDefault(vinculo.getEtiquetaId(), "?"), Collectors.toList()))));
+                        Collectors.mapping(vinculo -> nomesEtiquetas.getOrDefault(vinculo.getEtiquetaId(), "?"), Collectors.toList()))),
+                serasaSacados.porDocumento(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList()));
     }
 
     private static <T> Map<UUID, List<T>> agrupar(List<T> itens, Function<T, UUID> chave) {
@@ -262,8 +266,9 @@ public class LiberacaoExportService {
                         "Situação", "Valor aprovado", "Decidido por", "Decidido em",
                         "Títulos na proposta", "Vencidos", "A vencer", "Abertos", "Liquidados", "Recomprados",
                         "Opinião do Operador", "Opinião do Comitê",
-                        "Parecer do Operador", "Parecer do Comitê", "Parecer da Diretoria"},
-                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16, 18, 18, 50, 50, 50});
+                        "Parecer do Operador", "Parecer do Comitê", "Parecer da Diretoria",
+                        "Serasa", "Ocorrências Serasa", "Valor Serasa", "Consulta Serasa"},
+                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16, 18, 18, 50, 50, 50, 16, 11, 16, 17});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             for (LiberacaoSacadoEntity sacado : ordenar(dados.sacados().get(card.getId()), Comparator.comparing(LiberacaoSacadoEntity::getOrdem))) {
@@ -297,9 +302,15 @@ public class LiberacaoExportService {
                 texto(row, 18, MencaoParser.textoPlano(sacado.getParecerOrigem()), estilos.quebra);
                 texto(row, 19, MencaoParser.textoPlano(sacado.getParecerComite()), estilos.quebra);
                 texto(row, 20, MencaoParser.textoPlano(sacado.getParecerDiretoria()), estilos.quebra);
+                // Sempre a consulta mais recente, como na tela; sem consulta, as outras três ficam vazias.
+                SerasaSacados.Resumo serasa = dados.serasa().get(sacado.getCnpj());
+                texto(row, 21, serasa == null ? "Sem consulta" : serasa.ocorrencias() == 0 ? "Nada consta" : "Com restrição", estilos.texto);
+                numero(row, 22, serasa == null ? null : serasa.ocorrencias(), estilos.inteiro);
+                moeda(row, 23, serasa == null ? null : serasa.divida(), estilos);
+                dataHora(row, 24, serasa == null ? null : serasa.consultaEm(), estilos);
             }
         }
-        fechar(aba, linha, 20);
+        fechar(aba, linha, 24);
     }
 
     private void abaPareceres(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {

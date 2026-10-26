@@ -1,6 +1,7 @@
 /** Esteira de liberação de operações. Espelha os DTOs de /api/v1/liberacao. */
 
 import type { NotaEmpresa } from "./nota-empresa";
+import type { TipoRestricao } from "./pessoa-resumo";
 
 export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "DIRETORIA" | "APROVADO" | "REPROVADO" | "ASSINATURA" | "FINALIZADO";
 
@@ -237,7 +238,21 @@ export type Sacado = {
   parecerDiretoria: string | null;
   /** Apontamentos da Praça de Pagamento do sacado; nulo sem nenhum. */
   pracaPagamento: PracaPagamento | null;
+  /** Última consulta Serasa (PJ ou PF); nulo quando nunca foi consultado. */
+  serasa: SerasaSacado | null;
 };
+
+/** A consulta Serasa mais recente do sacado. Sem ocorrência é "Nada consta". */
+export type SerasaSacado = {
+  consultaEm: string;
+  ocorrencias: number;
+  divida: number;
+  /** Só os tipos com ao menos uma ocorrência. */
+  restricoes: { tipo: TipoRestricao; quantidade: number; valor: number }[];
+};
+
+/** Consulta com mais dias que isso aparece em âmbar: "Nada consta" antigo engana (pedido do time). */
+export const DIAS_CONSULTA_SERASA = 30;
 
 /** Títulos decididos como CEDENTE na Praça de Pagamento em que a empresa aparece, e o valor pago. */
 export type PracaPagamento = { titulos: number; valor: number };

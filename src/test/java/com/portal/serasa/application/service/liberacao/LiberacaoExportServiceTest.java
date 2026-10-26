@@ -64,6 +64,7 @@ class LiberacaoExportServiceTest {
     @Mock private LiberacaoEtiquetaJpaRepository etiquetaRepository;
     @Mock private UserRepository userRepository;
     @Mock private EmpresaResolver empresaResolver;
+    @Mock private SerasaSacados serasaSacados;
 
     @InjectMocks private LiberacaoExportService service;
 
@@ -273,6 +274,34 @@ class LiberacaoExportServiceTest {
             assertThat(sacados.getRow(2).getCell(16).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
             assertThat(sacados.getRow(0).getCell(20).getStringCellValue()).isEqualTo("Parecer da Diretoria");
             assertThat(sacados.getRow(1).getCell(20).getStringCellValue()).isEqualTo("Limitar a @Beta.");
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: aba Sacados termina com a última consulta Serasa: com restrição, Nada consta ou Sem consulta")
+    void shouldExportSacadoSerasa() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 51L, EtapaLiberacao.COMITE, null)));
+        when(sacadoRepository.findByCardIdIn(any())).thenReturn(List.of(
+                sacado(id, SACADO_A, "BETA SA", "1000", 0, null, null, null),
+                sacado(id, "45723174000110", "GAMA SA", "500", 1, null, null, null),
+                sacado(id, "00360305000104", "DELTA SA", "300", 2, null, null, null)));
+        when(serasaSacados.porDocumento(any())).thenReturn(Map.of(
+                SACADO_A, new SerasaSacados.Resumo(T0, 3, new BigDecimal("12345.67"), List.of()),
+                "45723174000110", new SerasaSacados.Resumo(T0.minusDays(40), 0, BigDecimal.ZERO, List.of())));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Sheet sacados = planilha.getSheet("Sacados");
+            assertThat(sacados.getRow(0).getCell(21).getStringCellValue()).isEqualTo("Serasa");
+            assertThat(sacados.getRow(0).getCell(24).getStringCellValue()).isEqualTo("Consulta Serasa");
+            assertThat(sacados.getRow(1).getCell(21).getStringCellValue()).isEqualTo("Com restrição");
+            assertThat(sacados.getRow(1).getCell(22).getNumericCellValue()).isEqualTo(3.0);
+            assertThat(sacados.getRow(1).getCell(23).getNumericCellValue()).isEqualTo(12345.67);
+            assertThat(sacados.getRow(1).getCell(24).getLocalDateTimeCellValue()).isEqualTo(T0);
+            assertThat(sacados.getRow(2).getCell(21).getStringCellValue()).isEqualTo("Nada consta");
+            assertThat(sacados.getRow(2).getCell(22).getNumericCellValue()).isEqualTo(0.0);
+            assertThat(sacados.getRow(3).getCell(21).getStringCellValue()).isEqualTo("Sem consulta");
+            assertThat(sacados.getRow(3).getCell(23).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
         }
     }
 
@@ -662,7 +691,7 @@ class LiberacaoExportServiceTest {
             assertThat(cards.getCell(25).getStringCellValue()).isEqualTo("Parecer da origem");
 
             Row sacados = planilha.getSheet("Sacados").getRow(0);
-            assertThat(sacados.getLastCellNum()).as("21 colunas: 0 a 20").isEqualTo((short) 21);
+            assertThat(sacados.getLastCellNum()).as("25 colunas: 0 a 24").isEqualTo((short) 25);
             for (int i = 0; i < CABECALHO_AR_SACADOS.length; i++) {
                 assertThat(sacados.getCell(10 + i).getStringCellValue()).as("Sacados, coluna %d", 10 + i).isEqualTo(CABECALHO_AR_SACADOS[i]);
             }
@@ -671,7 +700,7 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AY, Sacados até U)")
+    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AY, Sacados até Y)")
     void shouldExtendAutoFilterToArColumns() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -682,7 +711,7 @@ class LiberacaoExportServiceTest {
             XSSFSheet cards = planilha.getSheet("Cards");
             XSSFSheet sacados = planilha.getSheet("Sacados");
             assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AY2");
-            assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:U2");
+            assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:Y2");
         }
     }
 
