@@ -157,6 +157,13 @@ desmarcar. No mesmo menu fica o **parecer** daquele quadrado: escreva o porquê 
 Os pareceres aparecem embaixo do sacado, cada um com a letra na cor da decisão. Passando o
 mouse, aparece quem marcou e quando.
 
+**Vários sacados de uma vez:** marque a caixa ao lado de cada sacado (ou **Selecionar** no topo
+da lista, para todos). Aparece uma barra: escolha o quadrado (**O** ou **C**), a resposta e, se
+quiser, um parecer — **Aplicar** grava o mesmo em todos os selecionados. Valem as mesmas regras do
+clique em cada quadrado, e cada sacado fica no histórico. O parecer em lote substitui o parecer
+daquele quadrado em cada sacado. **Parcial no C** não entra no lote: ele pede o valor aprovado de
+cada sacado, então marque um por um.
+
 **O resultado do card sai do C** quando o Comitê decide, ou **do D** quando o card passa pela
 Diretoria. O **O** é o parecer dos operadores: fica registrado, mas não muda o resultado. Depois
 da decisão os três aparecem só para consulta.

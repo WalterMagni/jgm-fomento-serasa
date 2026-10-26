@@ -502,6 +502,32 @@ export function useOpinarSacado() {
   });
 }
 
+/**
+ * Vários sacados de uma vez, no O ou no C: a mesma resposta e/ou o mesmo parecer para todos.
+ * Situação nula não muda a marcação; parecer nulo não muda o parecer. Parcial no C fica de fora
+ * (pede o valor aprovado de cada um).
+ */
+export function useMarcarSacadosEmLote() {
+  const atualizar = useAtualizarDetalhe();
+  return useMutation<
+    LiberacaoDetalhe,
+    Error,
+    { id: string; documentos: string[]; quadro: "ORIGEM" | "COMITE"; situacao: OpiniaoOperador | null; parecer: string | null }
+  >({
+    mutationFn: ({ id, ...body }) =>
+      pedir(
+        `${API_BASE_URL}/liberacao/${id}/sacados/lote`,
+        { method: "PATCH", body: JSON.stringify(body) },
+        "Falha ao marcar os sacados",
+      ),
+    onSuccess: (detalhe, { documentos }) => {
+      atualizar(detalhe);
+      toast.success(documentos.length === 1 ? "1 sacado marcado" : `${documentos.length} sacados marcados`);
+    },
+    onError: error => toast.error(error.message),
+  });
+}
+
 /** Parecer em texto de um quadrado do sacado (O, C ou D). Vazio apaga. */
 export function useParecerSacado() {
   const atualizar = useAtualizarDetalhe();

@@ -6,7 +6,14 @@ import { CUSTO_CONSULTA_PF } from "@/types/pessoa-resumo";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
 import TextoRico from "@/components/ui/mencao/TextoRico";
-import { useDecidirSacado, useOpinarSacado, useParecerSacado, useRegistrarParecer, useResponderPendencia } from "@/hooks/useLiberacao";
+import {
+  useDecidirSacado,
+  useMarcarSacadosEmLote,
+  useOpinarSacado,
+  useParecerSacado,
+  useRegistrarParecer,
+  useResponderPendencia,
+} from "@/hooks/useLiberacao";
 import {
   ROTULO_POSICAO,
   ROTULO_RESULTADO,
@@ -428,6 +435,119 @@ function QuadradosSacado({
   );
 }
 
+/**
+ * Com sacados selecionados: a mesma resposta e/ou o mesmo parecer no O ou no C de todos (pedido do
+ * time em 2026-10-26). Mesmas regras do clique em cada quadrado. Parcial no C fica de fora: pede o
+ * valor aprovado de cada sacado.
+ */
+function LoteSacados({
+  cardId,
+  documentos,
+  podeOperador,
+  podeComite,
+  onPronto,
+}: {
+  cardId: string;
+  documentos: string[];
+  podeOperador: boolean;
+  podeComite: boolean;
+  onPronto: () => void;
+}) {
+  const marcar = useMarcarSacadosEmLote();
+  // Com o card no Comitê, o C é a decisão: começa nele.
+  const [letra, setLetra] = useState<"O" | "C">(podeComite ? "C" : "O");
+  const [opcao, setOpcao] = useState<OpiniaoOperador | null>(null);
+  const [texto, setTexto] = useState("");
+  const quadros = (["O", "C"] as const).filter(item => (item === "O" ? podeOperador : podeComite));
+  const atual = quadros.includes(letra) ? letra : quadros[0];
+  const opcoes: OpiniaoOperador[] = atual === "O" ? OPINIOES_OPERADOR : ["APROVADO", "REPROVADO"];
+  const parecer = texto.trim();
+  const plural = documentos.length === 1 ? "" : "s";
+
+  function aplicar() {
+    marcar.mutate(
+      { id: cardId, documentos, quadro: atual === "O" ? "ORIGEM" : "COMITE", situacao: opcao, parecer: parecer || null },
+      {
+        onSuccess: () => {
+          setOpcao(null);
+          setTexto("");
+          onPronto();
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="sticky top-0 z-10 space-y-2 border-b border-[#612035]/20 bg-[#f8f3f4] px-3 py-2.5 dark:bg-[#2a1d22]">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-[#612035] dark:text-rose-200">
+          {documentos.length} sacado{plural} · responder no
+        </span>
+        <div role="radiogroup" aria-label="Quadrado" className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-800">
+          {quadros.map(item => (
+            <button
+              key={item}
+              type="button"
+              role="radio"
+              aria-checked={atual === item}
+              onClick={() => {
+                setLetra(item);
+                setOpcao(null);
+              }}
+              className={`h-7 cursor-pointer rounded-md px-2.5 text-[11px] font-semibold transition ${
+                atual === item ? "bg-[#612035] text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              {item} · {NOME_QUADRO[item]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div role="radiogroup" aria-label="Resposta" className="flex flex-wrap gap-1.5">
+        {opcoes.map(item => (
+          <button
+            key={item}
+            type="button"
+            role="radio"
+            aria-checked={opcao === item}
+            onClick={() => setOpcao(opcao === item ? null : item)}
+            className={`inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium transition ${
+              opcao === item
+                ? `${COR_QUADRADO[item]} shadow-sm`
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            }`}
+          >
+            {opcao !== item && <span className={`h-3 w-3 rounded ${fundoDecisao(item)}`} />}
+            {ROTULO_OPCAO[item]}
+          </button>
+        ))}
+        {atual === "C" && <span className="self-center text-[10.5px] text-slate-500">Parcial: marque um por um (pede o valor aprovado).</span>}
+      </div>
+      <MentionTextarea
+        id="parecer-lote"
+        value={texto}
+        onChange={setTexto}
+        rows={2}
+        placeholder={`Parecer ${atual} para todos (opcional). Use @ para marcar.`}
+        aria-label={`Parecer ${atual} dos sacados selecionados`}
+      />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {parecer && (
+          <span className="mr-auto text-[10.5px] text-amber-700 dark:text-amber-300">
+            Substitui o parecer {atual} de cada sacado selecionado.
+          </span>
+        )}
+        <button type="button" onClick={onPronto} className={BOTAO_SECUNDARIO}>
+          Limpar seleção
+        </button>
+        <button type="button" disabled={marcar.isPending || (!opcao && !parecer)} onClick={aplicar} className={BOTAO_PRIMARIO}>
+          {marcar.isPending ? "Aplicando…" : `Aplicar a ${documentos.length} sacado${plural}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function SacadosLista({
   cardId,
   sacados,
@@ -449,9 +569,21 @@ export function SacadosLista({
   /** Quem decide agora, para a conta de decididos; nulo depois da decisão (vale a situação). */
   quadro: "COMITE" | "DIRETORIA" | null;
 }) {
+  const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
   if (sacados.length === 0) {
     return <p className="text-sm text-slate-400">Nenhum sacado informado.</p>;
   }
+  // Seleção em lote só onde a pessoa já marcaria um por um, e com mais de um sacado.
+  const selecionavel = (podeOperador || podeComite) && sacados.length > 1;
+  const marcados = selecionavel ? sacados.filter(sacado => selecionados.has(sacado.documento)).map(sacado => sacado.documento) : [];
+  const todos = marcados.length === sacados.length;
+  const alternar = (documento: string) =>
+    setSelecionados(atual => {
+      const proximo = new Set(atual);
+      if (proximo.has(documento)) proximo.delete(documento);
+      else proximo.add(documento);
+      return proximo;
+    });
   const comValor = sacados.filter(sacado => sacado.valor != null);
   const soma = comValor.reduce((total, sacado) => total + (sacado.valor ?? 0), 0);
   const divergente = valorOperacao != null && comValor.length > 0 && Math.abs(soma - valorOperacao) >= 0.01;
@@ -471,31 +603,74 @@ export function SacadosLista({
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-700">
+      {selecionavel && (
+        <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5 dark:border-slate-800">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-[11px] font-medium text-slate-500">
+            <input
+              type="checkbox"
+              checked={todos}
+              ref={caixa => {
+                if (caixa) caixa.indeterminate = marcados.length > 0 && !todos;
+              }}
+              onChange={() => setSelecionados(todos ? new Set() : new Set(sacados.map(sacado => sacado.documento)))}
+              className="h-4 w-4 cursor-pointer accent-[#612035]"
+            />
+            {marcados.length === 0
+              ? "Selecionar sacados para responder em lote"
+              : `${marcados.length} de ${sacados.length} selecionado${marcados.length === 1 ? "" : "s"}`}
+          </label>
+        </div>
+      )}
+      {marcados.length > 0 && (
+        <LoteSacados
+          cardId={cardId}
+          documentos={marcados}
+          podeOperador={podeOperador}
+          podeComite={podeComite}
+          onPronto={() => setSelecionados(new Set())}
+        />
+      )}
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
         {sacados.map(sacado => (
-          <li key={sacado.documento} className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                {sacado.nome ?? <span className="font-normal italic text-slate-400">sem nome na base</span>}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                <span className="font-mono">{formatDocumento(sacado.documento)}</span>
-                {sacado.praca && <span className="text-slate-400"> · {sacado.praca}</span>}
-              </p>
-              <CarteiraLinha carteira={sacado.carteira} />
-              {sacado.pracaPagamento && (
-                <p
-                  title="Praça de Pagamento: títulos decididos como pagos pelo cedente em que este sacado aparece"
-                  className="mt-1 inline-flex items-center gap-1 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-rose-800
-                    dark:bg-rose-900/40 dark:text-rose-200"
-                >
-                  <Icon name="alt_route" size={11} />
-                  praça de pagamento · {sacado.pracaPagamento.titulos} título{sacado.pracaPagamento.titulos === 1 ? "" : "s"} ·{" "}
-                  {formatMoedaCurta(sacado.pracaPagamento.valor)}
-                </p>
+          <li
+            key={sacado.documento}
+            className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3 ${
+              selecionados.has(sacado.documento) && selecionavel ? "bg-[#612035]/[0.04] dark:bg-rose-900/10" : ""
+            }`}
+          >
+            <div className="flex min-w-0 flex-1 gap-2.5">
+              {selecionavel && (
+                <input
+                  type="checkbox"
+                  checked={selecionados.has(sacado.documento)}
+                  onChange={() => alternar(sacado.documento)}
+                  aria-label={`Selecionar ${sacado.nome ?? formatDocumento(sacado.documento)}`}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[#612035]"
+                />
               )}
-              <HistoricoSacado historico={sacado.historico} />
-              <PareceresSacado sacado={sacado} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                  {sacado.nome ?? <span className="font-normal italic text-slate-400">sem nome na base</span>}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  <span className="font-mono">{formatDocumento(sacado.documento)}</span>
+                  {sacado.praca && <span className="text-slate-400"> · {sacado.praca}</span>}
+                </p>
+                <CarteiraLinha carteira={sacado.carteira} />
+                {sacado.pracaPagamento && (
+                  <p
+                    title="Praça de Pagamento: títulos decididos como pagos pelo cedente em que este sacado aparece"
+                    className="mt-1 inline-flex items-center gap-1 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-rose-800
+                      dark:bg-rose-900/40 dark:text-rose-200"
+                  >
+                    <Icon name="alt_route" size={11} />
+                    praça de pagamento · {sacado.pracaPagamento.titulos} título{sacado.pracaPagamento.titulos === 1 ? "" : "s"} ·{" "}
+                    {formatMoedaCurta(sacado.pracaPagamento.valor)}
+                  </p>
+                )}
+                <HistoricoSacado historico={sacado.historico} />
+                <PareceresSacado sacado={sacado} />
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:justify-end">
               {sacado.valor != null && (

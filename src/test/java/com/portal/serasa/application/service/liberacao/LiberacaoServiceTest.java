@@ -573,6 +573,68 @@ class LiberacaoServiceTest {
         assertThat(a.getOpiniaoComite()).as("o C não muda").isNull();
     }
 
+    // ------------------------------------------------------------ vários sacados de uma vez
+
+    @Test
+    @DisplayName("lote no O: a mesma resposta e o mesmo parecer em todos, um evento por sacado e um aviso só")
+    void shouldMarkOriginOpinionInBatch() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        LiberacaoSacadoEntity b = sacado(card, SACADO_B, "Sacado B", "2000", 1);
+        sacadosSao(card, a, b);
+
+        int mudaram = service.marcarSacadosEmLote(card.getId(), List.of("45.723.174/0001-10", SACADO_B), QuadroOpiniao.ORIGEM,
+                "amostragem", "  Conferir amostra dos títulos  ", analista);
+
+        assertThat(mudaram).isEqualTo(2);
+        assertThat(List.of(a, b)).allSatisfy(s -> {
+            assertThat(s.getOpiniaoOrigem()).isEqualTo(OpiniaoOperador.AMOSTRAGEM);
+            assertThat(s.getParecerOrigem()).isEqualTo("Conferir amostra dos títulos");
+        });
+        assertThat(eventosGravados()).hasSize(4);
+        verify(cardRepository, times(1)).tocarSemVersao(eq(card.getId()), any(LocalDateTime.class), eq(analista.getId()), eq("Andressa"));
+        verify(eventos, times(1)).publishEvent(any(LiberacaoEvento.Editado.class));
+    }
+
+    @Test
+    @DisplayName("lote no C: aprova vários no Comitê; Parcial fica de fora (pede o valor de cada sacado)")
+    void shouldDecideCommitteeInBatchButNotPartial() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        LiberacaoSacadoEntity b = sacado(card, SACADO_B, "Sacado B", "2000", 1);
+        sacadosSao(card, a, b);
+
+        assertThatThrownBy(() -> service.marcarSacadosEmLote(card.getId(), List.of(SACADO_A, SACADO_B), QuadroOpiniao.COMITE,
+                "PARCIAL", null, analista))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("um por um");
+
+        service.marcarSacadosEmLote(card.getId(), List.of(SACADO_A, SACADO_B), QuadroOpiniao.COMITE, "APROVADO", null, analista);
+
+        assertThat(a.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(b.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(a.getSituacao()).as("a situação final só muda quando o card é decidido").isNull();
+    }
+
+    @Test
+    @DisplayName("lote: sacado fora do card, auxiliar ou nada a fazer recusam sem gravar nada")
+    void shouldRefuseInvalidBatch() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        assertThatThrownBy(() -> service.marcarSacadosEmLote(card.getId(), List.of(SACADO_A, "11222333000181"),
+                QuadroOpiniao.ORIGEM, "APROVADO", null, analista))
+                .isInstanceOf(EntityNotFoundException.class);
+        assertThatThrownBy(() -> service.marcarSacadosEmLote(card.getId(), List.of(SACADO_A), QuadroOpiniao.ORIGEM,
+                "APROVADO", null, auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+        assertThatThrownBy(() -> service.marcarSacadosEmLote(card.getId(), List.of(SACADO_A), QuadroOpiniao.ORIGEM,
+                null, null, analista))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(a.getOpiniaoOrigem()).isNull();
+        verify(sacadoRepository, never()).save(any());
+    }
+
     @ParameterizedTest
     @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "COMITE", "PENDENCIA"})
     @DisplayName("opinarSacado: O vale em qualquer etapa antes da decisão")

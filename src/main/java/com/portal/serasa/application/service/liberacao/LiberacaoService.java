@@ -871,6 +871,93 @@ public class LiberacaoService {
         return atualizado;
     }
 
+    /**
+     * Marca vários sacados de uma vez, no O ou no C, com a mesma resposta e/ou o mesmo parecer
+     * (pedido do time em 2026-10-26). Mesmas regras do clique em um sacado — quem pode e em que
+     * etapa —, cada sacado com seu evento no histórico e um aviso só para o card. Confere todos os
+     * sacados antes de gravar: um documento fora do card recusa o lote inteiro. Parcial no C fica de
+     * fora, porque pede o valor aprovado de cada sacado.
+     *
+     * @param situacao a opção (no O: Aprovado, Parcial, Reprovado, Amostragem; no C: Aprovado,
+     *                 Reprovado); nula não mexe na marcação
+     * @param parecer  o parecer daquele quadrado; nulo não mexe, vazio apaga
+     * @return quantos sacados mudaram
+     */
+    @Transactional
+    public int marcarSacadosEmLote(UUID cardId, List<String> documentos, QuadroOpiniao quadro, String situacao,
+                                   String parecer, UserEntity autor) {
+        if (quadro == QuadroOpiniao.DIRETORIA) {
+            throw new IllegalArgumentException("O D é preenchido quando a Diretoria aprova ou reprova o card.");
+        }
+        if (documentos == null || documentos.isEmpty()) {
+            throw new IllegalArgumentException("Selecione ao menos um sacado.");
+        }
+        if (situacao == null && parecer == null) {
+            throw new IllegalArgumentException("Escolha a resposta ou escreva o parecer.");
+        }
+        LiberacaoCardEntity card = buscar(cardId);
+        exigirQuadro(card, quadro, autor);
+
+        OpiniaoOperador opiniao = null;
+        ResultadoLiberacao decisao = null;
+        if (situacao != null) {
+            if (quadro == QuadroOpiniao.ORIGEM) {
+                opiniao = opcao(OpiniaoOperador.class, situacao);
+            } else {
+                decisao = opcao(ResultadoLiberacao.class, situacao);
+                if (decisao == ResultadoLiberacao.PARCIAL) {
+                    throw new IllegalArgumentException("Parcial no C pede o valor aprovado de cada sacado: marque um por um.");
+                }
+            }
+        }
+
+        List<LiberacaoSacadoEntity> sacados = sacadoRepository.findByCardIdOrderByOrdem(cardId);
+        List<LiberacaoSacadoEntity> escolhidos = documentos.stream()
+                .map(documento -> documento == null ? "" : documento.replaceAll("\\D", ""))
+                .distinct()
+                .map(digitos -> sacados.stream().filter(item -> item.getCnpj().equals(digitos)).findFirst()
+                        .orElseThrow(() -> new EntityNotFoundException("Sacado " + formatarDocumento(digitos) + " não está neste card.")))
+                .toList();
+
+        String novoParecer = parecer == null ? null : textoOuNulo(parecer);
+        Set<UUID> mencionados = new java.util.LinkedHashSet<>();
+        int mudaram = 0;
+        for (LiberacaoSacadoEntity sacado : escolhidos) {
+            boolean mudou = false;
+            if (situacao != null) {
+                mudou = quadro == QuadroOpiniao.ORIGEM
+                        ? aplicarOpiniao(card, sacado, opiniao, autor)
+                        : aplicarDecisao(card, sacados, quadro, new DecisaoSacado(sacado.getCnpj(), decisao, null), autor);
+            }
+            if (parecer != null) {
+                String anterior = parecerDo(sacado, quadro);
+                if (aplicarParecer(card, sacado, quadro, novoParecer, autor)) {
+                    mudou = true;
+                    mencionados.addAll(MencaoParser.novosUsuarios(anterior, novoParecer));
+                }
+            }
+            if (mudou) {
+                mudaram++;
+            }
+        }
+        if (mudaram == 0) {
+            return 0;
+        }
+        cardRepository.tocarSemVersao(cardId, LocalDateTime.now(), autor.getId(), autor.getName());
+        LiberacaoCardEntity atualizado = buscar(cardId);
+        Set<UUID> avisar = acompanharMencionados(cardId, mencionados);
+        eventos.publishEvent(new LiberacaoEvento.Editado(atualizado, autor, avisar, trecho(novoParecer)));
+        return mudaram;
+    }
+
+    private static <E extends Enum<E>> E opcao(Class<E> tipo, String valor) {
+        try {
+            return Enum.valueOf(tipo, valor.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Resposta inválida: " + valor + ".");
+        }
+    }
+
     /** Grava a opinião O; false quando já era essa (nada gravado). */
     private boolean aplicarOpiniao(LiberacaoCardEntity card, LiberacaoSacadoEntity sacado, OpiniaoOperador situacao,
                                    UserEntity autor) {

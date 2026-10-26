@@ -215,6 +215,15 @@ public class LiberacaoController {
         return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
     }
 
+    /** Vários sacados de uma vez: a mesma resposta e/ou o mesmo parecer no O ou no C. */
+    @PatchMapping("/{id}/sacados/lote")
+    public ResponseEntity<LiberacaoDetalheResponse> marcarSacadosEmLote(@PathVariable UUID id,
+                                                                        @Valid @RequestBody com.portal.serasa.api.rest.dto.request.LiberacaoLoteSacadosRequest request) {
+        UserEntity autor = usuarioLogado.obter();
+        liberacaoService.marcarSacadosEmLote(id, request.documentos(), request.quadro(), request.situacao(), request.parecer(), autor);
+        return ResponseEntity.ok(assembler.detalhe(liberacaoService.buscar(id), autor));
+    }
+
     /** Quadrado O (Origem) de um sacado. Situação nula limpa. Fora da tela desde a V88. */
     @PatchMapping("/{id}/sacados/{documento}/opiniao")
     public ResponseEntity<LiberacaoDetalheResponse> opinarSacado(@PathVariable UUID id, @PathVariable String documento,
