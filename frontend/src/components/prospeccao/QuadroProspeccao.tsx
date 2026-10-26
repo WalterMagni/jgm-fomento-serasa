@@ -263,7 +263,7 @@ export default function QuadroProspeccao() {
     if (acao) {
       setAcaoInicial(
         acao === "decidir"
-          ? { tipo: "decidir" }
+          ? { tipo: "decidir", somenteReprovar: destino === "REPROVADO" }
           : acao === "aceite"
             ? { tipo: "aceite", resposta: RESPOSTA_DO_DESTINO[destino] ?? "ACEITO" }
             : acao === "resultado"

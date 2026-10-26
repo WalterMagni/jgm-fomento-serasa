@@ -22,12 +22,16 @@ const BOTAO_REPROVAR =
  * produto não se definem aqui: são do comitê, depois dos documentos (pedido do time em
  * 2026-10-15). Reprovar pede o motivo da lista fechada. Quando há pedido do cliente, ele fica à
  * vista.</p>
+ *
+ * <p>Aprovar é só da analista dona do card; reprovar, de qualquer pessoa da esteira (pedido do time
+ * em 2026-10-26). Para quem não é a dona, o diálogo abre em Reprovar com o Aprovar travado.</p>
  */
 export default function DecisaoDialog({
   cardId,
   razaoSocial,
   anterior,
   pedidoCliente,
+  somenteReprovar = false,
   onFechar,
 }: {
   cardId: string;
@@ -36,11 +40,13 @@ export default function DecisaoDialog({
   anterior?: Decisao | null;
   /** Contraproposta do cliente, quando foi ela que trouxe o card de volta. */
   pedidoCliente?: { mensagem: string | null; limiteSugerido: number | null; condicoes: { produto: string; valor: number }[] } | null;
+  /** Quem não é a dona do card: só reprova. */
+  somenteReprovar?: boolean;
   onFechar: () => void;
 }) {
   const decidir = useDecidir();
   const base = anterior?.resultado === "APROVADO" ? anterior : null;
-  const [resultado, setResultado] = useState<ResultadoDecisao>("APROVADO");
+  const [resultado, setResultado] = useState<ResultadoDecisao>(somenteReprovar ? "REPROVADO" : "APROVADO");
   const [parecer, setParecer] = useState("");
   const [motivo, setMotivo] = useState<MotivoRecusa | "">("");
   const [observacao, setObservacao] = useState("");
@@ -72,7 +78,7 @@ export default function DecisaoDialog({
 
   return (
     <Dialogo
-      titulo="Decisão da análise"
+      titulo={somenteReprovar ? "Reprovar na análise" : "Decisão da análise"}
       subtitulo={razaoSocial}
       onFechar={onFechar}
       largura="lg"
@@ -115,8 +121,10 @@ export default function DecisaoDialog({
               role="radio"
               aria-checked={resultado === opcao}
               onClick={() => setResultado(opcao)}
+              disabled={somenteReprovar && opcao === "APROVADO"}
+              title={somenteReprovar && opcao === "APROVADO" ? "Aprovar é da analista dona do card" : undefined}
               className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold transition-colors
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] ${
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[#612035] disabled:cursor-not-allowed disabled:opacity-40 ${
                   resultado === opcao
                     ? opcao === "APROVADO"
                       ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"

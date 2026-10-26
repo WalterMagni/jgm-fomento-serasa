@@ -57,10 +57,11 @@ public class ProspeccaoAutorizacao {
     }
 
     /**
-     * Decidir a análise: só a analista dona do card, ou o admin.
+     * Aprovar a análise (e enviar ao comitê, concluir): só a analista dona do card, ou o admin.
      *
      * <p>Exceção à regra de "todos operam tudo", pedida pelo Walter em 2026-10-11: a decisão leva
-     * limite e parecer, e quem assina é quem analisou.</p>
+     * limite e parecer, e quem assina é quem analisou. Reprovar saiu daqui em 2026-10-26 — ver
+     * {@link #exigirReprovacao}.</p>
      */
     public void exigirDona(ProspeccaoEntity card, UserEntity usuario) {
         exigirAutenticado(usuario);
@@ -69,6 +70,16 @@ public class ProspeccaoAutorizacao {
                     ? "Assuma a análise antes de decidir."
                     : "Só a analista dona do card decide.");
         }
+    }
+
+    /**
+     * Reprovar — na análise ou depois de aprovado: qualquer pessoa da esteira. Pedido do time em
+     * 2026-10-26: quem fica sabendo do problema do cliente precisa conseguir barrar o card na hora,
+     * sem esperar a dona. Aprovar continua com a dona ({@link #exigirDona}): leva limite e parecer.
+     * No comitê, o resultado segue com a dona e os membros do comitê.
+     */
+    public void exigirReprovacao(UserEntity usuario) {
+        exigirAutenticado(usuario);
     }
 
     /** Mesma regra de {@link #exigirDona}, sem lançar — a tela usa para mostrar o botão. */

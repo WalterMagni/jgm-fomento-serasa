@@ -76,16 +76,17 @@ lado os retrocessos (devolver, devolver ao comercial, contraproposta, comitê de
 **Mover para inerte** pedem o motivo de uma lista fechada; se escolher "Outro", descreva.
 
 **Reprovar depois de aprovado.** Do Aprovado ao Contrato, se o cliente tiver um problema que
-impede de seguir, quem assumiu o card (ou o admin) clica em **Reprovar** — ou arrasta para
+impede de seguir, qualquer pessoa da esteira clica em **Reprovar** — ou arrasta para
 Reprovado. Pede o motivo da mesma lista da recusa e, se quiser, uma observação. O card vai para
 **Reprovado**, o histórico diz de qual etapa saiu, e quem esperava por ele (comercial, comitê) é
 avisado. No comitê, os pareceres que faltavam deixam de ser esperados. Dá para reabrir depois.
 
-**Decidir.** Em análise, quem assumiu o card clica em **Decidir** — só ela (ou o admin) pode.
+**Decidir.** Em análise, quem assumiu o card clica em **Decidir** — **aprovar** é só dela (ou do
+admin). **Reprovar** qualquer pessoa da esteira pode: quem não é a dona vê o botão **Reprovar**.
 Para **aprovar**: limite, condições por produto (duplicata, cheque próprio…, quantas linhas
 quiser) e parecer. Se a soma das condições passar do limite, o sistema avisa mas deixa seguir.
 Para **reprovar**: motivo da lista fechada e, se quiser, parecer. Arrastar o card para
-*Aprovado* abre a mesma janela — a aprovação não anda sem limite e condições.
+*Aprovado* ou *Reprovado* abre a mesma janela — a aprovação não anda sem limite e condições.
 
 **Aprovado: juntar os documentos.** Aprovado na análise, o comercial recebe aviso e anexa os
 documentos do checklist (aba *Documentos*). O card mostra quantos obrigatórios **faltam**. Quando o

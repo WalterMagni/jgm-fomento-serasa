@@ -45,7 +45,8 @@ type Aba = "resumo" | "dados" | "decisao" | "documentos" | "comite" | "contrato"
 
 /** Diálogo de ação própria aberto por cima do card, ou a aba onde a ação acontece. */
 export type AcaoAberta =
-  | { tipo: "decidir" }
+  /** `somenteReprovar`: quem não é a dona do card abre a decisão só para reprovar. */
+  | { tipo: "decidir"; somenteReprovar?: boolean }
   | { tipo: "aceite"; resposta: RespostaCliente }
   | { tipo: "resultado"; resultado: ResultadoComite }
   | { tipo: "contrato" }
@@ -159,18 +160,26 @@ export default function ProspeccaoModal({
       : null;
   const propostaAberta = vigente && vigente.resultado === "APROVADO" ? vigente : null;
 
-  const botaoDecidir = card?.estagio === "EM_ANALISE" && (
-    <button
-      type="button"
-      onClick={() => setAcao({ tipo: "decidir" })}
-      disabled={ocupado || !data?.podeDecidir}
-      title={data?.podeDecidir ? undefined : "Só a analista dona do card decide"}
-      className={PRIMARIO}
-    >
-      <Icon name="gavel" size={15} />
-      {pedidoCliente ? "Decidir a contraproposta" : "Decidir"}
-    </button>
-  );
+  // Aprovar é da dona; reprovar, de qualquer pessoa da esteira (pedido do time em 2026-10-26).
+  const botaoDecidir =
+    card?.estagio === "EM_ANALISE" &&
+    (data?.podeDecidir ? (
+      <button type="button" onClick={() => setAcao({ tipo: "decidir" })} disabled={ocupado} className={PRIMARIO}>
+        <Icon name="gavel" size={15} />
+        {pedidoCliente ? "Decidir a contraproposta" : "Decidir"}
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setAcao({ tipo: "decidir", somenteReprovar: true })}
+        disabled={ocupado}
+        title="Aprovar é da analista dona do card; reprovar, qualquer pessoa da esteira"
+        className={`${SECUNDARIO} text-rose-700 dark:text-rose-300`}
+      >
+        <Icon name="block" size={15} />
+        Reprovar
+      </button>
+    ));
   const rodadaVigente = data ? data.pareceres.filter(parecer => parecer.rodada === data.rodadaComite) : [];
   const faltandoParecer = rodadaVigente.filter(parecer => !parecer.posicao).map(parecer => parecer.usuarioNome);
   const algumParecer = rodadaVigente.some(parecer => parecer.posicao);
@@ -321,7 +330,7 @@ export default function ProspeccaoModal({
                 )}
                 {card.estagio === "EM_ANALISE" && !data.podeDecidir && (
                   <span className="text-[11px] text-slate-400">
-                    {card.analistaNome ? `Quem decide é ${card.analistaNome}` : "Assuma para decidir"}
+                    {card.analistaNome ? `Aprovar é com ${card.analistaNome}` : "Assuma para aprovar"}
                   </span>
                 )}
                 {data.podeDecidir && !ehTerminal(card.estagio) && (
@@ -344,19 +353,13 @@ export default function ProspeccaoModal({
                   <button
                     type="button"
                     onClick={() => setPergunta({ modo: "cancelar" })}
-                    disabled={ocupado || !data.podeDecidir}
+                    disabled={ocupado}
                     title="O cliente teve um problema que impede de seguir: o card vai para Reprovado, com o motivo"
                     className={`${SECUNDARIO} text-rose-700 dark:text-rose-300`}
                   >
                     <Icon name="block" size={15} />
                     Reprovar
                   </button>
-                )}
-                {/* Botão travado sem explicação parece defeito: diz quem pode. */}
-                {cancelavel(card.estagio) && !data.podeDecidir && (
-                  <span className="text-[11px] text-slate-400">
-                    Reprova {card.analistaNome ? `quem assumiu (${card.analistaNome})` : "quem assumiu o card"} ou um admin
-                  </span>
                 )}
                 {ehTerminal(card.estagio) && (
                   <button type="button" onClick={() => setPergunta({ modo: "reabrir" })} disabled={ocupado} className={SECUNDARIO}>
@@ -464,6 +467,8 @@ export default function ProspeccaoModal({
           razaoSocial={card.razaoSocial}
           anterior={vigente}
           pedidoCliente={pedidoCliente}
+          // Quem não é a dona só reprova, venha a decisão do botão ou do arraste no quadro.
+          somenteReprovar={acao.somenteReprovar || !data?.podeDecidir}
           onFechar={() => setAcao(null)}
         />
       )}

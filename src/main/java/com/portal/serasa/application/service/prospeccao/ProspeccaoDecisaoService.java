@@ -78,12 +78,16 @@ public class ProspeccaoDecisaoService {
         if (card.getEstagio() != EstagioProspeccao.EM_ANALISE) {
             throw new TransicaoInvalidaException("Só se decide um card em análise.");
         }
-        autorizacao.exigirDona(card, autor);
+        autorizacao.exigirReprovacao(autor);
         if (comando.resultado() == null) {
             throw new IllegalArgumentException("Informe se aprova ou reprova.");
         }
-
         boolean aprova = comando.resultado() == ResultadoDecisao.APROVADO;
+        // Reprovar é de qualquer pessoa da esteira; aprovar, só da dona (leva limite e parecer).
+        if (aprova) {
+            autorizacao.exigirDona(card, autor);
+        }
+
         String parecer = limpar(comando.parecer());
         // Análise inicial: limite e condições, se vierem, ficam de fora — são do comitê.
         ComandoDecisao semProposta = new ComandoDecisao(comando.resultado(), null, List.of(), comando.parecer(),
@@ -109,14 +113,15 @@ public class ProspeccaoDecisaoService {
 
     /**
      * Cancela um card já aprovado: o cliente teve um problema que impede de seguir (pedido do time
-     * em 2026-10-24). Vale do Aprovado ao Contrato, só para a dona do card ou o admin, e cai em
-     * Reprovado com o motivo da lista — reabre como qualquer desfecho. A timeline conta de qual
-     * estágio o card caiu; no comitê, os pareceres que faltavam deixam de ser esperados.
+     * em 2026-10-24). Vale do Aprovado ao Contrato, para qualquer pessoa da esteira (desde
+     * 2026-10-26; antes, só a dona ou o admin), e cai em Reprovado com o motivo da lista — reabre como
+     * qualquer desfecho. A timeline conta quem reprovou e de qual estágio o card caiu; no comitê, os
+     * pareceres que faltavam deixam de ser esperados.
      */
     @Transactional
     public ProspeccaoEntity cancelar(UUID id, MotivoRecusa motivo, String observacao, UserEntity autor) {
         ProspeccaoEntity card = prospeccaoService.buscar(id);
-        autorizacao.exigirDona(card, autor);
+        autorizacao.exigirReprovacao(autor);
         EstagioProspeccao origem = card.getEstagio();
         if (!origem.cancelavel()) {
             throw new TransicaoInvalidaException(origem.terminal()

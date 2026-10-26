@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -125,11 +126,23 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     @Test
-    @DisplayName("cancelar: só a dona (ou o admin); antes da aprovação, nos desfechos ou sem motivo é recusado")
+    @DisplayName("cancelar: qualquer pessoa da esteira reprova depois de aprovado, não só a dona")
+    void shouldLetAnyoneCancelApprovedCard() {
+        ProspeccaoEntity card = card(EstagioProspeccao.CONTRATO);
+        when(prospeccaoService.mover(any(), any(), any(), any(), any(), any())).thenReturn(card);
+
+        service.cancelar(card.getId(), MotivoRecusa.SEGMENTO, null, outra);
+
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.SEGMENTO, null,
+                "Reprovado depois da aprovação, em Contrato — " + MotivoRecusa.SEGMENTO.rotulo(), outra);
+        assertThatThrownBy(() -> service.cancelar(card.getId(), MotivoRecusa.SEGMENTO, null, null))
+                .isInstanceOf(AcessoNegadoException.class);
+    }
+
+    @Test
+    @DisplayName("cancelar: antes da aprovação, nos desfechos ou sem motivo é recusado")
     void shouldRefuseCancellationOutsideTheRules() {
         ProspeccaoEntity aprovado = card(EstagioProspeccao.APROVADO);
-        assertThatThrownBy(() -> service.cancelar(aprovado.getId(), MotivoRecusa.SEGMENTO, null, outra))
-                .isInstanceOf(AcessoNegadoException.class);
         assertThatThrownBy(() -> service.cancelar(aprovado.getId(), null, null, dona))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Informe o motivo do cancelamento.");
@@ -271,7 +284,22 @@ class ProspeccaoDecisaoServiceTest {
     }
 
     @Test
-    @DisplayName("só a analista dona decide; card sem dona pede para assumir antes")
+    @DisplayName("reprovar na análise: qualquer pessoa da esteira, mesmo sem ser a dona e com o card sem dona")
+    void shouldLetAnyoneRejectInAnalysis() {
+        ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
+        ComandoDecisao reprovacao = new ComandoDecisao(ResultadoDecisao.REPROVADO, null, List.of(), "Protestos recentes",
+                MotivoRecusa.QUANTIDADE_DE_RESTRICOES, null, null);
+
+        service.decidir(card.getId(), reprovacao, outra);
+        verify(prospeccaoService).mover(card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.QUANTIDADE_DE_RESTRICOES, null, outra);
+
+        card.setAnalistaId(null);
+        service.decidir(card.getId(), reprovacao, outra);
+        verify(prospeccaoService, times(2)).mover(card.getId(), EstagioProspeccao.REPROVADO, MotivoRecusa.QUANTIDADE_DE_RESTRICOES, null, outra);
+    }
+
+    @Test
+    @DisplayName("aprovar: só a analista dona; card sem dona pede para assumir antes")
     void shouldOnlyLetOwnerDecide() {
         ProspeccaoEntity card = card(EstagioProspeccao.EM_ANALISE);
         assertThatThrownBy(() -> service.decidir(card.getId(), aprovacao("1000", new Condicao("PEDIDO", BigDecimal.TEN)), outra))
