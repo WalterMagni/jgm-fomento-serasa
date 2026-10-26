@@ -16,7 +16,7 @@ const TAMANHO = {
 } as const;
 
 /**
- * Selo da nota no estilo Nutri-Score: as quatro letras em faixa, a da empresa maior, com borda
+ * Selo da nota no estilo Nutri-Score: as cinco letras em faixa, a da empresa maior, com borda
  * branca e sombra na própria cor, como um troféu. As outras ficam apagadas. Sem nota, a faixa
  * fica neutra.
  *

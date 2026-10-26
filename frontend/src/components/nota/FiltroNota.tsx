@@ -9,7 +9,7 @@ const BOTAO =
 const ATIVO = "bg-white text-grafite shadow-[0_1px_2px_rgba(38,40,51,0.08),0_6px_14px_-8px_rgba(38,40,51,0.3)]";
 const INATIVO = "text-[#5E5C55] hover:text-grafite";
 
-/** Filtro da carteira pela nota da equipe: as quatro letras nas cores do selo, mais "sem score". */
+/** Filtro da carteira pela nota da equipe: as cinco letras nas cores do selo, mais "sem score". */
 export default function FiltroNota({ valor, onChange }: { valor: FiltroDeNota; onChange: (valor: FiltroDeNota) => void }) {
   return (
     <div role="group" aria-label="Filtrar pelo score" className="inline-flex flex-wrap gap-0.5 rounded-[13px] bg-[#ECE9E1] p-[3px]">

@@ -108,7 +108,7 @@ export type Prospeccao = {
   /** Rodada vigente do comitê: o "2/3" do quadro. */
   pareceresRegistrados: number;
   pareceresEsperados: number;
-  /** Score da equipe para a empresa (A a D); nulo sem score. */
+  /** Score da equipe para a empresa (A a E); nulo sem score. */
   nota: NotaEmpresa | null;
   version: number;
 };

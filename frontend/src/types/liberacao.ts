@@ -124,7 +124,7 @@ export type LiberacaoCard = {
   cedenteCadastrado: boolean;
   /** Cidade/UF do cedente. */
   cedentePraca: string | null;
-  /** Score da equipe para o cedente (A a D); nulo sem score. */
+  /** Score da equipe para o cedente (A a E); nulo sem score. */
   cedenteNota: NotaEmpresa | null;
   /** Apontamentos da Praça de Pagamento do cedente (Visão Cedente); nulo sem nenhum. */
   pracaPagamento: PracaPagamento | null;

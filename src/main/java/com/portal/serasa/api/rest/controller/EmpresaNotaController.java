@@ -51,7 +51,7 @@ public class EmpresaNotaController {
         try {
             return NotaEmpresa.valueOf(valor.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Nota inválida: use A, B, C ou D.");
+            throw new IllegalArgumentException("Nota inválida: use A, B, C, D ou E.");
         }
     }
 

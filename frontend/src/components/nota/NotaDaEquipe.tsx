@@ -15,7 +15,7 @@ const quando = (iso: string) => {
 
 /**
  * Nota da equipe ao lado do nome da empresa, na Visão 360º. Qualquer usuário dá ou troca: o
- * clique no selo abre as quatro letras com o que cada uma quer dizer, e embaixo o histórico de
+ * clique no selo abre as cinco letras com o que cada uma quer dizer, e embaixo o histórico de
  * quem deu cada nota.
  *
  * <p>`compacto`: selo pequeno e só o rótulo, para o cabeçalho dos cards das esteiras. Ali o

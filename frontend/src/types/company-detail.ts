@@ -524,7 +524,7 @@ export interface ClientProfile {
   analysisHistory?: CreditAnalysisHistoryItem[];
   /** Análises PF dos sócios: key = CPF (11 dígitos). Apenas sócios já consultados. */
   partnerPfAnalyses?: Record<string, import('./person-analysis').PersonAnalysisSummary>;
-  /** Nota da equipe (A a D). Só vem na lista da carteira; a Visão 360º usa useNotaEmpresa. */
+  /** Nota da equipe (A a E). Só vem na lista da carteira; a Visão 360º usa useNotaEmpresa. */
   nota?: import('./nota-empresa').NotaEmpresa | null;
 }
 

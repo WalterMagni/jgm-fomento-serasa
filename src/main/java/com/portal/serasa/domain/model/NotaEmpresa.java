@@ -12,5 +12,7 @@ public enum NotaEmpresa {
     /** Operar com atenção. */
     C,
     /** Diretoria avalia antes de operar. */
-    D
+    D,
+    /** Saída de risco (V100, pedido do time em 2026-10-26). */
+    E
 }
