@@ -449,7 +449,8 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
 
               <ParecerOrigem key={card.id} card={card} />
 
-              {(card.etapa !== "ORIGEM" || data.pareceres.length > 0) && (
+              {/* Na Pendência aberta direto da Origem o Comitê ainda não foi chamado: nada a mostrar. */}
+              {(data.pareceres.length > 0 || (card.etapa !== "ORIGEM" && card.etapa !== "PENDENCIA")) && (
                 <Secao titulo="Comitê" icone="gavel">
                   <PareceresComite card={card} pareceres={data.pareceres} euId={euId} />
                 </Secao>
@@ -518,7 +519,7 @@ export default function CardDetalheModal({ cardId, euId, ehAnalista, onFechar, o
                         }`}
                     >
                       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${destino.permitido ? corDestino.faixa : "bg-slate-300 dark:bg-slate-600"}`} />
-                      {rotuloMover(card.etapa, destino.etapa)}
+                      {rotuloMover(card.etapa, destino.etapa, card.pareceres.some(parecer => parecer.posicao))}
                       {destino.permitido ? (
                         <Icon name="arrow_forward" size={14} className="ml-auto text-slate-300 transition-colors group-hover:text-slate-600" />
                       ) : (

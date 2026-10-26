@@ -28,9 +28,11 @@ class EtapaLiberacaoTest {
     }
 
     @Test
-    @DisplayName("Origem só segue para o Comitê")
-    void shouldOnlyLetOrigemGoToComite() {
-        assertThat(ORIGEM.destinos()).containsExactlyInAnyOrder(COMITE);
+    @DisplayName("Origem segue para o Comitê ou para a Pendência (o que falta se resolve antes do Comitê)")
+    void shouldLetOrigemGoToComiteOrPendencia() {
+        assertThat(ORIGEM.destinos()).containsExactlyInAnyOrder(COMITE, PENDENCIA);
+        assertThat(ORIGEM.aceita(APROVADO)).isFalse();
+        assertThat(ORIGEM.aceita(DIRETORIA)).isFalse();
     }
 
     @Test

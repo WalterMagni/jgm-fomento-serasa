@@ -1390,10 +1390,10 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("transicionar Pendência→Aprovado: não pede parecer nem avisa de parecer faltando")
-    void shouldFinalizeFromPendenciaWithoutPareceres() {
+    @DisplayName("transicionar Pendência→Aprovado: não pede todos os pareceres nem avisa de parecer faltando")
+    void shouldFinalizeFromPendenciaWithoutAllPareceres() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
-        rodadaTem(card, parecer(card, usuario("Mychelly"), null));
+        rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL), parecer(card, usuario("Mychelly"), null));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,
                 EtapaLiberacao.APROVADO, null, null, List.of(), analista);
@@ -1762,6 +1762,7 @@ class LiberacaoServiceTest {
     @DisplayName("reprovar: não precisa de decisão nenhuma, mesmo com sacados a decidir")
     void shouldNotRequireDecisionsToReject() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        comUmParecer(card);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0), sacado(card, SACADO_B, "Sacado B", "500", 1));
 
         LiberacaoCardEntity movido = reprovar(card, EtapaLiberacao.PENDENCIA, analista);
@@ -2196,6 +2197,7 @@ class LiberacaoServiceTest {
     @DisplayName("transicionar Pendência→Comitê: mantém a rodada e não convoca de novo (pareceres valem)")
     void shouldKeepRodadaAndNotReconvokeWhenReturningFromPendencia() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        comUmParecer(card);
         when(userRepository.findByComiteTrueOrderByNameAsc()).thenReturn(List.of(usuario("Bruna")));
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,
@@ -2205,6 +2207,36 @@ class LiberacaoServiceTest {
         assertThat(movido.getRodada()).isEqualTo(1);
         verify(parecerRepository, never()).save(any());
         assertThat(eventosGravados().get(0).getTipo()).isEqualTo(TipoEventoLiberacao.TRANSICAO);
+    }
+
+    @Test
+    @DisplayName("Origem→Pendência (só analista) abre a pendência sem convocar o Comitê; Pendência→Comitê então convoca")
+    void shouldGoFromOrigemThroughPendenciaToComite() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
+        UserEntity carla = usuario("Carla");
+        when(userRepository.findById(carla.getId())).thenReturn(Optional.of(carla));
+        comiteTem(usuario("Bruna"));
+        List<NovaPendencia> pendencia = List.of(new NovaPendencia(carla.getId(), "Falta o contrato social"));
+
+        assertThatThrownBy(() -> service.transicionar(card.getId(), EtapaLiberacao.ORIGEM, EtapaLiberacao.PENDENCIA,
+                pendencia, null, auxiliar))
+                .isInstanceOf(AcessoNegadoException.class);
+
+        LiberacaoCardEntity naPendencia = service.transicionar(card.getId(), EtapaLiberacao.ORIGEM,
+                EtapaLiberacao.PENDENCIA, pendencia, null, analista);
+
+        assertThat(naPendencia.getEtapa()).isEqualTo(EtapaLiberacao.PENDENCIA);
+        verify(pendenciaRepository).save(any());
+        verify(parecerRepository, never()).save(any());
+
+        service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA, EtapaLiberacao.COMITE, null, null, analista);
+
+        // a rodada não tinha parecer: o Comitê é convocado como se o card viesse direto da Origem
+        ArgumentCaptor<LiberacaoParecerEntity> pareceres = ArgumentCaptor.forClass(LiberacaoParecerEntity.class);
+        verify(parecerRepository).save(pareceres.capture());
+        assertThat(pareceres.getValue().getUsuarioNome()).isEqualTo("Bruna");
+        assertThat(pareceres.getValue().getRodada()).isEqualTo(1);
+        assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.COMITE);
     }
 
     // ------------------------------------------------------------- pendência
@@ -3800,6 +3832,7 @@ class LiberacaoServiceTest {
     @DisplayName("aprovar: com o Comitê sem decisão registrada na Pendência, decisões do pedido valem e Pendência→Aprovado calcula o resultado")
     void shouldApproveFromPendenciaUsingRequestDecisions() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
+        comUmParecer(card);
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(card, a);
 
@@ -3936,10 +3969,10 @@ class LiberacaoServiceTest {
     }
 
     @Test
-    @DisplayName("transicionar Pendência→Diretoria: não pede parecer, só o motivo, e o histórico não fala de parecer faltando")
-    void shouldMoveFromPendenciaToDiretoriaWithoutPareceres() {
+    @DisplayName("transicionar Pendência→Diretoria: não pede todos os pareceres, só o motivo, e o histórico não fala de parecer faltando")
+    void shouldMoveFromPendenciaToDiretoriaWithoutAllPareceres() {
         LiberacaoCardEntity card = card(EtapaLiberacao.PENDENCIA);
-        rodadaTem(card, parecer(card, usuario("Mychelly"), null));
+        rodadaTem(card, parecer(card, usuario("Bruna"), PosicaoParecer.FAVORAVEL), parecer(card, usuario("Mychelly"), null));
         diretoriaTem(diretor);
 
         LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.PENDENCIA,

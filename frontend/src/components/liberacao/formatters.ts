@@ -212,10 +212,14 @@ export function juntarNomes(nomes: string[]) {
   return nomes.length <= 1 ? nomes.join("") : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
 }
 
-/** Texto do botão de mover, pela ação: "Aprovar", "Enviar para assinatura", "Reabrir no Comitê". */
-export function rotuloMover(de: EtapaLiberacao, para: EtapaLiberacao) {
+/**
+ * Texto do botão de mover, pela ação: "Aprovar", "Enviar para assinatura", "Reabrir no Comitê".
+ * `passouPeloComite`: a rodada já tem parecer. Da Pendência sem isso (veio da Origem), o card vai
+ * ao Comitê pela primeira vez, não volta.
+ */
+export function rotuloMover(de: EtapaLiberacao, para: EtapaLiberacao, passouPeloComite = true) {
   if (para === "COMITE" && ETAPAS_DECIDIDAS.includes(de)) return "Reabrir no Comitê";
-  if (para === "COMITE" && de === "PENDENCIA") return "Voltar ao Comitê";
+  if (para === "COMITE" && de === "PENDENCIA" && passouPeloComite) return "Voltar ao Comitê";
   if (para === "ORIGEM") return "Devolver à Origem";
   switch (para) {
     case "APROVADO":

@@ -26,7 +26,7 @@ public enum EtapaLiberacao {
     /** Aguardando parecer do Comitê. Sai com pelo menos um parecer registrado. */
     COMITE,
 
-    /** A analista pediu algo a alguém antes de decidir. */
+    /** A analista pediu algo a alguém: antes do Comitê (vindo da Origem) ou antes de decidir. */
     PENDENCIA,
 
     /**
@@ -67,10 +67,14 @@ public enum EtapaLiberacao {
      * <p>Os retrocessos são deliberados: devolver para a Origem corrige card mal preenchido, e
      * voltar da Pendência ao Comitê pede reanálise. De qualquer etapa já decidida o card só volta
      * ao Comitê, e isso é reabertura — abre rodada nova de pareceres.</p>
+     *
+     * <p>A Origem também vai para a Pendência (pedido do time em 2026-10-26): o que falta se resolve
+     * antes do Comitê. Card que ainda não passou pelo Comitê sai da Pendência só para o Comitê — a
+     * regra fica em {@code LiberacaoAutorizacao}, porque depende dos pareceres da rodada.</p>
      */
     public Set<EtapaLiberacao> destinos() {
         return switch (this) {
-            case ORIGEM -> EnumSet.of(COMITE);
+            case ORIGEM -> EnumSet.of(COMITE, PENDENCIA);
             case COMITE -> EnumSet.of(PENDENCIA, DIRETORIA, APROVADO, REPROVADO, ORIGEM);
             case PENDENCIA -> EnumSet.of(DIRETORIA, APROVADO, REPROVADO, COMITE);
             case DIRETORIA -> EnumSet.of(APROVADO, REPROVADO);

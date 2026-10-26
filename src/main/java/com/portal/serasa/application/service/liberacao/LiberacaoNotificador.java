@@ -136,7 +136,11 @@ public class LiberacaoNotificador {
         List<Nova> novas = new ArrayList<>();
         EtapaLiberacao para = movido.para();
         if (para == EtapaLiberacao.COMITE) {
-            boolean volta = movido.de() == EtapaLiberacao.PENDENCIA;
+            // Da Pendência é volta só se o card já passou pelo Comitê nesta rodada; vindo da Origem
+            // pela Pendência, a rodada não tem parecer e o Comitê recebe o pedido de parecer.
+            boolean volta = movido.de() == EtapaLiberacao.PENDENCIA
+                    && parecerRepository.findByCardIdAndRodadaOrderByCriadoEm(card.getId(), card.getRodada()).stream()
+                            .anyMatch(LiberacaoParecerEntity::registrado);
             String titulo = volta ? ref + " voltou ao Comitê" : ref + " chegou ao Comitê: seu parecer é esperado";
             TipoNotificacao tipo = volta ? TipoNotificacao.DECISAO : TipoNotificacao.PARECER_ESPERADO;
             comiteDaRodada(card).forEach(id -> novas.add(new Nova(id, tipo, titulo, resumo(card, null), link)));

@@ -24,7 +24,7 @@ A tela está marcada como **beta**: o fluxo ainda pode mudar conforme o time usa
 |---|---|
 | **Origem da análise** | A auxiliar abriu o card e está preenchendo. |
 | **Comitê** | Esperando o parecer do Comitê. |
-| **Pendência** | Quem é analista pediu algo a alguém antes de decidir. |
+| **Pendência** | Quem é analista pediu algo a alguém: antes do Comitê (direto da Origem) ou antes de decidir. |
 | **Aprovado** | A analista aprovou, inteiro ou em parte. Próximo passo: **Enviar para assinatura**. |
 | **Reprovado** | A analista reprovou. Próximo passo: **Finalizar**. |
 | **Assinatura** | Aguardando a assinatura do contrato. Assinado, **Finalizar**. |
@@ -43,7 +43,7 @@ o quadro rola para o lado (no trackpad, ou com Shift + roda do mouse).
 | Editar campos, etiquetas e cor | todos | só analista |
 | Editar o parecer da origem | todos | analista ou quem criou o card |
 | Apagar | todos | só analista |
-| Mover | todos (para o Comitê) | só analista |
+| Mover | todos para o Comitê; para a Pendência, só analista | só analista |
 | Comentar e marcar pessoas | todos | todos |
 | Responder pendência | — | quem recebeu a pendência |
 
@@ -126,7 +126,14 @@ Ao mover para **Pendência**, quem é analista diz **para quem** e **o que falta
 várias pessoas de uma vez. A pessoa recebe um aviso, responde dentro do card, e quem
 pediu é avisado.
 
-Da Pendência, quem é analista aprova, reprova ou devolve ao Comitê.
+O card vai para a Pendência **da Origem** (resolver o que falta antes do Comitê) ou **do
+Comitê** (antes de decidir):
+
+- **Veio da Origem:** resolvida a pendência, **Comitê** leva o card ao Comitê, que é chamado
+  para dar parecer como se viesse direto da Origem. Sem passar pelo Comitê, não dá para aprovar,
+  reprovar nem mandar à Diretoria.
+- **Veio do Comitê:** quem é analista aprova, reprova, manda à Diretoria ou **volta ao Comitê**
+  — os pareceres já dados continuam valendo.
 
 ---
 

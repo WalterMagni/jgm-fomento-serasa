@@ -149,6 +149,24 @@ class LiberacaoNotificadorTest {
     }
 
     @Test
+    @DisplayName("Pendência→Comitê com parecer na rodada é volta; sem parecer (veio da Origem) é pedido de parecer")
+    void shouldTellReturnFromFirstArrivalThroughPendencia() {
+        LiberacaoEvento.Movido daPendencia =
+                new LiberacaoEvento.Movido(card, EtapaLiberacao.PENDENCIA, EtapaLiberacao.COMITE, aline, Set.of(), null);
+
+        List<Nova> volta = notificador.destinatarios(daPendencia);
+        assertThat(volta).allMatch(nova -> nova.tipo() == TipoNotificacao.DECISAO)
+                .allMatch(nova -> nova.titulo().equals("#42 voltou ao Comitê"));
+
+        when(parecerRepository.findByCardIdAndRodadaOrderByCriadoEm(card.getId(), 1)).thenReturn(List.of(
+                parecer(andressa, null), parecer(mychelly, null)));
+        List<Nova> chegada = notificador.destinatarios(daPendencia);
+        assertThat(porPessoa(chegada)).containsOnlyKeys(andressa.getId(), mychelly.getId());
+        assertThat(chegada).allMatch(nova -> nova.tipo() == TipoNotificacao.PARECER_ESPERADO)
+                .allMatch(nova -> nova.titulo().equals("#42 chegou ao Comitê: seu parecer é esperado"));
+    }
+
+    @Test
     @DisplayName("aprovado: criador e membros recebem a decisão; resultado APROVADO vira '#N aprovado por X'")
     void shouldNotifyDecision() {
         card.setEtapa(EtapaLiberacao.APROVADO);

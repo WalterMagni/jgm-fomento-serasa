@@ -64,7 +64,7 @@ public class LiberacaoAutorizacao {
     public Optional<String> motivoBloqueio(LiberacaoCardEntity card, EtapaLiberacao destino, UserEntity usuario,
                                            int registrados, boolean comiteVazio, boolean diretoriaVazia) {
         return motivoCaminho(card, destino)
-                .or(() -> motivoPermissao(card, usuario))
+                .or(() -> motivoPermissao(card, destino, usuario))
                 .or(() -> motivoRegra(card, destino, registrados, comiteVazio, diretoriaVazia));
     }
 
@@ -86,7 +86,7 @@ public class LiberacaoAutorizacao {
         motivoCaminho(card, destino).ifPresent(motivo -> {
             throw new TransicaoInvalidaException(motivo);
         });
-        motivoPermissao(card, usuario).ifPresent(motivo -> {
+        motivoPermissao(card, destino, usuario).ifPresent(motivo -> {
             throw new AcessoNegadoException(motivo);
         });
         motivoRegra(card, destino, registrados, comiteVazio, diretoriaVazia).ifPresent(motivo -> {
@@ -141,12 +141,16 @@ public class LiberacaoAutorizacao {
         return Optional.empty();
     }
 
-    private Optional<String> motivoPermissao(LiberacaoCardEntity card, UserEntity usuario) {
+    private Optional<String> motivoPermissao(LiberacaoCardEntity card, EtapaLiberacao destino, UserEntity usuario) {
         if (card.getEtapa() == EtapaLiberacao.DIRETORIA && !ehDiretoria(usuario)) {
             return Optional.of("Na Diretoria, só quem tem o perfil Diretoria decide.");
         }
         if (card.getEtapa() != EtapaLiberacao.ORIGEM && !ehAnalista(usuario)) {
             return Optional.of("A partir do Comitê, só analista move o card.");
+        }
+        // Ir para a Pendência abre a pendência, que é decisão da analista — também saindo da Origem.
+        if (destino == EtapaLiberacao.PENDENCIA && !ehAnalista(usuario)) {
+            return Optional.of("Só analista abre pendência.");
         }
         return Optional.empty();
     }
@@ -154,6 +158,9 @@ public class LiberacaoAutorizacao {
     /**
      * Sair do Comitê pede pelo menos um parecer (pedido do time em 2026-10-08): na ausência de uma
      * das analistas o card anda com o parecer da outra, mas não sem parecer nenhum.
+     *
+     * <p>Pela mesma regra, card que foi da Origem para a Pendência — sem parecer na rodada — sai dela
+     * só para o Comitê: a Pendência não é atalho para decidir sem o Comitê.</p>
      */
     private Optional<String> motivoRegra(LiberacaoCardEntity card, EtapaLiberacao destino,
                                          int registrados, boolean comiteVazio, boolean diretoriaVazia) {
@@ -165,6 +172,9 @@ public class LiberacaoAutorizacao {
         }
         if (EtapaLiberacao.decisaoDoComite(card.getEtapa(), destino) && registrados == 0) {
             return Optional.of("Precisa de pelo menos um parecer do Comitê.");
+        }
+        if (card.getEtapa() == EtapaLiberacao.PENDENCIA && destino != EtapaLiberacao.COMITE && registrados == 0) {
+            return Optional.of("O card ainda não passou pelo Comitê: envie ao Comitê antes de decidir.");
         }
         return Optional.empty();
     }

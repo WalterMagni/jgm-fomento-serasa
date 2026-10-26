@@ -577,9 +577,11 @@ public class LiberacaoService {
         tocar(card, autor);
         LiberacaoCardEntity salvo = cardRepository.saveAndFlush(card);
 
-        // Da Pendência de volta ao Comitê os pareceres da rodada continuam valendo; só Origem e
-        // reabertura chegam aqui com rodada sem ninguém convocado.
-        if (para == EtapaLiberacao.COMITE && de != EtapaLiberacao.PENDENCIA) {
+        // Da Pendência de volta ao Comitê os pareceres da rodada continuam valendo. Origem,
+        // reabertura e a Pendência aberta direto da Origem (rodada sem parecer) chegam aqui sem
+        // ninguém convocado.
+        if (para == EtapaLiberacao.COMITE
+                && (de != EtapaLiberacao.PENDENCIA || rodada.stream().noneMatch(LiberacaoParecerEntity::registrado))) {
             convocarComite(salvo, comite);
         }
         // A Diretoria passa a acompanhar: o aviso de que a decisão é dela, e o que vier depois.
