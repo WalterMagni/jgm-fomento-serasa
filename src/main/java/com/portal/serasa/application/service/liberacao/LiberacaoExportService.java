@@ -88,6 +88,7 @@ public class LiberacaoExportService {
     private final UserRepository userRepository;
     private final EmpresaResolver empresaResolver;
     private final SerasaSacados serasaSacados;
+    private final com.portal.serasa.application.service.empresa.EmpresaLimiteSacadoService limiteSacadoService;
 
     @Transactional(readOnly = true)
     public byte[] exportar(Collection<UUID> ids) {
@@ -130,12 +131,14 @@ public class LiberacaoExportService {
                          Map<UUID, List<String>> membros,
                          Map<UUID, List<String>> etiquetas,
                          /** Última consulta Serasa de cada sacado; quem nunca foi consultado fica de fora. */
-                         Map<String, SerasaSacados.Resumo> serasa) {
+                         Map<String, SerasaSacados.Resumo> serasa,
+                         /** Limite de cada empresa como sacado; sem limite fica de fora. */
+                         Map<String, BigDecimal> limites) {
     }
 
     private Dados carregar(List<UUID> ids) {
         if (ids.isEmpty()) {
-            return new Dados(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+            return new Dados(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
         }
         Map<UUID, String> nomesUsuarios = new java.util.HashMap<>();
         List<LiberacaoMembroEntity> membros = membroRepository.findByCardIdIn(ids);
@@ -161,7 +164,8 @@ public class LiberacaoExportService {
                 cardEtiquetaRepository.findByCardIdIn(ids).stream().collect(Collectors.groupingBy(
                         vinculo -> vinculo.getCardId(),
                         Collectors.mapping(vinculo -> nomesEtiquetas.getOrDefault(vinculo.getEtiquetaId(), "?"), Collectors.toList()))),
-                serasaSacados.porDocumento(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList()));
+                serasaSacados.porDocumento(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList()),
+                limiteSacadoService.limitesDe(sacados.stream().map(LiberacaoSacadoEntity::getCnpj).toList()));
     }
 
     private static <T> Map<UUID, List<T>> agrupar(List<T> itens, Function<T, UUID> chave) {
@@ -267,8 +271,8 @@ public class LiberacaoExportService {
                         "Títulos na proposta", "Vencidos", "A vencer", "Abertos", "Liquidados", "Recomprados",
                         "Opinião do Operador", "Opinião do Comitê",
                         "Parecer do Operador", "Parecer do Comitê", "Parecer da Diretoria",
-                        "Serasa", "Ocorrências Serasa", "Valor Serasa", "Consulta Serasa"},
-                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16, 18, 18, 50, 50, 50, 16, 11, 16, 17});
+                        "Serasa", "Ocorrências Serasa", "Valor Serasa", "Consulta Serasa", "Limite do sacado"},
+                new int[]{9, 38, 20, 38, 22, 16, 20, 16, 22, 17, 11, 16, 16, 16, 16, 16, 18, 18, 50, 50, 50, 16, 11, 16, 17, 16});
         int linha = 1;
         for (LiberacaoCardEntity card : cards) {
             for (LiberacaoSacadoEntity sacado : ordenar(dados.sacados().get(card.getId()), Comparator.comparing(LiberacaoSacadoEntity::getOrdem))) {
@@ -308,9 +312,10 @@ public class LiberacaoExportService {
                 numero(row, 22, serasa == null ? null : serasa.ocorrencias(), estilos.inteiro);
                 moeda(row, 23, serasa == null ? null : serasa.divida(), estilos);
                 dataHora(row, 24, serasa == null ? null : serasa.consultaEm(), estilos);
+                moeda(row, 25, dados.limites().get(sacado.getCnpj()), estilos);
             }
         }
-        fechar(aba, linha, 24);
+        fechar(aba, linha, 25);
     }
 
     private void abaPareceres(XSSFWorkbook planilha, Estilos estilos, List<LiberacaoCardEntity> cards, Dados dados) {

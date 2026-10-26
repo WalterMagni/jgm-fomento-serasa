@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import CampoNumero from "@/components/ui/CampoNumero";
+import { diasDesde } from "@/lib/formatadores";
 import { CUSTO_CONSULTA_PF, TIPO_RESTRICAO } from "@/types/pessoa-resumo";
 import Icon from "@/components/ui/Icon";
 import MentionTextarea from "@/components/ui/mencao/MentionTextarea";
@@ -91,8 +92,6 @@ export function HistoricoSacado({ historico, compacto = false }: { historico: De
   );
 }
 
-const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-
 /**
  * A consulta Serasa mais recente do sacado (pedido do time em 2026-10-26): com restrição, a
  * quantidade e o valor total; sem, "Nada consta"; nunca consultado, "Sem consulta". A data fica em
@@ -140,6 +139,29 @@ function SerasaLinha({ serasa }: { serasa: SerasaSacado | null }) {
         consulta {data}
         {antiga && ` · há ${dias} dias`}
       </span>
+    </p>
+  );
+}
+
+/**
+ * Limite da empresa como sacado, definido na Visão 360º (pedido do time em 2026-10-26). Só
+ * mostra: não compara com o valor do card nem trava nada.
+ */
+function LimiteLinha({ sacado }: { sacado: Sacado }) {
+  if (sacado.documento.length !== 14) return null;
+  return (
+    <p
+      className="mt-0.5 flex items-center gap-1 text-[10.5px] text-slate-500"
+      title={sacado.limite == null ? "Defina o limite na página da empresa" : "Limite definido na página da empresa"}
+    >
+      <Icon name="payment" size={11} className="text-slate-400" />
+      {sacado.limite == null ? (
+        <span className="text-slate-400">sem limite de sacado</span>
+      ) : (
+        <span>
+          Limite <strong className="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{formatMoeda(sacado.limite)}</strong>
+        </span>
+      )}
     </p>
   );
 }
@@ -713,6 +735,7 @@ export function SacadosLista({
                 </p>
                 <CarteiraLinha carteira={sacado.carteira} />
                 <SerasaLinha serasa={sacado.serasa} />
+                <LimiteLinha sacado={sacado} />
                 {sacado.pracaPagamento && (
                   <p
                     title="Praça de Pagamento: títulos decididos como pagos pelo cedente em que este sacado aparece"

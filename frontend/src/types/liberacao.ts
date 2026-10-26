@@ -240,6 +240,8 @@ export type Sacado = {
   pracaPagamento: PracaPagamento | null;
   /** Última consulta Serasa (PJ ou PF); nulo quando nunca foi consultado. */
   serasa: SerasaSacado | null;
+  /** Limite da empresa como sacado, definido na Visão 360º; nulo sem limite. */
+  limite: number | null;
 };
 
 /** A consulta Serasa mais recente do sacado. Sem ocorrência é "Nada consta". */

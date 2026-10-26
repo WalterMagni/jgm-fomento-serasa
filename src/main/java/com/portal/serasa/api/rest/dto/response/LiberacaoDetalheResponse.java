@@ -50,7 +50,9 @@ public record LiberacaoDetalheResponse(
                          /** Apontamentos da Praça de Pagamento do sacado; nulo sem nenhum. */
                          LiberacaoCardResponse.Praca pracaPagamento,
                          /** Última consulta Serasa (PJ ou PF); nulo quando nunca foi consultado. */
-                         com.portal.serasa.application.service.liberacao.SerasaSacados.Resumo serasa) {
+                         com.portal.serasa.application.service.liberacao.SerasaSacados.Resumo serasa,
+                         /** Limite da empresa como sacado, definido na Visão 360º; nulo sem limite. */
+                         BigDecimal limite) {
     }
 
     public record DecisaoAnterior(UUID cardId, Long numero, String cedenteNome, ResultadoLiberacao situacao,

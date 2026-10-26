@@ -3,12 +3,15 @@
 import BlocoResumo from "@/components/ui/BlocoResumo";
 import { diasDesde, formatData, formatMoeda, tempoRelativo } from "@/lib/formatadores";
 import { DIAS_CONSULTA_VELHA } from "@/types/pessoa-resumo";
+import LimiteSacadoBloco from "./LimiteSacadoBloco";
 
 /**
  * O que decide crédito, logo abaixo do nome: pendências, Visão Cedente, quem anda consultando o
- * CNPJ e a idade da consulta Serasa. Cada bloco leva à seção com o detalhe.
+ * CNPJ, a idade da consulta Serasa e o limite de sacado. Cada bloco leva à seção com o detalhe;
+ * o limite se edita ali mesmo.
  */
 export default function ResumoCliente({
+  cnpj,
   pendencias,
   visaoCedente,
   consultas30Dias,
@@ -16,6 +19,7 @@ export default function ResumoCliente({
   consultaEmTela,
   onIr,
 }: {
+  cnpj: string;
   /** null: ainda não há consulta Serasa. */
   pendencias: { ocorrencias: number; divida: number } | null;
   visaoCedente?: string | null;
@@ -29,7 +33,7 @@ export default function ResumoCliente({
   const velha = dias != null && dias > DIAS_CONSULTA_VELHA;
 
   return (
-    <section aria-label="Resumo do cliente" className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 print:hidden">
+    <section aria-label="Resumo do cliente" className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 print:hidden">
       <BlocoResumo
         icone="warning"
         cor="#D1732C"
@@ -91,6 +95,7 @@ export default function ResumoCliente({
               : "Nenhuma consulta feita"
         }
       />
+      <LimiteSacadoBloco cnpj={cnpj} atraso={300} />
     </section>
   );
 }

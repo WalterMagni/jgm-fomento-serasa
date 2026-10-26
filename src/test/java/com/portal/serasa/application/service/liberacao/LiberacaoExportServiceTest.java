@@ -65,6 +65,7 @@ class LiberacaoExportServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private EmpresaResolver empresaResolver;
     @Mock private SerasaSacados serasaSacados;
+    @Mock private com.portal.serasa.application.service.empresa.EmpresaLimiteSacadoService limiteSacadoService;
 
     @InjectMocks private LiberacaoExportService service;
 
@@ -302,6 +303,24 @@ class LiberacaoExportServiceTest {
             assertThat(sacados.getRow(2).getCell(22).getNumericCellValue()).isEqualTo(0.0);
             assertThat(sacados.getRow(3).getCell(21).getStringCellValue()).isEqualTo("Sem consulta");
             assertThat(sacados.getRow(3).getCell(23).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
+        }
+    }
+
+    @Test
+    @DisplayName("exportar: aba Sacados termina com o limite da empresa como sacado; em branco sem limite")
+    void shouldExportSacadoLimit() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 52L, EtapaLiberacao.COMITE, null)));
+        when(sacadoRepository.findByCardIdIn(any())).thenReturn(List.of(
+                sacado(id, SACADO_A, "BETA SA", "1000", 0, null, null, null),
+                sacado(id, "45723174000110", "GAMA SA", "500", 1, null, null, null)));
+        when(limiteSacadoService.limitesDe(any())).thenReturn(Map.of(SACADO_A, new BigDecimal("150000")));
+
+        try (XSSFWorkbook planilha = exportar(id)) {
+            Sheet sacados = planilha.getSheet("Sacados");
+            assertThat(sacados.getRow(0).getCell(25).getStringCellValue()).isEqualTo("Limite do sacado");
+            assertThat(sacados.getRow(1).getCell(25).getNumericCellValue()).isEqualTo(150000.0);
+            assertThat(sacados.getRow(2).getCell(25).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.BLANK);
         }
     }
 
@@ -691,7 +710,7 @@ class LiberacaoExportServiceTest {
             assertThat(cards.getCell(25).getStringCellValue()).isEqualTo("Parecer da origem");
 
             Row sacados = planilha.getSheet("Sacados").getRow(0);
-            assertThat(sacados.getLastCellNum()).as("25 colunas: 0 a 24").isEqualTo((short) 25);
+            assertThat(sacados.getLastCellNum()).as("26 colunas: 0 a 25").isEqualTo((short) 26);
             for (int i = 0; i < CABECALHO_AR_SACADOS.length; i++) {
                 assertThat(sacados.getCell(10 + i).getStringCellValue()).as("Sacados, coluna %d", 10 + i).isEqualTo(CABECALHO_AR_SACADOS[i]);
             }
@@ -700,7 +719,7 @@ class LiberacaoExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AY, Sacados até Y)")
+    @DisplayName("exportar: o filtro automático cobre as colunas novas (Cards até AY, Sacados até Z)")
     void shouldExtendAutoFilterToArColumns() throws Exception {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 30L, EtapaLiberacao.COMITE, null)));
@@ -711,7 +730,7 @@ class LiberacaoExportServiceTest {
             XSSFSheet cards = planilha.getSheet("Cards");
             XSSFSheet sacados = planilha.getSheet("Sacados");
             assertThat(cards.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:AY2");
-            assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:Y2");
+            assertThat(sacados.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:Z2");
         }
     }
 

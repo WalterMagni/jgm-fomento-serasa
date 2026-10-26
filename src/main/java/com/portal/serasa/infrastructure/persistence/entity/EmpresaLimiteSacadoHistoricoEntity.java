@@ -1,0 +1,44 @@
+package com.portal.serasa.infrastructure.persistence.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/** Uma troca do limite de sacado. {@code valor} nulo = o limite foi retirado. Ver V102. */
+@Entity
+@Table(name = "empresa_limite_sacado_historico")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class EmpresaLimiteSacadoHistoricoEntity {
+
+    @Id
+    @UuidGenerator
+    private UUID id;
+
+    @Column(nullable = false, length = 14)
+    private String cnpj;
+
+    @Column(precision = 16, scale = 2)
+    private BigDecimal valor;
+
+    @Column(name = "usuario_id")
+    private UUID usuarioId;
+
+    @Column(name = "usuario_nome")
+    private String usuarioNome;
+
+    @Column(name = "criado_em", nullable = false)
+    private LocalDateTime criadoEm;
+}

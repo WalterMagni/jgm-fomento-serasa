@@ -159,6 +159,14 @@ Cada sacado mostra a **consulta Serasa mais recente** (empresa ou pessoa física
 A data da consulta fica **em âmbar quando tem mais de 30 dias**: vale consultar de novo antes de
 confiar no "Nada consta". A conta é a mesma da carteira e da página da empresa.
 
+## Limite do sacado
+
+Embaixo do Serasa aparece o **limite da empresa como sacado**, ou "sem limite de sacado". O limite
+é definido na página da empresa (Gestão de Carteira), no bloco **Limite de sacado** da faixa de
+resumo: clique no lápis, digite o valor e salve — qualquer pessoa pode. Para tirar, **Tirar
+limite**. Cada troca fica guardada com quem fez e quando (passe o mouse no valor). Na esteira o
+limite só é mostrado: não é comparado com o valor do card nem trava a aprovação.
+
 ## Os quadrados O, C e D de cada sacado
 
 Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprovado,
@@ -325,7 +333,7 @@ filtros aplicados, em seis abas: Cards, Sacados, Pareceres, Pendências, Histór
 Comentários. A aba Cards traz também quanto tempo cada card passou em cada etapa e o
 **desfecho** (com data, quem registrou e motivo do declínio). A aba Sacados termina com o
 **Serasa** de cada sacado (com restrição, Nada consta ou Sem consulta), as ocorrências, o valor e
-a data da consulta mais recente. Para relatório de período dos
+a data da consulta mais recente, e o **Limite do sacado**. Para relatório de período dos
 arquivados, use a tela **Arquivo**.
 
 ---

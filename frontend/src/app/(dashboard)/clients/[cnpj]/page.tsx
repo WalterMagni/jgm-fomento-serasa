@@ -1396,6 +1396,7 @@ export default function ClientDashboardPage() {
       </header>
 
       <ResumoCliente
+        cnpj={cnpj}
         pendencias={ca ? { ocorrencias: totalPendingFromAnalysis(ca), divida: totalDebtFromAnalysis(ca) } : null}
         visaoCedente={ca?.visaoCedente}
         consultas30Dias={inq?.inquiryCompanyResponse?.quantity?.actual ?? null}
