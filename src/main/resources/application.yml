@@ -78,17 +78,14 @@ judit:
   api-key: ${JUDIT_API_KEY:}
   lawsuits-url: ${JUDIT_LAWSUITS_URL:https://lawsuits.production.judit.io}
   requests-url: ${JUDIT_REQUESTS_URL:https://requests.production.judit.io}
-  # Pré-consulta: o resumo do Data Lake, que dá o total como ré e a estimativa do On Demand.
   custo-resumo: ${JUDIT_CUSTO_RESUMO:0.75}
-  # On Demand: Data Lake + tribunais ao vivo. Substitui a lista do Data Lake (R$ 1,50) da fase 1.
-  custo-on-demand-por-mil: ${JUDIT_CUSTO_ON_DEMAND_POR_MIL:6.00}
+  custo-processos-por-mil: ${JUDIT_CUSTO_PROCESSOS_POR_MIL:1.50}
   # Detalhe de processo: consulta processual por CNJ (0,25) + resumo de IA (0,10).
   custo-detalhe: ${JUDIT_CUSTO_DETALHE:0.35}
-  # Detalhe e On Demand são assíncronos: o backend pergunta à Judit a partir de N segundos, com o
-  # intervalo crescendo com a idade do pedido, até o limite de cada um.
+  # O detalhe é assíncrono: o backend pergunta à Judit a partir de N segundos, com o intervalo
+  # crescendo com a idade do pedido, até o limite (no teste, ~50 s).
   acompanhamento-intervalo-segundos: ${JUDIT_ACOMPANHAMENTO_INTERVALO:5}
   acompanhamento-limite-minutos: ${JUDIT_ACOMPANHAMENTO_LIMITE:10}
-  acompanhamento-on-demand-limite-minutos: ${JUDIT_ON_DEMAND_LIMITE:360}
   franquia-mensal: ${JUDIT_FRANQUIA_MENSAL:1000}
   limite-mensal: ${JUDIT_LIMITE_MENSAL:1500}
   validade-dias: ${JUDIT_VALIDADE_DIAS:30}

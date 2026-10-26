@@ -1,8 +1,9 @@
 # Judit — implementação (fase 1)
 
-> **Fase 2 em [03-on-demand.md](03-on-demand.md)** (2026-10-26): On Demand no lugar da lista do Data Lake,
-> franquia como piso da conta, trava de R$ 1.500 com liberação do admin e acompanhamento que sobrevive a
-> reinício. O que muda em relação a este documento está lá.
+> **Fase 2 em [03-on-demand.md](03-on-demand.md)** (2026-10-26): o On Demand foi testado e descartado — a
+> consulta continua a deste documento. Mudam a franquia (piso da conta, não teto), a trava (R$ 1.500 com
+> liberação do admin no mês), a aba Consumo Judit, os pontos de atenção no resumo e o acompanhamento do
+> detalhe, que passa a sobreviver a reinício.
 
 Consulta de processos judiciais da empresa pela Judit, no card **Processos judiciais** da Visão 360º
 (borda e destaques no verde da Judit, `#15BE62`, com selo **Beta**). Branch `feat/judit`, migrations

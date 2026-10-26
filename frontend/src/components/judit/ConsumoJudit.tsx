@@ -17,20 +17,13 @@ const ROTULO = "text-[11px] font-bold uppercase tracking-[0.1em] text-[#7F7C73]"
 /**
  * Aba "Consumo Judit" das Configurações, no padrão do Consumo Serasa. A barra é sempre do mês do
  * calendário — franquia (já paga), excedente e limite; o período filtra só a tabela.
- *
- * <p>Auditoria da pré-consulta: o filtro mostra os On Demand feitos sem pré-consulta que custaram mais
- * que a estimativa de um bloco — quem pulou a recomendação numa empresa grande.</p>
  */
 export default function ConsumoJudit() {
   const [periodo, setPeriodo] = useState<Periodo>("30");
-  const [soPuladas, setSoPuladas] = useState(false);
   const { data: painel, isLoading, isError } = useJuditConsumo(Number(periodo));
 
   const consultas = useMemo(() => painel?.consultas ?? [], [painel]);
-  const puladas = useMemo(() => consultas.filter(pulouPreConsulta), [consultas]);
-  const visiveis = soPuladas ? puladas : consultas;
-  const onDemand = consultas.filter(c => c.servico === "ON_DEMAND");
-  const preConsultas = consultas.filter(c => c.servico === "RESUMO");
+  const de = (servico: JuditConsultaDoPainel["servico"]) => consultas.filter(c => c.servico === servico);
   const soma = (lista: JuditConsultaDoPainel[]) => lista.reduce((total, c) => total + c.custo, 0);
 
   return (
@@ -51,15 +44,24 @@ export default function ConsumoJudit() {
 
       <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { rotulo: "Custo do período", valor: moeda(soma(consultas)), cor: "#047857", apoio: `nos últimos ${periodo} dias` },
-          { rotulo: "Consultas", valor: consultas.length.toLocaleString("pt-BR"), cor: "#262833", apoio: "todas as cobradas" },
-          { rotulo: "On Demand", valor: onDemand.length.toLocaleString("pt-BR"), cor: "#262833", apoio: `${moeda(soma(onDemand))} no período` },
           {
-            rotulo: "Pré-consultas",
-            valor: preConsultas.length.toLocaleString("pt-BR"),
-            cor: "#262833",
-            apoio: `${moeda(soma(preConsultas))} · ${puladas.length} On Demand sem pré-consulta saiu mais caro`,
+            rotulo: "Custo do período",
+            valor: moeda(soma(consultas)),
+            cor: "#047857",
+            apoio: `${consultas.length.toLocaleString("pt-BR")} consultas nos últimos ${periodo} dias`,
           },
+          ...(
+            [
+              ["Resumos", "RESUMO"],
+              ["Listas de processos", "PROCESSOS"],
+              ["Detalhes de processo", "DETALHE"],
+            ] as const
+          ).map(([rotulo, servico]) => ({
+            rotulo,
+            valor: de(servico).length.toLocaleString("pt-BR"),
+            cor: "#262833",
+            apoio: `${moeda(soma(de(servico)))} no período`,
+          })),
         ].map(item => (
           <div key={item.rotulo} className="rounded-cartao border border-linha bg-white px-5 py-4">
             <p className="text-[12.5px] font-semibold text-suave">{item.rotulo}</p>
@@ -72,18 +74,6 @@ export default function ConsumoJudit() {
       </section>
 
       <section className="overflow-hidden rounded-painel border border-linha bg-white">
-        <div className="flex flex-wrap items-center gap-3 border-b border-linha px-6 py-3">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-grafite">
-            <input
-              type="checkbox"
-              checked={soPuladas}
-              onChange={event => setSoPuladas(event.target.checked)}
-              className="h-4 w-4 accent-[#D1732C]"
-            />
-            Só On Demand sem pré-consulta que custou mais que a estimativa
-            <span className="rounded-full bg-[#D1732C]/15 px-2 py-0.5 text-xs font-semibold text-laranja-texto">{puladas.length}</span>
-          </label>
-        </div>
         <div className={`relative overflow-x-auto ${isLoading || isError ? "min-h-[250px]" : ""}`}>
           {isLoading && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm">
@@ -105,19 +95,18 @@ export default function ConsumoJudit() {
                 <th className={`px-6 py-3.5 ${ROTULO}`}>Data/Hora</th>
                 <th className={`px-6 py-3.5 ${ROTULO}`}>Tipo</th>
                 <th className={`px-6 py-3.5 ${ROTULO}`}>Situação</th>
-                <th className={`px-6 py-3.5 ${ROTULO}`}>Pré-consulta</th>
                 <th className={`px-6 py-3.5 text-right ${ROTULO}`}>Custo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0EEE8]">
-              {!isLoading && !isError && visiveis.length === 0 ? (
+              {!isLoading && !isError && consultas.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-suave">
-                    {soPuladas ? "Nenhum On Demand sem pré-consulta saiu mais caro neste período." : "Nenhuma consulta neste período."}
+                  <td colSpan={6} className="px-6 py-10 text-center text-suave">
+                    Nenhuma consulta neste período.
                   </td>
                 </tr>
               ) : (
-                visiveis.map(c => <Linha key={c.id} consulta={c} />)
+                consultas.map(c => <Linha key={c.id} consulta={c} />)
               )}
             </tbody>
           </table>
@@ -127,15 +116,9 @@ export default function ConsumoJudit() {
   );
 }
 
-/** Sem pré-consulta a estimativa é um bloco; custar mais que isso é o caso de empresa grande que pulou a recomendação. */
-function pulouPreConsulta(c: JuditConsultaDoPainel) {
-  return c.servico === "ON_DEMAND" && c.comPreConsulta === false && c.custoEstimado !== null && c.custo > c.custoEstimado;
-}
-
 function Linha({ consulta: c }: { consulta: JuditConsultaDoPainel }) {
-  const diferente = c.custoEstimado !== null && c.custoEstimado !== c.custo;
   return (
-    <tr className={`transition-colors hover:bg-[#F3FBF6] ${pulouPreConsulta(c) ? "bg-[#D1732C]/[0.06]" : ""}`}>
+    <tr className="transition-colors hover:bg-[#F3FBF6]">
       <td className="px-6 py-3.5 font-medium text-grafite">{c.usuarioNome ?? "—"}</td>
       <td className="px-6 py-3.5">
         <div className="text-grafite">{c.nomeEmpresa ?? "—"}</div>
@@ -165,43 +148,24 @@ function Linha({ consulta: c }: { consulta: JuditConsultaDoPainel }) {
           {c.situacao === "PENDENTE" ? "Pendente" : c.situacao === "FALHOU" ? "Falhou" : "Concluída"}
         </span>
       </td>
-      <td className="px-6 py-3.5">
-        {c.comPreConsulta === null ? (
-          <span className="text-suave">—</span>
-        ) : c.comPreConsulta ? (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#17583F]">
-            <Icon name="check" size={13} /> Sim
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-laranja-texto">
-            <Icon name="warning" size={13} /> Não
-          </span>
+      <td className="whitespace-nowrap px-6 py-3.5 text-right font-semibold text-grafite">
+        {moeda(c.custo)}
+        {c.servico === "PROCESSOS" && c.totalProcessos !== null && (
+          <div className="text-[11px] font-normal text-suave">{c.totalProcessos.toLocaleString("pt-BR")} registros</div>
         )}
-      </td>
-      <td className="whitespace-nowrap px-6 py-3.5 text-right">
-        {diferente && (
-          <span className="mr-1.5 text-xs text-suave line-through" title="Estimativa antes de cobrar">
-            {moeda(c.custoEstimado!)}
-          </span>
-        )}
-        <span className="font-semibold text-grafite">{moeda(c.custo)}</span>
-        {c.situacao === "PENDENTE" && c.servico === "ON_DEMAND" && <div className="text-[11px] text-suave">estimado</div>}
       </td>
     </tr>
   );
 }
 
+const TIPO: Record<JuditConsultaDoPainel["servico"], string> = {
+  RESUMO: "Resumo",
+  PROCESSOS: "Lista de processos",
+  DETALHE: "Detalhe do processo",
+};
+
 function tipo(c: JuditConsultaDoPainel) {
-  switch (c.servico) {
-    case "ON_DEMAND":
-      return c.polo === "ATIVO" ? "On Demand · autora" : "On Demand · ré";
-    case "RESUMO":
-      return "Pré-consulta";
-    case "DETALHE":
-      return "Detalhe do processo";
-    default:
-      return "Lista (Data Lake)";
-  }
+  return TIPO[c.servico];
 }
 
 function formatarCnpj(documento: string) {

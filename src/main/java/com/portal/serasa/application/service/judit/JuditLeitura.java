@@ -1,9 +1,6 @@
 package com.portal.serasa.application.service.judit;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.text.Normalizer;
@@ -276,43 +273,6 @@ public final class JuditLeitura {
                 tituloContestado,
                 topAssuntosReu,
                 lista);
-    }
-
-    // ── On Demand (/requests + /responses) ───────────────────────────────────────────────────────
-
-    /**
-     * As respostas do On Demand no formato da lista do Data Lake ({@code {"lawsuits": [...]}}): cada
-     * item {@code lawsuit} do {@code page_data} traz em {@code response_data} o mesmo processo, com os
-     * mesmos campos. Assim a página, o detalhar e a exportação leem os dois do mesmo jeito.
-     */
-    public static ObjectNode listaDoOnDemand(JsonNode respostas) {
-        ObjectNode lista = JsonNodeFactory.instance.objectNode();
-        ArrayNode processos = lista.putArray("lawsuits");
-        for (JsonNode item : respostas.path("page_data")) {
-            if ("lawsuit".equals(item.path("response_type").asText(""))) {
-                processos.add(item.path("response_data"));
-            }
-        }
-        return lista;
-    }
-
-    /**
-     * Junta as listas guardadas (ré e autora) numa só. Um registro é o processo numa instância: no
-     * recurso a empresa pode trocar de polo, e o mesmo registro viria nas duas — entra uma vez.
-     */
-    public static ObjectNode juntarListas(List<JsonNode> listas) {
-        ObjectNode junta = JsonNodeFactory.instance.objectNode();
-        ArrayNode processos = junta.putArray("lawsuits");
-        Set<String> vistos = new LinkedHashSet<>();
-        for (JsonNode lista : listas) {
-            for (JsonNode registro : listaCrua(lista)) {
-                String cnj = texto(registro.path("code"));
-                if (cnj == null || vistos.add(cnj + "#" + registro.path("instance").asText(""))) {
-                    processos.add(registro);
-                }
-            }
-        }
-        return junta;
     }
 
     /** A doc diz {@code response_data}; a rota síncrona devolveu {@code lawsuits}. Aceita os dois. */

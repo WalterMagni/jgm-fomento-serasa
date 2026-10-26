@@ -1,7 +1,6 @@
 package com.portal.serasa.application.service.judit;
 
 import com.portal.serasa.domain.exception.AcessoNegadoException;
-import com.portal.serasa.domain.model.PoloJudit;
 import com.portal.serasa.domain.model.ServicoJudit;
 import com.portal.serasa.domain.model.SituacaoConsultaJudit;
 import com.portal.serasa.infrastructure.persistence.entity.JuditLiberacaoEntity;
@@ -44,14 +43,10 @@ public class JuditConsumoService {
     public record Liberacao(UUID id, BigDecimal valor, String motivo, String adminNome, LocalDateTime criadoEm) {
     }
 
-    /**
-     * @param custoEstimado  o que a tela prometeu (só On Demand); difere de {@code custo} quando o
-     *                       tribunal trouxe mais ou menos que a estimativa
-     * @param comPreConsulta só no On Demand: a estimativa saiu de uma pré-consulta. Nulo nos outros
-     */
+    /** @param cnj só no detalhe de processo */
     public record Consulta(UUID id, String usuarioNome, String documento, String nomeEmpresa, ServicoJudit servico,
-                           PoloJudit polo, String cnj, SituacaoConsultaJudit situacao, BigDecimal custoEstimado,
-                           BigDecimal custo, Boolean comPreConsulta, Integer totalProcessos, LocalDateTime criadoEm) {
+                           String cnj, SituacaoConsultaJudit situacao, BigDecimal custo, Integer totalProcessos,
+                           LocalDateTime criadoEm) {
     }
 
     /** @param podeLiberar quem está vendo é admin: a tela mostra o botão de liberar */
@@ -66,9 +61,7 @@ public class JuditConsumoService {
         List<Consulta> consultas = consultaRepository.doPainelDesde(LocalDate.now().minusDays(periodo).atStartOfDay())
                 .stream()
                 .map(c -> new Consulta(c.getId(), c.getUsuarioNome(), c.getDocumento(), c.getNomeEmpresa(), c.getServico(),
-                        c.getPolo(), c.getCnj(), c.getSituacao(), c.getCustoEstimado(), c.getCusto(),
-                        c.getServico() == ServicoJudit.ON_DEMAND ? c.getPreConsultaId() != null : null,
-                        c.getTotalProcessos(), c.getCriadoEm()))
+                        c.getCnj(), c.getSituacao(), c.getCusto(), c.getTotalProcessos(), c.getCriadoEm()))
                 .toList();
         return new Painel(franquia.consumo(), mes, adminAllowList.contem(usuario.getEmail()), liberacoes(mes), periodo,
                 consultas);

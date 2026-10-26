@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import { BOTAO } from "@/components/ui/botao";
-import { useJudit, useVerificarOnDemand } from "@/hooks/useJudit";
+import { useConsultarProcessosJudit, useConsultarResumoJudit, useJudit } from "@/hooks/useJudit";
 import {
+  BotaoCobrado,
   Carimbo,
   ListaContagem,
   Numero,
@@ -13,13 +13,10 @@ import {
   SelosJudit,
   TotaisDaLista,
   VERDE,
-  data,
-  hora,
   moeda,
   motivoBloqueio,
 } from "@/components/judit/JuditPecas";
-import { ConsultaProcessosModal } from "@/components/judit/ConsultaProcessosModal";
-import type { JuditOnDemand, JuditPoloConsulta, JuditResumo, JuditSituacao } from "@/types/judit";
+import type { JuditResumo, JuditSituacao } from "@/types/judit";
 
 function nomeDoMes() {
   return new Date().toLocaleDateString("pt-BR", { month: "long" });
@@ -30,11 +27,11 @@ function nomeDoMes() {
  * página de processos, para a Visão 360º não crescer com empresa de centenas de processos.
  *
  * <p>Como o Serasa e o CNPJ Já: um botão, sem ligar nada antes na empresa. Nada consulta sozinho —
- * abrir a página só lê o que já foi pago, e o botão que cobra abre um popup com o preço. Duas travas
- * no servidor: marca Judit do usuário e limite do mês.</p>
+ * abrir a página só lê o que já foi pago, e cada botão que cobra mostra o preço e pede confirmação.
+ * Duas travas no servidor: marca Judit do usuário e limite do mês.</p>
  *
- * <p>A consulta é o On Demand (base histórica + tribunais ao vivo), só como ré; como autora é um
- * pedido à parte. A pré-consulta, opcional, estima o custo antes. Ver docs/judit/03-on-demand.md.</p>
+ * <p>As duas consultas são da base histórica (Data Lake). O On Demand, em tempo real nos tribunais,
+ * foi testado e ficou de fora (docs/judit/03-on-demand.md).</p>
  */
 export function JuditPanel({ cnpj, nomeEmpresa }: { cnpj: string; nomeEmpresa?: string }) {
   const { data: situacao, isLoading, isError, error } = useJudit(cnpj);
@@ -46,7 +43,7 @@ export function JuditPanel({ cnpj, nomeEmpresa }: { cnpj: string; nomeEmpresa?: 
         <Icon name="gavel" className="text-[#047857] dark:text-[#15BE62]" />
         <h2 className="font-sans text-base font-bold text-[#047857] dark:text-[#15BE62]">Processos judiciais</h2>
         <SelosJudit />
-        <span className="text-[11px] text-gray-400">· On Demand: base histórica + tribunais, sob demanda — cada consulta tem custo</span>
+        <span className="text-[11px] text-gray-400">· base histórica (Data Lake), sob demanda — cada consulta tem custo</span>
         {situacao && <ConsumoDoMes consumo={situacao.consumo} />}
       </div>
 
@@ -64,16 +61,33 @@ export function JuditPanel({ cnpj, nomeEmpresa }: { cnpj: string; nomeEmpresa?: 
 }
 
 function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?: string; situacao: JuditSituacao }) {
-  const [popup, setPopup] = useState<JuditPoloConsulta | null>(null);
-  const verificar = useVerificarOnDemand(cnpj);
-  const { precos, resumo, processos, onDemandReu, onDemandAutor } = situacao;
+  const consultarResumo = useConsultarResumoJudit(cnpj);
+  const consultarProcessos = useConsultarProcessosJudit(cnpj);
+  const { precos, resumo, processos } = situacao;
 
-  const reuPendente = onDemandReu?.situacao === "PENDENTE";
-  const autorPendente = onDemandAutor?.situacao === "PENDENTE";
-  // O botão abre o popup, que não cobra; a trava geral (marca, chave, limite) já desliga aqui.
-  const bloqueio = motivoBloqueio(situacao, Math.min(precos.resumo, precos.onDemandPorMil));
-  const podeBuscarAutora =
-    processos?.onDemand === true && !autorPendente && (processos.somenteReu || onDemandAutor?.desatualizado === true);
+  const bloqueio = (preco: number) => motivoBloqueio(situacao, preco);
+
+  const botaoResumo = (
+    <BotaoCobrado
+      rotulo={resumo ? "Atualizar resumo" : "Consultar resumo"}
+      preco={precos.resumo}
+      bloqueio={bloqueio(precos.resumo)}
+      pendente={consultarResumo.isPending}
+      onConfirmar={() => consultarResumo.mutate({ nomeEmpresa: nomeEmpresa ?? null })}
+      discreto={Boolean(resumo)}
+    />
+  );
+  const temProcessos = resumo !== null && resumo.dados.total > 0;
+  const botaoLista = temProcessos && (
+    <BotaoCobrado
+      rotulo={processos ? "Atualizar lista" : "Buscar lista"}
+      preco={precos.processosPorMil}
+      bloqueio={bloqueio(precos.processosPorMil)}
+      pendente={consultarProcessos.isPending}
+      onConfirmar={() => consultarProcessos.mutate({ nomeEmpresa: nomeEmpresa ?? null })}
+      discreto={Boolean(processos)}
+    />
+  );
 
   return (
     <>
@@ -89,43 +103,26 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
         </p>
       )}
 
-      {[onDemandReu, onDemandAutor].map(
-        pedido =>
-          pedido &&
-          pedido.situacao !== "CONCLUIDA" && (
-            <PedidoAberto
-              key={pedido.polo}
-              pedido={pedido}
-              verificando={verificar.isPending}
-              onVerificar={() => verificar.mutate({ polo: pedido.polo })}
-              onTentarDeNovo={bloqueio === null ? () => setPopup(pedido.polo) : undefined}
-            />
-          ),
-      )}
-
       {processos ? (
         // Com a lista, os números são dela: processos únicos, não registros por instância.
         <TotaisDaLista dados={processos.dados} totalNoResumo={processos.totalNoResumo} />
       ) : resumo ? (
-        <>
-          <ResumoNumeros resumo={resumo.dados} />
-          {resumo.dados.total > 0 && <PontosDeAtencao pontos={resumo.pontosDeAtencao} />}
-        </>
+        <ResumoNumeros resumo={resumo.dados} />
       ) : (
-        !reuPendente && (
-          <p className="text-sm text-gray-500">
-            Nunca consultado. A consulta traz os processos em que a empresa é ré, da base histórica da Judit e dos tribunais
-            ao vivo. Para empresa grande, faça antes a pré-consulta: ela mostra quantos processos há e quanto vai custar.
-          </p>
-        )
+        <p className="text-sm text-gray-500">
+          Nunca consultado. O resumo traz quantos processos a empresa tem, como ré e como autora, a distribuição por
+          assunto, classe e tribunal e os pontos de atenção. Depois, a lista traz cada processo.
+        </p>
       )}
 
-      {resumo && resumo.dados.total > 0 && (
+      {temProcessos && <PontosDeAtencao pontos={resumo.pontosDeAtencao} />}
+
+      {temProcessos && (
         <details className="group rounded-lg border border-border-light dark:border-border-dark">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-500 [&::-webkit-details-marker]:hidden">
             <Icon name="expand_more" size={14} className="transition-transform group-open:rotate-180" />
             Distribuição por assunto, classe, tribunal e área
-            <span className="font-normal text-gray-400">· pré-consulta da Judit, conta cada instância</span>
+            <span className="font-normal text-gray-400">· resumo da Judit, conta cada instância</span>
           </summary>
           <div className="grid gap-4 border-t border-border-light p-3 sm:grid-cols-2 lg:grid-cols-4 dark:border-border-dark">
             <ListaContagem titulo="Assuntos" itens={resumo.dados.assuntos} />
@@ -136,139 +133,39 @@ function Conteudo({ cnpj, nomeEmpresa, situacao }: { cnpj: string; nomeEmpresa?:
         </details>
       )}
 
-      {/* Só a faixa do pedido pendente, sem nada consultado antes: o rodapé ficaria vazio. */}
-      {(processos || resumo || !reuPendente) && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-[#C6F1D6] pt-4 dark:border-[#15BE62]/25">
-          {processos && (
-            <Link
-              href={`/clients/${cnpj}/processos${nomeEmpresa ? `?nome=${encodeURIComponent(nomeEmpresa)}` : ""}`}
-              className={BOTAO.judit}
-            >
-              <Icon name="format_list_bulleted" size={16} />
-              Ver os {processos.dados.quantidade} processos
-            </Link>
-          )}
-          {!processos && !reuPendente && (
-            <button
-              type="button"
-              className={BOTAO.judit}
-              disabled={bloqueio !== null}
-              title={bloqueio ?? undefined}
-              onClick={() => setPopup("PASSIVO")}
-            >
-              <Icon name="gavel" size={16} /> Consultar processos
-            </button>
-          )}
-          <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex flex-col items-end gap-0.5">
-              {processos && (
-                <Carimbo
-                  rotulo={processos.onDemand ? (processos.somenteReu ? "On Demand (ré)" : "On Demand (ré e autora)") : "Lista consultada"}
-                  {...processos}
-                  validadeDias={situacao.validadeDias}
-                />
-              )}
-              {resumo && <Carimbo rotulo="Pré-consulta" {...resumo} validadeDias={situacao.validadeDias} />}
-            </div>
-            {podeBuscarAutora && (
-              <button
-                type="button"
-                className={BOTAO.fantasma}
-                disabled={bloqueio !== null}
-                title={bloqueio ?? "Outro pedido On Demand, só com os processos em que a empresa é autora"}
-                onClick={() => setPopup("ATIVO")}
-              >
-                <Icon name="add" size={16} />
-                {processos?.somenteReu ? "Buscar também como autora" : "Atualizar como autora"}
-              </button>
-            )}
-            {processos && !reuPendente && (
-              <button
-                type="button"
-                className={BOTAO.fantasma}
-                disabled={bloqueio !== null}
-                title={bloqueio ?? undefined}
-                onClick={() => setPopup("PASSIVO")}
-              >
-                <Icon name="refresh" size={16} /> Atualizar
-              </button>
-            )}
+      <div className="flex flex-wrap items-center gap-2 border-t border-[#C6F1D6] pt-4 dark:border-[#15BE62]/25">
+        {processos && (
+          <Link
+            href={`/clients/${cnpj}/processos${nomeEmpresa ? `?nome=${encodeURIComponent(nomeEmpresa)}` : ""}`}
+            className={BOTAO.judit}
+          >
+            <Icon name="format_list_bulleted" size={16} />
+            Ver os {processos.dados.quantidade} processos
+          </Link>
+        )}
+        {!processos && botaoLista}
+        {!resumo && botaoResumo}
+        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex flex-col items-end gap-0.5">
+            {processos && <Carimbo rotulo="Lista consultada" {...processos} validadeDias={situacao.validadeDias} />}
+            {resumo && <Carimbo rotulo="Resumo consultado" {...resumo} validadeDias={situacao.validadeDias} />}
           </div>
+          {processos && botaoLista}
+          {resumo && botaoResumo}
         </div>
-      )}
-
-      {popup && (
-        <ConsultaProcessosModal
-          cnpj={cnpj}
-          nomeEmpresa={nomeEmpresa}
-          situacao={situacao}
-          polo={popup}
-          onFechar={() => setPopup(null)}
-        />
-      )}
+      </div>
     </>
   );
 }
 
-/** On Demand pendente (a Judit está nos tribunais) ou que falhou. A lista anterior, se houver, segue abaixo. */
-function PedidoAberto({
-  pedido,
-  verificando,
-  onVerificar,
-  onTentarDeNovo,
-}: {
-  pedido: JuditOnDemand;
-  verificando: boolean;
-  onVerificar: () => void;
-  /** Sem ele, a pessoa não pode consultar (sem marca, sem chave ou no limite). */
-  onTentarDeNovo?: () => void;
-}) {
-  const como = pedido.polo === "PASSIVO" ? "como ré" : "como autora";
-  const quando = `${data(pedido.pedidoEm)} às ${hora(pedido.pedidoEm)}${pedido.pedidoPor ? ` por ${pedido.pedidoPor}` : ""}`;
-  if (pedido.situacao === "FALHOU") {
-    return (
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-        <Icon name="warning" size={18} className="shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">A Judit não conseguiu consultar os processos {como}.</p>
-          <p className="text-xs">
-            Pedido em {quando} · {moeda(pedido.custo)}. {pedido.erro}
-          </p>
-        </div>
-        {onTentarDeNovo && (
-          <button type="button" className={BOTAO.fantasma} onClick={onTentarDeNovo}>
-            <Icon name="refresh" size={16} /> Tentar de novo
-          </button>
-        )}
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#15BE62]/50 bg-[#15BE62]/[0.06] px-4 py-3">
-      <Icon name="progress_activity" size={20} className="shrink-0 animate-spin text-[#047857] dark:text-[#15BE62]" />
-      <div className="min-w-0 flex-1 text-sm text-grafite dark:text-gray-200">
-        <p className="font-semibold">A Judit está buscando os processos {como} nos tribunais…</p>
-        <p className="mt-0.5 text-xs text-gray-500">
-          Pedido em {quando} · estimativa {moeda(pedido.custoEstimado ?? pedido.custo)}
-          {!pedido.comPreConsulta && " (sem pré-consulta)"}. Pode levar de minutos a horas — o sino avisa quando ficar pronto.
-        </p>
-      </div>
-      <button type="button" className={BOTAO.fantasma} disabled={verificando} onClick={onVerificar}>
-        <Icon name="refresh" size={16} /> Verificar agora (sem custo)
-      </button>
-    </div>
-  );
-}
-
-/** Só a pré-consulta, sem a lista: os números são da Judit, que conta cada instância como um registro. */
+/** Só o resumo, sem a lista: os números são da Judit, que conta cada instância como um registro. */
 function ResumoNumeros({ resumo }: { resumo: JuditResumo }) {
   if (resumo.total === 0) {
     return (
       <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
         {resumo.naoEncontrado
-          ? "A Judit não tem registro de processos para este CNPJ na base histórica."
-          : "Nenhum processo na base histórica para este CNPJ."}{" "}
-        O On Demand ainda pode achar processos recentes nos tribunais.
+          ? "A Judit não tem registro de processos para este CNPJ."
+          : "Nenhum processo encontrado para este CNPJ."}
       </p>
     );
   }
@@ -281,8 +178,8 @@ function ResumoNumeros({ resumo }: { resumo: JuditResumo }) {
         <Numero rotulo="Em segredo" valor={resumo.emSegredo} />
       </div>
       <p className="text-[11px] text-gray-500">
-        Pré-consulta: a Judit conta um registro por instância, então o mesmo processo pode aparecer duas vezes. O On Demand
-        junta as instâncias e mostra os processos únicos — o número dele costuma ser menor.
+        A Judit conta um registro por instância, então o mesmo processo pode aparecer duas vezes. A lista junta as
+        instâncias e mostra os processos únicos — o número dela costuma ser menor.
       </p>
     </div>
   );

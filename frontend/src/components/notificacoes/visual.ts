@@ -16,6 +16,4 @@ export const VISUAL: Record<TipoNotificacao, { icone: string; cor: string }> = {
   // Verde da Judit (judit.io), o mesmo do card de processos.
   JUDIT_PROCESSO_PRONTO: { icone: "gavel", cor: "bg-[#15BE62]/15 text-[#047857] dark:bg-[#15BE62]/25 dark:text-[#15BE62]" },
   JUDIT_PROCESSO_FALHOU: { icone: "warning", cor: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
-  JUDIT_CONSULTA_PRONTA: { icone: "balance", cor: "bg-[#15BE62]/15 text-[#047857] dark:bg-[#15BE62]/25 dark:text-[#15BE62]" },
-  JUDIT_CONSULTA_FALHOU: { icone: "warning", cor: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
 };

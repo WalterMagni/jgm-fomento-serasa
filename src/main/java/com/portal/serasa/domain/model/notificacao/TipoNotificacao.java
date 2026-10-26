@@ -18,9 +18,5 @@ public enum TipoNotificacao {
     /** Judit: o detalhe de processo pedido ficou pronto (resumo de IA e movimentações). */
     JUDIT_PROCESSO_PRONTO,
     /** Judit: o detalhe de processo falhou ou passou do tempo. */
-    JUDIT_PROCESSO_FALHOU,
-    /** Judit: a consulta On Demand dos processos da empresa ficou pronta. */
-    JUDIT_CONSULTA_PRONTA,
-    /** Judit: a consulta On Demand falhou. */
-    JUDIT_CONSULTA_FALHOU
+    JUDIT_PROCESSO_FALHOU
 }

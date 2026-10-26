@@ -192,8 +192,7 @@ export default function ProcessosJuditPage() {
       <div className="space-y-3 p-6">
         {voltar}
         <p className="text-sm text-gray-500">
-          Os processos desta empresa ainda não foram consultados — ou a consulta ainda está nos tribunais. Consulte pelo card
-          Processos judiciais na Visão 360º; o sino avisa quando ficar pronto.
+          A lista de processos desta empresa ainda não foi buscada. Busque pelo card Processos judiciais na Visão 360º.
         </p>
       </div>
     );
@@ -212,13 +211,8 @@ export default function ProcessosJuditPage() {
             </p>
             <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-[-0.02em] text-grafite dark:text-white">{titulo}</h1>
             <p className="mt-1 text-sm text-suave">
-              {nome && `${formatarCnpj(cnpj)} · `}
-              {consulta.onDemand ? "On Demand: base histórica + tribunais" : "base histórica da Judit (Data Lake)"} ·{" "}
-              <Carimbo
-                rotulo={consulta.onDemand ? "consultado" : "lista consultada"}
-                {...consulta}
-                validadeDias={situacao?.validadeDias ?? 30}
-              />
+              {nome && `${formatarCnpj(cnpj)} · `}base histórica da Judit (Data Lake) ·{" "}
+              <Carimbo rotulo="lista consultada" {...consulta} validadeDias={situacao?.validadeDias ?? 30} />
             </p>
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
@@ -235,7 +229,7 @@ export default function ProcessosJuditPage() {
 
       {resumo && resumo.dados.total > 0 && (
         <section className="break-inside-avoid rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark">
-          <h2 className="text-sm font-bold text-[#047857] dark:text-[#15BE62]">Distribuição pela pré-consulta da Judit</h2>
+          <h2 className="text-sm font-bold text-[#047857] dark:text-[#15BE62]">Distribuição pelo resumo da Judit</h2>
           <p className="mb-4 text-[11px] text-gray-500">
             {resumo.dados.total} registros — a Judit conta cada instância, por isso os números são maiores que os da lista.
             Clique num item para filtrar a lista.
@@ -255,9 +249,7 @@ export default function ProcessosJuditPage() {
           <TotaisDaLista dados={consulta.dados} totalNoResumo={consulta.totalNoResumo} onAssunto={filtrarPor(setTipo)} />
           {consulta.somenteReu && (
             <p className="mt-3 text-[11px] text-gray-500">
-              {consulta.onDemand
-                ? "Só os processos em que a empresa é ré. Para ver também como autora, use “Buscar também como autora” no card da Visão 360º."
-                : "A empresa passa de 1.000 registros na Judit, que corta nesse número; a busca pediu só os processos em que ela é ré."}
+              A empresa passa de 1.000 registros na Judit, que corta nesse número; a busca pediu só os processos em que ela é ré.
             </p>
           )}
         </div>

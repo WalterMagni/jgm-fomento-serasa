@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import type {
   JuditDetalheConsultado,
   JuditPainelConsumo,
-  JuditPoloConsulta,
   JuditProcessosConsultados,
   JuditSituacao,
 } from "@/types/judit";
@@ -31,28 +30,21 @@ async function pedir(url: string, init: RequestInit, fallback: string): Promise<
 const chave = (cnpj: string) => ["judit", cnpj] as const;
 const chaveLista = (cnpj: string) => ["juditProcessos", cnpj] as const;
 
-const pendente = (situacao: JuditSituacao | undefined) =>
-  situacao?.onDemandReu?.situacao === "PENDENTE" || situacao?.onDemandAutor?.situacao === "PENDENTE";
-
-/**
- * Só lê o que já foi consultado — não gasta. Com um On Demand pendente, relê a cada 15 s: o sino
- * também avisa, mas quem está com a Visão 360º aberta vê o card mudar sozinho.
- */
+/** Só lê o que já foi consultado — não gasta. */
 export function useJudit(cnpj: string) {
   const limpo = cnpj.replace(/\D/g, "");
   return useQuery<JuditSituacao>({
     queryKey: chave(limpo),
     enabled: limpo.length === 14,
     queryFn: () => pedir(`${API_BASE_URL}/company/${limpo}/judit`, {}, "Não foi possível carregar os processos."),
-    refetchInterval: query => (pendente(query.state.data) ? 15000 : false),
   });
 }
 
-/** Ação que devolve a situação nova do card. As que cobram passam pelas travas no servidor (marca e limite). */
-function useAcaoJudit<V>(cnpj: string, caminho: string, sucesso: string) {
+/** Consulta cobrada. O servidor confere a marca Judit e o limite do mês antes de chamar. */
+function useConsultaJudit(cnpj: string, caminho: string, sucesso: string) {
   const limpo = cnpj.replace(/\D/g, "");
   const queryClient = useQueryClient();
-  return useMutation<JuditSituacao, Error, V>({
+  return useMutation<JuditSituacao, Error, { nomeEmpresa?: string | null }>({
     mutationFn: corpo =>
       pedir(
         `${API_BASE_URL}/company/${limpo}/judit${caminho}`,
@@ -71,23 +63,13 @@ function useAcaoJudit<V>(cnpj: string, caminho: string, sucesso: string) {
   });
 }
 
-/** Pré-consulta (resumo do Data Lake): síncrona, cobra o preço fixo. */
+/** O nome vai junto para o painel de consumo, que lista as consultas por empresa. */
 export function useConsultarResumoJudit(cnpj: string) {
-  return useAcaoJudit<{ nomeEmpresa?: string | null }>(cnpj, "/resumo", "Pré-consulta pronta");
+  return useConsultaJudit(cnpj, "/resumo", "Resumo processual atualizado");
 }
 
-/** Pede o On Demand de um polo. Cobra a estimativa; volta pendente e o sino avisa quando ficar pronto. */
-export function useConsultarOnDemand(cnpj: string) {
-  return useAcaoJudit<{ polo: JuditPoloConsulta; nomeEmpresa?: string | null }>(
-    cnpj,
-    "/on-demand",
-    "Pedido enviado à Judit — você recebe um aviso no sino quando ficar pronto",
-  );
-}
-
-/** Retoma o acompanhamento de um On Demand pendente. Não cobra. */
-export function useVerificarOnDemand(cnpj: string) {
-  return useAcaoJudit<{ polo: JuditPoloConsulta }>(cnpj, "/on-demand/verificar", "Verificando com a Judit");
+export function useConsultarProcessosJudit(cnpj: string) {
+  return useConsultaJudit(cnpj, "/processos", "Lista de processos atualizada");
 }
 
 /** Aba Consumo Judit: franquia do mês, consultas do período e liberações. Não cobra. */

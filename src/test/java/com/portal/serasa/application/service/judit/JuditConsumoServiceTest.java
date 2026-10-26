@@ -1,7 +1,6 @@
 package com.portal.serasa.application.service.judit;
 
 import com.portal.serasa.domain.exception.AcessoNegadoException;
-import com.portal.serasa.domain.model.PoloJudit;
 import com.portal.serasa.domain.model.ServicoJudit;
 import com.portal.serasa.domain.model.SituacaoConsultaJudit;
 import com.portal.serasa.infrastructure.integration.judit.JuditProperties;
@@ -48,7 +47,7 @@ class JuditConsumoServiceTest {
     @BeforeEach
     void setUp() {
         JuditProperties properties = new JuditProperties("chave", "l", "r", new BigDecimal("0.75"),
-                new BigDecimal("6.00"), new BigDecimal("0.35"), new BigDecimal("1000"), new BigDecimal("1500"), 30, 5, 10, 360);
+                new BigDecimal("1.50"), new BigDecimal("0.35"), new BigDecimal("1000"), new BigDecimal("1500"), 30, 5, 10);
         service = new JuditConsumoService(consultas, liberacoes, new JuditFranquia(consultas, liberacoes, properties),
                 new AdminAllowList("walter@admin.com"));
         admin = UserEntity.builder().id(UUID.randomUUID()).name("Walter").email("walter@admin.com").build();
@@ -60,24 +59,22 @@ class JuditConsumoServiceTest {
                 .criadoEm(LocalDateTime.now()).build()));
     }
 
-    private static JuditConsultaJpaRepository.ConsultaDoPainel linha(ServicoJudit servico, UUID preConsulta) {
+    private static JuditConsultaJpaRepository.ConsultaDoPainel linha(ServicoJudit servico, String nome) {
         JuditConsultaJpaRepository.ConsultaDoPainel linha = mock(JuditConsultaJpaRepository.ConsultaDoPainel.class);
         when(linha.getServico()).thenReturn(servico);
-        when(linha.getPreConsultaId()).thenReturn(preConsulta);
-        when(linha.getPolo()).thenReturn(servico == ServicoJudit.ON_DEMAND ? PoloJudit.PASSIVO : null);
+        when(linha.getNomeEmpresa()).thenReturn(nome);
         when(linha.getSituacao()).thenReturn(SituacaoConsultaJudit.CONCLUIDA);
-        when(linha.getCusto()).thenReturn(new BigDecimal("12.00"));
-        when(linha.getCustoEstimado()).thenReturn(new BigDecimal("6.00"));
+        when(linha.getCusto()).thenReturn(new BigDecimal("1.50"));
         return linha;
     }
 
     @Test
-    @DisplayName("painel: limite do mês soma a liberação, e a pré-consulta só é marcada no On Demand")
+    @DisplayName("painel: limite do mês soma a liberação e a tabela traz as consultas do período")
     void painel() {
         List<JuditConsultaJpaRepository.ConsultaDoPainel> linhas = List.of(
-                linha(ServicoJudit.ON_DEMAND, null),
-                linha(ServicoJudit.ON_DEMAND, UUID.randomUUID()),
-                linha(ServicoJudit.RESUMO, null));
+                linha(ServicoJudit.PROCESSOS, "CISCO"),
+                linha(ServicoJudit.RESUMO, "CISCO"),
+                linha(ServicoJudit.DETALHE, null));
         when(consultas.doPainelDesde(any())).thenReturn(linhas);
 
         JuditConsumoService.Painel painel = service.painel(30, analista);
@@ -88,8 +85,10 @@ class JuditConsumoServiceTest {
         assertThat(painel.mes().liberado()).isEqualByComparingTo("500");
         assertThat(painel.podeLiberar()).isFalse();
         assertThat(painel.liberacoes()).hasSize(1);
-        assertThat(painel.consultas()).extracting(JuditConsumoService.Consulta::comPreConsulta)
-                .containsExactly(false, true, null);
+        assertThat(painel.consultas()).extracting(JuditConsumoService.Consulta::servico)
+                .containsExactly(ServicoJudit.PROCESSOS, ServicoJudit.RESUMO, ServicoJudit.DETALHE);
+        assertThat(painel.consultas()).extracting(JuditConsumoService.Consulta::nomeEmpresa)
+                .containsExactly("CISCO", "CISCO", null);
     }
 
     @Test

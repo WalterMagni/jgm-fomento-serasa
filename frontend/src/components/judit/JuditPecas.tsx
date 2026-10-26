@@ -32,12 +32,6 @@ export function data(valor: string | null | undefined) {
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : "—";
 }
 
-/** "14:32" de um LocalDateTime do backend (sem fuso: é a hora de Brasília, a mesma do navegador). */
-export function hora(valor: string | null | undefined) {
-  if (!valor) return "—";
-  return valor.slice(11, 16) || "—";
-}
-
 /** Sem acento e em minúsculas: "SÃO PAULO" casa com "sao paulo". */
 export function normalizar(texto: string) {
   return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -377,8 +371,8 @@ const ICONE_DO_PONTO: Record<JuditPontoDeAtencao["tipo"], string> = {
 };
 
 /**
- * O que a pré-consulta acusou: criminal, falência, execução fiscal, título contestado, trabalhista.
- * Os agregados da Judit não se cruzam com o polo — a ressalva vai junto, sempre.
+ * O que o resumo acusou: criminal, falência, execução fiscal, título contestado, trabalhista. Os
+ * agregados da Judit não se cruzam com o polo — a ressalva vai junto, sempre.
  */
 export function PontosDeAtencao({ pontos }: { pontos: JuditPontoDeAtencao[] }) {
   if (pontos.length === 0) {
@@ -409,31 +403,10 @@ export function PontosDeAtencao({ pontos }: { pontos: JuditPontoDeAtencao[] }) {
       </ul>
       <p className="text-[11px] text-gray-500">
         O resumo não cruza área com polo: um processo criminal pode ter a empresa como vítima, e uma falência pode ser de
-        um cliente em que ela é credora. O On Demand mostra cada processo.
+        um cliente em que ela é credora. A lista mostra cada processo.
       </p>
     </div>
   );
-}
-
-/** Onde o mês fica com esta consulta: dentro da franquia, no excedente ou passando do limite. */
-export function faixaDoMes(consumo: JuditSituacao["consumo"], custo: number) {
-  const depois = consumo.gastoMes + custo;
-  if (depois > consumo.limite) {
-    return {
-      tom: "limite" as const,
-      texto: `Passa do limite do mês (${moeda(consumo.limite)}): o mês ficaria em ${moeda(depois)}. Peça ao admin para liberar um valor a mais.`,
-    };
-  }
-  if (depois > consumo.franquia) {
-    return {
-      tom: "excedente" as const,
-      texto: `Entra no excedente: o mês fica em ${moeda(depois)}, ${moeda(depois - consumo.franquia)} acima da franquia de ${moeda(consumo.franquia)}.`,
-    };
-  }
-  return {
-    tom: "franquia" as const,
-    texto: `Dentro da franquia: o mês fica em ${moeda(depois)} de ${moeda(consumo.franquia)}, que já estão pagos.`,
-  };
 }
 
 /** Por que um botão que cobra está travado. Nulo = pode consultar. O servidor confere de novo. */

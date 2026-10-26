@@ -1,6 +1,5 @@
 package com.portal.serasa.infrastructure.persistence.repository;
 
-import com.portal.serasa.domain.model.PoloJudit;
 import com.portal.serasa.domain.model.ServicoJudit;
 import com.portal.serasa.domain.model.SituacaoConsultaJudit;
 import com.portal.serasa.infrastructure.persistence.entity.JuditConsultaEntity;
@@ -45,14 +44,6 @@ public interface JuditConsultaJpaRepository extends JpaRepository<JuditConsultaE
     @Query("select coalesce(sum(c.custo), 0) from JuditConsultaEntity c where c.criadoEm >= :inicio")
     BigDecimal somarCustoDesde(@Param("inicio") LocalDateTime inicio);
 
-    /** O último On Demand do polo, em qualquer situação. */
-    Optional<JuditConsultaEntity> findFirstByDocumentoAndServicoAndPoloOrderByCriadoEmDesc(
-            String documento, ServicoJudit servico, PoloJudit polo);
-
-    /** O último On Demand concluído do polo: é o que a lista mostra enquanto outro está pendente. */
-    Optional<JuditConsultaEntity> findFirstByDocumentoAndServicoAndPoloAndSituacaoOrderByCriadoEmDesc(
-            String documento, ServicoJudit servico, PoloJudit polo, SituacaoConsultaJudit situacao);
-
     /** Pedidos pendentes recentes, para o acompanhamento. São poucos: não precisa de projeção. */
     List<JuditConsultaEntity> findBySituacaoAndCriadoEmAfterOrderByCriadoEmAsc(
             SituacaoConsultaJudit situacao, LocalDateTime desde);
@@ -71,17 +62,11 @@ public interface JuditConsultaJpaRepository extends JpaRepository<JuditConsultaE
 
         ServicoJudit getServico();
 
-        PoloJudit getPolo();
-
         String getCnj();
 
         SituacaoConsultaJudit getSituacao();
 
-        BigDecimal getCustoEstimado();
-
         BigDecimal getCusto();
-
-        UUID getPreConsultaId();
 
         Integer getTotalProcessos();
 
@@ -92,8 +77,7 @@ public interface JuditConsultaJpaRepository extends JpaRepository<JuditConsultaE
 
     @Query("""
             select c.id as id, c.documento as documento, c.nomeEmpresa as nomeEmpresa, c.servico as servico,
-                   c.polo as polo, c.cnj as cnj, c.situacao as situacao, c.custoEstimado as custoEstimado,
-                   c.custo as custo, c.preConsultaId as preConsultaId, c.totalProcessos as totalProcessos,
+                   c.cnj as cnj, c.situacao as situacao, c.custo as custo, c.totalProcessos as totalProcessos,
                    c.usuarioNome as usuarioNome, c.criadoEm as criadoEm
             from JuditConsultaEntity c where c.criadoEm >= :inicio order by c.criadoEm desc""")
     List<ConsultaDoPainel> doPainelDesde(@Param("inicio") LocalDateTime inicio);

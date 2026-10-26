@@ -20,14 +20,13 @@ public record JuditProperties(
         String lawsuitsUrl,
         String requestsUrl,
         BigDecimal custoResumo,
-        BigDecimal custoOnDemandPorMil,
+        BigDecimal custoProcessosPorMil,
         BigDecimal custoDetalhe,
         BigDecimal franquiaMensal,
         BigDecimal limiteMensal,
         int validadeDias,
         int acompanhamentoIntervaloSegundos,
-        int acompanhamentoLimiteMinutos,
-        int acompanhamentoOnDemandLimiteMinutos) {
+        int acompanhamentoLimiteMinutos) {
 
     public boolean configurada() {
         return apiKey != null && !apiKey.isBlank();

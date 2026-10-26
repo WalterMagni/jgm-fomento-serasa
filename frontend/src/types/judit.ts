@@ -21,22 +21,13 @@ export type JuditResumo = {
 };
 
 /**
- * Algo na pré-consulta que merece olhar antes do On Demand. Os agregados não se cruzam com o polo:
- * "processo criminal" pode ser a empresa como vítima.
+ * Algo no resumo que merece olhar antes da lista. Os agregados não se cruzam com o polo: "processo
+ * criminal" pode ser a empresa como vítima.
  */
 export type JuditPontoDeAtencao = {
   tipo: "CRIMINAL" | "RECUPERACAO_FALENCIA" | "EXECUCAO_FISCAL" | "TITULO_CONTESTADO" | "TRABALHISTA";
   titulo: string;
   quantidade: number;
-};
-
-/** O que um On Demand deve custar. `processos` nulo: sem pré-consulta, vale um bloco. */
-export type JuditEstimativa = {
-  processos: number | null;
-  blocos: number;
-  custo: number;
-  /** Perto da virada do bloco: o tribunal pode trazer o bastante para mais um. */
-  podeVirarBloco: boolean;
 };
 
 export type JuditPolo = "REU" | "AUTOR" | "TERCEIRO" | "DESCONHECIDO";
@@ -86,49 +77,19 @@ type Consultado = {
   desatualizado: boolean;
 };
 
-/** A pré-consulta: o resumo do Data Lake, com o que olhar e o custo estimado do On Demand. */
-export type JuditResumoConsultado = Consultado & {
-  dados: JuditResumo;
-  pontosDeAtencao: JuditPontoDeAtencao[];
-  estimativaReu: JuditEstimativa;
-  estimativaAutor: JuditEstimativa;
-};
+export type JuditResumoConsultado = Consultado & { dados: JuditResumo; pontosDeAtencao: JuditPontoDeAtencao[] };
 
 export type JuditProcessosConsultados = Consultado & {
-  /** Veio do On Demand. Falso é a lista antiga do Data Lake (fase 1), que continua legível. */
-  onDemand: boolean;
-  /** Só os processos em que a empresa é ré: On Demand sem o pedido como autora, ou Data Lake acima de 1.000. */
+  /** A empresa passou de 1.000 processos no resumo: a lista pediu só os de ré. */
   somenteReu: boolean;
-  /** Só na lista antiga do Data Lake: o total do resumo, que a lista podia não alcançar. */
   totalNoResumo: number | null;
   dados: JuditProcessos;
   /** Situação do último detalhe de cada processo detalhado, por número CNJ. Vazio no card. */
   detalhes: Record<string, JuditSituacaoConsulta>;
 };
 
-/** Detalhe e On Demand são assíncronos: nascem PENDENTE (já cobrados) e o backend acompanha até a Judit terminar. */
+/** O detalhe é assíncrono: nasce PENDENTE (já cobrado) e o backend acompanha até a Judit terminar. */
 export type JuditSituacaoConsulta = "PENDENTE" | "CONCLUIDA" | "FALHOU";
-
-/** Polo pedido no On Demand: ré (o padrão) ou autora, num pedido à parte. */
-export type JuditPoloConsulta = "PASSIVO" | "ATIVO";
-
-/** O último On Demand de um polo. Enquanto um novo está pendente, a lista segue sendo a do último concluído. */
-export type JuditOnDemand = {
-  polo: JuditPoloConsulta;
-  situacao: JuditSituacaoConsulta;
-  pedidoEm: string;
-  pedidoPor: string | null;
-  custoEstimado: number | null;
-  /** O estimado enquanto pendente; o real depois que a resposta chega. */
-  custo: number;
-  /** A estimativa saiu de uma pré-consulta; falso foi "consultar direto". */
-  comPreConsulta: boolean;
-  concluidoEm: string | null;
-  erro: string | null;
-  /** Registros devolvidos (o que a Judit cobra). Nulo enquanto pendente. */
-  total: number | null;
-  desatualizado: boolean;
-};
 
 export type JuditParte = { nome: string; polo: "ATIVO" | "PASSIVO" | "INTERESSADO" | "OUTRO"; tipo: string | null; auxiliar: boolean };
 
@@ -175,12 +136,9 @@ export type JuditSituacao = {
   validadeDias: number;
   /** Mês do calendário. `limite` já soma o `liberado` pelo admin; a franquia é o piso da conta. */
   consumo: { gastoMes: number; franquia: number; limite: number; liberado: number };
-  /** `resumo` é a pré-consulta; o On Demand custa `onDemandPorMil` a cada 1.000 processos devolvidos. */
-  precos: { resumo: number; onDemandPorMil: number; detalhe: number };
+  precos: { resumo: number; processosPorMil: number; detalhe: number };
   resumo: JuditResumoConsultado | null;
   processos: JuditProcessosConsultados | null;
-  onDemandReu: JuditOnDemand | null;
-  onDemandAutor: JuditOnDemand | null;
 };
 
 /** Aba Consumo Judit das Configurações. Espelha JuditConsumoService.Painel. */
@@ -189,14 +147,11 @@ export type JuditConsultaDoPainel = {
   usuarioNome: string | null;
   documento: string;
   nomeEmpresa: string | null;
-  servico: "RESUMO" | "PROCESSOS" | "DETALHE" | "ON_DEMAND";
-  polo: JuditPoloConsulta | null;
+  servico: "RESUMO" | "PROCESSOS" | "DETALHE";
+  /** Só no detalhe de processo. */
   cnj: string | null;
   situacao: JuditSituacaoConsulta;
-  custoEstimado: number | null;
   custo: number;
-  /** Só no On Demand: a estimativa saiu de uma pré-consulta. Nulo nos outros. */
-  comPreConsulta: boolean | null;
   totalProcessos: number | null;
   criadoEm: string;
 };

@@ -282,7 +282,7 @@ class JuditLeituraTest {
         assertThat(detalhe.resumoIa()).isNull();
     }
 
-    // ── pré-consulta e On Demand ────────────────────────────────────────────────────────────────
+    // ── pontos de atenção ──────────────────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("pontos de atenção: o maior entre as dimensões, sem confundir cláusula penal nem processo civil")
@@ -318,34 +318,5 @@ class JuditLeituraTest {
                 """));
 
         assertThat(JuditLeitura.pontosDeAtencao(resumo)).isEmpty();
-    }
-
-    @Test
-    @DisplayName("On Demand: os itens 'lawsuit' do page_data viram a lista no formato do Data Lake")
-    void listaDoOnDemand() throws Exception {
-        JsonNode respostas = json("""
-                {'all_count': 2, 'page_data': [
-                  {'response_type': 'lawsuit', 'cached': true, 'response_data': {'code': 'A', 'instance': 1}},
-                  {'response_type': 'application_info', 'response_data': {'x': 1}},
-                  {'response_type': 'lawsuit', 'response_data': {'code': 'B', 'instance': 1}}]}
-                """);
-
-        JsonNode lista = JuditLeitura.listaDoOnDemand(respostas);
-
-        assertThat(lista.path("lawsuits")).hasSize(2);
-        assertThat(lista.path("lawsuits").get(1).path("code").asText()).isEqualTo("B");
-        assertThat(JuditLeitura.registros(lista)).isEqualTo(2);
-    }
-
-    @Test
-    @DisplayName("juntar listas: o mesmo processo na mesma instância entra uma vez; outra instância entra")
-    void juntarListas() throws Exception {
-        JsonNode reu = json("{'lawsuits': [{'code': 'A', 'instance': 1}, {'code': 'A', 'instance': 2}]}");
-        JsonNode autor = json("{'lawsuits': [{'code': 'A', 'instance': 2}, {'code': 'B', 'instance': 1}]}");
-
-        JsonNode junta = JuditLeitura.juntarListas(List.of(reu, autor));
-
-        assertThat(junta.path("lawsuits")).extracting(n -> n.path("code").asText() + n.path("instance").asText())
-                .containsExactly("A1", "A2", "B1");
     }
 }
