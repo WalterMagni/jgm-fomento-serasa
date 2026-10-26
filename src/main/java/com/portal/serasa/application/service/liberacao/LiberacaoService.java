@@ -7,6 +7,7 @@ import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
 import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
+import com.portal.serasa.domain.model.liberacao.OpiniaoOperador;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
 import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import com.portal.serasa.domain.model.liberacao.QuadroOpiniao;
@@ -828,39 +829,22 @@ public class LiberacaoService {
     }
 
     /**
-     * Marca o quadrado O de um sacado: qualquer pessoa, com o card na Origem. Situação nula limpa.
-     * Desde a V88 a tela não mostra o O; C e D são decisões e passam por {@link #decidirSacado}.
+     * Marca o quadrado O de um sacado — a opinião dos operadores, que inclui Amostragem e não entra no
+     * resultado. Situação nula limpa. C e D são decisões e passam por {@link #decidirSacado}.
      */
     @Transactional
     public LiberacaoCardEntity opinarSacado(UUID cardId, String documento, QuadroOpiniao quadro,
-                                            ResultadoLiberacao situacao, UserEntity autor) {
+                                            OpiniaoOperador situacao, UserEntity autor) {
         if (quadro != QuadroOpiniao.ORIGEM) {
             throw new IllegalArgumentException("O quadrado " + quadro.letra() + " é decisão: marque pela decisão do sacado.");
         }
         LiberacaoCardEntity card = buscar(cardId);
         exigirQuadro(card, quadro, autor);
         LiberacaoSacadoEntity sacado = sacadoDoCard(cardId, documento);
-        ResultadoLiberacao atual = quadro == QuadroOpiniao.ORIGEM ? sacado.getOpiniaoOrigem() : sacado.getOpiniaoComite();
-        if (atual == situacao) {
+        if (!aplicarOpiniao(card, sacado, situacao, autor)) {
             return card;
         }
-        LocalDateTime agora = LocalDateTime.now();
-        String nome = situacao == null ? null : autor.getName();
-        LocalDateTime quando = situacao == null ? null : agora;
-        if (quadro == QuadroOpiniao.ORIGEM) {
-            sacado.setOpiniaoOrigem(situacao);
-            sacado.setOpiniaoOrigemPorNome(nome);
-            sacado.setOpiniaoOrigemEm(quando);
-        } else {
-            sacado.setOpiniaoComite(situacao);
-            sacado.setOpiniaoComitePorNome(nome);
-            sacado.setOpiniaoComiteEm(quando);
-        }
-        sacadoRepository.save(sacado);
-        registrar(card, TipoEventoLiberacao.EDICAO, null, null,
-                quadro == QuadroOpiniao.ORIGEM ? "opiniaoOrigem" : "opiniaoComite",
-                rotuloOpiniao(atual), rotuloOpiniao(situacao), rotuloSacado(sacado.getCnpj(), sacado.getNome()), autor);
-        cardRepository.tocarSemVersao(cardId, agora, autor.getId(), autor.getName());
+        cardRepository.tocarSemVersao(cardId, LocalDateTime.now(), autor.getId(), autor.getName());
         LiberacaoCardEntity atualizado = buscar(cardId);
         avisarEdicao(atualizado, autor);
         return atualizado;
@@ -876,13 +860,46 @@ public class LiberacaoService {
         exigirQuadro(card, quadro, autor);
         LiberacaoSacadoEntity sacado = sacadoDoCard(cardId, documento);
         String novo = textoOuNulo(texto);
-        String anterior = switch (quadro) {
+        String anterior = parecerDo(sacado, quadro);
+        if (!aplicarParecer(card, sacado, quadro, novo, autor)) {
+            return card;
+        }
+        cardRepository.tocarSemVersao(cardId, LocalDateTime.now(), autor.getId(), autor.getName());
+        LiberacaoCardEntity atualizado = buscar(cardId);
+        Set<UUID> mencionados = acompanharMencionados(cardId, MencaoParser.novosUsuarios(anterior, novo));
+        eventos.publishEvent(new LiberacaoEvento.Editado(atualizado, autor, mencionados, trecho(novo)));
+        return atualizado;
+    }
+
+    /** Grava a opinião O; false quando já era essa (nada gravado). */
+    private boolean aplicarOpiniao(LiberacaoCardEntity card, LiberacaoSacadoEntity sacado, OpiniaoOperador situacao,
+                                   UserEntity autor) {
+        OpiniaoOperador atual = sacado.getOpiniaoOrigem();
+        if (atual == situacao) {
+            return false;
+        }
+        sacado.setOpiniaoOrigem(situacao);
+        sacado.setOpiniaoOrigemPorNome(situacao == null ? null : autor.getName());
+        sacado.setOpiniaoOrigemEm(situacao == null ? null : LocalDateTime.now());
+        sacadoRepository.save(sacado);
+        registrar(card, TipoEventoLiberacao.EDICAO, null, null, "opiniaoOrigem",
+                rotuloOpiniao(atual), rotuloOpiniao(situacao), rotuloSacado(sacado.getCnpj(), sacado.getNome()), autor);
+        return true;
+    }
+
+    private static String parecerDo(LiberacaoSacadoEntity sacado, QuadroOpiniao quadro) {
+        return switch (quadro) {
             case ORIGEM -> sacado.getParecerOrigem();
             case COMITE -> sacado.getParecerComite();
             case DIRETORIA -> sacado.getParecerDiretoria();
         };
-        if (Objects.equals(anterior, novo)) {
-            return card;
+    }
+
+    /** Grava o parecer do quadrado; false quando o texto já era esse. */
+    private boolean aplicarParecer(LiberacaoCardEntity card, LiberacaoSacadoEntity sacado, QuadroOpiniao quadro, String novo,
+                                   UserEntity autor) {
+        if (Objects.equals(parecerDo(sacado, quadro), novo)) {
+            return false;
         }
         switch (quadro) {
             case ORIGEM -> sacado.setParecerOrigem(novo);
@@ -892,11 +909,7 @@ public class LiberacaoService {
         sacadoRepository.save(sacado);
         registrar(card, TipoEventoLiberacao.EDICAO, null, null, "parecerSacado", null, quadro.letra(),
                 rotuloSacado(sacado.getCnpj(), sacado.getNome()), autor);
-        cardRepository.tocarSemVersao(cardId, LocalDateTime.now(), autor.getId(), autor.getName());
-        LiberacaoCardEntity atualizado = buscar(cardId);
-        Set<UUID> mencionados = acompanharMencionados(cardId, MencaoParser.novosUsuarios(anterior, novo));
-        eventos.publishEvent(new LiberacaoEvento.Editado(atualizado, autor, mencionados, trecho(novo)));
-        return atualizado;
+        return true;
     }
 
     /**
@@ -1013,12 +1026,12 @@ public class LiberacaoService {
         return true;
     }
 
-    /** Opinião O ou C: sem valor, então "Parcial" puro. */
-    private static String rotuloOpiniao(ResultadoLiberacao situacao) {
+    /** Opinião O: sem valor, então "Parcial" puro. */
+    private static String rotuloOpiniao(OpiniaoOperador situacao) {
         if (situacao == null) {
             return "sem opinião";
         }
-        return situacao == ResultadoLiberacao.PARCIAL ? "Parcial" : situacao.rotulo();
+        return situacao == OpiniaoOperador.PARCIAL ? "Parcial" : situacao.rotulo();
     }
 
     private static String rotuloDecisao(ResultadoLiberacao situacao, BigDecimal valorAprovado) {

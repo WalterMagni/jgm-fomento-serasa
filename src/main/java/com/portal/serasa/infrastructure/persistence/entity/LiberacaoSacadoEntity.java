@@ -61,7 +61,7 @@ public class LiberacaoSacadoEntity {
     /** Quadrado O: opinião da Origem. Ver V82. */
     @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     @Column(name = "opiniao_origem", length = 12)
-    private com.portal.serasa.domain.model.liberacao.ResultadoLiberacao opiniaoOrigem;
+    private com.portal.serasa.domain.model.liberacao.OpiniaoOperador opiniaoOrigem;
 
     @Column(name = "opiniao_origem_por_nome", length = 200)
     private String opiniaoOrigemPorNome;

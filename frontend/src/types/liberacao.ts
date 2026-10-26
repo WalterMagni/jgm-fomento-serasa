@@ -30,6 +30,12 @@ export const ROTULO_RESULTADO_CURTO: Record<Resultado, string> = {
   PARCIAL: "Parcial",
 };
 
+/**
+ * O quadrado O do sacado: a opinião dos operadores. Tem Amostragem, que não é decisão — não entra no
+ * resultado (pedido do time em 2026-10-26).
+ */
+export type OpiniaoOperador = Resultado | "AMOSTRAGEM";
+
 /** Texto livre: os padrões vêm de GET /liberacao/tipos junto com os criados pelo time. */
 export type TipoOperacao = string;
 
@@ -212,7 +218,7 @@ export type Sacado = {
   /** Linha do sacado na AR, quando o card veio do PDF. */
   carteira: CarteiraSacado | null;
   /** Quadrado O: opinião da Origem. Fora da tela; fica pelos dados antigos. */
-  opiniaoOrigem: Resultado | null;
+  opiniaoOrigem: OpiniaoOperador | null;
   opiniaoOrigemPorNome: string | null;
   opiniaoOrigemEm: string | null;
   /** Quadrado C: decisão do Comitê. */

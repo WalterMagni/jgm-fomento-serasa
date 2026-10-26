@@ -2,6 +2,7 @@ package com.portal.serasa.application.service.liberacao;
 
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
+import com.portal.serasa.domain.model.liberacao.OpiniaoOperador;
 import com.portal.serasa.domain.model.liberacao.PosicaoParecer;
 import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import com.portal.serasa.domain.model.liberacao.ResultadoLiberacao;
@@ -257,7 +258,7 @@ class LiberacaoExportServiceTest {
         UUID id = UUID.randomUUID();
         when(cardRepository.findAllById(any())).thenReturn(List.of(card(id, 50L, EtapaLiberacao.COMITE, null)));
         LiberacaoSacadoEntity opinado = sacado(id, SACADO_A, "BETA SA", "1000", 0, null, null, null);
-        opinado.setOpiniaoOrigem(ResultadoLiberacao.APROVADO);
+        opinado.setOpiniaoOrigem(OpiniaoOperador.APROVADO);
         opinado.setOpiniaoComite(ResultadoLiberacao.PARCIAL);
         opinado.setParecerDiretoria("Limitar a @[Beta](cnpj:45723174000110).");
         when(sacadoRepository.findByCardIdIn(any())).thenReturn(List.of(opinado,

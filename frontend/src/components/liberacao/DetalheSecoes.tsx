@@ -13,6 +13,7 @@ import {
   ROTULO_RESULTADO_CURTO,
   type DecisaoAnterior,
   type LiberacaoCard,
+  type OpiniaoOperador,
   type Resultado,
   type Parecer,
   type Pendencia,
@@ -83,18 +84,25 @@ export function HistoricoSacado({ historico, compacto = false }: { historico: De
 
 const DECISOES: Resultado[] = ["APROVADO", "PARCIAL", "REPROVADO"];
 
-/** Cor cheia de cada decisão no quadrado: verde, amarelo e vermelho, pedido do time. */
-const COR_QUADRADO: Record<Resultado, string> = {
+/** O quadrado O tem uma opção a mais: Amostragem, que não é decisão (pedido do time em 2026-10-26). */
+const OPINIOES_OPERADOR: OpiniaoOperador[] = [...DECISOES, "AMOSTRAGEM"];
+
+/** Cor cheia de cada opção no quadrado: verde, amarelo e vermelho, pedido do time; Amostragem em azul. */
+const COR_QUADRADO: Record<OpiniaoOperador, string> = {
   APROVADO: "border-emerald-600 bg-emerald-500 text-white",
   PARCIAL: "border-amber-500 bg-amber-400 text-amber-950",
   REPROVADO: "border-rose-700 bg-rose-600 text-white",
+  AMOSTRAGEM: "border-sky-700 bg-sky-500 text-white",
 };
+
+const ROTULO_OPCAO: Record<OpiniaoOperador, string> = { ...ROTULO_RESULTADO_CURTO, AMOSTRAGEM: "Amostragem" };
+const ROTULO_OPCAO_LONGO: Record<OpiniaoOperador, string> = { ...ROTULO_RESULTADO, AMOSTRAGEM: "Amostragem" };
 
 type Quadro = "O" | "C" | "D";
 const NOME_QUADRO: Record<Quadro, string> = { O: "Operador", C: "Comitê", D: "Diretoria" };
 
-/** Só o fundo da cor da decisão, para a amostra pequena dos menus. */
-const fundoDecisao = (opcao: Resultado) => COR_QUADRADO[opcao].split(" ").filter(classe => classe.startsWith("bg-")).join(" ");
+/** Só o fundo da cor da opção, para a amostra pequena dos menus. */
+const fundoDecisao = (opcao: OpiniaoOperador) => COR_QUADRADO[opcao].split(" ").filter(classe => classe.startsWith("bg-")).join(" ");
 
 /**
  * Um quadrado (O, C ou D) do sacado. Clicável quando a pessoa pode marcar: abre as três decisões
@@ -107,6 +115,7 @@ function Quadrado({
   porNome,
   em,
   editavel,
+  opcoes = DECISOES,
   pedirValor,
   valorAtual,
   ocupado,
@@ -118,15 +127,17 @@ function Quadrado({
   onParecer,
 }: {
   letra: Quadro;
-  situacao: Resultado | null;
+  situacao: OpiniaoOperador | null;
   porNome: string | null;
   em: string | null;
   editavel: boolean;
+  /** O que o menu oferece: as três decisões, ou também Amostragem no O. */
+  opcoes?: OpiniaoOperador[];
   /** Parcial pede o valor aprovado. */
   pedirValor?: boolean;
   valorAtual?: number | null;
   ocupado: boolean;
-  onMarcar: (situacao: Resultado | null, valorAprovado?: number) => void;
+  onMarcar: (situacao: OpiniaoOperador | null, valorAprovado?: number) => void;
   /** No lugar das três decisões, aprovar ou reprovar o card inteiro (o D). */
   decidirCard?: (para: "APROVADO" | "REPROVADO") => void;
   /** Como o quadrado se preenche, no título, enquanto vazio e travado. */
@@ -153,11 +164,11 @@ function Quadrado({
     return () => document.removeEventListener("mousedown", fora);
   }, [aberto]);
 
-  const titulo = `${letra} · ${NOME_QUADRO[letra]}: ${situacao ? ROTULO_RESULTADO[situacao] : "sem decisão"}${
+  const titulo = `${letra} · ${NOME_QUADRO[letra]}: ${situacao ? ROTULO_OPCAO_LONGO[situacao] : "sem decisão"}${
     situacao && porNome ? ` — ${porNome}${em ? `, ${formatDataHora(em)}` : ""}` : ""
   }${!situacao && !editavel && dica ? ` (${dica})` : ""}`;
 
-  function escolher(opcao: Resultado | null) {
+  function escolher(opcao: OpiniaoOperador | null) {
     if (opcao === "PARCIAL" && pedirValor) {
       setParcial(true);
       return;
@@ -249,7 +260,7 @@ function Quadrado({
             </form>
           ) : (
             <>
-              {DECISOES.map(opcao => (
+              {opcoes.map(opcao => (
                 <button
                   key={opcao}
                   type="button"
@@ -260,7 +271,7 @@ function Quadrado({
                     hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   <span className={`h-3.5 w-3.5 rounded ${fundoDecisao(opcao)}`} />
-                  {ROTULO_RESULTADO_CURTO[opcao]}
+                  {ROTULO_OPCAO[opcao]}
                   {situacao === opcao && <Icon name="check" size={12} className="ml-auto text-slate-400" />}
                 </button>
               ))}
@@ -308,7 +319,7 @@ function Quadrado({
 
 /** Pareceres escritos nos quadrados, um por linha, com a letra na cor da decisão daquele quadrado. */
 function PareceresSacado({ sacado }: { sacado: Sacado }) {
-  const linhas: { letra: Quadro; situacao: Resultado | null; texto: string | null }[] = [
+  const linhas: { letra: Quadro; situacao: OpiniaoOperador | null; texto: string | null }[] = [
     { letra: "O", situacao: sacado.opiniaoOrigem, texto: sacado.parecerOrigem },
     { letra: "C", situacao: sacado.opiniaoComite, texto: sacado.parecerComite },
     { letra: "D", situacao: sacado.decisaoDiretoria, texto: sacado.parecerDiretoria },
@@ -359,12 +370,13 @@ function QuadradosSacado({
   const escrever = useParecerSacado();
   const salvar = (quadro: QuadroOpiniao) => (texto: string, aoSalvar: () => void) =>
     escrever.mutate({ id: cardId, documento: sacado.documento, quadro, texto }, { onSuccess: aoSalvar });
-  const marcar = (situacao: Resultado | null, valorAprovado?: number) =>
+  // O C só oferece as três decisões: Amostragem nunca chega aqui.
+  const marcar = (situacao: OpiniaoOperador | null, valorAprovado?: number) =>
     decidir.mutate({
       id: cardId,
       documento: sacado.documento,
       quadro: "COMITE",
-      situacao,
+      situacao: situacao as Resultado | null,
       valorAprovado: situacao === "PARCIAL" ? valorAprovado : null,
     });
   return (
@@ -376,6 +388,7 @@ function QuadradosSacado({
         porNome={sacado.opiniaoOrigemPorNome}
         em={sacado.opiniaoOrigemEm}
         editavel={podeOperador}
+        opcoes={OPINIOES_OPERADOR}
         ocupado={opinar.isPending}
         onMarcar={situacao => opinar.mutate({ id: cardId, documento: sacado.documento, quadro: "ORIGEM", situacao })}
         parecer={sacado.parecerOrigem}

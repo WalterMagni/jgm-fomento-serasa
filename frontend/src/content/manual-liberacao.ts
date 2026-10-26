@@ -141,7 +141,9 @@ com os números dele. A conta é a mesma da página da empresa.
 ## Os quadrados O, C e D de cada sacado
 
 Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprovado,
-**amarelo** = parcial, **vermelho** = reprovado. Quadrado tracejado ainda não foi marcado.
+**amarelo** = parcial, **vermelho** = reprovado. Quadrado tracejado ainda não foi marcado. O
+quadrado **O** tem também **Amostragem** (**azul**) — é opinião do operador, não decisão: não
+entra no resultado do card.
 
 | Quadrado | De quem | Quem marca e quando |
 |---|---|---|

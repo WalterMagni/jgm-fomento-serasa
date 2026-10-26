@@ -37,7 +37,8 @@ public record LiberacaoDetalheResponse(
                          /** Linha do sacado na AR, quando o card veio do PDF. */
                          com.portal.serasa.domain.model.liberacao.CarteiraSacado carteira,
                          /** Quadrado O: opinião da Origem. */
-                         ResultadoLiberacao opiniaoOrigem, String opiniaoOrigemPorNome, LocalDateTime opiniaoOrigemEm,
+                         com.portal.serasa.domain.model.liberacao.OpiniaoOperador opiniaoOrigem, String opiniaoOrigemPorNome,
+                         LocalDateTime opiniaoOrigemEm,
                          /** Quadrado C: decisão do Comitê. A situação é a decisão final (C ou D). */
                          ResultadoLiberacao opiniaoComite, String opiniaoComitePorNome, LocalDateTime opiniaoComiteEm,
                          BigDecimal valorAprovadoComite,

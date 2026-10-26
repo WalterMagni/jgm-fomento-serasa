@@ -14,6 +14,7 @@ import com.portal.serasa.domain.exception.TransicaoInvalidaException;
 import com.portal.serasa.domain.model.CompanyDetail;
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
 import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
+import com.portal.serasa.domain.model.liberacao.OpiniaoOperador;
 import com.portal.serasa.domain.model.liberacao.QuadroOpiniao;
 import com.portal.serasa.domain.model.liberacao.EtapaLiberacao;
 import com.portal.serasa.domain.model.liberacao.OrigemMembro;
@@ -544,9 +545,9 @@ class LiberacaoServiceTest {
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(card, a);
 
-        service.opinarSacado(card.getId(), "45.723.174/0001-10", QuadroOpiniao.ORIGEM, ResultadoLiberacao.PARCIAL, analista);
+        service.opinarSacado(card.getId(), "45.723.174/0001-10", QuadroOpiniao.ORIGEM, OpiniaoOperador.PARCIAL, analista);
 
-        assertThat(a.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.PARCIAL);
+        assertThat(a.getOpiniaoOrigem()).isEqualTo(OpiniaoOperador.PARCIAL);
         assertThat(a.getOpiniaoOrigemPorNome()).isEqualTo("Andressa");
         assertThat(a.getOpiniaoOrigemEm()).isNotNull();
         assertThat(a.getSituacao()).as("a situação final não muda").isNull();
@@ -557,6 +558,21 @@ class LiberacaoServiceTest {
         verify(cardRepository).tocarSemVersao(eq(card.getId()), any(LocalDateTime.class), eq(analista.getId()), eq("Andressa"));
     }
 
+    @Test
+    @DisplayName("opinarSacado: O aceita Amostragem, que fica no histórico e não vira decisão do sacado")
+    void shouldMarkSamplingOpinion() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        sacadosSao(card, a);
+
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, OpiniaoOperador.AMOSTRAGEM, analista);
+
+        assertThat(a.getOpiniaoOrigem()).isEqualTo(OpiniaoOperador.AMOSTRAGEM);
+        assertThat(eventosGravados().get(0).getValorDepois()).isEqualTo("Amostragem");
+        assertThat(a.getSituacao()).as("a situação final não muda").isNull();
+        assertThat(a.getOpiniaoComite()).as("o C não muda").isNull();
+    }
+
     @ParameterizedTest
     @EnumSource(value = EtapaLiberacao.class, names = {"ORIGEM", "COMITE", "PENDENCIA"})
     @DisplayName("opinarSacado: O vale em qualquer etapa antes da decisão")
@@ -565,9 +581,9 @@ class LiberacaoServiceTest {
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(card, a);
 
-        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.REPROVADO, analista);
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, OpiniaoOperador.REPROVADO, analista);
 
-        assertThat(a.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.REPROVADO);
+        assertThat(a.getOpiniaoOrigem()).isEqualTo(OpiniaoOperador.REPROVADO);
     }
 
     @Test
@@ -576,7 +592,7 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
-        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, auxiliar))
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, OpiniaoOperador.APROVADO, auxiliar))
                 .isInstanceOf(AcessoNegadoException.class);
         verify(sacadoRepository, never()).save(any());
     }
@@ -588,7 +604,7 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity card = card(etapa);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
-        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista))
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, OpiniaoOperador.APROVADO, analista))
                 .isInstanceOf(TransicaoInvalidaException.class)
                 .hasMessageContaining(etapa == EtapaLiberacao.DIRETORIA ? "antes da decisão" : "reabra no Comitê");
         verify(sacadoRepository, never()).save(any());
@@ -602,7 +618,7 @@ class LiberacaoServiceTest {
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
         sacadosSao(card, a);
 
-        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, quadro, ResultadoLiberacao.APROVADO, analista))
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_A, quadro, OpiniaoOperador.APROVADO, analista))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("O quadrado " + quadro.letra() + " é decisão: marque pela decisão do sacado.");
         assertThat(a.getOpiniaoComite()).isNull();
@@ -616,11 +632,11 @@ class LiberacaoServiceTest {
     void shouldIgnoreRepeatedOpinionAndClear() {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
-        a.setOpiniaoOrigem(ResultadoLiberacao.APROVADO);
+        a.setOpiniaoOrigem(OpiniaoOperador.APROVADO);
         a.setOpiniaoOrigemPorNome("Aline");
         sacadosSao(card, a);
 
-        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista);
+        service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, OpiniaoOperador.APROVADO, analista);
         verify(sacadoRepository, never()).save(any());
 
         service.opinarSacado(card.getId(), SACADO_A, QuadroOpiniao.ORIGEM, null, analista);
@@ -635,7 +651,7 @@ class LiberacaoServiceTest {
         LiberacaoCardEntity card = card(EtapaLiberacao.ORIGEM);
         sacadosSao(card, sacado(card, SACADO_A, "Sacado A", "1000", 0));
 
-        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_B, QuadroOpiniao.ORIGEM, ResultadoLiberacao.APROVADO, analista))
+        assertThatThrownBy(() -> service.opinarSacado(card.getId(), SACADO_B, QuadroOpiniao.ORIGEM, OpiniaoOperador.APROVADO, analista))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -744,7 +760,7 @@ class LiberacaoServiceTest {
     void shouldKeepOpinionsWhenEditingSacados() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
         LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
-        a.setOpiniaoOrigem(ResultadoLiberacao.APROVADO);
+        a.setOpiniaoOrigem(OpiniaoOperador.APROVADO);
         a.setOpiniaoComite(ResultadoLiberacao.REPROVADO);
         a.setParecerDiretoria("Limite curto.");
         sacadosSao(card, a);
@@ -754,7 +770,7 @@ class LiberacaoServiceTest {
         service.editar(card.getId(), card.getVersion(), dados, analista);
 
         assertThat(sacadosGravados()).singleElement().satisfies(sacado -> {
-            assertThat(sacado.getOpiniaoOrigem()).isEqualTo(ResultadoLiberacao.APROVADO);
+            assertThat(sacado.getOpiniaoOrigem()).isEqualTo(OpiniaoOperador.APROVADO);
             assertThat(sacado.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.REPROVADO);
             assertThat(sacado.getParecerDiretoria()).isEqualTo("Limite curto.");
         });

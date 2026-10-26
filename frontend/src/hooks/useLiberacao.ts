@@ -14,12 +14,12 @@ import type {
   LiberacaoResumo,
   MotivoReprovacao,
   NovaPendencia,
+  OpiniaoOperador,
   PessoaDiretorio,
   PosicaoParecer,
   PropostaImportada,
   QuadroOpiniao,
   SacadoEncontrado,
-  Resultado,
   UsuarioAtual,
 } from "../types/liberacao";
 
@@ -490,7 +490,7 @@ export function useDecidirSacado() {
 /** Quadrado O (parecer dos operadores) de um sacado. Situação nula limpa. C e D são decisões: {@link useDecidirSacado}. */
 export function useOpinarSacado() {
   const atualizar = useAtualizarDetalhe();
-  return useMutation<LiberacaoDetalhe, Error, { id: string; documento: string; quadro: QuadroOpiniao; situacao: Resultado | null }>({
+  return useMutation<LiberacaoDetalhe, Error, { id: string; documento: string; quadro: QuadroOpiniao; situacao: OpiniaoOperador | null }>({
     mutationFn: ({ id, documento, ...body }) =>
       pedir(
         `${API_BASE_URL}/liberacao/${id}/sacados/${documento}/opiniao`,
