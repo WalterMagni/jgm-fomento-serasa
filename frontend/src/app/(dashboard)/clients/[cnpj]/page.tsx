@@ -1257,7 +1257,7 @@ export default function ClientDashboardPage() {
     { id: "socios", rotulo: "Sócios e grupo" },
     { id: "serasa", rotulo: "Serasa" },
     { id: "judit", rotulo: "Processos" },
-    ...(ca?.paymentHistory || ca?.checkFilingsHistorical ? [{ id: "pagamentos", rotulo: "Pagamentos" }] : []),
+    ...(ca?.paymentHistory ? [{ id: "pagamentos", rotulo: "Pagamentos" }] : []),
     { id: "comercial", rotulo: "Comercial" },
     { id: "equipe", rotulo: "Equipe" },
     { id: "documentos", rotulo: "Documentos" },
@@ -1973,6 +1973,9 @@ export default function ClientDashboardPage() {
         companyLabel={companyLabel}
       />
 
+      {/* ── Histórico de Cheques: acima dos Dados Negativos (pedido do time em 2026-10-27) ── */}
+      <CheckFilingsPanel data={ca?.checkFilingsHistorical} />
+
       {/* ── Dados Negativos (só com Serasa) ──────────────────────────────── */}
       {hasSerasaData && (() => {
         const negativeSummaryMessage = neg?.message?.trim();
@@ -2359,9 +2362,6 @@ export default function ClientDashboardPage() {
       {ca?.paymentHistory && (
         <PaymentHistoryPanel ph={ca.paymentHistory} />
       )}
-
-      {/* ── Histórico de Cheques ─────────────────────────────────────────── */}
-      <CheckFilingsPanel data={ca?.checkFilingsHistorical} />
 
       </section>
 
