@@ -616,6 +616,21 @@ class LiberacaoServiceTest {
     }
 
     @Test
+    @DisplayName("lote no C: Amostragem também vale para vários de uma vez")
+    void shouldDecideSamplingInBatch() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        LiberacaoSacadoEntity a = sacado(card, SACADO_A, "Sacado A", "1000", 0);
+        LiberacaoSacadoEntity b = sacado(card, SACADO_B, "Sacado B", "500", 1);
+        sacadosSao(card, a, b);
+
+        assertThat(service.marcarSacadosEmLote(card.getId(), List.of(SACADO_A, SACADO_B), QuadroOpiniao.COMITE,
+                "AMOSTRAGEM", null, analista)).isEqualTo(2);
+
+        assertThat(a.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.AMOSTRAGEM);
+        assertThat(b.getOpiniaoComite()).isEqualTo(ResultadoLiberacao.AMOSTRAGEM);
+    }
+
+    @Test
     @DisplayName("lote: sacado fora do card, auxiliar ou nada a fazer recusam sem gravar nada")
     void shouldRefuseInvalidBatch() {
         LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
@@ -3315,6 +3330,35 @@ class LiberacaoServiceTest {
     }
 
     @Test
+    @DisplayName("valorAprovado: Amostragem vale o valor inteiro, como aprovado")
+    void shouldSumSamplingAsApproved() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
+
+        BigDecimal total = LiberacaoService.valorAprovado(List.of(
+                decidido(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.AMOSTRAGEM, null),
+                decidido(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.REPROVADO, null)));
+
+        assertThat(total).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    @DisplayName("Comitê→Aprovado: Amostragem no C conta como aprovado — card APROVADO, situação Amostragem, valor inteiro")
+    void shouldApproveCardWithSamplingInC() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.COMITE);
+        comUmParecer(card);
+        LiberacaoSacadoEntity a = comiteDecidiu(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.AMOSTRAGEM, null);
+        LiberacaoSacadoEntity b = comiteDecidiu(card, SACADO_B, "Sacado B", "500", 1, ResultadoLiberacao.APROVADO, null);
+        sacadosSao(card, a, b);
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.COMITE,
+                EtapaLiberacao.APROVADO, null, null, List.of(), analista);
+
+        assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(a.getSituacao()).isEqualTo(ResultadoLiberacao.AMOSTRAGEM);
+        assertThat(LiberacaoService.valorAprovado(List.of(a, b))).isEqualByComparingTo("1500");
+    }
+
+    @Test
     @DisplayName("valorAprovado: tudo reprovado dá zero, e não nulo")
     void shouldBeZeroWhenEverythingIsRejected() {
         LiberacaoCardEntity card = card(EtapaLiberacao.FINALIZADO);
@@ -4182,6 +4226,21 @@ class LiberacaoServiceTest {
         verify(parecerRepository, never()).save(any());
         assertThat(card.getEtapa()).isEqualTo(EtapaLiberacao.DIRETORIA);
         assertThat(card.getRodada()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Diretoria→Aprovado: Amostragem do C se repete no D e na situação final; o card sai APROVADO")
+    void shouldCopySamplingFromCToD() {
+        LiberacaoCardEntity card = card(EtapaLiberacao.DIRETORIA);
+        LiberacaoSacadoEntity a = comiteDecidiu(card, SACADO_A, "Sacado A", "1000", 0, ResultadoLiberacao.AMOSTRAGEM, null);
+        sacadosSao(card, a);
+
+        LiberacaoCardEntity movido = service.transicionar(card.getId(), EtapaLiberacao.DIRETORIA,
+                EtapaLiberacao.APROVADO, null, null, List.of(), diretor);
+
+        assertThat(movido.getResultado()).isEqualTo(ResultadoLiberacao.APROVADO);
+        assertThat(a.getDecisaoDiretoria()).isEqualTo(ResultadoLiberacao.AMOSTRAGEM);
+        assertThat(a.getSituacao()).isEqualTo(ResultadoLiberacao.AMOSTRAGEM);
     }
 
     @Test

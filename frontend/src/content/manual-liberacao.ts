@@ -173,9 +173,13 @@ limite só é mostrado: não é comparado com o valor do card nem trava a aprova
 ## Os quadrados O, C e D de cada sacado
 
 Cada sacado tem três quadrados, pintados conforme a decisão: **verde** = aprovado,
-**amarelo** = parcial, **vermelho** = reprovado. Quadrado tracejado ainda não foi marcado. O
-quadrado **O** tem também **Amostragem** (**azul**) — é opinião do operador, não decisão: não
-entra no resultado do card.
+**amarelo** = parcial, **vermelho** = reprovado, **azul** = amostragem. Quadrado tracejado ainda
+não foi marcado.
+
+**Amostragem** existe no **O**, no **C** e no **D**. No O é só a opinião do operador. No C (e no D,
+que repete o C quando a Diretoria aprova) **conta como aprovado**: o valor inteiro do sacado entra
+no aprovado e o card sai **Aprovado** — só fica marcado em azul que foi por amostragem. Ao aprovar o
+card, a janela de decisão também oferece Amostragem.
 
 | Quadrado | De quem | Quem marca e quando |
 |---|---|---|

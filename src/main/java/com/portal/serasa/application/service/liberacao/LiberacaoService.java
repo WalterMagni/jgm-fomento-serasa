@@ -881,7 +881,7 @@ public class LiberacaoService {
      * fora, porque pede o valor aprovado de cada sacado.
      *
      * @param situacao a opção (no O: Aprovado, Parcial, Reprovado, Amostragem; no C: Aprovado,
-     *                 Reprovado); nula não mexe na marcação
+     *                 Reprovado, Amostragem); nula não mexe na marcação
      * @param parecer  o parecer daquele quadrado; nulo não mexe, vazio apaga
      * @return quantos sacados mudaram
      */
@@ -1132,7 +1132,7 @@ public class LiberacaoService {
 
     /**
      * Quanto da operação foi aprovado, pelas decisões dos sacados: o valor inteiro dos aprovados
-     * mais o valor aprovado dos parciais. Nulo enquanto ninguém foi decidido.
+     * (Amostragem inclusive) mais o valor aprovado dos parciais. Nulo enquanto ninguém foi decidido.
      */
     public static BigDecimal valorAprovado(List<LiberacaoSacadoEntity> sacados) {
         if (sacados.stream().noneMatch(sacado -> sacado.getSituacao() != null)) {
@@ -1140,7 +1140,7 @@ public class LiberacaoService {
         }
         return sacados.stream()
                 .map(sacado -> switch (sacado.getSituacao() == null ? ResultadoLiberacao.REPROVADO : sacado.getSituacao()) {
-                    case APROVADO -> sacado.getValor() == null ? BigDecimal.ZERO : sacado.getValor();
+                    case APROVADO, AMOSTRAGEM -> sacado.getValor() == null ? BigDecimal.ZERO : sacado.getValor();
                     case PARCIAL -> sacado.getValorAprovado() == null ? BigDecimal.ZERO : sacado.getValorAprovado();
                     case REPROVADO -> BigDecimal.ZERO;
                 })

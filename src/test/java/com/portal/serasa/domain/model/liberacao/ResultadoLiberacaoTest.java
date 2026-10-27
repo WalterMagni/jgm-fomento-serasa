@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
 
+import static com.portal.serasa.domain.model.liberacao.ResultadoLiberacao.AMOSTRAGEM;
 import static com.portal.serasa.domain.model.liberacao.ResultadoLiberacao.APROVADO;
 import static com.portal.serasa.domain.model.liberacao.ResultadoLiberacao.PARCIAL;
 import static com.portal.serasa.domain.model.liberacao.ResultadoLiberacao.REPROVADO;
@@ -55,10 +56,21 @@ class ResultadoLiberacaoTest {
     }
 
     @ParameterizedTest
-    @EnumSource(ResultadoLiberacao.class)
+    @EnumSource(value = ResultadoLiberacao.class, names = {"APROVADO", "REPROVADO", "PARCIAL"})
     @DisplayName("doCard: repetir o mesmo valor não muda o resultado")
     void shouldBeStableWhenSituationRepeats(ResultadoLiberacao situacao) {
         assertThat(ResultadoLiberacao.doCard(List.of(situacao, situacao, situacao))).isEqualTo(situacao);
+    }
+
+    @Test
+    @DisplayName("doCard: Amostragem conta como aprovado — o card sai APROVADO, nunca AMOSTRAGEM")
+    void shouldCountSamplingAsApproved() {
+        assertThat(ResultadoLiberacao.doCard(List.of(AMOSTRAGEM))).isEqualTo(APROVADO);
+        assertThat(ResultadoLiberacao.doCard(List.of(AMOSTRAGEM, APROVADO, AMOSTRAGEM))).isEqualTo(APROVADO);
+        assertThat(ResultadoLiberacao.doCard(List.of(AMOSTRAGEM, REPROVADO))).isEqualTo(PARCIAL);
+        assertThat(ResultadoLiberacao.doCard(List.of(AMOSTRAGEM, PARCIAL))).isEqualTo(PARCIAL);
+        assertThat(AMOSTRAGEM.aprovaInteiro()).isTrue();
+        assertThat(PARCIAL.aprovaInteiro()).isFalse();
     }
 
     @Test
@@ -67,5 +79,6 @@ class ResultadoLiberacaoTest {
         assertThat(APROVADO.rotulo()).isEqualTo("Aprovado");
         assertThat(REPROVADO.rotulo()).isEqualTo("Reprovado");
         assertThat(PARCIAL.rotulo()).isEqualTo("Parcialmente aprovado");
+        assertThat(AMOSTRAGEM.rotulo()).isEqualTo("Amostragem");
     }
 }

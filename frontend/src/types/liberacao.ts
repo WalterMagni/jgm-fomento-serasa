@@ -5,13 +5,23 @@ import type { TipoRestricao } from "./pessoa-resumo";
 
 export type EtapaLiberacao = "ORIGEM" | "COMITE" | "PENDENCIA" | "DIRETORIA" | "APROVADO" | "REPROVADO" | "ASSINATURA" | "FINALIZADO";
 
-/** Decisão de um sacado e resultado do card, que sai das decisões dos sacados. */
+/** Resultado do card, que sai das decisões dos sacados. */
 export type Resultado = "APROVADO" | "REPROVADO" | "PARCIAL";
 
-export const ROTULO_RESULTADO: Record<Resultado, string> = {
+/**
+ * Decisão de um sacado: C, D e a final. Amostragem conta como aprovado — valor inteiro, card
+ * aprovado — (pedido do time em 2026-10-27); o resultado do card nunca é Amostragem.
+ */
+export type DecisaoDoSacado = Resultado | "AMOSTRAGEM";
+
+/** Aprova o valor inteiro do sacado: Aprovado ou Amostragem. */
+export const aprovaInteiro = (decisao: DecisaoDoSacado | null | undefined) => decisao === "APROVADO" || decisao === "AMOSTRAGEM";
+
+export const ROTULO_RESULTADO: Record<DecisaoDoSacado, string> = {
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
   PARCIAL: "Parcialmente aprovado",
+  AMOSTRAGEM: "Amostragem",
 };
 
 /** Como o card terminou: o resultado do crédito ou o declínio do cliente, que vale por cima. */
@@ -25,17 +35,18 @@ export const ROTULO_DESFECHO: Record<Desfecho, string> = {
 };
 
 /** Rótulo curto, para botões e chips apertados. */
-export const ROTULO_RESULTADO_CURTO: Record<Resultado, string> = {
+export const ROTULO_RESULTADO_CURTO: Record<DecisaoDoSacado, string> = {
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
   PARCIAL: "Parcial",
+  AMOSTRAGEM: "Amostragem",
 };
 
 /**
- * O quadrado O do sacado: a opinião dos operadores. Tem Amostragem, que não é decisão — não entra no
- * resultado (pedido do time em 2026-10-26).
+ * O quadrado O do sacado: a opinião dos operadores, com as mesmas opções das decisões. Opinião não
+ * entra no resultado; quem decide é o C e o D.
  */
-export type OpiniaoOperador = Resultado | "AMOSTRAGEM";
+export type OpiniaoOperador = DecisaoDoSacado;
 
 /** Texto livre: os padrões vêm de GET /liberacao/tipos junto com os criados pelo time. */
 export type TipoOperacao = string;
@@ -198,7 +209,7 @@ export type DecisaoAnterior = {
   cardId: string;
   numero: number;
   cedenteNome: string;
-  situacao: Resultado;
+  situacao: DecisaoDoSacado;
   valorAprovado: number | null;
   decididoPor: string | null;
   decididoEm: string | null;
@@ -211,7 +222,7 @@ export type Sacado = {
   cadastrado: boolean;
   praca: string | null;
   /** Decisão final: a do C (Comitê) ou a do D (Diretoria), gravada quando o card é decidido. */
-  situacao: Resultado | null;
+  situacao: DecisaoDoSacado | null;
   valorAprovado: number | null;
   situacaoPorNome: string | null;
   situacaoEm: string | null;
@@ -223,12 +234,12 @@ export type Sacado = {
   opiniaoOrigemPorNome: string | null;
   opiniaoOrigemEm: string | null;
   /** Quadrado C: decisão do Comitê. */
-  opiniaoComite: Resultado | null;
+  opiniaoComite: DecisaoDoSacado | null;
   opiniaoComitePorNome: string | null;
   opiniaoComiteEm: string | null;
   valorAprovadoComite: number | null;
   /** Quadrado D: decisão da Diretoria, com o card na Diretoria. */
-  decisaoDiretoria: Resultado | null;
+  decisaoDiretoria: DecisaoDoSacado | null;
   valorAprovadoDiretoria: number | null;
   decisaoDiretoriaPorNome: string | null;
   decisaoDiretoriaEm: string | null;
@@ -336,7 +347,7 @@ export type EmpresaConhecida = {
 };
 
 /** Decisão de sacado enviada ao finalizar ou pela lista do card. */
-export type DecisaoSacado = { documento: string; situacao: Resultado | null; valorAprovado?: number | null };
+export type DecisaoSacado = { documento: string; situacao: DecisaoDoSacado | null; valorAprovado?: number | null };
 
 export type Pendencia = {
   id: string;

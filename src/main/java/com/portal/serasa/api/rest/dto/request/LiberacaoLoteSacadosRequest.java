@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Vários sacados de uma vez, no quadrado O ou C.
  *
- * @param situacao a opção (no O também Parcial e Amostragem; no C, Aprovado ou Reprovado); nula não muda a marcação
+ * @param situacao a opção (no O, qualquer uma; no C, Aprovado, Reprovado ou Amostragem); nula não muda a marcação
  * @param parecer  o parecer daquele quadrado para todos; nulo não muda, vazio apaga
  */
 public record LiberacaoLoteSacadosRequest(

@@ -16,6 +16,7 @@ import {
   type PropostaImportada,
   type Sacado,
   EMPRESAS,
+  aprovaInteiro,
   type EmpresaOperacao,
   type TipoOperacao,
 } from "@/types/liberacao";
@@ -149,7 +150,7 @@ function InfoSacado({
   }
   const nome = nomeInformado ?? empresa.nome;
   // Reprovação ou parcial em card anterior: o time pediu para ver na hora de incluir o sacado.
-  const alertas = empresa.historico.filter(decisao => decisao.situacao !== "APROVADO");
+  const alertas = empresa.historico.filter(decisao => !aprovaInteiro(decisao.situacao));
   return (
     <div className="px-2">
       <p className="truncate text-[11px] text-slate-500">

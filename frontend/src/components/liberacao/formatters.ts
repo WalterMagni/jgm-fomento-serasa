@@ -237,17 +237,19 @@ export function rotuloMover(de: EtapaLiberacao, para: EtapaLiberacao, passouPelo
   }
 }
 
-/** Resultado e decisão de sacado: verde, vermelho e âmbar, nos dois temas. */
-export const COR_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL", string> = {
+/** Resultado e decisão de sacado: verde, vermelho e âmbar, nos dois temas; Amostragem em azul. */
+export const COR_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL" | "AMOSTRAGEM", string> = {
   APROVADO: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
   REPROVADO: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
   PARCIAL: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100",
+  AMOSTRAGEM: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200",
 };
 
-export const ICONE_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL", string> = {
+export const ICONE_RESULTADO: Record<"APROVADO" | "REPROVADO" | "PARCIAL" | "AMOSTRAGEM", string> = {
   APROVADO: "check_circle",
   REPROVADO: "cancel",
   PARCIAL: "remove_circle",
+  AMOSTRAGEM: "checklist",
 };
 
 /** O cliente declinou: cinza, porque não é decisão de crédito, é o fim do negócio. */

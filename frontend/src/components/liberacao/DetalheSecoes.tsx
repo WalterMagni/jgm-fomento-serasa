@@ -20,6 +20,7 @@ import {
   ROTULO_RESULTADO,
   ROTULO_RESULTADO_CURTO,
   DIAS_CONSULTA_SERASA,
+  aprovaInteiro,
   type DecisaoAnterior,
   type LiberacaoCard,
   type OpiniaoOperador,
@@ -168,7 +169,10 @@ function LimiteLinha({ sacado }: { sacado: Sacado }) {
 
 const DECISOES: Resultado[] = ["APROVADO", "PARCIAL", "REPROVADO"];
 
-/** O quadrado O tem uma opção a mais: Amostragem, que não é decisão (pedido do time em 2026-10-26). */
+/**
+ * Amostragem entrou no O em 2026-10-26 e no C (e no D, que repete o C) em 2026-10-27; no C conta
+ * como aprovado.
+ */
 const OPINIOES_OPERADOR: OpiniaoOperador[] = [...DECISOES, "AMOSTRAGEM"];
 
 /** Cor cheia de cada opção no quadrado: verde, amarelo e vermelho, pedido do time; Amostragem em azul. */
@@ -454,13 +458,12 @@ function QuadradosSacado({
   const escrever = useParecerSacado();
   const salvar = (quadro: QuadroOpiniao) => (texto: string, aoSalvar: () => void) =>
     escrever.mutate({ id: cardId, documento: sacado.documento, quadro, texto }, { onSuccess: aoSalvar });
-  // O C só oferece as três decisões: Amostragem nunca chega aqui.
   const marcar = (situacao: OpiniaoOperador | null, valorAprovado?: number) =>
     decidir.mutate({
       id: cardId,
       documento: sacado.documento,
       quadro: "COMITE",
-      situacao: situacao as Resultado | null,
+      situacao,
       valorAprovado: situacao === "PARCIAL" ? valorAprovado : null,
     });
   return (
@@ -485,6 +488,7 @@ function QuadradosSacado({
         porNome={sacado.opiniaoComitePorNome}
         em={sacado.opiniaoComiteEm}
         editavel={podeComite}
+        opcoes={OPINIOES_OPERADOR}
         pedirValor
         valorAtual={sacado.valorAprovadoComite}
         ocupado={decidir.isPending}
@@ -537,7 +541,7 @@ function LoteSacados({
   const [texto, setTexto] = useState("");
   const quadros = (["O", "C"] as const).filter(item => (item === "O" ? podeOperador : podeComite));
   const atual = quadros.includes(letra) ? letra : quadros[0];
-  const opcoes: OpiniaoOperador[] = atual === "O" ? OPINIOES_OPERADOR : ["APROVADO", "REPROVADO"];
+  const opcoes: OpiniaoOperador[] = atual === "O" ? OPINIOES_OPERADOR : ["APROVADO", "AMOSTRAGEM", "REPROVADO"];
   const parecer = texto.trim();
   const plural = documentos.length === 1 ? "" : "s";
 
@@ -675,7 +679,7 @@ export function SacadosLista({
   // conta do valor aprovado do card, que só existe depois da decisão.
   const aprovado = decididos.reduce((total, sacado) => {
     const { resultado, parcial } = decisao(sacado);
-    return total + (resultado === "APROVADO" ? (sacado.valor ?? 0) : resultado === "PARCIAL" ? (parcial ?? 0) : 0);
+    return total + (aprovaInteiro(resultado) ? (sacado.valor ?? 0) : resultado === "PARCIAL" ? (parcial ?? 0) : 0);
   }, 0);
 
   return (

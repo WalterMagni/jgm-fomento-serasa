@@ -9,6 +9,8 @@ import { RESSALVA } from "@/lib/ressalva";
 import {
   ROTULO_RESULTADO,
   ROTULO_RESULTADO_CURTO,
+  aprovaInteiro,
+  type DecisaoDoSacado,
   type DecisaoSacado,
   type LiberacaoCard,
   type Resultado,
@@ -16,16 +18,17 @@ import {
 import Dialogo, { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, ROTULO } from "./Dialogo";
 import { COR_RESULTADO, ICONE_RESULTADO, formatDocumento, formatMoeda, moedaParaCampo, parseMoeda } from "./formatters";
 
-const OPCOES: Resultado[] = ["APROVADO", "PARCIAL", "REPROVADO"];
+/** Amostragem conta como aprovado (pedido do time em 2026-10-27). */
+const OPCOES: DecisaoDoSacado[] = ["APROVADO", "AMOSTRAGEM", "PARCIAL", "REPROVADO"];
 
 const BOTAO_APROVAR = BOTAO_PRIMARIO.replace("bg-[#612035]", "bg-emerald-700").replace("hover:bg-[#4e1a2a]", "hover:bg-emerald-800");
 
-type Escolha = { situacao: Resultado | null; valorAprovado: string };
+type Escolha = { situacao: DecisaoDoSacado | null; valorAprovado: string };
 
 /** Mesmo cálculo do servidor (ResultadoLiberacao.doCard), para mostrar antes de confirmar. */
-function resultadoDe(situacoes: (Resultado | null)[]): Resultado | null {
+function resultadoDe(situacoes: (DecisaoDoSacado | null)[]): Resultado | null {
   if (situacoes.length === 0 || situacoes.some(situacao => !situacao)) return null;
-  if (situacoes.every(situacao => situacao === "APROVADO")) return "APROVADO";
+  if (situacoes.every(aprovaInteiro)) return "APROVADO";
   if (situacoes.every(situacao => situacao === "REPROVADO")) return "REPROVADO";
   return "PARCIAL";
 }
@@ -70,7 +73,7 @@ export default function AprovarDialog({ card, aviso, enviando, onConfirmar, onFe
   });
   const valorAprovado = sacados.reduce((total, sacado) => {
     const atual = escolha(sacado.documento);
-    if (atual.situacao === "APROVADO") return total + (sacado.valor ?? 0);
+    if (aprovaInteiro(atual.situacao)) return total + (sacado.valor ?? 0);
     if (atual.situacao === "PARCIAL") return total + (parseMoeda(atual.valorAprovado) ?? 0);
     return total;
   }, 0);

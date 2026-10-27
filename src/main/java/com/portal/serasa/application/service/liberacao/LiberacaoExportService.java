@@ -287,7 +287,7 @@ public class LiberacaoExportService {
                 texto(row, 6, sacado.getSituacao() == null ? "A decidir" : sacado.getSituacao().rotulo(), estilos.texto);
                 moeda(row, 7, sacado.getSituacao() == null ? null
                         : switch (sacado.getSituacao()) {
-                            case APROVADO -> sacado.getValor();
+                            case APROVADO, AMOSTRAGEM -> sacado.getValor();
                             case PARCIAL -> sacado.getValorAprovado();
                             case REPROVADO -> java.math.BigDecimal.ZERO;
                         }, estilos);
