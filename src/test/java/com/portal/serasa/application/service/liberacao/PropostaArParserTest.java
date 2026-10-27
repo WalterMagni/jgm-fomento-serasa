@@ -3,6 +3,7 @@ package com.portal.serasa.application.service.liberacao;
 import com.portal.serasa.application.service.liberacao.PropostaArParser.Leitura;
 import com.portal.serasa.application.service.liberacao.PropostaArParser.SacadoLido;
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
+import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
 import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,6 +74,24 @@ class PropostaArParserTest {
         assertThat(resumo.grupo()).as("a linha de traços é 'sem grupo'").isNull();
         assertThat(resumo.limiteIndividual()).isEqualByComparingTo("120500.00");
         assertThat(resumo.limiteGrupo()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("lerTexto: o cabeçalho da página diz a empresa — fundo é FIDC, securitizadora é SEC")
+    void shouldReadIssuerFromPageHeader() {
+        assertThat(parser.lerTexto(ar()).empresa()).isEqualTo(EmpresaOperacao.FIDC);
+        assertThat(parser.lerTexto(ar().replace(TITULO, "JGM SECURITIZADORA S/A    Página 001/001")).empresa())
+                .isEqualTo(EmpresaOperacao.SEC);
+    }
+
+    @Test
+    @DisplayName("lerTexto: sem cabeçalho a empresa fica nula, mesmo com sacado chamado securitizadora")
+    void shouldNotReadIssuerOutsideTheHeader() {
+        String semCabecalho = ar().replace(TITULO + "\n", "")
+                .replace("GAMA DISTRIBUIDORA S/A", "GAMA SECURITIZADORA S/A");
+
+        assertThat(semCabecalho).doesNotContain("MULTISSETORIAL").contains("GAMA SECURITIZADORA");
+        assertThat(parser.lerTexto(semCabecalho).empresa()).isNull();
     }
 
     @Test

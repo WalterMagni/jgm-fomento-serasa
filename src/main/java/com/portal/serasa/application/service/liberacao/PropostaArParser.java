@@ -1,6 +1,7 @@
 package com.portal.serasa.application.service.liberacao;
 
 import com.portal.serasa.domain.model.liberacao.CarteiraSacado;
+import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
 import com.portal.serasa.domain.model.liberacao.PropostaAr;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -26,6 +27,10 @@ import java.util.regex.Pattern;
  *
  * <p>Na tabela de sacados cada sacado ocupa duas linhas: o documento sozinho, e embaixo o código
  * interno, o nome e os números. A linha TOTAL do fim permite conferir se nada se perdeu.</p>
+ *
+ * <p>O cabeçalho da página diz quem emitiu a AR — "JGM SECURITIZADORA S/A" ou "JGM LP FUNDO DE
+ * INVESTIMENTO EM DIREITOS CREDITORIOS..." —, e isso já marca a empresa do card (pedido do time
+ * em 2026-10-27).</p>
  */
 @Component
 public class PropostaArParser {
@@ -34,9 +39,13 @@ public class PropostaArParser {
     public record SacadoLido(String documento, String nome, BigDecimal face, CarteiraSacado carteira) {
     }
 
-    /** {@code totalTitulos}/{@code totalFace}: linha TOTAL da tabela de sacados, nula se não veio. */
+    /**
+     * @param totalTitulos linha TOTAL da tabela de sacados, nula se não veio (com {@code totalFace})
+     * @param empresa      quem emitiu a AR, pelo cabeçalho; nula se o cabeçalho não disse
+     */
     public record Leitura(String clienteCodigo, String clienteNome, PropostaAr resumo,
-                          List<SacadoLido> sacados, Integer totalTitulos, BigDecimal totalFace) {
+                          List<SacadoLido> sacados, Integer totalTitulos, BigDecimal totalFace,
+                          EmpresaOperacao empresa) {
     }
 
     private enum Secao { CLIENTE, LIQUIDADOS, RECOMPRADOS, VENCIDOS, VINCENDOS, RISCO, SACADOS }
@@ -97,6 +106,7 @@ public class PropostaArParser {
         List<SacadoLido> sacados = new ArrayList<>();
         Integer totalTitulos = null;
         BigDecimal totalFace = null;
+        EmpresaOperacao empresa = null;
         boolean ehAr = false;
 
         Secao secao = Secao.CLIENTE;
@@ -110,6 +120,10 @@ public class PropostaArParser {
             }
             String rotulo = semAcento(linha).toUpperCase();
 
+            // Só o cabeçalho, antes do título: nome de sacado com "securitizadora" não confunde.
+            if (!ehAr && empresa == null) {
+                empresa = empresaDoCabecalho(rotulo);
+            }
             if (rotulo.startsWith("ANALISE DE RISCO - AR")) {
                 ehAr = true;
                 continue;
@@ -223,7 +237,18 @@ public class PropostaArParser {
                 risco == null ? null : risco[0], risco == null ? null : risco[1], risco == null ? null : risco[2],
                 risco == null ? null : risco[3], risco == null ? null : risco[4], risco == null ? null : risco[5],
                 tranche);
-        return new Leitura(clienteCodigo, clienteNome, resumo, List.copyOf(sacados), totalTitulos, totalFace);
+        return new Leitura(clienteCodigo, clienteNome, resumo, List.copyOf(sacados), totalTitulos, totalFace, empresa);
+    }
+
+    /** SEC pela securitizadora, FIDC pelo fundo; nulo se a linha não for de nenhum dos dois. */
+    static EmpresaOperacao empresaDoCabecalho(String rotulo) {
+        if (rotulo.contains("SECURITIZADORA")) {
+            return EmpresaOperacao.SEC;
+        }
+        if (rotulo.contains("FUNDO DE INVESTIMENTO") || rotulo.contains("DIREITOS CREDITORIOS")) {
+            return EmpresaOperacao.FIDC;
+        }
+        return null;
     }
 
     /** "1.234,56" → 1234.56 */

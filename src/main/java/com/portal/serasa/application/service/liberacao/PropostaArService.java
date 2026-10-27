@@ -46,11 +46,13 @@ public class PropostaArService {
      * @param cedenteCnpj       nulo quando o código do cliente não está vinculado a uma empresa do portal
      * @param cedenteCadastrado o CNPJ tem página de empresa no portal
      * @param semTitulo   sacados que aparecem na AR sem título nesta proposta; não entram no card
+     * @param empresa     SEC ou FIDC pelo cabeçalho da AR; nula quando o cabeçalho não disse
      */
     public record PropostaImportada(String cedenteCnpj, String cedenteNome, boolean cedenteCadastrado,
                                     String clienteCodigo, String clienteNome,
                                     PropostaAr proposta, List<SacadoImportado> sacados,
-                                    List<SacadoImportado> semTitulo, List<String> avisos) {
+                                    List<SacadoImportado> semTitulo, List<String> avisos,
+                                    com.portal.serasa.domain.model.liberacao.EmpresaOperacao empresa) {
     }
 
     public PropostaImportada importar(byte[] pdf) {
@@ -116,6 +118,10 @@ public class PropostaArService {
                     + " títulos). Confira a lista antes de salvar.");
         }
 
+        if (leitura.empresa() == null) {
+            avisos.add("O cabeçalho da AR não diz se é da Securitizadora ou do FIDC. Escolha a empresa no card.");
+        }
+
         PropostaAr proposta = leitura.resumo();
         if (proposta.qtdTotal() != null && proposta.qtdLiberados() != null
                 && !proposta.qtdTotal().equals(proposta.qtdLiberados()) && proposta.valorTotal() != null) {
@@ -124,7 +130,7 @@ public class PropostaArService {
         }
 
         return new PropostaImportada(cnpj, cedenteNome, cedenteCadastrado, leitura.clienteCodigo(), leitura.clienteNome(), proposta,
-                comTitulo, semTitulo, List.copyOf(avisos));
+                comTitulo, semTitulo, List.copyOf(avisos), leitura.empresa());
     }
 
     /** Mesma forma canônica do {@code client_code}: dígitos, sem zeros à esquerda. */

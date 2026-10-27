@@ -85,6 +85,9 @@ de Risco gerado pelo sistema de operações. O portal preenche:
 - **Cedente**, pelo código do cliente. Se o código ainda não estiver vinculado a uma empresa
   do portal, a tela avisa: escolha o cedente à mão e, depois, vincule o código na página da
   empresa (campo "Código do cliente") — da próxima vez ele vem sozinho.
+- **Empresa**, pelo cabeçalho do PDF: "JGM SECURITIZADORA S/A" marca **SEC**; "JGM LP FUNDO DE
+  INVESTIMENTO EM DIREITOS CREDITORIOS..." marca **FIDC**. Se o cabeçalho não disser, a tela avisa
+  e a empresa fica para escolher à mão.
 - **Valor da operação**: a face dos títulos **liberados**.
 - **Tranche**: o "a confirmar" mais o "não confirmados" da linha **TOTAL EM ABERTO**. Dá para
   corrigir à mão no formulário.

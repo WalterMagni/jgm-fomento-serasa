@@ -319,6 +319,8 @@ export type PropostaImportada = {
   sacados: SacadoImportado[];
   semTitulo: SacadoImportado[];
   avisos: string[];
+  /** SEC ou FIDC pelo cabeçalho da AR; nula quando o cabeçalho não disse. */
+  empresa: EmpresaOperacao | null;
 };
 
 /** O que o portal sabe de um CNPJ (CNPJ Já ou Serasa). */

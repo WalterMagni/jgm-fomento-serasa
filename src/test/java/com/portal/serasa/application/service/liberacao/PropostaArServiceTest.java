@@ -5,6 +5,7 @@ import com.portal.serasa.application.service.liberacao.PropostaArParser.Leitura;
 import com.portal.serasa.application.service.liberacao.PropostaArService.PropostaImportada;
 import com.portal.serasa.application.service.liberacao.PropostaArService.SacadoImportado;
 import com.portal.serasa.domain.model.Client;
+import com.portal.serasa.domain.model.liberacao.EmpresaOperacao;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.portal.serasa.application.service.liberacao.PropostaArTextos.TITULO;
 import static com.portal.serasa.application.service.liberacao.PropostaArTextos.CLIENTE;
 import static com.portal.serasa.application.service.liberacao.PropostaArTextos.DOC_BETA;
 import static com.portal.serasa.application.service.liberacao.PropostaArTextos.DOC_DELTA;
@@ -81,6 +83,23 @@ class PropostaArServiceTest {
 
     private void cedenteNaoVinculado() {
         when(clientRepository.findByClientCode("4821")).thenReturn(Optional.empty());
+    }
+
+    // ------------------------------------------------------------------------------------- empresa
+
+    @Test
+    @DisplayName("montar: a empresa do cabeçalho vai pronta para o card; sem ela, um aviso pede para escolher")
+    void shouldCarryIssuerOrWarn() {
+        cedenteNaoVinculado();
+
+        PropostaImportada fidc = service.montar(ler(ar()));
+        assertThat(fidc.empresa()).isEqualTo(EmpresaOperacao.FIDC);
+        assertThat(fidc.avisos()).noneMatch(aviso -> aviso.contains("Securitizadora ou do FIDC"));
+
+        PropostaImportada semEmpresa = service.montar(ler(ar().replace(TITULO + "\n", "")));
+        assertThat(semEmpresa.empresa()).isNull();
+        assertThat(semEmpresa.avisos()).contains(
+                "O cabeçalho da AR não diz se é da Securitizadora ou do FIDC. Escolha a empresa no card.");
     }
 
     // ------------------------------------------------------------------------------------- cedente

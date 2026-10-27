@@ -226,13 +226,17 @@ export default function CardForm({ inicial, enviando, rotuloEnviar, sacadosTrava
     );
   }
 
-  /** Preenche cedente, valor e sacados com a AR. Sacados digitados antes são trocados, com confirmação. */
+  /**
+   * Preenche cedente, empresa, valor e sacados com a AR. A empresa vem do cabeçalho do PDF (SEC ou
+   * FIDC); sem ela, fica a que já estava escolhida. Sacados digitados antes são trocados, com confirmação.
+   */
   function aplicarImportacao(resultado: PropostaImportada, arquivo: File) {
     const digitados = linhas.filter(linha => linha.documento.replace(/\D/g, ""));
     if (digitados.length > 0 && !importacao && !confirmar("Trocar os sacados já digitados pelos da proposta?")) return;
     if (resultado.cedenteCnpj) {
       setCedente({ cnpj: resultado.cedenteCnpj, nome: resultado.cedenteNome ?? resultado.clienteNome ?? "", cadastrado: resultado.cedenteCadastrado });
     }
+    if (resultado.empresa) setEmpresa(resultado.empresa);
     if (resultado.proposta.faceLiberados != null) setValor(moedaParaCampo(resultado.proposta.faceLiberados));
     if (resultado.proposta.tranche != null) setTranche(moedaParaCampo(resultado.proposta.tranche));
     setLinhas(
